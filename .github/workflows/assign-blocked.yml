@@ -9,15 +9,27 @@ jobs:
     if: github.event.label.name == 'blocked'
     runs-on: ubuntu-latest
     steps:
-      - name: Move to Blocked column
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Authenticate with GitHub CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${GH_TOKEN}" | gh auth login --with-token
+
+      - name: Move issue to Blocked column
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ISSUE_URL="${{ github.event.issue.url }}"
+          # Find the first project associated with the issue
           PROJECT_ID=$(gh api "$ISSUE_URL/projects" --jq '.[0].id')
+          # Get the ID of the Blocked column
           COLUMN_ID=$(gh api /projects/$PROJECT_ID/columns --jq '.[] | select(.name=="Blocked") | .id')
-          CARD_ID=$(gh api /projects/$PROJECT_ID/columns --jq '.[] | .id' |
-              xargs -I {} gh api /projects/columns/{}/cards --jq '.[] | select(.content_url=="'"$ISSUE_URL"'") | .id')
+          # Move the issue card to the Blocked column
           gh api --method POST /projects/columns/$COLUMN_ID/cards \
-              -F "content_id=${{ github.event.issue.id }}" \
-              -F "content_type=Issue"
+            -F "content_id=${{ github.event.issue.id }}" \
+            -F "content_type=Issue"
