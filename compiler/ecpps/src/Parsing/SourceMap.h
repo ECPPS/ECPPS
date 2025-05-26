@@ -2,23 +2,30 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "../Shared/Diagnostics.h"
 #include "../Shared/Config.h"
+#include "../Shared/Diagnostics.h"
 
 namespace ecpps
 {
+     struct Location
+     {
+          std::size_t line{};
+          std::size_t position{};
+          explicit Location(const std::size_t line, const std::size_t position) : line(line), position(position) {}
+     };
      struct SourceFile
      {
           std::string name{};
           std::string contents{};
           Diagnostics diagnostics{};
+          explicit SourceFile(void) = default;
      };
      struct SourceMap
      {
           explicit SourceMap(CompilerConfig& config);
           std::vector<SourceFile> files{};
 
-        private:
+     private:
           std::reference_wrapper<CompilerConfig> _config;
      };
 } // namespace ecpps
