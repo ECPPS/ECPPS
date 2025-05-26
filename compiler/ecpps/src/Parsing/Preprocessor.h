@@ -1,10 +1,10 @@
 #pragma once
+#include <cctype>
 #include <cstdint>
 #include <string>
 #include <utility>
-#include "SourceMap.h"
 #include <vector>
-#include <cctype>
+#include "SourceMap.h"
 
 namespace ecpps
 {
@@ -31,6 +31,7 @@ namespace ecpps
      {
      public:
           [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source);
+
      private:
           static bool IsDigit(const char ch) { return std::isdigit(ch); }
           static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) || ch == '_'; }

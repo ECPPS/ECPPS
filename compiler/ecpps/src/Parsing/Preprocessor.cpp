@@ -38,7 +38,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (IsDigit(character))
           {
-               std::string numeric{ character };
+               std::string numeric{character};
                bool seenDot = false;
                while (sourceIterator != source.end())
                {
@@ -67,7 +67,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (character == '#') // preprocessing
           {
-
           }
      }
 
