@@ -2,8 +2,8 @@
 #include <functional>
 #include <string>
 #include <vector>
-#include "../Shared/Diagnostics.h"
 #include "../Shared/Config.h"
+#include "../Shared/Diagnostics.h"
 
 namespace ecpps
 {
@@ -18,7 +18,7 @@ namespace ecpps
           explicit SourceMap(CompilerConfig& config);
           std::vector<SourceFile> files{};
 
-        private:
+     private:
           std::reference_wrapper<CompilerConfig> _config;
      };
 } // namespace ecpps
