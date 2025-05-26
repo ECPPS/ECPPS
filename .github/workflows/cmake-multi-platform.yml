@@ -47,6 +47,16 @@ jobs:
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+    - name: Enforce clang-format style
+      if: matrix.c_compiler == 'clang' || matrix.cpp_compiler == 'clang++'
+      shell: bash
+      run: |
+        files=$(git ls-files '*.cpp' '*.h' '*.hpp' '*.cxx' '*.c' '*.cc')
+        clang-format --version
+        
+        # Run clang-format in dry-run mode with warnings as errors to enforce style
+        echo "$files" | xargs clang-format --dry-run --Werror
+        
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
