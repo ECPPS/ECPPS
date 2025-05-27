@@ -90,6 +90,88 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                location.endPosition = location.position;
                tokens.emplace_back(PreprocessingTokenType::Number, numeric, location);
           }
+          else if (character == '"' || character == '\'')
+          {
+               const bool isChar = character == '\'';
+               const char delimiter = character;
+
+               std::string literal{ delimiter };
+               bool escaped = false;
+
+               while (++sourceIterator != source.end())
+               {
+                    character = *sourceIterator;
+                    literal += character;
+
+                    if (escaped)
+                    {
+                         escaped = false;
+                         continue;
+                    }
+
+                    if (character == '\\')
+                    {
+                         escaped = true;
+                         continue;
+                    }
+
+                    if (character == delimiter)
+                    {
+                         break;
+                    }
+
+                    if (character == '\n' || character == '\r')
+                    {
+                         // TODO: Error
+                         break;
+                    }
+               }
+
+               location.endPosition = location.position;
+               tokens.emplace_back(isChar ? PreprocessingTokenType::CharacterLiteral
+                                   : PreprocessingTokenType::StringLiteral,
+                                   literal, location);
+          }
+          else if (*sourceIterator == 'R' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '"')
+          {
+               // Raw string literal
+               ++sourceIterator; // Skip 'R'
+               std::string literal{ "R\"" };
+               ++sourceIterator; // Skip opening "
+
+               std::string delimiter;
+               while (sourceIterator != source.end() && *sourceIterator != '(')
+               {
+                    delimiter += *sourceIterator;
+                    literal += *sourceIterator;
+                    ++sourceIterator;
+               }
+
+               if (sourceIterator == source.end()) break;
+
+               literal += '(';
+               ++sourceIterator;
+
+               while (sourceIterator != source.end())
+               {
+                    if (*sourceIterator == ')' &&
+                        std::string_view{ &*std::next(sourceIterator), delimiter.size() } == delimiter &&
+                        *std::next(sourceIterator, delimiter.size()) == '"')
+                    {
+                         literal += ')';
+                         for (std::size_t i = 0; i < delimiter.size(); ++i)
+                              literal += *++sourceIterator;
+                         literal += *++sourceIterator;
+                         break;
+                    }
+
+                    literal += *sourceIterator;
+                    ++sourceIterator;
+               }
+
+               location.endPosition = location.position;
+               tokens.emplace_back(PreprocessingTokenType::StringLiteral, literal, location);
+          }
           else if (character == '#') // preprocessing
           {
           }
