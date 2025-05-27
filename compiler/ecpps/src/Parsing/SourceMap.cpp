@@ -23,5 +23,7 @@ ecpps::SourceMap::SourceMap(CompilerConfig& config) : _config(std::ref(config))
           SourceFile sourceFile{};
           sourceFile.name = fileName;
           sourceFile.contents = content;
+          file.close();
+          this->files.push_back(sourceFile);
      }
 }
