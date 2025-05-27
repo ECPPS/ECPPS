@@ -1,7 +1,7 @@
 #include "Preprocessor.h"
 #include <cctype>
-#include <unordered_set>
 #include <print>
+#include <unordered_set>
 #include "Tokeniser.h"
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source)
@@ -95,7 +95,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (IsOperatorOrPunctuatorBeginning(character))
           {
-               std::string operatorOrPunctuator{ character };
+               std::string operatorOrPunctuator{character};
                while (sourceIterator != source.end() && IsOperatorOrPunctuator(operatorOrPunctuator + *sourceIterator))
                {
                     ++sourceIterator;
@@ -113,7 +113,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 {
      Location previous{0, 0, 0};
-     
+
      for (const auto& token : ppTokens)
      {
           if (token.source.line != previous.line)
@@ -144,15 +144,15 @@ bool ecpps::Preprocessor::IsOperatorOrPunctuator(const std::string& string)
      static std::unordered_set<std::string> OperatorsAndPunctuators{
          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
-         "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  "," };
+         "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
 
      return false;
 }
 
 bool ecpps::Preprocessor::IsOperatorOrPunctuatorBeginning(char ch)
 {
-     static std::unordered_set<char> OperatorCharacters = { '{', '}', '[', ']', '(', ')', '.', '-', '~', '!', ';', ':',
-                                                           '+', '?', '*', '/', '%', '^', '&', '|', '<', '>', '=', ',' };
+     static std::unordered_set<char> OperatorCharacters = {'{', '}', '[', ']', '(', ')', '.', '-', '~', '!', ';', ':',
+                                                           '+', '?', '*', '/', '%', '^', '&', '|', '<', '>', '=', ','};
 
      return OperatorCharacters.contains(ch);
 }

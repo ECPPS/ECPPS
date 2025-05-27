@@ -1,8 +1,8 @@
+#include <print>
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include <print>
 
 int main(int argc, char* argv[])
 {
