@@ -95,7 +95,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                const bool isChar = character == '\'';
                const char delimiter = character;
 
-               std::string literal{ delimiter };
+               std::string literal{delimiter};
                bool escaped = false;
 
                while (++sourceIterator != source.end())
@@ -115,10 +115,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          continue;
                     }
 
-                    if (character == delimiter)
-                    {
-                         break;
-                    }
+                    if (character == delimiter) { break; }
 
                     if (character == '\n' || character == '\r')
                     {
@@ -129,14 +126,15 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                location.endPosition = location.position;
                tokens.emplace_back(isChar ? PreprocessingTokenType::CharacterLiteral
-                                   : PreprocessingTokenType::StringLiteral,
+                                          : PreprocessingTokenType::StringLiteral,
                                    literal, location);
           }
-          else if (*sourceIterator == 'R' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '"')
+          else if (*sourceIterator == 'R' && std::next(sourceIterator) != source.end() &&
+                   *std::next(sourceIterator) == '"')
           {
                // Raw string literal
                ++sourceIterator; // Skip 'R'
-               std::string literal{ "R\"" };
+               std::string literal{"R\""};
                ++sourceIterator; // Skip opening "
 
                std::string delimiter;
@@ -155,12 +153,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                while (sourceIterator != source.end())
                {
                     if (*sourceIterator == ')' &&
-                        std::string_view{ &*std::next(sourceIterator), delimiter.size() } == delimiter &&
+                        std::string_view{&*std::next(sourceIterator), delimiter.size()} == delimiter &&
                         *std::next(sourceIterator, delimiter.size()) == '"')
                     {
                          literal += ')';
-                         for (std::size_t i = 0; i < delimiter.size(); ++i)
-                              literal += *++sourceIterator;
+                         for (std::size_t i = 0; i < delimiter.size(); ++i) literal += *++sourceIterator;
                          literal += *++sourceIterator;
                          break;
                     }
