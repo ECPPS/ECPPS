@@ -2,6 +2,7 @@
 #include <cctype>
 #include <unordered_set>
 #include <print>
+#include "Tokeniser.h"
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source)
 {
@@ -67,6 +68,25 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     numeric += peek;
                }
 
+               auto suffixIt = std::next(sourceIterator);
+               if (suffixIt != source.end() && (std::isalpha(*suffixIt) || *suffixIt == '_'))
+               {
+                    std::string suffix;
+                    auto it = suffixIt;
+
+                    while (it != source.end() && (std::isalnum(*it) || *it == '_'))
+                    {
+                         suffix += *it;
+                         ++it;
+                    }
+
+                    if (!suffix.empty())
+                    {
+                         numeric += suffix;
+                         std::advance(sourceIterator, suffix.length());
+                    }
+               }
+
                location.endPosition = location.position;
                tokens.emplace_back(PreprocessingTokenType::Number, numeric, location);
           }
@@ -100,6 +120,8 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
           {
                std::println();
                previous.line = token.source.line;
+               previous.position = 0;
+               previous.endPosition = 0;
           }
           std::string colour{};
           switch (token.type)

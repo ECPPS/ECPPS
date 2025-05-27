@@ -27,6 +27,7 @@ namespace ecpps
           {
           }
      };
+     class Tokeniser;
      class Preprocessor
      {
      public:
@@ -39,5 +40,7 @@ namespace ecpps
           static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) || ch == '_'; }
           static bool IsOperatorOrPunctuator(const std::string& string);
           static bool IsOperatorOrPunctuatorBeginning(char ch);
+
+          friend class Tokeniser;
      };
 } // namespace ecpps
