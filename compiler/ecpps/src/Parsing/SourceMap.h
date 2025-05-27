@@ -11,7 +11,12 @@ namespace ecpps
      {
           std::size_t line{};
           std::size_t position{};
-          explicit Location(const std::size_t line, const std::size_t position) : line(line), position(position) {}
+          std::size_t endPosition{};
+
+          explicit Location(const std::size_t line, const std::size_t position, const std::size_t endPosition)
+              : line(line), position(position), endPosition(endPosition)
+          {
+          }
      };
      struct SourceFile
      {

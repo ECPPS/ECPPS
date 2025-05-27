@@ -31,10 +31,13 @@ namespace ecpps
      {
      public:
           [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source);
+          [[nodiscard]] static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:
           static bool IsDigit(const char ch) { return std::isdigit(ch); }
           static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) || ch == '_'; }
           static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) || ch == '_'; }
+          static bool IsOperatorOrPunctuator(const std::string& string);
+          static bool IsOperatorOrPunctuatorBeginning(char ch);
      };
 } // namespace ecpps

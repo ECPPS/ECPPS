@@ -17,7 +17,9 @@ int main(int argc, char* argv[])
      for (const auto& source : sources.files)
      {
           const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
+          ecpps::Preprocessor::Print(ppTokens);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
+
      }
 
      return 0;
