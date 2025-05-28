@@ -27,11 +27,14 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
           case PreprocessingTokenType::CharacterLiteral:
           {
                tokens.emplace_back(TokenType::Literal, preprocessorToken.value[0], preprocessorToken.source);
-          } break;
+          }
+          break;
           case PreprocessingTokenType::StringLiteral:
           {
-               tokens.emplace_back(TokenType::Literal, StringLiteral{ preprocessorToken.value }, preprocessorToken.source);
-          } break;
+               tokens.emplace_back(TokenType::Literal, StringLiteral{preprocessorToken.value},
+                                   preprocessorToken.source);
+          }
+          break;
           case PreprocessingTokenType::Number:
           {
                const auto& str = preprocessorToken.value;
@@ -158,10 +161,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                                            { return "\"" + literal.value + "\""; },
                                            [](const IntegerLiteral& literal) -> std::string
                                            { return std::to_string(literal.value); },
-                                           [](const char& literal) -> std::string
-                                           {
-                                                return "'"s + literal + "'";
-                                           },
+                                           [](const char& literal) -> std::string { return "'"s + literal + "'"; },
                                            [](const FloatingPointLiteral& literal) -> std::string
                                            { return std::to_string(literal.value); },
                                        },

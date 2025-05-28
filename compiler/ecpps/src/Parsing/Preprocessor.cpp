@@ -135,7 +135,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '/')
           {
-               std::string comment{ "//" };
+               std::string comment{"//"};
                ++sourceIterator;
 
                while (++sourceIterator != source.end())
@@ -147,9 +147,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                location.endPosition = location.position;
           }
-          else if(character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '*')
+          else if (character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '*')
           {
-               std::string comment{ "/*" };
+               std::string comment{"/*"};
                ++sourceIterator;
 
                bool closed = false;
