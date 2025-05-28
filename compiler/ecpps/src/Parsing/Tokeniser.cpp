@@ -1,5 +1,6 @@
 #include "Tokeniser.h"
 #include <print>
+#include <string>
 #include <unordered_set>
 #include "Preprocessor.h"
 
@@ -23,6 +24,14 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     tokens.emplace_back(TokenType::Identifier, preprocessorToken.value, preprocessorToken.source);
           }
           break;
+          case PreprocessingTokenType::CharacterLiteral:
+          {
+               tokens.emplace_back(TokenType::Literal, preprocessorToken.value[0], preprocessorToken.source);
+          } break;
+          case PreprocessingTokenType::StringLiteral:
+          {
+               tokens.emplace_back(TokenType::Literal, StringLiteral{ preprocessorToken.value }, preprocessorToken.source);
+          } break;
           case PreprocessingTokenType::Number:
           {
                const auto& str = preprocessorToken.value;
@@ -103,6 +112,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
 
 void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
 {
+     using std::string_literals::operator""s;
      Location previous{0, 0, 0};
 
      for (const auto& token : tokens)
@@ -136,16 +146,22 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                value = std::visit(
                    OverloadedVisitor{
                        [](const bool& boolean) -> std::string { return boolean ? "true" : "false"; },
-                       [](const StringLiteral& literal) -> std::string { return literal.value; },
+                       [](const StringLiteral& literal) -> std::string { return "\"" + literal.value + "\""; },
                        [](const IntegerLiteral& literal) -> std::string { return std::to_string(literal.value); },
+                       [](const char literal) -> std::string { return "'"s + literal + "'"; },
                        [](const FloatingPointLiteral& literal) -> std::string { return std::to_string(literal.value); },
                        [](const UserDefinedLiteral& udl) -> std::string
                        {
                             return std::visit(
                                        OverloadedVisitor{
-                                           [](const StringLiteral& literal) -> std::string { return literal.value; },
+                                           [](const StringLiteral& literal) -> std::string
+                                           { return "\"" + literal.value + "\""; },
                                            [](const IntegerLiteral& literal) -> std::string
                                            { return std::to_string(literal.value); },
+                                           [](const char& literal) -> std::string
+                                           {
+                                                return "'"s + literal + "'";
+                                           },
                                            [](const FloatingPointLiteral& literal) -> std::string
                                            { return std::to_string(literal.value); },
                                        },
