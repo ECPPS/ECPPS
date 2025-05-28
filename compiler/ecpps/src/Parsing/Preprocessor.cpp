@@ -95,7 +95,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                const bool isChar = character == '\'';
                const char delimiter = character;
 
-               std::string literal{delimiter};
+               std::string literal{};
                bool escaped = false;
 
                while (++sourceIterator != source.end())
@@ -115,7 +115,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          continue;
                     }
 
-                    if (character == delimiter) { break; }
+                    if (character == delimiter)
+                    {
+                         literal.pop_back();
+                         break;
+                    }
 
                     if (character == '\n' || character == '\r')
                     {
@@ -128,6 +132,43 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                tokens.emplace_back(isChar ? PreprocessingTokenType::CharacterLiteral
                                           : PreprocessingTokenType::StringLiteral,
                                    literal, location);
+          }
+          else if (character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '/')
+          {
+               std::string comment{"//"};
+               ++sourceIterator;
+
+               while (++sourceIterator != source.end())
+               {
+                    character = *sourceIterator;
+                    if (character == '\n' || character == '\r') break;
+                    comment += character;
+               }
+
+               location.endPosition = location.position;
+          }
+          else if (character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '*')
+          {
+               std::string comment{"/*"};
+               ++sourceIterator;
+
+               bool closed = false;
+               while (++sourceIterator != source.end())
+               {
+                    character = *sourceIterator;
+                    comment += character;
+
+                    if (character == '*' && std::next(sourceIterator) != source.end() &&
+                        *std::next(sourceIterator) == '/')
+                    {
+                         ++sourceIterator;
+                         comment += '/';
+                         closed = true;
+                         break;
+                    }
+               }
+
+               location.endPosition = location.position;
           }
           else if (*sourceIterator == 'R' && std::next(sourceIterator) != source.end() &&
                    *std::next(sourceIterator) == '"')

@@ -89,7 +89,7 @@ namespace ecpps
 
      struct Token
      {
-          using TokenValue = std::variant<std::monostate, std::string, bool, StringLiteral, IntegerLiteral,
+          using TokenValue = std::variant<std::monostate, std::string, bool, StringLiteral, char, IntegerLiteral,
                                           FloatingPointLiteral, UserDefinedLiteral>;
 
           TokenType type;
