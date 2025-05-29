@@ -152,9 +152,7 @@ namespace ecpps::ast
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
                const auto m = this->externOptional.has_value();
-               if (this->isExtern)
-                    built +=
-                        "extern " + (m ? ("\""s + this->externOptional.value() + "\"") : "");
+               if (this->isExtern) built += "extern " + (m ? ("\""s + this->externOptional.value() + "\"") : "");
                switch (this->constexprSpecifier)
                {
                case ConstantExpressionSpecifier::None: break;
@@ -213,10 +211,11 @@ namespace ecpps::ast
      class ThisNode final : public Node
      {
      public:
-          explicit ThisNode(Location source)
-               : Node(std::move(source))
-          {}
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return std::string(indent * PrettyIndent, ' ') + "this"; }
+          explicit ThisNode(Location source) : Node(std::move(source)) {}
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "this";
+          }
      };
 
      enum struct UnaryOperatorType : std::uint8_t
@@ -229,12 +228,19 @@ namespace ecpps::ast
      {
      public:
           explicit UnaryOperatorNode(Operator value, NodePointer operand, const UnaryOperatorType type, Location source)
-               : Node(std::move(source)), _value(std::move(value)), _operand(std::move(operand)), _type(type)
-          {}
+              : Node(std::move(source)), _value(std::move(value)), _operand(std::move(operand)), _type(type)
+          {
+          }
           [[nodiscard]] const Operator& value(void) const noexcept { return this->_value; }
           [[nodiscard]] const NodePointer& operand(void) const noexcept { return this->_operand; }
           [[nodiscard]] UnaryOperatorType unaryType(void) const noexcept { return this->_type; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return this->_type == UnaryOperatorType::Postfix ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value)) : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0)); }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return this->_type == UnaryOperatorType::Postfix
+                          ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
+                          : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0));
+          }
+
      private:
           Operator _value;
           NodePointer _operand;
@@ -245,18 +251,23 @@ namespace ecpps::ast
      {
      public:
           explicit BinaryOperatorNode(NodePointer left, Operator value, NodePointer right, Location source)
-               : Node(std::move(source)), _left(std::move(left)), _value(std::move(value)), _right(std::move(right))
-          {}
+              : Node(std::move(source)), _left(std::move(left)), _value(std::move(value)), _right(std::move(right))
+          {
+          }
           [[nodiscard]] const Operator& value(void) const noexcept { return this->_value; }
           [[nodiscard]] const NodePointer& left(void) const noexcept { return this->_left; }
           [[nodiscard]] const NodePointer& right(void) const noexcept { return this->_right; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return this->_left->ToString(indent) + " " + ecpps::ast::ToString(this->_value) + " " + this->_right->ToString(0); }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return this->_left->ToString(indent) + " " + ecpps::ast::ToString(this->_value) + " " +
+                      this->_right->ToString(0);
+          }
+
      private:
           NodePointer _left;
           Operator _value;
           NodePointer _right;
      };
-
 
      class AST
      {

@@ -1,9 +1,9 @@
 #include <print>
+#include "Parsing/AST.h"
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include "Parsing/AST.h"
 
 int main(int argc, char* argv[])
 {
@@ -25,13 +25,10 @@ int main(int argc, char* argv[])
           std::println();
           std::println("Tokens:");
           ecpps::Tokeniser::Print(tokens);
-          const auto ast = ecpps::ast::AST{ tokens, source.diagnostics }.Parse();
+          const auto ast = ecpps::ast::AST{tokens, source.diagnostics}.Parse();
           std::println();
           std::println("AST:");
-          for (const auto& node : ast)
-          {
-               std::println("{}", node->ToString(0));
-          }
+          for (const auto& node : ast) { std::println("{}", node->ToString(0)); }
      }
 
      return 0;
