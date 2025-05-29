@@ -249,6 +249,7 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
           case PreprocessingTokenType::Identifier: colour = "\x1b[37m"; break;
           case PreprocessingTokenType::CharacterLiteral: colour = "\x1b[31m"; break;
           case PreprocessingTokenType::StringLiteral: colour = "\x1b[32m"; break;
+          case PreprocessingTokenType::Number: colour = "\x1b[36m"; break;
           case PreprocessingTokenType::OperatorOrPuncturator: colour = "\x1b[35m"; break;
           }
           const std::string spaces(token.source.position - previous.endPosition - 1, ' ');

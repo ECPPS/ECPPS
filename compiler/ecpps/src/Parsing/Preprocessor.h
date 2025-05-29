@@ -18,8 +18,8 @@ namespace ecpps
      };
      struct PreprocessingToken
      {
-          PreprocessingTokenType type{};
-          std::string value{};
+          PreprocessingTokenType type;
+          std::string value;
           Location source;
 
           explicit PreprocessingToken(const PreprocessingTokenType type, std::string value, const Location source)

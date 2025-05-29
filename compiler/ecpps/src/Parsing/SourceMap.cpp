@@ -18,7 +18,7 @@ ecpps::SourceMap::SourceMap(CompilerConfig& config) : _config(std::ref(config))
           file.seekg(0);
           file.read(content.data(), size);
 
-          if (content.starts_with("\xEF\xBB\xBF")) content.erase(0, 3);
+          if (content.starts_with("\xEF\xBB\xBF")) content.erase(0, 3); // remove BOM
 
           SourceFile sourceFile{};
           sourceFile.name = fileName;
