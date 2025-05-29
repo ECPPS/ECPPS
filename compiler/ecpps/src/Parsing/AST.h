@@ -259,8 +259,8 @@ namespace ecpps::ast
           [[nodiscard]] const NodePointer& right(void) const noexcept { return this->_right; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + "(" + this->_left->ToString(0) + " " + ecpps::ast::ToString(this->_value) + " " +
-                      this->_right->ToString(0) + ")";
+               return std::string(indent * PrettyIndent, ' ') + "(" + this->_left->ToString(0) + " " +
+                      ecpps::ast::ToString(this->_value) + " " + this->_right->ToString(0) + ")";
           }
 
      private:
@@ -273,8 +273,9 @@ namespace ecpps::ast
      {
      public:
           explicit ReturnNode(NodePointer expression, Location source)
-               : Node(std::move(source)), _expression(std::move(expression))
-          {}
+              : Node(std::move(source)), _expression(std::move(expression))
+          {
+          }
 
           [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_expression; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
@@ -282,6 +283,7 @@ namespace ecpps::ast
                if (this->_expression == nullptr) return std::string(indent * PrettyIndent, ' ') + "return";
                return std::string(indent * PrettyIndent, ' ') + "return " + this->_expression->ToString(0);
           }
+
      private:
           NodePointer _expression;
      };
