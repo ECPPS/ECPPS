@@ -269,6 +269,23 @@ namespace ecpps::ast
           NodePointer _right;
      };
 
+     class ReturnNode final : public Node
+     {
+     public:
+          explicit ReturnNode(NodePointer expression, Location source)
+               : Node(std::move(source)), _expression(std::move(expression))
+          {}
+
+          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_expression; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               if (this->_expression == nullptr) return std::string(indent * PrettyIndent, ' ') + "return";
+               return std::string(indent * PrettyIndent, ' ') + "return " + this->_expression->ToString(0);
+          }
+     private:
+          NodePointer _expression;
+     };
+
      class BooleanLiteralNode final : public Node
      {
      public:

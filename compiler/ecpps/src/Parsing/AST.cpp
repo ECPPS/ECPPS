@@ -339,7 +339,7 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(void)
                auto expression = ParseCastExpression();
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
+                   std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
                return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
                                                           source);
           }
@@ -353,10 +353,10 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(void)
                auto expression = ParseCastExpression();
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
+                   std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
                return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
                                                           source);
-          }   
+          }
           if (std::get<std::string>(currentToken.value) == "*" || std::get<std::string>(currentToken.value) == "&")
           {
                Advance();
@@ -364,10 +364,10 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(void)
                auto expression = ParseCastExpression();
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
+                   std::get<std::string>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
                return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
                                                           source);
-          }     
+          }
           if (std::get<std::string>(currentToken.value) == "~" || std::get<std::string>(currentToken.value) == "!")
           {
                Advance();
@@ -375,7 +375,7 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(void)
                auto expression = ParseCastExpression();
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
+                   std::get<std::string>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
                return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
                                                           source);
           }
@@ -640,7 +640,24 @@ NodePointer ecpps::ast::AST::ParseExpression(void)
      return expression;
 }
 
-NodePointer ecpps::ast::AST::ParseStatement(void) { return ParseExpressionStatement(); }
+NodePointer ecpps::ast::AST::ParseStatement(void)
+{
+     auto source = this->Peek().location;
+     if (Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "return")
+     {
+          Advance();
+          if (Match(TokenType::SemiColon)) return std::make_unique<ReturnNode>(nullptr, source);
+          auto value = ParseExpression();
+          source.endPosition = Peek().location.endPosition;
+          if (!Match(TokenType::SemiColon))
+          {
+               // TODO: Error
+               return nullptr;
+          }
+          return std::make_unique<ReturnNode>(std::move(value), source);
+     }
+     return ParseExpressionStatement();
+}
 
 NodePointer ecpps::ast::AST::ParseExpressionStatement(void)
 {
