@@ -131,6 +131,22 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 
      switch (currentToken.type)
      {
+     case TokenType::Literal:
+     {
+          this->Advance();
+          return std::visit(
+              OverloadedVisitor{[&currentToken](const bool boolean) -> NodePointer
+                                { return std::make_unique<BooleanLiteralNode>(boolean, currentToken.location); },
+                                [&currentToken](const StringLiteral& literal) -> NodePointer
+                                { return std::make_unique<StringLiteralNode>(literal.value, currentToken.location); },
+                                [&currentToken](const IntegerLiteral& literal) -> NodePointer
+                                { return std::make_unique<IntegerLiteralNode>(literal.value, currentToken.location); },
+                                [&currentToken](const char literal) -> NodePointer
+                                { return std::make_unique<CharacterLiteralNode>(literal, currentToken.location); },
+                                [&currentToken](auto&&) -> NodePointer { return nullptr; }},
+              currentToken.value);
+     }
+     break;
      case TokenType::Keyword:
      {
           const auto keyword = std::get<std::string>(currentToken.value);
