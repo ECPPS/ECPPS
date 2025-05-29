@@ -272,11 +272,13 @@ namespace ecpps::ast
      class BooleanLiteralNode final : public Node
      {
      public:
-          explicit BooleanLiteralNode(const bool value, Location source)
-               : Node(std::move(source)), _value(value)
-          {}
+          explicit BooleanLiteralNode(const bool value, Location source) : Node(std::move(source)), _value(value) {}
           [[nodiscard]] bool value(void) const noexcept { return this->_value; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false"); }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false");
+          }
+
      private:
           bool _value;
      };
@@ -284,10 +286,14 @@ namespace ecpps::ast
      {
      public:
           explicit StringLiteralNode(std::string value, Location source)
-               : Node(std::move(source)), _value(std::move(value))
-          {}
+              : Node(std::move(source)), _value(std::move(value))
+          {
+          }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\""; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
+          }
           [[nodiscard]] const std::string& value(void) const noexcept { return this->_value; }
 
      private:
@@ -298,10 +304,15 @@ namespace ecpps::ast
      {
      public:
           explicit IntegerLiteralNode(const unsigned long long value, Location source)
-               : Node(std::move(source)), _value(value)
-          {}
+              : Node(std::move(source)), _value(value)
+          {
+          }
           [[nodiscard]] unsigned long long Value(void) const noexcept { return this->_value; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
+          }
+
      private:
           unsigned long long _value;
           bool _isNegative;
@@ -310,11 +321,13 @@ namespace ecpps::ast
      class CharacterLiteralNode final : public Node
      {
      public:
-          explicit CharacterLiteralNode(const char value, Location source)
-               : Node(std::move(source)), _value(value)
-          {}
+          explicit CharacterLiteralNode(const char value, Location source) : Node(std::move(source)), _value(value) {}
           [[nodiscard]] char value(void) const noexcept { return this->_value; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
+          }
+
      private:
           char _value;
           bool _isNegative;
