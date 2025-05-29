@@ -339,8 +339,44 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(void)
                auto expression = ParseCastExpression();
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                   std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
-               return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Postfix,
+                    std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
+               return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
+                                                          source);
+          }
+     }
+     if (currentToken.type == TokenType::Operator)
+     {
+          if (std::get<std::string>(currentToken.value) == "+" || std::get<std::string>(currentToken.value) == "-")
+          {
+               Advance();
+               auto source = currentToken.location;
+               auto expression = ParseCastExpression();
+               source.endPosition = Peek().location.endPosition;
+               const auto operatorId =
+                    std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
+               return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
+                                                          source);
+          }   
+          if (std::get<std::string>(currentToken.value) == "*" || std::get<std::string>(currentToken.value) == "&")
+          {
+               Advance();
+               auto source = currentToken.location;
+               auto expression = ParseCastExpression();
+               source.endPosition = Peek().location.endPosition;
+               const auto operatorId =
+                    std::get<std::string>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
+               return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
+                                                          source);
+          }     
+          if (std::get<std::string>(currentToken.value) == "~" || std::get<std::string>(currentToken.value) == "!")
+          {
+               Advance();
+               auto source = currentToken.location;
+               auto expression = ParseCastExpression();
+               source.endPosition = Peek().location.endPosition;
+               const auto operatorId =
+                    std::get<std::string>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
+               return std::make_unique<UnaryOperatorNode>(operatorId, std::move(expression), UnaryOperatorType::Prefix,
                                                           source);
           }
      }

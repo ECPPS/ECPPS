@@ -259,8 +259,8 @@ namespace ecpps::ast
           [[nodiscard]] const NodePointer& right(void) const noexcept { return this->_right; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return this->_left->ToString(indent) + " " + ecpps::ast::ToString(this->_value) + " " +
-                      this->_right->ToString(0);
+               return std::string(indent * PrettyIndent, ' ') + "(" + this->_left->ToString(0) + " " + ecpps::ast::ToString(this->_value) + " " +
+                      this->_right->ToString(0) + ")";
           }
 
      private:
