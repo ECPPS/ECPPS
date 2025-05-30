@@ -3,11 +3,11 @@
 
 namespace ecpps::typeSystem
 {
-	class TypeBase	// dummy class
-	{
-	public:
-		virtual ~TypeBase(void) = default;
-	};
+     class TypeBase // dummy class
+     {
+     public:
+          virtual ~TypeBase(void) = default;
+     };
 
-	using TypePointer = std::shared_ptr<TypeBase>;
-}
+     using TypePointer = std::shared_ptr<TypeBase>;
+} // namespace ecpps::typeSystem
