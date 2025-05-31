@@ -91,8 +91,9 @@ namespace ecpps::codegen
           OperandSize size;
 
           explicit MovInstruction(Operand source, Operand destination, const OperandSize size)
-               : source(std::move(source)), destination(std::move(destination)), size(size)
-          {}
+              : source(std::move(source)), destination(std::move(destination)), size(size)
+          {
+          }
      };
      /// <summary>
      /// Instruction to use for the branch jump. Each one of those is documented by a comment
@@ -183,22 +184,25 @@ namespace ecpps::codegen
 
           static Routine Branchless(std::vector<Instruction>&& instructions)
           {
-               return Routine{ std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure };
+               return Routine{std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure};
           }
 
           static Routine WhileLoop(std::vector<Instruction>&& instructions, const RoutineCondition condition)
           {
-               return Routine{ std::move(instructions), RoutineCondition::Procedure, condition };
+               return Routine{std::move(instructions), RoutineCondition::Procedure, condition};
           }
 
           static Routine Branch(std::vector<Instruction>&& instructions, const RoutineCondition condition)
           {
-               return Routine{ std::move(instructions), condition, RoutineCondition::Procedure };
+               return Routine{std::move(instructions), condition, RoutineCondition::Procedure};
           }
+
      private:
-          explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition, const RoutineCondition loopCondition)
-               : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition)
-          {}
+          explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition,
+                           const RoutineCondition loopCondition)
+              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition)
+          {
+          }
      };
 } // namespace ecpps::codegen
 
