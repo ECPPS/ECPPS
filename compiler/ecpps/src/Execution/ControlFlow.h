@@ -6,7 +6,7 @@
 
 namespace ecpps::ir
 {
-     class ReturnNode final : public NodeBase
+     class ReturnNode final : public ir::NodeBase
      {
      public:
           explicit ReturnNode(Expression value) : NodeBase(NodeKind::Return), _value(std::move(value)) {}
@@ -17,7 +17,8 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                if (!HasValue()) return std::string(indent * ast::PrettyIndent, ' ') + "return;";
-               return std::string(indent * ast::PrettyIndent, ' ') + "return " /*  + this->_value->ToString()	*/ + ";";
+               return std::string(indent * ast::PrettyIndent, ' ') + "return " + this->_value->Value()->ToString(0) +
+                      ";";
           }
 
      private:

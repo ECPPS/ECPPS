@@ -202,6 +202,9 @@ namespace ecpps::ast
                return built + "\n" + std::string(indent * PrettyIndent, ' ') + "}";
           }
 
+          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept { return this->_body; }
+
      private:
           FunctionSignature _signature;
           std::vector<NodePointer> _body;
@@ -335,7 +338,6 @@ namespace ecpps::ast
 
      private:
           unsigned long long _value;
-          bool _isNegative;
      };
 
      class CharacterLiteralNode final : public Node
@@ -350,7 +352,6 @@ namespace ecpps::ast
 
      private:
           char _value;
-          bool _isNegative;
      };
 
      class AST
