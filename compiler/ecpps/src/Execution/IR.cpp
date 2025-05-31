@@ -1,6 +1,6 @@
 #include "IR.h"
-#include <vector>
 #include <utility>
+#include <vector>
 #include "ControlFlow.h"
 #include "Procedural.h"
 
@@ -37,7 +37,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
      this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(node.Signature().name->ToString(0),
-                                                                std::move(parameters), std::move(ir._built)));
+                                                                       std::move(parameters), std::move(ir._built)));
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)

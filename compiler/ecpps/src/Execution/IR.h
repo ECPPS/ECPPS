@@ -1,8 +1,8 @@
 #pragma once
-#include "../Parsing/AST.h"
 #include <vector>
-#include "NodeBase.h"
+#include "../Parsing/AST.h"
 #include "Expressions.h"
+#include "NodeBase.h"
 
 namespace ecpps::ir
 {

@@ -17,7 +17,8 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                if (!HasValue()) return std::string(indent * ast::PrettyIndent, ' ') + "return;";
-               return std::string(indent * ast::PrettyIndent, ' ') + "return " + this->_value->Value()->ToString(0) + ";";
+               return std::string(indent * ast::PrettyIndent, ' ') + "return " + this->_value->Value()->ToString(0) +
+                      ";";
           }
 
      private:

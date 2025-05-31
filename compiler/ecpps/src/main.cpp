@@ -1,10 +1,10 @@
 #include <print>
+#include "Execution\IR.h"
 #include "Parsing/AST.h"
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include "Execution\IR.h"
 
 int main(int argc, char* argv[])
 {
@@ -33,8 +33,7 @@ int main(int argc, char* argv[])
           const auto ir = ecpps::ir::IR::Parse(ast);
           std::println();
           std::println("IR:");
-          for (const auto& node : ir)
-               std::println("{}", node->ToString(0));
+          for (const auto& node : ir) std::println("{}", node->ToString(0));
      }
 
      return 0;
