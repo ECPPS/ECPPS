@@ -4,6 +4,7 @@
 #include <vector>
 #include "../Shared/Config.h"
 #include "../Shared/Diagnostics.h"
+#include "../CodeGeneration/Nodes.h"
 
 namespace ecpps
 {
@@ -23,6 +24,8 @@ namespace ecpps
           std::string name{};
           std::string contents{};
           Diagnostics diagnostics{};
+          std::vector<codegen::Routine> compiledRoutines{};
+
           explicit SourceFile(void) = default;
      };
      struct SourceMap

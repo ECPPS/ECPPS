@@ -15,9 +15,9 @@ namespace ecpps::codegen
      template <typename TOperand> struct OperandBase
      {
           explicit OperandBase(const std::size_t size) : _size(size) {}
-          static_assert(requires(const TOperand& operand) {
+         /* static_assert(requires(const TOperand& operand) {
                { operand.ToString() } -> std::same_as<std::string>;
-          });
+          });*/
           [[nodiscard]] std::size_t Size(void) const noexcept { return this->_size; }
 
      protected:
@@ -67,7 +67,6 @@ namespace ecpps::codegen
           Word = 2,
           Dword = 4,
           Qword = 8,
-          Mmx = 8,
           Xmm = 16,
           Ymm = 32,
           Zmm = 64
@@ -82,19 +81,40 @@ namespace ecpps::codegen
           Register _index;
      };
 
-     using Operand = std::variant<RegisterOperand>;
+     struct IntegerOperand : OperandBase<IntegerOperand>
+     {
+          explicit IntegerOperand(const std::size_t value, const std::size_t size) : OperandBase(size), _value(value) {}
+          [[nodiscard]] std::string ToString(void) const noexcept;
+
+          [[nodiscard]] std::size_t Value(void) const noexcept { return this->_value; }
+     private:
+          std::size_t _value;
+     };
+
+     using Operand = std::variant<RegisterOperand, IntegerOperand>;
+
+     enum struct InstructionAlignment : std::uint_fast8_t
+     {
+          None,
+          Aligned,
+          Unaligned
+     };
 
      struct MovInstruction
      {
           Operand source;
           Operand destination;
           OperandSize size;
+          InstructionAlignment alignment{};
 
           explicit MovInstruction(Operand source, Operand destination, const OperandSize size)
               : source(std::move(source)), destination(std::move(destination)), size(size)
           {
           }
      };
+
+     struct ReturnInstruction {};
+
      /// <summary>
      /// Instruction to use for the branch jump. Each one of those is documented by a comment
      /// Procedure does not yield any jumps. None generates jmp.
@@ -167,7 +187,8 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction>;
+     using Instruction = std::variant<MovInstruction, ReturnInstruction>;
+     [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine
      {
@@ -181,10 +202,11 @@ namespace ecpps::codegen
           RoutineCondition loopCondition;
 
           std::vector<Instruction> instructions;
+          std::string name;
 
-          static Routine Branchless(std::vector<Instruction>&& instructions)
+          static Routine Branchless(std::vector<Instruction>&& instructions, std::string name = {})
           {
-               return Routine{std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure};
+               return Routine{std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure, std::move(name)};
           }
 
           static Routine WhileLoop(std::vector<Instruction>&& instructions, const RoutineCondition condition)
@@ -199,16 +221,23 @@ namespace ecpps::codegen
 
      private:
           explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition,
-                           const RoutineCondition loopCondition)
-              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition)
+                           const RoutineCondition loopCondition, std::string name = {})
+              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition), name(std::move(name))
           {
+               if (this->name.empty()) this->name = GenerateName();
+          }
+
+          static std::string GenerateName(void)
+          {
+               static std::size_t index{};
+               return ".LOC" + std::to_string(++index);
           }
      };
 } // namespace ecpps::codegen
 
 namespace
 {
-     constexpr std::string ToString(const ecpps::codegen::Register reg, const ecpps::codegen::OperandSize size) noexcept
+     inline std::string ToString(const ecpps::codegen::Register reg, const ecpps::codegen::OperandSize size) noexcept
      {
           using ecpps::codegen::OperandSize;
           using ecpps::codegen::Register;
@@ -289,25 +318,6 @@ namespace
                    {Register::R13, "r13"},
                    {Register::R14, "r14"},
                    {Register::R15, "r15"},
-               }},
-              {OperandSize::Mmx,
-               {
-                   {Register::Mm0, "mm0"},
-                   {Register::Mm1, "mm1"},
-                   {Register::Mm2, "mm2"},
-                   {Register::Mm3, "mm3"},
-                   {Register::Mm4, "mm4"},
-                   {Register::Mm5, "mm5"},
-                   {Register::Mm6, "mm6"},
-                   {Register::Mm7, "mm7"},
-                   {Register::Mm8, "mm8"},
-                   {Register::Mm9, "mm9"},
-                   {Register::Mm10, "mm10"},
-                   {Register::Mm11, "mm11"},
-                   {Register::Mm12, "mm12"},
-                   {Register::Mm13, "mm13"},
-                   {Register::Mm14, "mm14"},
-                   {Register::Mm15, "mm15"},
                }},
               {OperandSize::Xmm,
                {
