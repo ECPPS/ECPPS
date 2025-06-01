@@ -1,8 +1,8 @@
 #include "PseudoAssembly.h"
+#include <stdexcept>
 #include "../Execution/ControlFlow.h"
 #include "../Execution/Expressions.h"
 #include "../Execution/Procedural.h"
-#include <stdexcept>
 
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
@@ -28,7 +28,10 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
           // TODO: Mapping function
           // TODO: Adjust size
           // TODO: ABI...
-          code.push_back(ecpps::codegen::MovInstruction{ ParseExpression(node.Value()), ecpps::codegen::RegisterOperand{ecpps::codegen::Register::Rax, sizeof(int)}, ecpps::codegen::OperandSize::Dword});
+          code.push_back(ecpps::codegen::MovInstruction{
+              ParseExpression(node.Value()),
+              ecpps::codegen::RegisterOperand{ecpps::codegen::Register::Rax, sizeof(int)},
+              ecpps::codegen::OperandSize::Dword});
      }
 
      code.push_back(ecpps::codegen::ReturnInstruction{});

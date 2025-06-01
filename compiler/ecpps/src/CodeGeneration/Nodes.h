@@ -15,9 +15,9 @@ namespace ecpps::codegen
      template <typename TOperand> struct OperandBase
      {
           explicit OperandBase(const std::size_t size) : _size(size) {}
-         /* static_assert(requires(const TOperand& operand) {
-               { operand.ToString() } -> std::same_as<std::string>;
-          });*/
+          /* static_assert(requires(const TOperand& operand) {
+                { operand.ToString() } -> std::same_as<std::string>;
+           });*/
           [[nodiscard]] std::size_t Size(void) const noexcept { return this->_size; }
 
      protected:
@@ -87,6 +87,7 @@ namespace ecpps::codegen
           [[nodiscard]] std::string ToString(void) const noexcept;
 
           [[nodiscard]] std::size_t Value(void) const noexcept { return this->_value; }
+
      private:
           std::size_t _value;
      };
@@ -113,7 +114,9 @@ namespace ecpps::codegen
           }
      };
 
-     struct ReturnInstruction {};
+     struct ReturnInstruction
+     {
+     };
 
      /// <summary>
      /// Instruction to use for the branch jump. Each one of those is documented by a comment
@@ -206,7 +209,8 @@ namespace ecpps::codegen
 
           static Routine Branchless(std::vector<Instruction>&& instructions, std::string name = {})
           {
-               return Routine{std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure, std::move(name)};
+               return Routine{std::move(instructions), RoutineCondition::Procedure, RoutineCondition::Procedure,
+                              std::move(name)};
           }
 
           static Routine WhileLoop(std::vector<Instruction>&& instructions, const RoutineCondition condition)
@@ -222,7 +226,8 @@ namespace ecpps::codegen
      private:
           explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition,
                            const RoutineCondition loopCondition, std::string name = {})
-              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition), name(std::move(name))
+              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition),
+                name(std::move(name))
           {
                if (this->name.empty()) this->name = GenerateName();
           }
