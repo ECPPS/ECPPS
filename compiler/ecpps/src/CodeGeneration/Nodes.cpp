@@ -1,5 +1,6 @@
 #include "Nodes.h"
 #include "../Execution/NodeBase.h"
+#include <string>
 
 std::string ecpps::codegen::RegisterOperand::ToString(void) const noexcept
 {
