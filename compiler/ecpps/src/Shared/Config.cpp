@@ -3,6 +3,7 @@
 #include <string_view>
 
 ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
+     : cpuFeatures(abi::CPUFeatures::CurrentISA(), abi::SimdFeatures::None)
 {
      for (std::size_t i = 1; i < argc; i++)
      {

@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include "Machine.h"
 
 namespace ecpps::abi
 {
@@ -11,6 +12,18 @@ namespace ecpps::abi
 		std::string friendlyName;
 		std::size_t size;
 		std::size_t id;
+
+		constexpr bool operator==(const PhysicalRegister& other)
+		{
+			return this->id == other.id;
+		}
+
+		/// <summary>
+		/// Constructs a new register object
+		/// </summary>
+		/// <param name="name">Name of the register</param>
+		/// <param name="size">Size (in bytes) of the register</param>
+		/// <param name="id">Unique register id</param>
 		explicit PhysicalRegister(std::string name, const std::size_t size, const std::size_t id)
 			: friendlyName(std::move(name)), size(size), id(id)
 		{}
@@ -29,7 +42,7 @@ namespace ecpps::abi
 	class ABI
 	{
 	public:
-		explicit ABI(void);
+		explicit ABI(ISA isa);
 
 		static const ABI& Current(void);
 	private:
