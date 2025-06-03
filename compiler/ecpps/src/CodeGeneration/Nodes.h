@@ -14,7 +14,7 @@ namespace ecpps::codegen
 {
      template <typename TOperand> struct OperandBase
      {
-          explicit OperandBase(const std::size_t size) : _size(size) {}
+          explicit OperandBase(const std::size_t width) : _size(width) {}
          /* static_assert(requires(const TOperand& operand) {
                { operand.ToString() } -> std::same_as<std::string>;
           });*/
@@ -74,7 +74,7 @@ namespace ecpps::codegen
 
      struct RegisterOperand : OperandBase<RegisterOperand>
      {
-          explicit RegisterOperand(const Register index, const std::size_t size) : OperandBase(size), _index(index) {}
+          explicit RegisterOperand(const Register index, const std::size_t width) : OperandBase(width), _index(index) {}
           [[nodiscard]] std::string ToString(void) const noexcept;
 
      private:
@@ -83,7 +83,7 @@ namespace ecpps::codegen
 
      struct IntegerOperand : OperandBase<IntegerOperand>
      {
-          explicit IntegerOperand(const std::size_t value, const std::size_t size) : OperandBase(size), _value(value) {}
+          explicit IntegerOperand(const std::size_t value, const std::size_t width) : OperandBase(width), _value(value) {}
           [[nodiscard]] std::string ToString(void) const noexcept;
 
           [[nodiscard]] std::size_t Value(void) const noexcept { return this->_value; }
@@ -104,11 +104,11 @@ namespace ecpps::codegen
      {
           Operand source;
           Operand destination;
-          OperandSize size;
+          OperandSize width;
           InstructionAlignment alignment{};
 
-          explicit MovInstruction(Operand source, Operand destination, const OperandSize size)
-              : source(std::move(source)), destination(std::move(destination)), size(size)
+          explicit MovInstruction(Operand source, Operand destination, const OperandSize width)
+              : source(std::move(source)), destination(std::move(destination)), width(width)
           {
           }
      };
@@ -237,7 +237,7 @@ namespace ecpps::codegen
 
 namespace
 {
-     inline std::string ToString(const ecpps::codegen::Register reg, const ecpps::codegen::OperandSize size) noexcept
+     inline std::string ToString(const ecpps::codegen::Register reg, const ecpps::codegen::OperandSize width) noexcept
      {
           using ecpps::codegen::OperandSize;
           using ecpps::codegen::Register;
@@ -378,7 +378,7 @@ namespace
                }},
           };
 
-          if (const auto it = registers.find(size); it != registers.end())
+          if (const auto it = registers.find(width); it != registers.end())
           {
                const auto& regMap = it->second;
                if (const auto jt = regMap.find(reg); jt != regMap.end()) return std::string(jt->second);

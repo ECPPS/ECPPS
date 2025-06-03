@@ -14,8 +14,8 @@ static ecpps::codegen::Operand ParseExpression(const ecpps::Expression& expressi
      const auto& value = expression->Value();
      if (const auto integer = dynamic_cast<ir::IntegralNode*>(value.get()); integer != nullptr)
      {
-          const auto size = sizeof(int); // TODO: Wait for the type system for the size...
-          return ecpps::codegen::IntegerOperand{integer->Value(), size};
+          const auto width = sizeof(int); // TODO: Wait for the type system for the width...
+          return ecpps::codegen::IntegerOperand{integer->Value(), width};
      }
 
      throw std::logic_error("Invalid expression");
@@ -26,7 +26,7 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
      if (node.HasValue())
      {
           // TODO: Mapping function
-          // TODO: Adjust size
+          // TODO: Adjust width
           // TODO: ABI...
           code.push_back(ecpps::codegen::MovInstruction{ ParseExpression(node.Value()), ecpps::codegen::RegisterOperand{ecpps::codegen::Register::Rax, sizeof(int)}, ecpps::codegen::OperandSize::Dword});
      }

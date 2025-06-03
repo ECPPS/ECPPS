@@ -12,11 +12,11 @@ ecpps::SourceMap::SourceMap(CompilerConfig& config) : _config(std::ref(config))
                return;
           }
 
-          const auto size = file.tellg();
-          std::string content(static_cast<std::size_t>(size), '\0');
+          const auto width = file.tellg();
+          std::string content(static_cast<std::size_t>(width), '\0');
 
           file.seekg(0);
-          file.read(content.data(), size);
+          file.read(content.data(), width);
 
           if (content.starts_with("\xEF\xBB\xBF")) content.erase(0, 3); // remove BOM
 

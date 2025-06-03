@@ -55,11 +55,15 @@ namespace ecpps::abi
      constexpr bool operator&(const SimdFeatures features, const SimdFeatures other)
      {
           return std::to_underlying(features) & std::to_underlying(other);
+     }      
+     constexpr SimdFeatures operator|(const SimdFeatures features, const SimdFeatures other)
+     {
+          return static_cast<SimdFeatures>(std::to_underlying(features) | std::to_underlying(other));
      }
 
      constexpr SimdFeatures& operator|=(SimdFeatures& features, const SimdFeatures other)
      {
-          return features = static_cast<SimdFeatures>(std::to_underlying(features) | std::to_underlying(other));
+          return features = features | other;
      }
 
      struct CPUFeatures

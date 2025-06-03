@@ -21,14 +21,14 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
      return std::visit(OverloadedVisitor{[](const MovInstruction& instruction)
                                          {
                                               std::string built{};
-                                              if (instruction.size == OperandSize::Ymm ||
-                                                  instruction.size == OperandSize::Zmm)
+                                              if (instruction.width == OperandSize::Ymm ||
+                                                  instruction.width == OperandSize::Zmm)
                                                    built += "v";
                                               built += "mov";
                                               if (instruction.alignment == InstructionAlignment::Aligned) built += "a";
                                               else if (instruction.alignment == InstructionAlignment::Unaligned)
                                                    built += "u";
-                                              built += SizePrefixes.at(instruction.size);
+                                              built += SizePrefixes.at(instruction.width);
                                               built += " " + std::visit([](const auto& operand) -> std::string { return operand.ToString(); }, instruction.destination);
                                               built += ", " + std::visit([](const auto& operand) -> std::string { return operand.ToString(); }, instruction.source);
                                               return built;

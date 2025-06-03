@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <vector>
 #include "../Machine/Machine.h"
+#include "../Machine/ABI.h"
 
 namespace ecpps
 {
@@ -24,6 +25,5 @@ namespace ecpps
           std::vector<std::string> sourceFiles{};
           std::unordered_map<DiagnosticType, DiagnosticState> diagnostics{};
           bool warningsAreErrors = false;
-          abi::CPUFeatures cpuFeatures;
      };
 } // namespace ecpps
