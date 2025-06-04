@@ -28,7 +28,13 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
           // TODO: Mapping function
           // TODO: Adjust width
           // TODO: ABI...
-          code.push_back(ecpps::codegen::MovInstruction{ ParseExpression(node.Value()), ecpps::codegen::RegisterOperand{ecpps::codegen::Register::Rax, sizeof(int)}, ecpps::codegen::OperandSize::Dword});
+          code.push_back(ecpps::codegen::MovInstruction{
+              ParseExpression(node.Value()),
+              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+                  std::get<ecpps::abi::AllocatedRegister>(
+                      ecpps::abi::MicrosoftX64CallingConvention{}.ReturnValueStorage(4).value)
+                      .Ptr()}},
+              32});
      }
 
      code.push_back(ecpps::codegen::ReturnInstruction{});

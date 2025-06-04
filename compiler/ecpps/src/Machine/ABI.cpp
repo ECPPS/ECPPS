@@ -185,3 +185,87 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
 }
 
 ABI& ecpps::abi::ABI::Current(void) { return ABI::_current; }
+
+ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::size_t width)
+{
+     for (const auto& reg : this->_registers)
+     {
+          if (reg->width != width || this->_allocatedRegisters.contains(reg->physical->id)) continue;
+          return AllocatedRegister{reg};
+     }
+
+     return AllocatedRegister{nullptr};
+}
+
+ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::size_t width, const std::string& name,
+                                                                const RegisterAllocation allocation)
+{
+     for (const auto& reg : this->_registers)
+     {
+          if (reg->width != width || (reg->friendlyName != name && reg->physical->friendlyName != name)) continue;
+          if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(reg->physical->id))
+               continue;
+          return AllocatedRegister{reg};
+     }
+
+     return AllocatedRegister{nullptr};
+}
+
+ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(std::size_t width,
+                                                                const std::shared_ptr<PhysicalRegister>& toAllocate,
+                                                                RegisterAllocation allocation)
+{
+     for (const auto& reg : this->_registers)
+     {
+          if (reg->width != width || reg->physical != toAllocate) continue;
+          if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(reg->physical->id))
+               continue;
+          return AllocatedRegister{reg};
+     }
+
+     return AllocatedRegister{nullptr};
+}
+
+ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate,
+                                                                RegisterAllocation allocation)
+{
+     if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(toAllocate->physical->id))
+          return AllocatedRegister{nullptr};
+
+     return AllocatedRegister{toAllocate};
+}
+
+ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueStorage(std::size_t storageSize) const
+{
+     switch (storageSize)
+     {
+     case 1: return StorageRef{abi::ABI::Current().AllocateRegister(byteSize, "rax", RegisterAllocation::Priority)};
+     case 2: return StorageRef{abi::ABI::Current().AllocateRegister(wordSize, "rax", RegisterAllocation::Priority)};
+     case 4: return StorageRef{abi::ABI::Current().AllocateRegister(dwordSize, "rax", RegisterAllocation::Priority)};
+     case 8: return StorageRef{abi::ABI::Current().AllocateRegister(qwordSize, "rax", RegisterAllocation::Priority)};
+     default:
+     {
+
+     }
+     break;
+     }
+}
+
+std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::LocateParameters(
+    std::size_t returnSize, std::vector<std::size_t> parameters) const
+{
+     return std::vector<StorageRef>();
+}
+
+ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg)
+     : _register(std::move(reg))
+{
+     abi::ABI::Current()._allocatedRegisters.emplace(this->_register->physical->id);
+}
+
+ecpps::abi::AllocatedRegister::~AllocatedRegister(void)
+{
+     if (this->_register == nullptr) return;
+
+     ABI::Current()._allocatedRegisters.erase(this->_register->physical->id);
+}

@@ -4,6 +4,8 @@
 #include <string>
 #include <memory>
 #include "Machine.h"
+#include <variant>
+#include <unordered_set>
 
 
 /// <summary>
@@ -49,6 +51,75 @@ namespace ecpps::abi
 		{}
 	};
 
+	class AllocatedRegister
+	{
+	public:
+		explicit AllocatedRegister(std::shared_ptr<VirtualRegister> reg);
+
+		AllocatedRegister(const AllocatedRegister&) = delete;
+		AllocatedRegister(AllocatedRegister&&) = default;
+		AllocatedRegister& operator=(const AllocatedRegister&) = delete;
+		AllocatedRegister& operator=(AllocatedRegister&&) = default;
+
+		~AllocatedRegister(void);
+
+		[[nodiscard]] bool operator!(void) const noexcept { return this->_register != nullptr; }
+
+		VirtualRegister* operator->(void) noexcept { return this->_register.get(); }
+		const VirtualRegister* operator->(void) const noexcept { return this->_register.get(); }
+
+		const std::shared_ptr<VirtualRegister>& Ptr(void) const noexcept { return this->_register; }
+	private:
+		std::shared_ptr<VirtualRegister> _register;
+	};
+
+	struct StorageRef
+	{
+          using ValueType = std::variant<AllocatedRegister,
+                                         std::vector<AllocatedRegister>>; // TODO: Add memory location
+		ValueType value;
+		explicit StorageRef(ValueType value) : value(std::move(value)) {}
+	};
+
+	enum struct CallingConventionName : std::uint_fast16_t
+	{
+		Microsoftx64
+	};
+
+	struct CallingConvention
+	{
+		explicit CallingConvention(const CallingConventionName name, const std::size_t shadowSpace, const std::size_t stackAlignment) : _name(name), _shadowSpace(shadowSpace), _stackAlignment(stackAlignment) {}
+		virtual ~CallingConvention(void) = default;
+
+		[[nodiscard]] virtual StorageRef ReturnValueStorage(std::size_t storageSize) const = 0;
+		[[nodiscard]] virtual std::vector<StorageRef> LocateParameters(std::size_t returnSize, std::vector<std::size_t> parameters) const = 0;
+		
+		[[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
+		[[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
+		[[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
+
+	private:
+		CallingConventionName _name;
+		std::size_t _shadowSpace;
+		std::size_t _stackAlignment;
+	};
+
+	struct MicrosoftX64CallingConvention final : CallingConvention
+	{
+		explicit MicrosoftX64CallingConvention(void)
+			: CallingConvention(CallingConventionName::Microsoftx64, 32, 16)
+		{}
+
+		[[nodiscard]] StorageRef ReturnValueStorage(std::size_t storageSize) const override;
+		[[nodiscard]] std::vector<StorageRef> LocateParameters(std::size_t returnSize, std::vector<std::size_t> parameters) const override;
+	};
+
+	enum struct RegisterAllocation : bool
+	{
+		Normal = false,
+		Priority = true
+	};
+
 	class ABI
 	{
 	public:
@@ -58,12 +129,20 @@ namespace ecpps::abi
 		static ABI& Current(void);
 
 		ISA Isa(void) const noexcept { return this->_isa; }
+		AllocatedRegister AllocateRegister(std::size_t width);
+		AllocatedRegister AllocateRegister(std::size_t width, const std::string& name, RegisterAllocation allocation);
+		AllocatedRegister AllocateRegister(std::size_t width, const std::shared_ptr<PhysicalRegister>& toAllocate, RegisterAllocation allocation);
+		AllocatedRegister AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate, RegisterAllocation allocation);
 	private:
 		static ABI _current;
 
 		ISA _isa;
-		std::size_t _stackAlignment;
 		std::vector<std::shared_ptr<PhysicalRegister>> _physicalRegisters;
 		std::vector<std::shared_ptr<VirtualRegister>> _registers;
+
+		std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
+		std::unordered_set<std::size_t> _allocatedRegisters{};
+
+		friend AllocatedRegister;
 	};
 }
