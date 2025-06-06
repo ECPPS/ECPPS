@@ -1,17 +1,16 @@
 #include <print>
+#include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
 #include "Parsing/AST.h"
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include "CodeGeneration/PseudoAssembly.h"
 
 int main(int argc, char* argv[])
 {
      ecpps::CompilerConfig config{argc, argv};
      ecpps::SourceMap sources{config};
-     
 
      if (sources.files.empty())
      {

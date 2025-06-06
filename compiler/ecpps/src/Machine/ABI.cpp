@@ -245,7 +245,6 @@ ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueSto
      case 8: return StorageRef{abi::ABI::Current().AllocateRegister(qwordSize, "rax", RegisterAllocation::Priority)};
      default:
      {
-
      }
      break;
      }
@@ -257,8 +256,7 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
      return std::vector<StorageRef>();
 }
 
-ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg)
-     : _register(std::move(reg))
+ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg) : _register(std::move(reg))
 {
      abi::ABI::Current()._allocatedRegisters.emplace(this->_register->physical->id);
 }

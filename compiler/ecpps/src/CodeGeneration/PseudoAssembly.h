@@ -1,9 +1,9 @@
 #pragma once
-#include "Nodes.h"
-#include "../Execution/NodeBase.h"
 #include <vector>
+#include "../Execution/NodeBase.h"
+#include "Nodes.h"
 
 namespace ecpps::codegen
 {
-	void Compile(SourceFile& source, const std::vector<ir::NodePointer>& intermediateRepresentation);
+     void Compile(SourceFile& source, const std::vector<ir::NodePointer>& intermediateRepresentation);
 }

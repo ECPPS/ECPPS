@@ -55,7 +55,7 @@ namespace ecpps::abi
      constexpr bool operator&(const SimdFeatures features, const SimdFeatures other)
      {
           return std::to_underlying(features) & std::to_underlying(other);
-     }      
+     }
      constexpr SimdFeatures operator|(const SimdFeatures features, const SimdFeatures other)
      {
           return static_cast<SimdFeatures>(std::to_underlying(features) | std::to_underlying(other));
@@ -71,8 +71,6 @@ namespace ecpps::abi
           ISA isa;
           SimdFeatures features;
 
-          explicit CPUFeatures(const ISA isa, const SimdFeatures features)
-               : isa(isa), features(features)
-          {}
+          explicit CPUFeatures(const ISA isa, const SimdFeatures features) : isa(isa), features(features) {}
      };
 } // namespace ecpps::abi
