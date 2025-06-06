@@ -11,7 +11,6 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
          OverloadedVisitor{[](const MovInstruction& instruction)
                            {
                                 std::string built = "mov";
-
                                 built += " " + std::visit([](const auto& operand) -> std::string
                                                           { return operand.ToString(); }, instruction.destination);
                                 built += ", " + std::visit([](const auto& operand) -> std::string

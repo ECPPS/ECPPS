@@ -2,6 +2,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include "../CodeGeneration/Nodes.h"
 #include "../Shared/Config.h"
 #include "../Shared/Diagnostics.h"
 #include "../CodeGeneration/Nodes.h"
