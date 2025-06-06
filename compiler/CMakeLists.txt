@@ -1,1 +1,2 @@
 add_subdirectory(ecpps)
+add_subdirectory(platformlib)

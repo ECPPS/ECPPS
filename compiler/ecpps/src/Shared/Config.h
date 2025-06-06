@@ -2,6 +2,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "../Machine/ABI.h"
+#include "../Machine/Machine.h"
 
 namespace ecpps
 {
