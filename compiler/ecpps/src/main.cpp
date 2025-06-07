@@ -1,5 +1,5 @@
-#include <print>
 #include <chrono>
+#include <print>
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
 #include "Parsing/AST.h"
@@ -52,7 +52,8 @@ int main(int argc, char* argv[])
      }
 
      const auto end = std::chrono::steady_clock::now();
-     std::println("Compilation successful. {} elapsed", std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+     std::println("Compilation successful. {} elapsed",
+                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 
      return 0;
 }
