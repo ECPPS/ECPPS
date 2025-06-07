@@ -7,6 +7,8 @@
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
+#include "CodeGeneration/CodeEmitter.h"
+#include <cstddef>
 
 int main(int argc, char* argv[])
 {
@@ -20,6 +22,14 @@ int main(int argc, char* argv[])
           // TODO: Error
           return -1;
      }
+
+     auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
+     if (emitter == nullptr)
+     {
+          // TODO: Error
+          return -1;
+     }
+     std::println("Target: {}", emitter->Name());
 
      for (auto& source : sources.files)
      {
@@ -41,6 +51,7 @@ int main(int argc, char* argv[])
           ecpps::codegen::Compile(source, ir);
           std::println();
           std::println("Assembly:");
+
           for (const auto& procedure : source.compiledRoutines)
           {
                std::println("{}:", procedure.name);
@@ -48,6 +59,9 @@ int main(int argc, char* argv[])
                {
                     std::println("     {}", ecpps::codegen::ToString(instruction));
                }
+
+               const auto machineCode = emitter->EmitRoutine(procedure);
+               std::println("Emitted {} bytes", machineCode.size());
           }
      }
 
