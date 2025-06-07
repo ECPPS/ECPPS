@@ -1,8 +1,8 @@
 #pragma once
-#include "../AST.h"
-#include "General.h"
-#include "..\SourceMap.h"
 #include <memory>
+#include "../AST.h"
+#include "..\SourceMap.h"
+#include "General.h"
 
 namespace ecpps::ast
 {
