@@ -20,6 +20,7 @@ namespace ecpps::typeSystem
           Literal,
           TriviallyCopyable,
           Character,
+          Incomplete,
 
           Count
      };
@@ -104,14 +105,15 @@ namespace ecpps::typeSystem
           [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;
 
           [[nodiscard]] virtual ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) = 0;
+
      private:
           std::string _name;
      };
 
 #define TraitCheckerFunction(traitName)                                                                                \
-     [[nodiscard]] constexpr bool Is##traitName(const std::shared_ptr<TypeBase>& type)                                                  \
+     [[nodiscard]] constexpr bool Is##traitName(const std::shared_ptr<TypeBase>& type)                                 \
      {                                                                                                                 \
-          return type->Traits().Has(TypeTraitEnum::traitName);                                                          \
+          return type->Traits().Has(TypeTraitEnum::traitName);                                                         \
      }
 
      TraitCheckerFunction(ImplicitLifetime);
@@ -121,6 +123,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Literal);
      TraitCheckerFunction(TriviallyCopyable);
      TraitCheckerFunction(Character);
+     TraitCheckerFunction(Incomplete);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
@@ -158,5 +161,29 @@ namespace ecpps::typeSystem
 
      private:
           Qualifiers _qualifiers;
+     };
+
+     class VoidType final : public QualifiedType
+     {
+     public:
+          explicit VoidType(std::string name, const Qualifiers qualifiers) : QualifiedType(std::move(name), qualifiers)
+          {
+          }
+          [[nodiscard]] std::string RawName(void) const noexcept override { return "void"; }
+
+          [[nodiscard]] TypeTraits Traits(void) const noexcept override
+          {
+               return TypeTraits{TypeTraitEnum::Incomplete};
+          }
+
+          [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
+          [[nodiscard]] std::size_t Alignment(void) const noexcept { return 0 };
+
+          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
+          {
+               return typeid(*other) == typeid(VoidType)
+                          ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
+                          : ConversionSequence{std::nullopt};
+          }
      };
 } // namespace ecpps::typeSystem
