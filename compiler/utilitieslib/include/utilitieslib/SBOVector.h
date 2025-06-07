@@ -12,7 +12,8 @@ namespace ecpps
      {
           return (number + alignment - 1) & ~(alignment - 1);
      }
-     template <typename TElement, typename TAllocator = std::allocator<TElement>, std::size_t TNSBOSize = std::hardware_destructive_interference_size>
+     template <typename TElement, typename TAllocator = std::allocator<TElement>,
+               std::size_t TNSBOSize = std::hardware_destructive_interference_size>
      class SBOVector
      {
           struct NoSBO
@@ -24,8 +25,7 @@ namespace ecpps
           /// <summary>
           /// In elements, not bytes
           /// </summary>
-          static constexpr std::size_t SBOSize =
-              Align(TNSBOSize / sizeof(TElement), sizeof(TElement));
+          static constexpr std::size_t SBOSize = Align(TNSBOSize / sizeof(TElement), sizeof(TElement));
 
           union BufferUnion
           {
@@ -168,6 +168,71 @@ namespace ecpps
 
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + (_size - 1),
                                          std::forward<TArgs>(args)...);
+          }
+          TElement& Push(const TElement& value)
+          {
+               const bool wasSBO = UseSBO();
+               const std::size_t index = this->_size++;
+               if (!UseSBO())
+               {
+                    TAllocator allocator{};
+                    if (wasSBO)
+                    {
+                         const std::size_t cap = SBOSize * 2;
+                         TElement* newBuf = allocator.allocate(cap);
+                         std::memcpy(newBuf, _buffer.sbo, SBOSize * sizeof(TElement));
+                         _buffer.noSbo._begin = newBuf;
+                         _buffer.noSbo._capacity = cap;
+
+                         return *std::construct_at(newBuf + SBOSize, value);
+                    }
+
+                    if (this->_buffer.noSbo._capacity < this->_size)
+                    {
+                         const std::size_t oldCap = this->_buffer.noSbo._capacity;
+                         const std::size_t newCap = oldCap * 2;
+                         TElement* newBuf = allocator.allocate(newCap);
+                         std::memcpy(newBuf, this->_buffer.noSbo._begin, index * sizeof(TElement));
+                         allocator.deallocate(std::exchange(_buffer.noSbo._begin, newBuf), oldCap);
+                         this->_buffer.noSbo._capacity = newCap;
+                    }
+
+                    return *std::construct_at(_buffer.noSbo._begin + index, value);
+               }
+               return *std::construct_at(reinterpret_cast<TElement*>(this->_buffer.sbo) + index, value);
+          }
+
+          TElement& Push(TElement&& value)
+          {
+               const bool wasSBO = UseSBO();
+               const std::size_t index = this->_size++;
+               if (!UseSBO())
+               {
+                    TAllocator allocator{};
+                    if (wasSBO)
+                    {
+                         const std::size_t cap = SBOSize * 2;
+                         TElement* newBuf = allocator.allocate(cap);
+                         std::memcpy(newBuf, this->_buffer.sbo, SBOSize * sizeof(TElement));
+                         this->_buffer.noSbo._begin = newBuf;
+                         this->_buffer.noSbo._capacity = cap;
+
+                         return *std::construct_at(newBuf + SBOSize, std::move(value));
+                    }
+
+                    if (this->_buffer.noSbo._capacity < _size)
+                    {
+                         const std::size_t oldCap = this->_buffer.noSbo._capacity;
+                         const std::size_t newCap = oldCap * 2;
+                         TElement* newBuf = allocator.allocate(newCap);
+                         std::memcpy(newBuf, this->_buffer.noSbo._begin, index * sizeof(TElement));
+                         allocator.deallocate(std::exchange(this->_buffer.noSbo._begin, newBuf), oldCap);
+                         this->_buffer.noSbo._capacity = newCap;
+                    }
+
+                    return *std::construct_at(_buffer.noSbo._begin + index, std::move(value));
+               }
+               return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + index, std::move(value));
           }
 
           constexpr std::size_t Size(void) const noexcept { return this->_size; }
