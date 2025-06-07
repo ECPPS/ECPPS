@@ -1,8 +1,8 @@
 #pragma once
-#include <memory>
 #include <Queue.h>
-#include "../TypeSystem/TypeBase.h"
+#include <memory>
 #include <unordered_set>
+#include "../TypeSystem/TypeBase.h"
 
 namespace ecpps::ir
 {
@@ -19,9 +19,7 @@ namespace ecpps::ir
 
      struct FunctionContext final : ContextBase
      {
-          explicit FunctionContext(typeSystem::TypePointer returnType)
-               : returnType(std::move(returnType))
-          {}
+          explicit FunctionContext(typeSystem::TypePointer returnType) : returnType(std::move(returnType)) {}
           typeSystem::TypePointer returnType;
      };
      struct ClassContext final : ContextBase
@@ -33,7 +31,8 @@ namespace ecpps::ir
 
      struct Context
      {
-          std::unordered_set<typeSystem::TypePointer, typeSystem::TypePointerHash, typeSystem::TypePointerEqual> types{};
+          std::unordered_set<typeSystem::TypePointer, typeSystem::TypePointerHash, typeSystem::TypePointerEqual>
+              types{};
           SBOQueue<ContextPointer> contextSequence{};
      };
 } // namespace ecpps::ir

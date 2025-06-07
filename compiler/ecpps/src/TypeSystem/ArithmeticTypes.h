@@ -1,6 +1,6 @@
 #pragma once
-#include "TypeBase.h"
 #include <memory>
+#include "TypeBase.h"
 
 namespace ecpps::typeSystem
 {
@@ -52,6 +52,7 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+
      private:
           Signedness _sign;
           TypeKind _kind;

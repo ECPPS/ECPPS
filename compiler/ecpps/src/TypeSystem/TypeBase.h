@@ -137,10 +137,7 @@ namespace ecpps::typeSystem
           using is_transparent = void;
 
           std::size_t operator()(const TypePointer& ptr) const noexcept { return std::hash<std::string>{}(ptr->_name); }
-          std::size_t operator()(const std::string& str) const noexcept
-          {
-               return std::hash<std::string>{}(str);
-          }
+          std::size_t operator()(const std::string& str) const noexcept { return std::hash<std::string>{}(str); }
      };
      struct TypePointerEqual
      {

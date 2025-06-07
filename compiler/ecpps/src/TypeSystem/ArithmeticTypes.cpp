@@ -48,14 +48,13 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(
     const std::shared_ptr<TypeBase>& other)
 {
-     if (!this->_isUnqualified || !IsCharacter(other))
-          return IntegralType::CompareTo(other);
+     if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
      const auto otherCharacter = std::dynamic_pointer_cast<CharacterType>(other);
      // TODO: Assert otherCharacter != nullptr
 
      if (otherCharacter->_isUnqualified)
-          return ConversionSequence{ SBOVector<ConversionSequence::ConversionKind>{} }; // empty sequence = exact
+          return ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}; // empty sequence = exact
 
      return IntegralType::CompareTo(other);
 }

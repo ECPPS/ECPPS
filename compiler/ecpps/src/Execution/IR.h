@@ -27,7 +27,8 @@ namespace ecpps::ir
           Expression ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType);
 
           /// <summary>
-          /// Only for integral conversions that are known to be integral conversions. If the conversion is not integral, the behaviour of this function is undefined.
+          /// Only for integral conversions that are known to be integral conversions. If the conversion is not
+          /// integral, the behaviour of this function is undefined.
           /// </summary>
           /// <param name="expression"></param>
           /// <param name="type"></param>

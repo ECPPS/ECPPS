@@ -1,11 +1,11 @@
 #include "IR.h"
+#include <stdexcept>
 #include <utility>
 #include <vector>
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
 #include "Procedural.h"
-#include <stdexcept>
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -60,7 +60,8 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 
      const auto function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
      // TODO: Assert function != nullptr
-     this->_built.push_back(std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType)));
+     this->_built.push_back(
+         std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType)));
 }
 
 Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
@@ -97,7 +98,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
      }
 
      if (comparison.Sequence().Size() == 0) return std::move(expression);
-     // TODO: Actual conversion function
+
      if (comparison.Sequence().Size() == 1)
      {
           const auto& conversion = *comparison.Sequence().begin();
@@ -113,7 +114,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
      return nullptr;
 }
 
-Expression ecpps::ir::IR::ConvertIntegral(Expression&& expression, const std::shared_ptr<typeSystem::IntegralType>& type)
+Expression ecpps::ir::IR::ConvertIntegral(Expression&& expression,
+                                          const std::shared_ptr<typeSystem::IntegralType>& type)
 {
      if (const auto integralNode = dynamic_cast<IntegralNode*>(expression->Value().get()); integralNode != nullptr)
      {
