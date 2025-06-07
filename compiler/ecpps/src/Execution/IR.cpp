@@ -1,6 +1,7 @@
 #include "IR.h"
 #include <utility>
 #include <vector>
+#include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
 #include "Procedural.h"
 
@@ -51,8 +52,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      if (const auto integerLiteral = dynamic_cast<ast::IntegerLiteralNode*>(expression.get());
          integerLiteral != nullptr)
-          return std::make_unique<PRValue>(nullptr, std::make_unique<ir::IntegralNode>(integerLiteral->Value()),
-                                           true); // TODO: Type system...
+          return std::make_unique<PRValue>(typeSystem::g_int,
+                                           std::make_unique<ir::IntegralNode>(integerLiteral->Value()), true);
 
      // TODO: Error
      return nullptr;

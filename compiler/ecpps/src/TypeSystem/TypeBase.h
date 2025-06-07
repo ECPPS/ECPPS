@@ -1,9 +1,45 @@
 #pragma once
+#include <bitset>
+#include <cstdint>
+#include <initializer_list>
 #include <memory>
 #include <string>
 
 namespace ecpps::typeSystem
 {
+     constexpr std::size_t CharWidth = 8; // implementation-defined property
+
+     enum struct TypeTraitEnum
+     {
+          ImplicitLifetime,
+          Arithmetic,
+          Integral,
+          FloatingPoint,
+          Literal,
+          TriviallyCopyable,
+          Character,
+
+          Count
+     };
+
+     struct TypeTraits
+     {
+          constexpr explicit TypeTraits(void) = default;
+          constexpr explicit TypeTraits(std::initializer_list<TypeTraitEnum> traits)
+          {
+               for (const auto trait : traits) Set(trait);
+          }
+          [[nodiscard]] constexpr bool Has(TypeTraitEnum trait) const noexcept
+          {
+               return this->_traits.test(static_cast<std::size_t>(trait));
+          }
+          void Set(const TypeTraitEnum trait) { this->_traits.set(static_cast<std::size_t>(trait)); }
+          void Remove(const TypeTraitEnum trait) { this->_traits.reset(static_cast<std::size_t>(trait)); }
+
+     private:
+          std::bitset<static_cast<std::size_t>(TypeTraitEnum::Count)> _traits{};
+     };
+
      /// <summary>
      /// Base type construct
      /// N4950/6.8.1 [basic.types.general]
@@ -18,11 +54,70 @@ namespace ecpps::typeSystem
           explicit TypeBase(std::string name) : _name(std::move(name)) {}
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
           [[nodiscard]] virtual std::string RawName(void) const noexcept = 0;
-          [[nodiscard]] virtual std::shared_ptr<TypeBase> Clone(void) const = 0;
+
+          [[nodiscard]] virtual TypeTraits Traits(void) const noexcept = 0;
+
+          /// <summary>
+          /// Returns size in bytes. For references, returns the size of the object
+          /// </summary>
+          [[nodiscard]] virtual std::size_t Size(void) const noexcept = 0;
+          /// <summary>
+          /// Returns alignment in bytes. For references, returns the alignment of the object
+          /// </summary>
+          [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;
 
      private:
           std::string _name;
      };
 
+#define TraitCheckerFunction(traitName)                                                                                \
+     [[nodiscard]] constexpr bool Is##traitName(const TypeBase& type)                                                  \
+     {                                                                                                                 \
+          return type.Traits().Has(TypeTraitEnum::traitName);                                                          \
+     }
+
+     TraitCheckerFunction(ImplicitLifetime);
+     TraitCheckerFunction(Arithmetic);
+     TraitCheckerFunction(Integral);
+     TraitCheckerFunction(FloatingPoint);
+     TraitCheckerFunction(Literal);
+     TraitCheckerFunction(TriviallyCopyable);
+
+#undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
+
+     enum struct Qualifiers : std::uint_fast8_t
+     {
+          None = 0,
+          Const = 1 << 0,
+          Volatile = 1 << 1,
+          ConstVolatile = Const | Volatile,
+     };
+
+     class QualifiedType : public TypeBase
+     {
+     public:
+          explicit QualifiedType(std::string name, const Qualifiers qualifiers)
+              : TypeBase(std::move(name)), _qualifiers(qualifiers)
+          {
+          }
+
+          [[nodiscard]] Qualifiers qualifiers(void) const noexcept { return this->_qualifiers; }
+          [[nodiscard]] Qualifiers qualifiers(const Qualifiers newQualifiers) noexcept
+          {
+               return std::exchange(this->_qualifiers, newQualifiers);
+          }
+
+          [[nodiscard]] constexpr bool IsConst(void) const noexcept
+          {
+               return std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Const);
+          }
+          [[nodiscard]] constexpr bool IsVolatile(void) const noexcept
+          {
+               return std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Volatile);
+          }
+
+     private:
+          Qualifiers _qualifiers;
+     };
 } // namespace ecpps::typeSystem

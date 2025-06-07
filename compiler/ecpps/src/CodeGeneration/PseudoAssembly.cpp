@@ -14,7 +14,8 @@ static ecpps::codegen::Operand ParseExpression(const ecpps::Expression& expressi
      const auto& value = expression->Value();
      if (const auto integer = dynamic_cast<ir::IntegralNode*>(value.get()); integer != nullptr)
      {
-          const auto width = sizeof(int); // TODO: Wait for the type system for the width...
+          const auto width = expression->Type()->Size() * ecpps::typeSystem::CharWidth;
+
           return ecpps::codegen::IntegerOperand{integer->Value(), width};
      }
 
@@ -26,15 +27,14 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
      if (node.HasValue())
      {
           // TODO: Mapping function
-          // TODO: Adjust width
-          // TODO: ABI...
           code.push_back(ecpps::codegen::MovInstruction{
               ParseExpression(node.Value()),
               ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                  std::get<ecpps::abi::AllocatedRegister>(
-                      ecpps::abi::MicrosoftX64CallingConvention{}.ReturnValueStorage(4).value)
+                  std::get<ecpps::abi::AllocatedRegister>(ecpps::abi::MicrosoftX64CallingConvention{}
+                                                              .ReturnValueStorage(node.Value()->Type()->Size())
+                                                              .value)
                       .Ptr()}},
-              32});
+              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
      }
 
      code.push_back(ecpps::codegen::ReturnInstruction{});
