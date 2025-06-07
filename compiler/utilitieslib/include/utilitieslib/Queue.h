@@ -166,7 +166,7 @@ namespace ecpps
 
           const T* StoragePtr() const noexcept
           {
-               return UseSBO() ? std::launder(reinterpret_cast<T(&)[TNSBOSize / sizeof(T)]>(this->_buffer.sbo))
+               return UseSBO() ? std::launder(reinterpret_cast<const T(&)[TNSBOSize / sizeof(T)]>(this->_buffer.sbo))
                                : _buffer.noSbo.begin;
           }
 
