@@ -248,6 +248,8 @@ ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueSto
      }
      break;
      }
+
+     throw nullptr;
 }
 
 std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::LocateParameters(

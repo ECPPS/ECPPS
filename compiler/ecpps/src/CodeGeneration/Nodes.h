@@ -1,6 +1,5 @@
 #pragma once
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <list>
 #include <map>
@@ -35,6 +34,8 @@ namespace ecpps::codegen
 
           [[nodiscard]] std::string ToString(void) const noexcept;
 
+          [[nodiscard]] const std::shared_ptr<abi::VirtualRegister>& Index(void) const noexcept { return this->_index; }
+
      private:
           std::shared_ptr<abi::VirtualRegister> _index;
      };
@@ -52,7 +53,24 @@ namespace ecpps::codegen
           std::size_t _value;
      };
 
-     using Operand = std::variant<RegisterOperand, IntegerOperand>;
+     struct MemoryLocationOperand : OperandBase<MemoryLocationOperand>
+     {
+          explicit MemoryLocationOperand(RegisterOperand register_, const std::size_t displacement,
+                                         const std::size_t width)
+              : OperandBase(width), _register(std::move(register_)), _displacement(displacement)
+          {
+          }
+          [[nodiscard]] std::string ToString(void) const noexcept;
+
+          [[nodiscard]] const RegisterOperand& Register(void) const noexcept { return this->_register; }
+          [[nodiscard]] std::size_t Displacement(void) const noexcept { return this->_displacement; }
+
+     private:
+          RegisterOperand _register;
+          std::size_t _displacement;
+     };
+
+     using Operand = std::variant<RegisterOperand, IntegerOperand, MemoryLocationOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {
@@ -76,6 +94,19 @@ namespace ecpps::codegen
 
      struct ReturnInstruction
      {
+     };
+
+     /// <summary>
+     /// Custom-defined instruction by architectures. Has no meaning in the generic code generation context
+     /// Can be used for architecture-specific optimisations and intrinsics.
+     /// </summary>
+     struct CustomInstruction
+     {
+          virtual ~CustomInstruction(void) = default;
+          [[nodiscard]] virtual std::string ToString(void) const = 0;
+
+     protected:
+          explicit CustomInstruction(void) = default;
      };
 
      /// <summary>
@@ -150,7 +181,7 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction, ReturnInstruction>;
+     using Instruction = std::variant<MovInstruction, ReturnInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

@@ -1,5 +1,7 @@
 #include <chrono>
+#include <cstddef>
 #include <print>
+#include "CodeGeneration/CodeEmitter.h"
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
 #include "Parsing/AST.h"
@@ -21,6 +23,14 @@ int main(int argc, char* argv[])
           return -1;
      }
 
+     auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
+     if (emitter == nullptr)
+     {
+          // TODO: Error
+          return -1;
+     }
+     std::println("Target: {}", emitter->Name());
+
      for (auto& source : sources.files)
      {
           std::println("Compiling {}...", source.name);
@@ -41,12 +51,31 @@ int main(int argc, char* argv[])
           ecpps::codegen::Compile(source, ir);
           std::println();
           std::println("Assembly:");
+
           for (const auto& procedure : source.compiledRoutines)
           {
                std::println("{}:", procedure.name);
                for (const auto& instruction : procedure.instructions)
                {
                     std::println("     {}", ecpps::codegen::ToString(instruction));
+               }
+
+               const auto machineCode = emitter->EmitRoutine(procedure);
+               std::println("Emitted {} bytes:", machineCode.size());
+               constexpr std::size_t RowSize = 8; // in bytes
+               const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
+               for (std::size_t row = 0; row < rows; row++)
+               {
+                    std::print("| ");
+                    const auto offset = row * RowSize;
+                    for (std::size_t column = 0; column < RowSize; column++)
+                    {
+                         const auto byteOffset = offset + column;
+                         if (byteOffset >= machineCode.size()) std::print("   ");
+                         else
+                              std::print("{:02x} ", static_cast<std::size_t>(machineCode.at(byteOffset)));
+                    }
+                    std::println("|");
                }
           }
      }
