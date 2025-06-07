@@ -38,6 +38,6 @@ namespace ecpps::ast
      public:
      private:
           NodePointer _unqualified;
-          std::vector<NodePointer> _path;
+          SBOVector<NodePointer> _path;
      };
 } // namespace ecpps::ast

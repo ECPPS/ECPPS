@@ -1,5 +1,7 @@
 #pragma once
+#include <memory>
 #include "../AST.h"
+#include "..\SourceMap.h"
 #include "General.h"
 
 namespace ecpps::ast
@@ -8,13 +10,13 @@ namespace ecpps::ast
      {
      public:
           explicit NamespaceAliasNode(std::unique_ptr<IdentifierNode> name,
-                                      std::vector<std::unique_ptr<IdentifierNode>> aliasedNamespace, Location source)
+                                      SBOVector<std::unique_ptr<IdentifierNode>> aliasedNamespace, Location source)
               : Node(std::move(source)), _aliasName(std::move(name)), _aliasedNamespace(std::move(aliasedNamespace))
           {
           }
 
           [[nodiscard]] const std::unique_ptr<IdentifierNode>& name(void) const noexcept { return this->_aliasName; }
-          [[nodiscard]] const std::vector<std::unique_ptr<IdentifierNode>>& aliasedNamespace(void) const noexcept
+          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode>>& aliasedNamespace(void) const noexcept
           {
                return this->_aliasedNamespace;
           }
@@ -35,7 +37,7 @@ namespace ecpps::ast
 
      private:
           std::unique_ptr<IdentifierNode> _aliasName;
-          std::vector<std::unique_ptr<IdentifierNode>> _aliasedNamespace;
+          SBOVector<std::unique_ptr<IdentifierNode>> _aliasedNamespace;
      };
 
      class BasicType final : public Node
@@ -63,7 +65,7 @@ namespace ecpps::ast
                explicit Section(NodePointer node, bool isTemplate) : node(std::move(node)), isTemplate(isTemplate) {}
           };
 
-          explicit QualifiedType(std::vector<Section> sections, NodePointer unqualified, Location source)
+          explicit QualifiedType(SBOVector<Section> sections, NodePointer unqualified, Location source)
               : Node(std::move(source)), _sections(std::move(sections)), _unqualifiedType(std::move(unqualified))
           {
           }
@@ -76,11 +78,11 @@ namespace ecpps::ast
 
                return built + this->_unqualifiedType->ToString(0);
           }
-          [[nodiscard]] const std::vector<Section>& Sections(void) const noexcept { return this->_sections; }
+          [[nodiscard]] const SBOVector<Section>& Sections(void) const noexcept { return this->_sections; }
           [[nodiscard]] const NodePointer& UnqualifiedType(void) const noexcept { return this->_unqualifiedType; }
 
      private:
-          std::vector<Section> _sections;
+          SBOVector<Section> _sections;
           NodePointer _unqualifiedType;
      };
 } // namespace ecpps::ast

@@ -1,3 +1,4 @@
+#include <chrono>
 #include <print>
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
@@ -9,6 +10,8 @@
 
 int main(int argc, char* argv[])
 {
+     const auto start = std::chrono::steady_clock::now();
+
      ecpps::CompilerConfig config{argc, argv};
      ecpps::SourceMap sources{config};
 
@@ -20,9 +23,9 @@ int main(int argc, char* argv[])
 
      for (auto& source : sources.files)
      {
+          std::println("Compiling {}...", source.name);
+
           const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
-          std::println("Preprocessing tokens:");
-          ecpps::Preprocessor::Print(ppTokens);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           std::println();
           std::println("Tokens:");
@@ -47,6 +50,10 @@ int main(int argc, char* argv[])
                }
           }
      }
+
+     const auto end = std::chrono::steady_clock::now();
+     std::println("Compilation successful. {} elapsed",
+                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 
      return 0;
 }
