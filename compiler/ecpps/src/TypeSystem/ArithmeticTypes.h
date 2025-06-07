@@ -51,6 +51,7 @@ namespace ecpps::typeSystem
                                  TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime};
           }
 
+          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
      private:
           Signedness _sign;
           TypeKind _kind;
@@ -72,7 +73,8 @@ namespace ecpps::typeSystem
                 _isUnqualified(sign == CharacterSign::Char)
           {
           }
-          [[nodiscard]] std::string RawName(void) const noexcept override;
+          [[nodiscard]] std::string RawName(void) const noexcept final;
+          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) final;
 
      private:
           bool _isUnqualified;

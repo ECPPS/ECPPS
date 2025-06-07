@@ -1,8 +1,10 @@
 #pragma once
+#include <SBOVector.h>
 #include <bitset>
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 #include <string>
 
 namespace ecpps::typeSystem
@@ -20,6 +22,41 @@ namespace ecpps::typeSystem
           Character,
 
           Count
+     };
+
+     struct ConversionSequence
+     {
+          enum struct ConversionKind
+          {
+               LvalueToRValue = 16,
+               ArrayToPointer = 15,
+               FunctionToPointer = 14,
+               Materialisation = 13,
+               QualifierConversion = 12,
+               IntegralPromotion = 11,
+               FloatingPointPromotion = 10,
+               IntegralConversion = 9,
+               FloatingPointConversion = 8,
+               FloatingIntegralConversion = 7,
+               PointerConversion = 6,
+               MemberFunctionConversion = 5,
+               FunctionPointerConversion = 4,
+               BooleanConversion = 3,
+               UserDefined = 2,
+               Ellipsis = 1 // Variadic function (worst match)
+          };
+
+          explicit ConversionSequence(std::optional<SBOVector<ConversionKind>> sequence)
+              : _isValid(sequence.has_value()),
+                _sequence(this->_isValid ? sequence.value() : SBOVector<ConversionKind>{})
+          {
+          }
+          [[nodiscard]] bool IsValid(void) const noexcept { return this->_isValid; }
+          [[nodiscard]] const SBOVector<ConversionKind>& Sequence(void) const noexcept { return this->_sequence; }
+
+     private:
+          bool _isValid;
+          SBOVector<ConversionKind> _sequence{};
      };
 
      struct TypeTraits
@@ -66,14 +103,15 @@ namespace ecpps::typeSystem
           /// </summary>
           [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;
 
+          [[nodiscard]] virtual ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) = 0;
      private:
           std::string _name;
      };
 
 #define TraitCheckerFunction(traitName)                                                                                \
-     [[nodiscard]] constexpr bool Is##traitName(const TypeBase& type)                                                  \
+     [[nodiscard]] constexpr bool Is##traitName(const std::shared_ptr<TypeBase>& type)                                                  \
      {                                                                                                                 \
-          return type.Traits().Has(TypeTraitEnum::traitName);                                                          \
+          return type->Traits().Has(TypeTraitEnum::traitName);                                                          \
      }
 
      TraitCheckerFunction(ImplicitLifetime);
@@ -82,6 +120,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(FloatingPoint);
      TraitCheckerFunction(Literal);
      TraitCheckerFunction(TriviallyCopyable);
+     TraitCheckerFunction(Character);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;

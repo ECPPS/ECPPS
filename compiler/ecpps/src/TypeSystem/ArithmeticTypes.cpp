@@ -29,6 +29,37 @@ std::string ecpps::typeSystem::IntegralType::RawName(void) const noexcept
      return "__integer";
 }
 
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo(const std::shared_ptr<TypeBase>& other)
+{
+     SBOVector<ConversionSequence::ConversionKind> sequence{};
+
+     if (IsIntegral(other))
+     {
+          const auto otherIntegral = std::dynamic_pointer_cast<IntegralType>(other);
+          // TODO: Assert otherIntegral != nullptr
+          if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
+               sequence.Push(ConversionSequence::ConversionKind::IntegralConversion);
+          return ConversionSequence{sequence};
+     }
+
+     return ConversionSequence{std::nullopt};
+}
+
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(
+    const std::shared_ptr<TypeBase>& other)
+{
+     if (!this->_isUnqualified || !IsCharacter(other))
+          return IntegralType::CompareTo(other);
+
+     const auto otherCharacter = std::dynamic_pointer_cast<CharacterType>(other);
+     // TODO: Assert otherCharacter != nullptr
+
+     if (otherCharacter->_isUnqualified)
+          return ConversionSequence{ SBOVector<ConversionSequence::ConversionKind>{} }; // empty sequence = exact
+
+     return IntegralType::CompareTo(other);
+}
+
 std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
 {
      if (this->_isUnqualified) return "char";
