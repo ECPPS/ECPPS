@@ -199,7 +199,8 @@ namespace ecpps
 
                     return *std::construct_at(_buffer.noSbo._begin + index, value);
                }
-               return *std::construct_at(std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
+               return *std::construct_at(
+                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
           }
 
           TElement& Push(TElement&& value)
