@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SBOVector.h>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -130,6 +131,8 @@ namespace ecpps::ast
 
      class AttributeNode : public Node
      {
+     public:
+          [[nodiscard]] std::string ToString(std::size_t indent) const override { return "[[]]"; };
      };
 
      struct FunctionSignature
@@ -140,7 +143,7 @@ namespace ecpps::ast
           bool isExtern{};
           std::optional<std::string> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
-          std::vector<AttributeNode> attributes{};
+          SBOVector<AttributeNode> attributes{};
           NodePointer name;
           // TODO: Trailing return types
 
@@ -173,7 +176,7 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     std::vector<AttributeNode> attributes, NodePointer name)
+                                     SBOVector<AttributeNode> attributes, NodePointer name)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
                 attributes(std::move(attributes)), name(std::move(name))
           {
@@ -183,7 +186,7 @@ namespace ecpps::ast
      class FunctionDefinitionNode final : public Node
      {
      public:
-          explicit FunctionDefinitionNode(FunctionSignature signature, std::vector<NodePointer> body, Location source)
+          explicit FunctionDefinitionNode(FunctionSignature signature, SBOVector<NodePointer> body, Location source)
               : Node(std::move(source)), _signature(std::move(signature)), _body(std::move(body))
           {
           }
@@ -203,11 +206,11 @@ namespace ecpps::ast
           }
 
           [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
-          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept { return this->_body; }
+          [[nodiscard]] const SBOVector<NodePointer>& Body(void) const noexcept { return this->_body; }
 
      private:
           FunctionSignature _signature;
-          std::vector<NodePointer> _body;
+          SBOVector<NodePointer> _body;
      };
 
      class IdentifierNode;

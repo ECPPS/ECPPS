@@ -65,12 +65,12 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
                if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
                {
                     Advance();
-                    std::vector<std::unique_ptr<IdentifierNode>> aliased{};
+                    SBOVector<std::unique_ptr<IdentifierNode>> aliased{};
                     while (!AtEnd())
                     {
                          auto nested = ParseIdentifier();
                          if (nested == nullptr) return nullptr; // TODO: Error
-                         aliased.push_back(std::move(nested));
+                         aliased.Push(std::move(nested));
                          if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != "::") break;
                          Advance(); // eat ::
                     }
@@ -99,7 +99,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      if (type == nullptr) return nullptr;
 
      FunctionSignature signature{
-         std::move(type),  false, false, ConstantExpressionSpecifier::None, std::vector<AttributeNode>{},
+         std::move(type),  false, false, ConstantExpressionSpecifier::None, SBOVector<AttributeNode>{},
          ParseIdentifier()}; // TODO: Allow id-expression
      if (!Match(TokenType::LeftParenthesis))
      {
@@ -111,12 +111,12 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
           return nullptr; // TODO: Error
      }
 
-     std::vector<NodePointer> body{};
+     SBOVector<NodePointer> body{};
      while (!Match(TokenType::RightBrace))
      {
           auto statement = ParseStatement();
           if (statement == nullptr) continue;
-          body.push_back(std::move(statement));
+          body.Push(std::move(statement));
      }
 
      source.endPosition = Peek(-1).location.endPosition;
