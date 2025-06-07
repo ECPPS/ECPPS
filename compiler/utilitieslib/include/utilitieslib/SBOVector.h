@@ -44,7 +44,7 @@ namespace ecpps
                const bool sbo = UseSBO();
                if (sbo)
                {
-                    auto* destination = reinterpret_cast<TElement*>(this->_buffer.sbo);
+                    auto* destination = std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo));
                     std::uninitialized_fill_n(destination, count, value);
                }
                else
@@ -199,7 +199,8 @@ namespace ecpps
 
                     return *std::construct_at(_buffer.noSbo._begin + index, value);
                }
-               return *std::construct_at(reinterpret_cast<TElement*>(this->_buffer.sbo) + index, value);
+               return *std::construct_at(
+                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
           }
 
           TElement& Push(TElement&& value)
