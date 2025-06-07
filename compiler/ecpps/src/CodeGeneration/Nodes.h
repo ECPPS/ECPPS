@@ -35,6 +35,7 @@ namespace ecpps::codegen
           [[nodiscard]] std::string ToString(void) const noexcept;
 
           [[nodiscard]] const std::shared_ptr<abi::VirtualRegister>& Index(void) const noexcept { return this->_index; }
+
      private:
           std::shared_ptr<abi::VirtualRegister> _index;
      };
@@ -180,7 +181,7 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction, ReturnInstruction/*, std::unique_ptr<CustomInstruction>*/>;
+     using Instruction = std::variant<MovInstruction, ReturnInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

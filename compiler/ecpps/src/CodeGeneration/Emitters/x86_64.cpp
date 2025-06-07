@@ -126,10 +126,14 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
 
           switch (mov.width)
           {
-          case ecpps::abi::byteSize: return x86_64::GenerateMovRegToMem8(destinationRegister, destinationDisplacement, sourceRegister);
-          case ecpps::abi::wordSize: return x86_64::GenerateMovRegToMem16(destinationRegister, destinationDisplacement, sourceRegister);
-          case ecpps::abi::dwordSize: return x86_64::GenerateMovRegToMem32(destinationRegister, destinationDisplacement, sourceRegister);
-          case ecpps::abi::qwordSize: return x86_64::GenerateMovRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateMovRegToMem8(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateMovRegToMem16(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateMovRegToMem32(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateMovRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
           }
 
           throw std::logic_error("Invalid mov operation");

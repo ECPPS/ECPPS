@@ -129,22 +129,30 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg8(const std::s
      return std::vector<std::byte>();
 }
 
-std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem64(std::size_t destination, std::size_t destinationOffset, std::size_t sourceRegister)
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem64(std::size_t destination,
+                                                                     std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister)
 {
      return std::vector<std::byte>();
 }
 
-std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t destination, std::size_t destinationOffset, std::size_t sourceRegister)
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t destination,
+                                                                     std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister)
 {
      return std::vector<std::byte>();
 }
 
-std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem16(std::size_t destination, std::size_t destinationOffset, std::size_t sourceRegister)
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem16(std::size_t destination,
+                                                                     std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister)
 {
      return std::vector<std::byte>();
 }
 
-std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset, std::size_t sourceRegister)
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem8(std::size_t destination,
+                                                                    std::size_t destinationOffset,
+                                                                    std::size_t sourceRegister)
 {
      return std::vector<std::byte>();
 }

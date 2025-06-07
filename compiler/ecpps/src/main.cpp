@@ -1,5 +1,7 @@
 #include <chrono>
+#include <cstddef>
 #include <print>
+#include "CodeGeneration/CodeEmitter.h"
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
 #include "Parsing/AST.h"
@@ -7,8 +9,6 @@
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include "CodeGeneration/CodeEmitter.h"
-#include <cstddef>
 
 int main(int argc, char* argv[])
 {
@@ -61,7 +61,22 @@ int main(int argc, char* argv[])
                }
 
                const auto machineCode = emitter->EmitRoutine(procedure);
-               std::println("Emitted {} bytes", machineCode.size());
+               std::println("Emitted {} bytes:", machineCode.size());
+               constexpr std::size_t RowSize = 8; // in bytes
+               const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
+               for (std::size_t row = 0; row < rows; row++)
+               {
+                    std::print("| ");
+                    const auto offset = row * RowSize;
+                    for (std::size_t column = 0; column < RowSize; column++)
+                    {
+                         const auto byteOffset = offset + column;
+                         if (byteOffset >= machineCode.size()) std::print("   ");
+                         else
+                              std::print("{:02x} ", static_cast<std::size_t>(machineCode.at(byteOffset)));
+                    }
+                    std::println("|");
+               }
           }
      }
 
