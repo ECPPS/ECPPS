@@ -78,6 +78,9 @@ namespace ecpps::typeSystem
           std::bitset<static_cast<std::size_t>(TypeTraitEnum::Count)> _traits{};
      };
 
+     struct TypePointerHash;
+     struct TypePointerEqual;
+
      /// <summary>
      /// Base type construct
      /// N4950/6.8.1 [basic.types.general]
@@ -108,6 +111,8 @@ namespace ecpps::typeSystem
 
      private:
           std::string _name;
+          friend struct TypePointerHash;
+          friend struct TypePointerEqual;
      };
 
 #define TraitCheckerFunction(traitName)                                                                                \
@@ -127,6 +132,38 @@ namespace ecpps::typeSystem
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
+     struct TypePointerHash
+     {
+          using is_transparent = void;
+
+          std::size_t operator()(const TypePointer& ptr) const noexcept { return std::hash<std::string>{}(ptr->_name); }
+          std::size_t operator()(const std::string& str) const noexcept
+          {
+               return std::hash<std::string>{}(str);
+          }
+     };
+     struct TypePointerEqual
+     {
+          using is_transparent = void;
+
+          bool operator()(const TypePointer& lhs, const TypePointer& rhs) const noexcept
+          {
+               if (lhs == rhs) return true;
+               if (!lhs || !rhs) return false;
+
+               return lhs->_name == rhs->_name;
+          }
+
+          bool operator()(const TypePointer& lhs, const std::string& rhs) const noexcept
+          {
+               return lhs && lhs->_name == rhs;
+          }
+
+          bool operator()(const std::string& lhs, const TypePointer& rhs) const noexcept
+          {
+               return rhs && lhs == rhs->_name;
+          }
+     };
 
      enum struct Qualifiers : std::uint_fast8_t
      {
@@ -177,7 +214,7 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
-          [[nodiscard]] std::size_t Alignment(void) const noexcept { return 0 };
+          [[nodiscard]] std::size_t Alignment(void) const noexcept { return 0; };
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
           {

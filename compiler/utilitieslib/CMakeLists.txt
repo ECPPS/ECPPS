@@ -1,4 +1,4 @@
 add_library(utilitieslib STATIC
-    src/SBOVector.cpp include/utilitieslib/SBOVector.h)
+    src/SBOVector.cpp include/utilitieslib/SBOVector.h "include/utilitieslib/Queue.h")
 
 target_include_directories(utilitieslib PUBLIC "include/utilitieslib")
