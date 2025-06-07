@@ -51,7 +51,7 @@ namespace ecpps
                {
                     const std::size_t cap = Align(count, SBOSize);
                     this->_buffer.noSbo._capacity = cap;
-                    TAllocator allocator;
+                    TAllocator allocator{};
                     this->_buffer.noSbo._begin = allocator.allocate(cap);
                     std::uninitialized_fill_n(this->_buffer.noSbo._begin, count, value);
                }
@@ -71,7 +71,7 @@ namespace ecpps
                {
                     const std::size_t cap = other._buffer.noSbo._capacity;
                     _buffer.noSbo._capacity = cap;
-                    TAllocator allocator;
+                    TAllocator allocator{};
                     _buffer.noSbo._begin = allocator.allocate(cap);
                     std::uninitialized_copy_n(other.begin(), _size, _buffer.noSbo._begin);
                }
@@ -105,7 +105,7 @@ namespace ecpps
                for (std::size_t i = 0; i < _size; ++i) std::destroy_at(const_cast<TElement*>(first + i));
                if (!UseSBO())
                {
-                    TAllocator allocator;
+                    TAllocator allocator{};
                     allocator.deallocate(_buffer.noSbo._begin, _buffer.noSbo._capacity);
                }
           }
@@ -141,7 +141,7 @@ namespace ecpps
 
                if (!UseSBO())
                {
-                    TAllocator allocator;
+                    TAllocator allocator{};
                     if (wasSBO)
                     {
                          const std::size_t cap = SBOSize * 2;
