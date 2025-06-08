@@ -52,4 +52,29 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
+     // add
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg8(std::size_t reg, std::uint8_t imm);   
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
 } // namespace ecpps::codegen::x86_64

@@ -34,6 +34,36 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const Mov
          mov.destination);
 }
 
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const AddInstruction& add)
+{
+     return std::visit(
+         OverloadedVisitor{
+             [&add, this](const RegisterOperand& registerDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&add, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificAdd<OperandCombination::RegisterToRegister>(add); },
+                                        [&add, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificAdd<OperandCombination::ImmediateToRegister>(add); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid add operation"); }},
+                      add.from);
+             },
+             [&add, this](const MemoryLocationOperand& memoryDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&add, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificAdd<OperandCombination::RegisterToMemory>(add); },
+                                        [&add, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificAdd<OperandCombination::ImmediateToMemory>(add); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid add operation"); }},
+                      add.from);
+             },
+             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid add operation"); }},
+         add.to);
+}
+
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }
 
 std::size_t ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(const RegisterOperand& register_)
@@ -50,6 +80,10 @@ std::size_t ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(const Regist
 
      return ~0ULL;
 }
+
+//
+// Mov
+//
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
@@ -158,6 +192,124 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
           case ecpps::abi::wordSize: return x86_64::GenerateMovRegToReg16(destinationRegister, sourceRegister);
           case ecpps::abi::dwordSize: return x86_64::GenerateMovRegToReg32(destinationRegister, sourceRegister);
           case ecpps::abi::qwordSize: return x86_64::GenerateMovRegToReg64(destinationRegister, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+// 
+// Add
+//
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const AddInstruction& add)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(add.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(add.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+          switch (add.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateAddImmToMem8(destinationRegister, destinationDisplacement,
+                                                   static_cast<std::uint8_t>(sourceImmediate));
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateAddImmToMem16(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint16_t>(sourceImmediate));
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateAddImmToMem32(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint32_t>(sourceImmediate));
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateAddImmToMem64(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint64_t>(sourceImmediate));
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const AddInstruction& add)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(add.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(add.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (add.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateAddImmToReg8(destinationRegister, static_cast<std::uint8_t>(sourceImmediate));
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateAddImmToReg16(destinationRegister, static_cast<std::uint16_t>(sourceImmediate));
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateAddImmToReg32(destinationRegister, static_cast<std::uint32_t>(sourceImmediate));
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateAddImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const AddInstruction& add)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(add.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(add.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+          switch (add.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateAddRegToMem8(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateAddRegToMem16(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateAddRegToMem32(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateAddRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const AddInstruction& add)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(add.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(add.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (add.width)
+          {
+          case ecpps::abi::byteSize: return x86_64::GenerateAddRegToReg8(destinationRegister, sourceRegister);
+          case ecpps::abi::wordSize: return x86_64::GenerateAddRegToReg16(destinationRegister, sourceRegister);
+          case ecpps::abi::dwordSize: return x86_64::GenerateAddRegToReg32(destinationRegister, sourceRegister);
+          case ecpps::abi::qwordSize: return x86_64::GenerateAddRegToReg64(destinationRegister, sourceRegister);
           }
 
           throw std::logic_error("Invalid mov operation");

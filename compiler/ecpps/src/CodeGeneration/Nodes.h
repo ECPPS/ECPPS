@@ -70,7 +70,12 @@ namespace ecpps::codegen
           std::size_t _displacement;
      };
 
-     using Operand = std::variant<RegisterOperand, IntegerOperand, MemoryLocationOperand>;
+     struct ErrorOperand
+     {
+          [[nodiscard]] std::string ToString(void) const noexcept { return ""; }
+     };
+
+     using Operand = std::variant<ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {
@@ -88,6 +93,19 @@ namespace ecpps::codegen
 
           explicit MovInstruction(Operand source, Operand destination, const std::size_t width)
               : source(std::move(source)), destination(std::move(destination)), width(width)
+          {
+          }
+     };
+
+     struct AddInstruction
+     {
+          Operand from;
+          Operand to;
+          std::size_t width;
+          InstructionAlignment alignment{};
+
+          explicit AddInstruction(Operand from, Operand to, const std::size_t width)
+              : from(std::move(from)), to(std::move(to)), width(width)
           {
           }
      };
@@ -181,7 +199,8 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction, ReturnInstruction /*, std::unique_ptr<CustomInstruction>*/>;
+     using Instruction =
+         std::variant<MovInstruction, ReturnInstruction, AddInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

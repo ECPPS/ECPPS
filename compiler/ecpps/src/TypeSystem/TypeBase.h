@@ -21,6 +21,7 @@ namespace ecpps::typeSystem
           TriviallyCopyable,
           Character,
           Incomplete,
+          Boolean,
 
           Count
      };
@@ -54,6 +55,7 @@ namespace ecpps::typeSystem
           }
           [[nodiscard]] bool IsValid(void) const noexcept { return this->_isValid; }
           [[nodiscard]] const SBOVector<ConversionKind>& Sequence(void) const noexcept { return this->_sequence; }
+          [[nodiscard]] bool SameAs(void) const noexcept { return this->_isValid && this->_sequence.Size() == 0; }
 
      private:
           bool _isValid;
@@ -108,6 +110,12 @@ namespace ecpps::typeSystem
           [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;
 
           [[nodiscard]] virtual ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) = 0;
+          /// <summary>
+          /// Get the common type between 2 types. Returns nullptr if no common type is found.
+          /// </summary>
+          /// <param name="other"></param>
+          /// <returns></returns>
+          [[nodiscard]] virtual std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) = 0;
 
      private:
           std::string _name;
@@ -129,9 +137,11 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(TriviallyCopyable);
      TraitCheckerFunction(Character);
      TraitCheckerFunction(Incomplete);
+     TraitCheckerFunction(Boolean);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
+
      struct TypePointerHash
      {
           using is_transparent = void;
@@ -219,5 +229,7 @@ namespace ecpps::typeSystem
                           ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
                           : ConversionSequence{std::nullopt};
           }
+
+          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) override;
      };
 } // namespace ecpps::typeSystem

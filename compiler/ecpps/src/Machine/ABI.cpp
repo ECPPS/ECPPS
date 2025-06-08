@@ -282,6 +282,8 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
 
 ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg) : _register(std::move(reg))
 {
+     if (this->_register == nullptr) return;
+
      abi::ABI::Current()._allocatedRegisters.emplace(this->_register->physical->id);
 }
 
@@ -290,4 +292,11 @@ ecpps::abi::AllocatedRegister::~AllocatedRegister(void)
      if (this->_register == nullptr) return;
 
      ABI::Current()._allocatedRegisters.erase(this->_register->physical->id);
+}
+
+void ecpps::abi::AllocatedRegister::Release(void)
+{
+     if (this->_register == nullptr) return;
+
+     ABI::Current()._allocatedRegisters.erase(std::exchange(this->_register, nullptr)->physical->id);
 }

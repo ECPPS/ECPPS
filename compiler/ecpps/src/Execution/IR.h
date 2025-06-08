@@ -22,6 +22,12 @@ namespace ecpps::ir
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
+
+          Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right, const Location& source);
+          Expression ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right, const Location& source);
+          Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right, const Location& source);
+
+          Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           typeSystem::TypePointer ParseType(const ast::NodePointer& type);

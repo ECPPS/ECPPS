@@ -8,6 +8,7 @@
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
 #include "Procedural.h"
+#include "Operations.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -85,6 +86,115 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
          std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
 }
 
+Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right, const Location& source)
+{
+     // TODO: Assert operator is one of Plus, Minus
+
+     auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
+     auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+     
+     const auto resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+
+     if (operator_ == ast::Operator::Plus)
+          return std::make_unique<PRValue>(
+              resultType, std::make_unique<AdditionNode>(std::move(left), std::move(right), source), false);
+         
+     return std::make_unique<PRValue>(
+         resultType, std::make_unique<SubtractionNode>(std::move(left), std::move(right), source), false);
+}
+
+Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right, const Location& source)
+{
+     // TODO: Assert operator is one of Asterisk, Solidus, Percent
+
+     auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
+     auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+     const auto resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+
+     if (operator_ == ast::Operator::Asterisk)
+          return std::make_unique<PRValue>(
+               resultType, std::make_unique<MultiplicationNode>(std::move(left), std::move(right), source), false);
+
+     if (operator_ == ast::Operator::Solidus)
+          return std::make_unique<PRValue>(
+               resultType, std::make_unique<DivideNode>(std::move(left), std::move(right), source), false);
+
+     return std::make_unique<PRValue>(
+          resultType, std::make_unique<ModuloNode>(std::move(left), std::move(right), source), false);
+}
+
+Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator operator_, Expression right, const Location& source)
+{
+     // TODO: Assert operator is one of LeftShift, RightShift
+
+     return Expression();
+}
+
+Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& node)
+{
+     const auto operator_ = node.value();
+     auto left = ParseExpression(node.left());
+     auto right = ParseExpression(node.right());
+     if (left == nullptr || right == nullptr) return nullptr;
+
+     switch (operator_)
+     {
+     case ast::Operator::Plus:
+     case ast::Operator::Minus: return this->ParseAdditiveExpression(std::move(left), operator_, std::move(right), node.Source());
+     case ast::Operator::Asterisk:
+     case ast::Operator::Percent:
+     case ast::Operator::Solidus: return this->ParseAdditiveExpression(std::move(left), operator_, std::move(right), node.Source());
+     case ast::Operator::LeftShift:
+     case ast::Operator::RightShift: return this->ParseAdditiveExpression(std::move(left), operator_, std::move(right), node.Source());
+     }
+
+     return nullptr;
+}
 Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 {
      if (expression == nullptr) return nullptr;
@@ -94,6 +204,9 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return std::make_unique<PRValue>(
               typeSystem::g_int, std::make_unique<ir::IntegralNode>(integerLiteral->Value(), expression->Source()),
               true);
+     if (const auto binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
+         binaryExpression != nullptr)
+          return this->ParseBinaryExpression(*binaryExpression);
 
      // TODO: Error
      return nullptr;
@@ -111,7 +224,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 
 Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType)
 {
-     if (toType == nullptr) return nullptr;
+     if (expression == nullptr || toType == nullptr) return nullptr;
 
      const auto comparison = toType->CompareTo(expression->Type());
 
