@@ -45,7 +45,8 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
      return ConversionSequence{std::nullopt};
 }
 
-std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::IntegralType::CommonWith(const std::shared_ptr<TypeBase>& other)
+std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::IntegralType::CommonWith(
+    const std::shared_ptr<TypeBase>& other)
 {
      if (other == nullptr) return nullptr;
 
@@ -55,17 +56,19 @@ std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::IntegralType::Co
 
      if (otherIntegral->_sign != this->_sign)
      {
-          const auto unsignedType = this->_sign == Signedness::Signed ? otherIntegral : std::make_shared<IntegralType>(*this);
-          const auto signedType = this->_sign == Signedness::Signed ? std::make_shared<IntegralType>(*this) : otherIntegral;
+          const auto unsignedType =
+              this->_sign == Signedness::Signed ? otherIntegral : std::make_shared<IntegralType>(*this);
+          const auto signedType =
+              this->_sign == Signedness::Signed ? std::make_shared<IntegralType>(*this) : otherIntegral;
 
           if (RankInteger(unsignedType) >= RankInteger(signedType)) return unsignedType;
           if (signedType->Size() >= unsignedType->Size()) return signedType;
 
-          return std::make_shared<IntegralType>(Signedness::Unsigned, signedType->Kind(), "unsigned " + signedType->RawName(), signedType->qualifiers());
+          return std::make_shared<IntegralType>(Signedness::Unsigned, signedType->Kind(),
+                                                "unsigned " + signedType->RawName(), signedType->qualifiers());
      }
 
-     if (RankInteger(otherIntegral) > RankInteger(*this))
-          return otherIntegral;
+     if (RankInteger(otherIntegral) > RankInteger(*this)) return otherIntegral;
      return std::make_shared<IntegralType>(*this);
 }
 

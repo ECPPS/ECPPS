@@ -137,7 +137,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid mul operation"); }},
-                       div.from);
+                      div.from);
              },
              [&div, this](const MemoryLocationOperand& memoryDestination)
              {
@@ -148,10 +148,10 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(div); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid mul operation"); }},
-                       div.from);
+                      div.from);
              },
              [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
-          div.to);
+         div.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }
@@ -663,7 +663,6 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
           const auto destinationRegister = self->RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
-
           throw std::logic_error("Invalid mul operation");
           return {};
      }
@@ -717,33 +716,23 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
                break;
           }
-          default:
-               throw std::logic_error("Invalid div width");
+          default: throw std::logic_error("Invalid div width");
           }
 
           // emit div instruction with divisor in register (destReg)
           std::vector<std::byte> divBytes{};
           switch (div.width)
           {
-          case ecpps::abi::byteSize:
-               divBytes = x86_64::GenerateSignedDiv8(destReg);
-               break;
-          case ecpps::abi::wordSize:
-               divBytes = x86_64::GenerateSignedDiv16(destReg);
-               break;
-          case ecpps::abi::dwordSize:
-               divBytes = x86_64::GenerateSignedDiv32(destReg);
-               break;
-          case ecpps::abi::qwordSize:
-               divBytes = x86_64::GenerateSignedDiv64(destReg);
-               break;
+          case ecpps::abi::byteSize: divBytes = x86_64::GenerateSignedDiv8(destReg); break;
+          case ecpps::abi::wordSize: divBytes = x86_64::GenerateSignedDiv16(destReg); break;
+          case ecpps::abi::dwordSize: divBytes = x86_64::GenerateSignedDiv32(destReg); break;
+          case ecpps::abi::qwordSize: divBytes = x86_64::GenerateSignedDiv64(destReg); break;
           }
           code.insert(code.end(), divBytes.begin(), divBytes.end());
 
           return code;
      }
 };
-
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
@@ -756,7 +745,6 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
           const auto sourceRegister = self->RegisterToIndex(source);
           const auto destinationRegister = self->RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
-
 
           throw std::logic_error("Invalid mov operation");
           return {};
@@ -773,7 +761,6 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
           const auto sourceRegister = self->RegisterToIndex(source);
           const auto destinationRegister = self->RegisterToIndex(destination);
-
 
           throw std::logic_error("Invalid mov operation");
           return {};

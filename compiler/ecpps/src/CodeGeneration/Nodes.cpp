@@ -53,7 +53,7 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
                            },
                            [](const DivInstruction& instruction)
                            {
-                                std::string built = "div";
+                                std::string built = instruction.isSigned ? "idiv" : "div";
                                 built += " " + std::visit([](const auto& operand) -> std::string
                                                           { return operand.ToString(); }, instruction.to);
                                 built += ", " + std::visit([](const auto& operand) -> std::string

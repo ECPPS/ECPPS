@@ -55,10 +55,10 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                return ecpps::codegen::ErrorOperand{};
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
-               code.emplace_back(ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
-                                                                destinationStorage->width});
-          code.emplace_back(
-              ecpps::codegen::AddInstruction{right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+               code.emplace_back(ecpps::codegen::MovInstruction{
+                   left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+          code.emplace_back(ecpps::codegen::AddInstruction{
+              right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -93,10 +93,10 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                return ecpps::codegen::ErrorOperand{};
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
-               code.emplace_back(ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
-                                                                destinationStorage->width});
-          code.emplace_back(
-              ecpps::codegen::SubInstruction{right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+               code.emplace_back(ecpps::codegen::MovInstruction{
+                   left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+          code.emplace_back(ecpps::codegen::SubInstruction{
+              right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -145,8 +145,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
 
      if (const auto div = dynamic_cast<ir::DivideNode*>(value.get()); div != nullptr)
      {
-          if (div->Left() == nullptr || div->Right() == nullptr)
-               return ecpps::codegen::ErrorOperand{};
+          if (div->Left() == nullptr || div->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;

@@ -159,7 +159,7 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv64(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv32(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv16(std::size_t reg);
-     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv8(std::size_t reg);  
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv8(std::size_t reg);
 
      [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem64(std::size_t baseReg, std::int32_t displacement);
      [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem32(std::size_t baseReg, std::int32_t displacement);
@@ -170,7 +170,7 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateSignedDiv64(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateSignedDiv32(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateSignedDiv16(std::size_t reg);
-     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv8(std::size_t reg);   
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv8(std::size_t reg);
 
      [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem64(std::size_t baseReg, std::int32_t displacement);
      [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem32(std::size_t baseReg, std::int32_t displacement);
