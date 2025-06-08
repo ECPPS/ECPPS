@@ -1,6 +1,8 @@
 #include "Config.h"
 #include <print>
 #include <string_view>
+#include "../Machine/ABI.h"
+#include "../Machine/Machine.h"
 
 ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
 {
@@ -41,5 +43,16 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
           else
                this->sourceFiles.emplace_back(fullArgument);
      }
+
+     if (this->outputImage.empty())
+     {
+          switch (this->linker)
+          {
+          case LinkerUsed::Windows64:
+          case LinkerUsed::Windows32: this->outputImage = "output.exe"; break;
+          default: this->outputImage = "out"; break;
+          }
+     }
+
      abi::ABI::Current().PushSIMDRegisters(simd);
 }
