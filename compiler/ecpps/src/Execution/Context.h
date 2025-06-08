@@ -1,5 +1,6 @@
 #pragma once
 #include <Queue.h>
+#include <functional>
 #include <memory>
 #include <unordered_set>
 #include "../TypeSystem/TypeBase.h"
@@ -31,8 +32,11 @@ namespace ecpps::ir
 
      struct Context
      {
+          std::reference_wrapper<Diagnostics> diagnostics;
           std::unordered_set<typeSystem::TypePointer, typeSystem::TypePointerHash, typeSystem::TypePointerEqual>
               types{};
           SBOQueue<ContextPointer> contextSequence{};
+
+          explicit Context(Diagnostics& diagnostics) : diagnostics(std::ref(diagnostics)) {}
      };
 } // namespace ecpps::ir

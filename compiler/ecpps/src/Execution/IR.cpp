@@ -13,9 +13,10 @@ using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
 using ecpps::Expression;
 
-std::vector<IRNodePointer> ecpps::ir::IR::Parse(const std::vector<ASTNodePointer>& ast)
+std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, const std::vector<ASTNodePointer>& ast)
 {
-     IR ir{};
+     IR ir{diagnostics};
+     ir._context.types.insert(typeSystem::g_void);
      ir._context.types.insert(typeSystem::g_char);
      ir._context.types.insert(typeSystem::g_signedChar);
      ir._context.types.insert(typeSystem::g_unsignedChar);
@@ -45,7 +46,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 {
      std::vector<Parameter> parameters{};
 
-     IR ir{};
+     IR ir{this->_context.diagnostics.get()};
      const auto returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
@@ -54,7 +55,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
-               // TODO: Error
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                       "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -67,9 +70,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
-     this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(linkage, node.Signature().callingConvention,
-                                                                       returnType, node.Signature().name->ToString(0),
-                                                                       std::move(parameters), std::move(ir._built)));
+     this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(
+         linkage, node.Signature().callingConvention, returnType, node.Signature().name->ToString(0),
+         std::move(parameters), std::move(ir._built), node.Source()));
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
@@ -79,7 +82,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      const auto function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
      // TODO: Assert function != nullptr
      this->_built.push_back(
-         std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType)));
+         std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
 }
 
 Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
@@ -88,8 +91,9 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      if (const auto integerLiteral = dynamic_cast<ast::IntegerLiteralNode*>(expression.get());
          integerLiteral != nullptr)
-          return std::make_unique<PRValue>(typeSystem::g_int,
-                                           std::make_unique<ir::IntegralNode>(integerLiteral->Value()), true);
+          return std::make_unique<PRValue>(
+              typeSystem::g_int, std::make_unique<ir::IntegralNode>(integerLiteral->Value(), expression->Source()),
+              true);
 
      // TODO: Error
      return nullptr;
@@ -107,11 +111,17 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 
 Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType)
 {
+     if (toType == nullptr) return nullptr;
+
      const auto comparison = toType->CompareTo(expression->Type());
 
      if (!comparison.IsValid())
      {
-          // TODO: Error
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                  "Cannot convert from " + expression->Type()->Name() + " (aka " + expression->Type()->RawName() +
+                      ") to type " + toType->Name() + " (aka " + toType->RawName() + ")",
+                  expression->Value()->Source()));
           return nullptr;
      }
 

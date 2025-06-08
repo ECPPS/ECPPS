@@ -20,6 +20,8 @@ namespace ecpps::ast
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
 
+          [[nodiscard]] const Location& Source(void) const noexcept { return this->_location; }
+
      private:
           Location _location;
      };

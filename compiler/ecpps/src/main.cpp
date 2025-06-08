@@ -27,14 +27,14 @@ int main(int argc, char* argv[])
 
      if (sources.files.empty())
      {
-          // TODO: Error
+          std::println("\x1b[31mNo input files\x1b[0m");
           return -1;
      }
 
      auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
      if (emitter == nullptr)
      {
-          // TODO: Error
+          std::println("\x1b[31mUnsupported architecture for the code generation\x1b[0m");
           return -1;
      }
      std::println("Target: {}", emitter->Name());
@@ -42,6 +42,8 @@ int main(int argc, char* argv[])
      std::vector<std::byte> generatedMachineCode{};
      std::vector<std::pair<std::string, std::size_t>> functions{};
      std::size_t mainOffset{};
+
+     bool hadErrors = false;
 
      for (auto& source : sources.files)
      {
@@ -56,7 +58,7 @@ int main(int argc, char* argv[])
           std::println();
           std::println("AST:");
           for (const auto& node : ast) std::println("{}", node->ToString(0));
-          const auto ir = ecpps::ir::IR::Parse(ast);
+          const auto ir = ecpps::ir::IR::Parse(source.diagnostics, ast);
           std::println();
           std::println("IR:");
           for (const auto& node : ir) std::println("{}", node->ToString(0));
@@ -97,6 +99,26 @@ int main(int argc, char* argv[])
                     std::println("|");
                }
           }
+
+          for (const auto& diag : source.diagnostics.diagnosticsList)
+          {
+               ecpps::diagnostics::PrintDiagnostic(source.name, diag);
+
+               if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
+                   (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                    break;
+               hadErrors = true;
+          }
+     }
+
+     if (hadErrors)
+     {
+          const auto end = std::chrono::steady_clock::now();
+
+          std::println("Compilation failed. {} elapsed",
+                       std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+
+          return -1;
      }
 
      std::println("Linking objects...");

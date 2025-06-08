@@ -43,8 +43,8 @@ namespace ecpps::ir
      class AdditionNode final : public NodeBase
      {
      public:
-          explicit AdditionNode(Expression left, Expression right)
-              : NodeBase(NodeKind::Addition), _left(std::move(left)), _right(std::move(right))
+          explicit AdditionNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Addition, std::move(source)), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -65,8 +65,8 @@ namespace ecpps::ir
      {
 
      public:
-          explicit SubtractionNode(Expression left, Expression right)
-              : NodeBase(NodeKind::Subtraction), _left(std::move(left)), _right(std::move(right))
+          explicit SubtractionNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -87,17 +87,18 @@ namespace ecpps::ir
      {
      public:
           explicit CompareExchangeNode(Expression address, Expression expected, Expression replacement, bool isWeak,
-                                       MemoryOrdering ordering)
-              : NodeBase(NodeKind::CompareExchange), _address(std::move(address)), _expected(std::move(expected)),
-                _replacement(std::move(replacement)), _isWeak(isWeak), _ordering(ordering)
+                                       MemoryOrdering ordering, Location source)
+              : NodeBase(NodeKind::CompareExchange, std::move(source)), _address(std::move(address)),
+                _expected(std::move(expected)), _replacement(std::move(replacement)), _isWeak(isWeak),
+                _ordering(ordering)
           {
           }
 
-          [[nodiscard]] const Expression& Address() const noexcept { return _address; }
-          [[nodiscard]] const Expression& Expected() const noexcept { return _expected; }
-          [[nodiscard]] const Expression& Replacement() const noexcept { return _replacement; }
-          [[nodiscard]] bool IsWeak() const noexcept { return _isWeak; }
-          [[nodiscard]] MemoryOrdering OrderingMode() const noexcept { return _ordering; }
+          [[nodiscard]] const Expression& Address(void) const noexcept { return _address; }
+          [[nodiscard]] const Expression& Expected(void) const noexcept { return _expected; }
+          [[nodiscard]] const Expression& Replacement(void) const noexcept { return _replacement; }
+          [[nodiscard]] bool IsWeak(void) const noexcept { return _isWeak; }
+          [[nodiscard]] MemoryOrdering OrderingMode(void) const noexcept { return _ordering; }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {

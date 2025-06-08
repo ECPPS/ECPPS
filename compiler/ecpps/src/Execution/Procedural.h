@@ -19,10 +19,10 @@ namespace ecpps::ir
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::TypePointer returnType, std::string name,
-                                 std::vector<Parameter> parameterList, std::vector<NodePointer> body)
-              : NodeBase(NodeKind::Procedure), _linkage(linkage), _callingConvention(callingConvention),
-                _returnType(std::move(returnType)), _name(std::move(name)), _parameterList(std::move(parameterList)),
-                _body(std::move(body))
+                                 std::vector<Parameter> parameterList, std::vector<NodePointer> body, Location source)
+              : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
+                _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
+                _parameterList(std::move(parameterList)), _body(std::move(body))
           {
           }
 

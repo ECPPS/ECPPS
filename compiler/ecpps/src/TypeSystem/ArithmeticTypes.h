@@ -82,6 +82,7 @@ namespace ecpps::typeSystem
      };
 
      // predefined builtin types
+     extern std::shared_ptr<VoidType> g_void;
      extern std::shared_ptr<CharacterType> g_char;
      extern std::shared_ptr<CharacterType> g_signedChar;
      extern std::shared_ptr<CharacterType> g_unsignedChar;

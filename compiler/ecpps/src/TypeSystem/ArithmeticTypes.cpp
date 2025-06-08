@@ -66,6 +66,8 @@ std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
 }
 
 // predefined builtin types
+std::shared_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
+    std::make_shared<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
 std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_char =
     std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "char",
                                                 ecpps::typeSystem::Qualifiers::None);
