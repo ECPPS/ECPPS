@@ -28,6 +28,10 @@ std::unique_ptr<ecpps::codegen::CodeEmitter> ecpps::codegen::CodeEmitter::New(ab
 std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitInstruction(const Instruction& instruction)
 {
      return std::visit(OverloadedVisitor{[this](const MovInstruction& mov) { return this->EmitMov(mov); },
+                                         [this](const AddInstruction& add) { return this->EmitAdd(add); },
+                                         [this](const SubInstruction& sub) { return this->EmitSub(sub); },
+                                         [this](const MulInstruction& mul) { return this->EmitMul(mul); },
+                                         [this](const DivInstruction& div) { return this->EmitDiv(div); },
                                          [this](const ReturnInstruction&) { return this->EmitReturn(); },
                                          [](auto&&) -> std::vector<std::byte> { throw nullptr; }},
                        instruction);

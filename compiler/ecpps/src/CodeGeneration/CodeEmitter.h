@@ -37,6 +37,10 @@ namespace ecpps::codegen
 
           // generic instruction emitters
           [[nodiscard]] virtual std::vector<std::byte> EmitMov(const MovInstruction& mov) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitAdd(const AddInstruction& add) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitSub(const SubInstruction& sub) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitMul(const MulInstruction& mul) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitDiv(const DivInstruction& div) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitReturn(void) = 0;
 
           /// <summary>

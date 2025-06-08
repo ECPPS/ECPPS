@@ -52,8 +52,8 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') /* + this->_left->ToString() */ +
-                      " + " /* + this->_right->ToString() */;
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " + " +
+                      this->_right->Value()->ToString(0);
           }
 
      private:
@@ -74,8 +74,74 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') /* + this->_left->ToString() */ +
-                      " + " /* + this->_right->ToString() */;
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " - " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+
+     class MultiplicationNode final : public NodeBase
+     {
+
+     public:
+          explicit MultiplicationNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " * " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+
+     class DivideNode final : public NodeBase
+     {
+
+     public:
+          explicit DivideNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " / " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+
+     class ModuloNode final : public NodeBase
+     {
+
+     public:
+          explicit ModuloNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " % " +
+                      this->_right->Value()->ToString(0);
           }
 
      private:

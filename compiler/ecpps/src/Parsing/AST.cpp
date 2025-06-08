@@ -468,7 +468,7 @@ NodePointer ecpps::ast::AST::ParseMultiplicativeExpression(void)
                                                                                                : Operator::Percent;
 
                     expression = std::make_unique<BinaryOperatorNode>(std::move(expression), operatorId,
-                                                                      ParseMultiplicativeExpression(), source);
+                                                                      ParsePmExpression(), source);
                     continue;
                }
           }
@@ -496,7 +496,7 @@ NodePointer ecpps::ast::AST::ParseAdditiveExpression(void)
                     const auto operatorId =
                         std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
                     expression = std::make_unique<BinaryOperatorNode>(std::move(expression), operatorId,
-                                                                      ParseAdditiveExpression(), source);
+                                                                      ParseMultiplicativeExpression(), source);
                     continue;
                }
           }
@@ -525,7 +525,7 @@ NodePointer ecpps::ast::AST::ParseShiftExpression(void)
                     const auto operatorId =
                         std::get<std::string>(currentToken.value) == ">>" ? Operator::RightShift : Operator::LeftShift;
                     expression = std::make_unique<BinaryOperatorNode>(std::move(expression), operatorId,
-                                                                      ParseShiftExpression(), source);
+                                                                      ParseAdditiveExpression(), source);
                     continue;
                }
           }
@@ -551,7 +551,7 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(void)
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
                     expression = std::make_unique<BinaryOperatorNode>(std::move(expression), Operator::Spaceship,
-                                                                      ParseCompareExpression(), source);
+                                                                      ParseShiftExpression(), source);
                     continue;
                }
           }

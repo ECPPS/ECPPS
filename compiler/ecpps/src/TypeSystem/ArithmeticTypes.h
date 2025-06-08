@@ -52,6 +52,9 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] TypeKind Kind(void) const noexcept { return this->_kind; }
+
+          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
 
      private:
           Signedness _sign;
@@ -81,13 +84,52 @@ namespace ecpps::typeSystem
           bool _isUnqualified;
      };
 
+     /// <summary>
+     /// Important ones:
+     /// No two signed integer types other than char and signed char (if char is signed) have the same rank, even if
+     /// they have the same representation. The rank of a signed integer type is greater than the rank of any signed
+     /// integer type with a smaller width. The rank of any unsigned integer type equals the rank of the corresponding
+     /// signed integer type.
+     ///
+     /// [conv.rank]/1 "Every integer type has an integer conversion rank defined as follows:"
+     /// </summary>
+     enum struct IntegerConversionRank : std::uint_fast8_t
+     {
+          Unknown = -1,
+
+          Bool = 0, // lowest
+          Char = 1,
+          SignedChar = Char,
+          UnsignedChar = Char,
+          Short = 2,
+          UnsignedShort = 2,
+          Int = 3,
+          UnsignedInt = 3,
+          Long = 4,
+          UnsignedLong = 4,
+          LongLong = 5,
+          UnsignedLongLong = 5, // highest
+     };
+     [[nodiscard]] constexpr auto operator<=>(const IntegerConversionRank left, const IntegerConversionRank right)
+     {
+          return std::to_underlying(left) <=> std::to_underlying(right);
+     }
+
+     IntegerConversionRank RankInteger(const std::shared_ptr<IntegralType>& integer);
+     IntegerConversionRank RankInteger(const IntegralType& integer);
+     std::shared_ptr<IntegralType> PromoteInteger(const std::shared_ptr<IntegralType>& integer);
+
      // predefined builtin types
      extern std::shared_ptr<VoidType> g_void;
      extern std::shared_ptr<CharacterType> g_char;
      extern std::shared_ptr<CharacterType> g_signedChar;
      extern std::shared_ptr<CharacterType> g_unsignedChar;
      extern std::shared_ptr<IntegralType> g_short;
+     extern std::shared_ptr<IntegralType> g_unsignedShort;
      extern std::shared_ptr<IntegralType> g_int;
+     extern std::shared_ptr<IntegralType> g_unsignedInt;
      extern std::shared_ptr<IntegralType> g_long;
+     extern std::shared_ptr<IntegralType> g_unsignedLong;
      extern std::shared_ptr<IntegralType> g_longLong;
+     extern std::shared_ptr<IntegralType> g_unsignedLongLong;
 } // namespace ecpps::typeSystem

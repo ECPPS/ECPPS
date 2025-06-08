@@ -36,6 +36,7 @@ namespace ecpps::abi
           std::size_t id;
 
           constexpr bool operator==(const PhysicalRegister& other) { return this->id == other.id; }
+          constexpr bool operator!=(const PhysicalRegister& other) { return this->id != other.id; }
 
           /// <summary>
           /// Constructs a new register object
@@ -72,6 +73,7 @@ namespace ecpps::abi
           AllocatedRegister& operator=(AllocatedRegister&&) = default;
 
           ~AllocatedRegister(void);
+          void Release(void);
 
           [[nodiscard]] bool operator!(void) const noexcept { return this->_register != nullptr; }
 

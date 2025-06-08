@@ -52,4 +52,135 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
+     // add
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
+     // sub
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
+     // mul
+
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem64(std::size_t destination,
+                                                                        std::size_t destinationOffset,
+                                                                        std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem32(std::size_t destination,
+                                                                        std::size_t destinationOffset,
+                                                                        std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem16(std::size_t destination,
+                                                                        std::size_t destinationOffset,
+                                                                        std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem8(std::size_t destination,
+                                                                       std::size_t destinationOffset,
+                                                                       std::size_t sourceRegister);
+
+     // imul
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem64(std::size_t reg, std::size_t offset,
+                                                                      std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem32(std::size_t reg, std::size_t offset,
+                                                                      std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem16(std::size_t reg, std::size_t offset,
+                                                                      std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem8(std::size_t reg, std::size_t offset,
+                                                                     std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem64(std::size_t destination,
+                                                                      std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem32(std::size_t destination,
+                                                                      std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem16(std::size_t destination,
+                                                                      std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem8(std::size_t destination,
+                                                                     std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister);
+
+     // div
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv64(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv32(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv16(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDiv8(std::size_t reg);
+
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem64(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem32(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem16(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedDivMem8(std::size_t baseReg, std::int32_t displacement);
+
+     // idiv
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv64(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv32(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv16(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDiv8(std::size_t reg);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem64(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem32(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem16(std::size_t baseReg, std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedDivMem8(std::size_t baseReg, std::int32_t displacement);
+
+     // xor
+     [[nodiscard]] std::vector<std::byte> GenerateXorReg8(std::size_t destReg, std::size_t srcReg);
+     [[nodiscard]] std::vector<std::byte> GenerateXorReg16(std::size_t destReg, std::size_t srcReg);
+     [[nodiscard]] std::vector<std::byte> GenerateXorReg32(std::size_t destReg, std::size_t srcReg);
+     [[nodiscard]] std::vector<std::byte> GenerateXorReg64(std::size_t destReg, std::size_t srcReg);
+
 } // namespace ecpps::codegen::x86_64
