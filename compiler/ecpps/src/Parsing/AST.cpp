@@ -109,13 +109,9 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      }
      auto name = ParseIdentifier();
 
-     FunctionSignature signature{std::move(type),
-                                 false,
-                                 false,
-                                 ConstantExpressionSpecifier::None,
-                                 SBOVector<AttributeNode>{},
-                                 std::move(name),
-                                 callingConvention}; // TODO: Allow id-expression
+     FunctionSignature signature{
+         std::move(type),  false, false, ConstantExpressionSpecifier::None, SBOVector<AttributeNode>{}, std::move(name),
+         callingConvention}; // TODO: Allow id-expression
      if (!Match(TokenType::LeftParenthesis))
      {
           return nullptr; // TODO: Error

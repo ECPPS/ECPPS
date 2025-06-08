@@ -1,5 +1,6 @@
 #include "IR.h"
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 #include "../Machine/ABI.h"
@@ -7,7 +8,6 @@
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
 #include "Procedural.h"
-#include <string>
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -57,7 +57,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                // TODO: Error
           }
      }
-     else if (node.Signature().isInline || node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None) linkage = abi::Linkage::Internal;
+     else if (node.Signature().isInline ||
+              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+          linkage = abi::Linkage::Internal;
      // TODO: Error on conflicting linkage specification
 
      ir._context = this->_context;

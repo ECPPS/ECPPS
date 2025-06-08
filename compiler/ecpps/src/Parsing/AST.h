@@ -178,7 +178,8 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     SBOVector<AttributeNode> attributes, NodePointer name, const abi::CallingConventionName callingConvention)
+                                     SBOVector<AttributeNode> attributes, NodePointer name,
+                                     const abi::CallingConventionName callingConvention)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
                 attributes(std::move(attributes)), name(std::move(name)), callingConvention(callingConvention)
           {
