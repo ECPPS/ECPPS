@@ -104,7 +104,8 @@ int main(int argc, char* argv[])
           {
                ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
-               if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error && (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+               if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
+                   (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                     break;
                hadErrors = true;
           }
