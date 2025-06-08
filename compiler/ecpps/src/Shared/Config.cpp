@@ -44,15 +44,15 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                                          { return static_cast<char>(std::tolower(static_cast<int>(ch))); }) |
                    std::ranges::to<std::string>();
 
-               if (flag == "/WX") this->warningsAreErrors = true;
-               else if (flag == "/-WX")
+               if (flag == "WX") this->warningsAreErrors = true;
+               else if (flag == "-WX")
                     this->warningsAreErrors = false;
-               else if (lowerFlag == "/output" || lowerFlag == "/out")
+               else if (lowerFlag == "output" || lowerFlag == "out")
                {
                     if (!this->outputImage.empty()) {} // TODO: Warning
                     this->outputImage = value;
                }
-               else if (lowerFlag == "/image")
+               else if (lowerFlag == "image")
                {
                     if (lowerValue == "win64" || lowerValue == "pe64" || lowerValue == "pe32p")
                          this->linker = LinkerUsed::Windows64;
