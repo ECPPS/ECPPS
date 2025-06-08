@@ -151,13 +151,14 @@ namespace ecpps::codegen
           Operand from;
           Operand to;
           std::size_t width;
+          bool isSigned;
           /// <summary>
           /// For SIMD, unused outside of it in the generic context (might be used for optimisations)
           /// </summary>
           InstructionAlignment alignment{};
 
-          explicit DivInstruction(Operand from, Operand to, const std::size_t width)
-              : from(std::move(from)), to(std::move(to)), width(width)
+          explicit DivInstruction(Operand from, Operand to, const std::size_t width, const bool isSigned)
+              : from(std::move(from)), to(std::move(to)), width(width), isSigned(isSigned)
           {
           }
      };

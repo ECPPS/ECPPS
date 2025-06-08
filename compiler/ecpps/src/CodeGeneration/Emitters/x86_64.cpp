@@ -126,7 +126,32 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const Mul
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const DivInstruction& div)
 {
-     return std::vector<std::byte>();
+     return std::visit(
+         OverloadedVisitor{
+             [&div, this](const RegisterOperand& registerDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&div, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificDiv<OperandCombination::RegisterToRegister>(div); },
+                                        [&div, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid mul operation"); }},
+                       div.from);
+             },
+             [&div, this](const MemoryLocationOperand& memoryDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&div, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificDiv<OperandCombination::RegisterToMemory>(div); },
+                                        [&div, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(div); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid mul operation"); }},
+                       div.from);
+             },
+             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
+          div.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }
@@ -520,16 +545,16 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
           {
           case ecpps::abi::byteSize:
                return x86_64::GenerateSignedMulImmToMem8(destinationRegister, destinationDisplacement,
-                                                   static_cast<std::uint8_t>(sourceImmediate));
+                                                         static_cast<std::uint8_t>(sourceImmediate));
           case ecpps::abi::wordSize:
                return x86_64::GenerateSignedMulImmToMem16(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint16_t>(sourceImmediate));
+                                                          static_cast<std::uint16_t>(sourceImmediate));
           case ecpps::abi::dwordSize:
                return x86_64::GenerateSignedMulImmToMem32(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint32_t>(sourceImmediate));
+                                                          static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
                return x86_64::GenerateSignedMulImmToMem64(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint64_t>(sourceImmediate));
+                                                          static_cast<std::uint64_t>(sourceImmediate));
           }
 
           throw std::logic_error("Invalid mul operation");
@@ -551,13 +576,17 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
           switch (mul.width)
           {
           case ecpps::abi::byteSize:
-               return x86_64::GenerateSignedMulImmToReg8(destinationRegister, static_cast<std::uint8_t>(sourceImmediate));
+               return x86_64::GenerateSignedMulImmToReg8(destinationRegister,
+                                                         static_cast<std::uint8_t>(sourceImmediate));
           case ecpps::abi::wordSize:
-               return x86_64::GenerateSignedMulImmToReg16(destinationRegister, static_cast<std::uint16_t>(sourceImmediate));
+               return x86_64::GenerateSignedMulImmToReg16(destinationRegister,
+                                                          static_cast<std::uint16_t>(sourceImmediate));
           case ecpps::abi::dwordSize:
-               return x86_64::GenerateSignedMulImmToReg32(destinationRegister, static_cast<std::uint32_t>(sourceImmediate));
+               return x86_64::GenerateSignedMulImmToReg32(destinationRegister,
+                                                          static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
-               return x86_64::GenerateSignedMulImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
+               return x86_64::GenerateSignedMulImmToReg64(destinationRegister,
+                                                          static_cast<std::uint64_t>(sourceImmediate));
           }
 
           throw std::logic_error("Invalid mov operation");
@@ -612,6 +641,139 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
           case ecpps::abi::dwordSize: return x86_64::GenerateSignedMulRegToReg32(destinationRegister, sourceRegister);
           case ecpps::abi::qwordSize: return x86_64::GenerateSignedMulRegToReg64(destinationRegister, sourceRegister);
           }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+//
+// Div
+//
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const DivInstruction& div)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(div.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(div.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+
+          throw std::logic_error("Invalid mul operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const DivInstruction& div)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(div.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(div.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destReg = self->RegisterToIndex(destination);
+
+          std::vector<std::byte> code{};
+
+          // mov dividend immediate -> RAX/AX/AL
+          switch (div.width)
+          {
+          case ecpps::abi::byteSize:
+          {
+               auto movBytes = x86_64::GenerateMovImmToReg8(0, static_cast<std::uint8_t>(sourceImmediate));
+               code.insert(code.end(), movBytes.begin(), movBytes.end());
+               auto movRdxBytes = x86_64::GenerateXorReg64(2, 2);
+               code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
+               break;
+          }
+          case ecpps::abi::wordSize:
+          {
+               auto movBytes = x86_64::GenerateMovImmToReg16(0, static_cast<std::uint16_t>(sourceImmediate));
+               code.insert(code.end(), movBytes.begin(), movBytes.end());
+               auto movDxBytes = x86_64::GenerateXorReg16(2, 2);
+               code.insert(code.end(), movDxBytes.begin(), movDxBytes.end());
+               break;
+          }
+          case ecpps::abi::dwordSize:
+          {
+               auto movBytes = x86_64::GenerateMovImmToReg32(0, static_cast<std::uint32_t>(sourceImmediate));
+               code.insert(code.end(), movBytes.begin(), movBytes.end());
+               auto movEdxBytes = x86_64::GenerateXorReg32(2, 2);
+               code.insert(code.end(), movEdxBytes.begin(), movEdxBytes.end());
+               break;
+          }
+          case ecpps::abi::qwordSize:
+          {
+               auto movBytes = x86_64::GenerateMovImmToReg64(0, static_cast<std::uint64_t>(sourceImmediate));
+               code.insert(code.end(), movBytes.begin(), movBytes.end());
+               auto movRdxBytes = x86_64::GenerateXorReg64(2, 2);
+               code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
+               break;
+          }
+          default:
+               throw std::logic_error("Invalid div width");
+          }
+
+          // emit div instruction with divisor in register (destReg)
+          std::vector<std::byte> divBytes{};
+          switch (div.width)
+          {
+          case ecpps::abi::byteSize:
+               divBytes = x86_64::GenerateSignedDiv8(destReg);
+               break;
+          case ecpps::abi::wordSize:
+               divBytes = x86_64::GenerateSignedDiv16(destReg);
+               break;
+          case ecpps::abi::dwordSize:
+               divBytes = x86_64::GenerateSignedDiv32(destReg);
+               break;
+          case ecpps::abi::qwordSize:
+               divBytes = x86_64::GenerateSignedDiv64(destReg);
+               break;
+          }
+          code.insert(code.end(), divBytes.begin(), divBytes.end());
+
+          return code;
+     }
+};
+
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const DivInstruction& div)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(div.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(div.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const DivInstruction& div)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(div.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(div.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
 
           throw std::logic_error("Invalid mov operation");
           return {};

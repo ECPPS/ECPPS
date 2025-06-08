@@ -1328,3 +1328,266 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem8(std::s
 {
      return std::vector<std::byte>();
 }
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv64(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     bool rexR = reg >= 8;
+     binary.push_back(static_cast<std::byte>(0x48 | (rexR << 2))); // REX.W
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF0 | (reg & 7))); // ModRM: reg=6 for div, but idiv=7, so div=6 = 0xF0
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv32(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2))); // REX prefix for extended regs
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF0 | (reg & 7)));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv16(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     binary.push_back(static_cast<std::byte>(0x66)); // operand-size prefix for 16-bit
+     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2)));
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF0 | (reg & 7)));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv8(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     bool rex = reg >= 8 || (reg & 7) >= 4;
+     if (rex) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2)));
+     binary.push_back(static_cast<std::byte>(0xF6));
+     binary.push_back(static_cast<std::byte>(0xF0 | (reg & 7))); // reg=6 for div
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem64(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> code;
+
+     // opcode for 8-bit div: F6 /6
+     code.push_back(std::byte{0xF6});
+
+     std::byte mod{};
+     if (displacement == 0 && baseReg != 5) // mod=00 no disp, except baseReg=5 means RIP-relative, special case
+          mod = std::byte{0x00};
+     else if (displacement >= -128 && displacement <= 127)
+          mod = std::byte{0x40}; // mod=01
+     else
+          mod = std::byte{0x80}; // mod=10
+
+     std::uint8_t modrm = (static_cast<std::uint8_t>(mod) & 0xC0) // mod bits
+                          | (6 << 3)                              // reg bits = 6 for div
+                          | (static_cast<std::uint8_t>(baseReg) & 0x07);
+
+     code.push_back(std::byte{modrm});
+
+     if (mod == std::byte{0x40}) code.push_back(std::byte{static_cast<std::uint8_t>(displacement & 0xFF)});
+     else if (mod == std::byte{0x80})
+     {
+          for (int i = 0; i < 4; ++i)
+               code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+     }
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem32(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> code;
+
+     // operand-size prefix for 16-bit: 0x66
+     code.push_back(std::byte{0x66});
+     // opcode for 16/32/64 bit div: F7 /6
+     code.push_back(std::byte{0xF7});
+
+     std::byte mod{};
+     if (displacement == 0 && baseReg != 5) mod = std::byte{0x00};
+     else if (displacement >= -128 && displacement <= 127)
+          mod = std::byte{0x40};
+     else
+          mod = std::byte{0x80};
+
+     std::uint8_t modrm =
+         (static_cast<std::uint8_t>(mod) & 0xC0) | (6 << 3) | (static_cast<std::uint8_t>(baseReg) & 0x07);
+
+     code.push_back(std::byte{modrm});
+
+     if (mod == std::byte{0x40}) code.push_back(std::byte{static_cast<std::uint8_t>(displacement & 0xFF)});
+     else if (mod == std::byte{0x80})
+     {
+          for (int i = 0; i < 4; ++i)
+               code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+     }
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem16(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> code;
+
+     // opcode F7 /6
+     code.push_back(std::byte{0xF7});
+
+     std::byte mod{};
+     if (displacement == 0 && baseReg != 5) mod = std::byte{0x00};
+     else if (displacement >= -128 && displacement <= 127)
+          mod = std::byte{0x40};
+     else
+          mod = std::byte{0x80};
+
+     std::uint8_t modrm =
+         (static_cast<std::uint8_t>(mod) & 0xC0) | (6 << 3) | (static_cast<std::uint8_t>(baseReg) & 0x07);
+
+     code.push_back(std::byte{modrm});
+
+     if (mod == std::byte{0x40}) code.push_back(std::byte{static_cast<std::uint8_t>(displacement & 0xFF)});
+     else if (mod == std::byte{0x80})
+     {
+          for (int i = 0; i < 4; ++i)
+               code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+     }
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem8(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> code;
+
+     // REX prefix for 64-bit: 0x48
+     code.push_back(std::byte{0x48});
+
+     // opcode F7 /6
+     code.push_back(std::byte{0xF7});
+
+     std::byte mod{};
+     if (displacement == 0 && baseReg != 5) mod = std::byte{0x00};
+     else if (displacement >= -128 && displacement <= 127)
+          mod = std::byte{0x40};
+     else
+          mod = std::byte{0x80};
+
+     std::uint8_t modrm =
+         (static_cast<std::uint8_t>(mod) & 0xC0) | (6 << 3) | (static_cast<std::uint8_t>(baseReg) & 0x07);
+
+     code.push_back(std::byte{modrm});
+
+     if (mod == std::byte{0x40}) code.push_back(std::byte{static_cast<std::uint8_t>(displacement & 0xFF)});
+     else if (mod == std::byte{0x80})
+     {
+          for (int i = 0; i < 4; ++i)
+               code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+     }
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv64(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     bool rexR = reg >= 8;
+     binary.push_back(static_cast<std::byte>(0x48 | (rexR << 2))); // REX.W
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF8 | (reg & 7))); // reg=7 for idiv
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv32(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2)));
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF8 | (reg & 7)));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv16(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     binary.push_back(static_cast<std::byte>(0x66)); // operand-size prefix for 16-bit
+     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2)));
+     binary.push_back(static_cast<std::byte>(0xF7));
+     binary.push_back(static_cast<std::byte>(0xF8 | (reg & 7)));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv8(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     bool rex = reg >= 8 || (reg & 7) >= 4;
+     if (rex) binary.push_back(static_cast<std::byte>(0x40 | ((reg >= 8) << 2)));
+     binary.push_back(static_cast<std::byte>(0xF6));
+     binary.push_back(static_cast<std::byte>(0xF8 | (reg & 7)));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg8(std::size_t destReg, std::size_t srcReg)
+{
+     std::vector<std::byte> code;
+
+     // opcode: 30 /r (XOR r/m8, r8)
+     code.push_back(std::byte{0x30});
+
+     // ModRM byte: mod=11 (register), reg=srcReg, rm=destReg
+     std::uint8_t modrm = 0xC0 | ((srcReg & 0x7) << 3) | (destReg & 0x7);
+     code.push_back(std::byte{modrm});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg16(std::size_t destReg, std::size_t srcReg)
+{
+     std::vector<std::byte> code;
+
+     // operand size prefix for 16-bit
+     code.push_back(std::byte{0x66});
+
+     // opcode: 31 /r (XOR r/m16, r16)
+     code.push_back(std::byte{0x31});
+
+     // ModRM: mod=11 reg=srcReg rm=destReg
+     std::uint8_t modrm = 0xC0 | ((srcReg & 0x7) << 3) | (destReg & 0x7);
+     code.push_back(std::byte{modrm});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg32(std::size_t destReg, std::size_t srcReg)
+{
+     std::vector<std::byte> code;
+
+     // opcode: 31 /r (XOR r/m32, r32)
+     code.push_back(std::byte{0x31});
+
+     // ModRM: mod=11 reg=srcReg rm=destReg
+     std::uint8_t modrm = 0xC0 | ((srcReg & 0x7) << 3) | (destReg & 0x7);
+     code.push_back(std::byte{modrm});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg64(std::size_t destReg, std::size_t srcReg)
+{
+     std::vector<std::byte> code;
+
+     // REX prefix for 64-bit, default to 0x48 (W=1)
+     code.push_back(std::byte{0x48});
+
+     // opcode: 31 /r (XOR r/m64, r64)
+     code.push_back(std::byte{0x31});
+
+     // ModRM: mod=11 reg=srcReg rm=destReg
+     std::uint8_t modrm = 0xC0 | ((srcReg & 0x7) << 3) | (destReg & 0x7);
+     code.push_back(std::byte{modrm});
+
+     return code;
+}
