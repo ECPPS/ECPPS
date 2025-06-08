@@ -102,4 +102,45 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
+     // mul
+
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateUnsignedMulRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister);
+
+     // imul
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
 } // namespace ecpps::codegen::x86_64

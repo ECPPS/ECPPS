@@ -94,6 +94,41 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
          sub.to);
 }
 
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const MulInstruction& mul)
+{
+     return std::visit(
+         OverloadedVisitor{
+             [&mul, this](const RegisterOperand& registerDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&mul, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificMul<OperandCombination::RegisterToRegister>(mul); },
+                                        [&mul, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid mul operation"); }},
+                      mul.from);
+             },
+             [&mul, this](const MemoryLocationOperand& memoryDestination)
+             {
+                  return std::visit(
+                      OverloadedVisitor{[&mul, this](const RegisterOperand& registerSource)
+                                        { return this->EmitSpecificMul<OperandCombination::RegisterToMemory>(mul); },
+                                        [&mul, this](const IntegerOperand& integerSource)
+                                        { return this->EmitSpecificMul<OperandCombination::ImmediateToMemory>(mul); },
+                                        [](auto&&) -> std::vector<std::byte>
+                                        { throw std::logic_error("Invalid mul operation"); }},
+                      mul.from);
+             },
+             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
+         mul.to);
+}
+
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const DivInstruction& div)
+{
+     return std::vector<std::byte>();
+}
+
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }
 
 std::size_t ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(const RegisterOperand& register_)
@@ -458,6 +493,124 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
           case ecpps::abi::wordSize: return x86_64::GenerateSubRegToReg16(destinationRegister, sourceRegister);
           case ecpps::abi::dwordSize: return x86_64::GenerateSubRegToReg32(destinationRegister, sourceRegister);
           case ecpps::abi::qwordSize: return x86_64::GenerateSubRegToReg64(destinationRegister, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+//
+// Mul
+//
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const MulInstruction& mul)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(mul.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(mul.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSignedMulImmToMem8(destinationRegister, destinationDisplacement,
+                                                   static_cast<std::uint8_t>(sourceImmediate));
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSignedMulImmToMem16(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint16_t>(sourceImmediate));
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSignedMulImmToMem32(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint32_t>(sourceImmediate));
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSignedMulImmToMem64(destinationRegister, destinationDisplacement,
+                                                    static_cast<std::uint64_t>(sourceImmediate));
+          }
+
+          throw std::logic_error("Invalid mul operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const MulInstruction& mul)
+     {
+          const IntegerOperand& source = std::get<IntegerOperand>(mul.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(mul.to);
+
+          const auto sourceImmediate = source.Value();
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSignedMulImmToReg8(destinationRegister, static_cast<std::uint8_t>(sourceImmediate));
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSignedMulImmToReg16(destinationRegister, static_cast<std::uint16_t>(sourceImmediate));
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSignedMulImmToReg32(destinationRegister, static_cast<std::uint32_t>(sourceImmediate));
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSignedMulImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const MulInstruction& mul)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(mul.from);
+          const MemoryLocationOperand& destination = std::get<MemoryLocationOperand>(mul.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination.Register());
+          const auto destinationDisplacement = destination.Displacement();
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSignedMulRegToMem8(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSignedMulRegToMem16(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSignedMulRegToMem32(destinationRegister, destinationDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSignedMulRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const MulInstruction& mul)
+     {
+          const RegisterOperand& source = std::get<RegisterOperand>(mul.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(mul.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source);
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize: return x86_64::GenerateSignedMulRegToReg8(destinationRegister, sourceRegister);
+          case ecpps::abi::wordSize: return x86_64::GenerateSignedMulRegToReg16(destinationRegister, sourceRegister);
+          case ecpps::abi::dwordSize: return x86_64::GenerateSignedMulRegToReg32(destinationRegister, sourceRegister);
+          case ecpps::abi::qwordSize: return x86_64::GenerateSignedMulRegToReg64(destinationRegister, sourceRegister);
           }
 
           throw std::logic_error("Invalid mov operation");

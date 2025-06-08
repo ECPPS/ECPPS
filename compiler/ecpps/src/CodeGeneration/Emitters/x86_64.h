@@ -29,7 +29,17 @@ namespace ecpps::codegen::emitters
 
      template <OperandCombination> struct EmitSpecificSubImpl
      {
-          static std::vector<std::byte> Go(X8664Emitter* self, const SubInstruction& add);
+          static std::vector<std::byte> Go(X8664Emitter* self, const SubInstruction& sub);
+     };
+
+     template <OperandCombination> struct EmitSpecificMulImpl
+     {
+          static std::vector<std::byte> Go(X8664Emitter* self, const MulInstruction& mul);
+     };
+
+     template <OperandCombination> struct EmitSpecificDivImpl
+     {
+          static std::vector<std::byte> Go(X8664Emitter* self, const DivInstruction& div);
      };
 
      class X8664Emitter final : public CodeEmitter
@@ -42,6 +52,8 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitMov(const MovInstruction& mov) override;
           [[nodiscard]] std::vector<std::byte> EmitAdd(const AddInstruction& add) override;
           [[nodiscard]] std::vector<std::byte> EmitSub(const SubInstruction& sub) override;
+          [[nodiscard]] std::vector<std::byte> EmitMul(const MulInstruction& mul) override;
+          [[nodiscard]] std::vector<std::byte> EmitDiv(const DivInstruction& div) override;
           [[nodiscard]] std::vector<std::byte> EmitReturn(void) override;
 
           // x86_64 specific helpers
@@ -49,16 +61,26 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitSpecificMov(const MovInstruction& mov)
           {
                return EmitSpecificMovImpl<TOperandCombination>::Go(this, mov);
-          }                      
+          }
           template <OperandCombination TOperandCombination>
           [[nodiscard]] std::vector<std::byte> EmitSpecificAdd(const AddInstruction& add)
           {
                return EmitSpecificAddImpl<TOperandCombination>::Go(this, add);
-          }                          
+          }
           template <OperandCombination TOperandCombination>
           [[nodiscard]] std::vector<std::byte> EmitSpecificSub(const SubInstruction& sub)
           {
                return EmitSpecificSubImpl<TOperandCombination>::Go(this, sub);
+          }
+          template <OperandCombination TOperandCombination>
+          [[nodiscard]] std::vector<std::byte> EmitSpecificMul(const MulInstruction& mul)
+          {
+               return EmitSpecificMulImpl<TOperandCombination>::Go(this, mul);
+          }
+          template <OperandCombination TOperandCombination>
+          [[nodiscard]] std::vector<std::byte> EmitSpecificDiv(const DivInstruction& div)
+          {
+               return EmitSpecificDivImpl<TOperandCombination>::Go(this, div);
           }
 
           // x86 operand conventions
@@ -67,5 +89,7 @@ namespace ecpps::codegen::emitters
           template <OperandCombination> friend struct EmitSpecificMovImpl;
           template <OperandCombination> friend struct EmitSpecificAddImpl;
           template <OperandCombination> friend struct EmitSpecificSubImpl;
+          template <OperandCombination> friend struct EmitSpecificMulImpl;
+          template <OperandCombination> friend struct EmitSpecificDivImpl;
      };
 } // namespace ecpps::codegen::emitters

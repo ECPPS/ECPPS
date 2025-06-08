@@ -102,6 +102,9 @@ namespace ecpps::codegen
           Operand from;
           Operand to;
           std::size_t width;
+          /// <summary>
+          /// For SIMD, unused outside of it in the generic context (might be used for optimisations)
+          /// </summary>
           InstructionAlignment alignment{};
 
           explicit AddInstruction(Operand from, Operand to, const std::size_t width)
@@ -115,9 +118,45 @@ namespace ecpps::codegen
           Operand from;
           Operand to;
           std::size_t width;
+          /// <summary>
+          /// For SIMD, unused outside of it in the generic context (might be used for optimisations)
+          /// </summary>
           InstructionAlignment alignment{};
 
           explicit SubInstruction(Operand from, Operand to, const std::size_t width)
+              : from(std::move(from)), to(std::move(to)), width(width)
+          {
+          }
+     };
+
+     struct MulInstruction
+     {
+          Operand from;
+          Operand to;
+          std::size_t width;
+          bool isSigned;
+          /// <summary>
+          /// For SIMD, unused outside of it in the generic context (might be used for optimisations)
+          /// </summary>
+          InstructionAlignment alignment{};
+
+          explicit MulInstruction(Operand from, Operand to, const std::size_t width, const bool isSigned)
+              : from(std::move(from)), to(std::move(to)), width(width), isSigned(isSigned)
+          {
+          }
+     };
+
+     struct DivInstruction
+     {
+          Operand from;
+          Operand to;
+          std::size_t width;
+          /// <summary>
+          /// For SIMD, unused outside of it in the generic context (might be used for optimisations)
+          /// </summary>
+          InstructionAlignment alignment{};
+
+          explicit DivInstruction(Operand from, Operand to, const std::size_t width)
               : from(std::move(from)), to(std::move(to)), width(width)
           {
           }
@@ -212,7 +251,7 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction,
+     using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
                                       SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
