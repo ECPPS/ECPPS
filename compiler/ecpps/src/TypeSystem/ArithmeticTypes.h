@@ -54,7 +54,6 @@ namespace ecpps::typeSystem
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
           [[nodiscard]] TypeKind Kind(void) const noexcept { return this->_kind; }
 
-
           [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
 
      private:
