@@ -145,6 +145,7 @@ namespace ecpps::ast
           ConstantExpressionSpecifier constexprSpecifier{};
           SBOVector<AttributeNode> attributes{};
           NodePointer name;
+          abi::CallingConventionName callingConvention;
           // TODO: Trailing return types
 
           [[nodiscard]] std::string ToString(void) const
@@ -166,6 +167,7 @@ namespace ecpps::ast
                }
 
                built += this->type->ToString(0) + " ";
+               built += ::ToString(this->callingConvention) + " ";
                built += this->name->ToString(0);
                built += "(";
                // TODO: Parameters
@@ -176,9 +178,10 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     SBOVector<AttributeNode> attributes, NodePointer name)
+                                     SBOVector<AttributeNode> attributes, NodePointer name,
+                                     const abi::CallingConventionName callingConvention)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
-                attributes(std::move(attributes)), name(std::move(name))
+                attributes(std::move(attributes)), name(std::move(name)), callingConvention(callingConvention)
           {
           }
      };

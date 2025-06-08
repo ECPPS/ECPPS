@@ -1,9 +1,17 @@
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
+#include <fstream>
+#include <memory>
 #include <print>
+#include <string>
+#include <utility>
+#include <vector>
 #include "CodeGeneration/CodeEmitter.h"
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
+#include "Linker/Linker.h"
+#include "Linker/WindowsLinker.h"
 #include "Parsing/AST.h"
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
@@ -31,6 +39,10 @@ int main(int argc, char* argv[])
      }
      std::println("Target: {}", emitter->Name());
 
+     std::vector<std::byte> generatedMachineCode{};
+     std::vector<std::pair<std::string, std::size_t>> functions{};
+     std::size_t mainOffset{};
+
      for (auto& source : sources.files)
      {
           std::println("Compiling {}...", source.name);
@@ -54,6 +66,11 @@ int main(int argc, char* argv[])
 
           for (const auto& procedure : source.compiledRoutines)
           {
+               const std::size_t offset = generatedMachineCode.size();
+               if (procedure.name == "main") mainOffset = offset;
+
+               functions.emplace_back(procedure.name, offset);
+
                std::println("{}:", procedure.name);
                for (const auto& instruction : procedure.instructions)
                {
@@ -61,6 +78,8 @@ int main(int argc, char* argv[])
                }
 
                const auto machineCode = emitter->EmitRoutine(procedure);
+               generatedMachineCode.append_range(machineCode);
+
                std::println("Emitted {} bytes:", machineCode.size());
                constexpr std::size_t RowSize = 8; // in bytes
                const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
@@ -79,6 +98,15 @@ int main(int argc, char* argv[])
                }
           }
      }
+
+     std::println("Linking objects...");
+
+     std::vector<std::byte> imageBytes =
+         ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
+
+     std::ofstream outFile(config.outputImage, std::ios::binary);
+     outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
+     outFile.close();
 
      const auto end = std::chrono::steady_clock::now();
      std::println("Compilation successful. {} elapsed",

@@ -1,8 +1,11 @@
 #include "PseudoAssembly.h"
+#include <ranges>
 #include <stdexcept>
+#include <utility>
 #include "../Execution/ControlFlow.h"
 #include "../Execution/Expressions.h"
 #include "../Execution/Procedural.h"
+#include "../Machine/ABI.h"
 
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
@@ -48,7 +51,13 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
           if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
                CompileReturn(instructions, *returnNode);
      }
-     return Routine::Branchless(std::move(instructions), node.Name());
+     return Routine::Branchless(
+         std::move(instructions),
+         ecpps::abi::ABI::Current().MangleName(
+             node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+             node.ParameterList() |
+                 std::views::transform([](const ecpps::ir::Parameter& parameter) { return parameter.type; }) |
+                 std::ranges::to<std::vector>()));
 }
 
 void ecpps::codegen::Compile(SourceFile& source, const std::vector<ir::NodePointer>& intermediateRepresentation)

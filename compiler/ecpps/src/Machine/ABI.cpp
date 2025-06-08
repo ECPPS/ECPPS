@@ -1,4 +1,6 @@
 #include "ABI.h"
+#include <vector>
+#include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
 
 using ecpps::abi::ABI;
@@ -233,6 +235,26 @@ ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::share
           return AllocatedRegister{nullptr};
 
      return AllocatedRegister{toAllocate};
+}
+
+std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name,
+                                        const CallingConventionName callingConvention,
+                                        const typeSystem::TypePointer& returnType,
+                                        const std::vector<typeSystem::TypePointer>& parameters)
+{
+     if (name == "main") return "main";
+
+     return Mangling::MangleName(linkage, name, callingConvention, returnType, parameters);
+}
+
+ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(void) const
+{
+     switch (this->_isa)
+     {
+     case abi::ISA::x86_64: return abi::CallingConventionName::Microsoftx64;
+     }
+
+     return abi::CallingConventionName::Microsoftx64; // fallback
 }
 
 ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueStorage(std::size_t storageSize) const

@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <variant>
 #include <vector>
+#include "../TypeSystem/TypeBase.h"
 #include "Machine.h"
 
 /// <summary>
@@ -18,6 +19,15 @@ namespace ecpps::abi
      constexpr std::size_t dwordSize = 32;
      constexpr std::size_t wordSize = 16;
      constexpr std::size_t byteSize = 8;
+
+     enum struct Linkage : std::uint_fast8_t
+     {
+          NoLinkage,
+          Internal,
+          External,
+          Module,
+          CLinkage
+     };
 
      struct PhysicalRegister
      {
@@ -135,13 +145,22 @@ namespace ecpps::abi
 
           static ABI& Current(void);
 
-          ISA Isa(void) const noexcept { return this->_isa; }
-          AllocatedRegister AllocateRegister(std::size_t width);
-          AllocatedRegister AllocateRegister(std::size_t width, const std::string& name, RegisterAllocation allocation);
-          AllocatedRegister AllocateRegister(std::size_t width, const std::shared_ptr<PhysicalRegister>& toAllocate,
-                                             RegisterAllocation allocation);
-          AllocatedRegister AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate,
-                                             RegisterAllocation allocation);
+          [[nodiscard]] ISA Isa(void) const noexcept { return this->_isa; }
+          [[nodiscard]] AllocatedRegister AllocateRegister(std::size_t width);
+          [[nodiscard]] AllocatedRegister AllocateRegister(std::size_t width, const std::string& name,
+                                                           RegisterAllocation allocation);
+          [[nodiscard]] AllocatedRegister AllocateRegister(std::size_t width,
+                                                           const std::shared_ptr<PhysicalRegister>& toAllocate,
+                                                           RegisterAllocation allocation);
+          [[nodiscard]] AllocatedRegister AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate,
+                                                           RegisterAllocation allocation);
+
+          [[nodiscard]] std::string MangleName(Linkage linkage, const std::string& name,
+                                               CallingConventionName callingConvetion,
+                                               const typeSystem::TypePointer& returnType,
+                                               const std::vector<typeSystem::TypePointer>& parameters);
+
+          CallingConventionName DefaultCallingConventionName(void) const;
 
      private:
           static ABI _current;
@@ -156,3 +175,15 @@ namespace ecpps::abi
           friend AllocatedRegister;
      };
 } // namespace ecpps::abi
+
+namespace
+{
+     std::string ToString(const ecpps::abi::CallingConventionName callingConvention)
+     {
+          switch (callingConvention)
+          {
+          case ecpps::abi::CallingConventionName::Microsoftx64: return "__mscall";
+          }
+          return "__undefined";
+     }
+} // namespace
