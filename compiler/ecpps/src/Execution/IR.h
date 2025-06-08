@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "../Parsing/AST.h"
+#include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Expressions.h"
 #include "NodeBase.h"
@@ -11,12 +12,12 @@ namespace ecpps::ir
      class IR
      {
      public:
-          static std::vector<NodePointer> Parse(const std::vector<ast::NodePointer>& ast);
+          static std::vector<NodePointer> Parse(Diagnostics& diagnostics, const std::vector<ast::NodePointer>& ast);
 
      private:
-          explicit IR(void) = default;
+          explicit IR(Diagnostics& diagnostics) : _context(diagnostics) {}
           std::vector<NodePointer> _built{};
-          Context _context{};
+          Context _context;
 
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);

@@ -9,7 +9,10 @@ namespace ecpps::ir
      class ReturnNode final : public ir::NodeBase
      {
      public:
-          explicit ReturnNode(Expression value) : NodeBase(NodeKind::Return), _value(std::move(value)) {}
+          explicit ReturnNode(Expression value, Location source)
+              : NodeBase(NodeKind::Return, std::move(source)), _value(std::move(value))
+          {
+          }
 
           [[nodiscard]] bool HasValue(void) const noexcept { return this->_value != nullptr; }
           [[nodiscard]] const Expression& Value(void) const noexcept { return this->_value; }

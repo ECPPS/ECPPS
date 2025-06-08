@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
+#include "../Shared/Error.h"
 
 namespace ecpps::ir
 {
@@ -29,15 +30,17 @@ namespace ecpps::ir
      class NodeBase
      {
      public:
-          explicit NodeBase(const NodeKind kind) : _kind(kind) {}
+          explicit NodeBase(const NodeKind kind, Location source) : _kind(kind), _source(std::move(source)) {}
           virtual ~NodeBase(void) = default;
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
 
           [[nodiscard]] NodeKind Kind(void) const noexcept { return this->_kind; }
+          [[nodiscard]] const Location& Source(void) const noexcept { return this->_source; }
 
      private:
           NodeKind _kind;
+          Location _source;
      };
 
      using NodePointer = std::unique_ptr<NodeBase>;
@@ -45,7 +48,10 @@ namespace ecpps::ir
      class IntegralNode final : public NodeBase
      {
      public:
-          explicit IntegralNode(const std::uint64_t value) : NodeBase(NodeKind::Integer), _value(value) {}
+          explicit IntegralNode(const std::uint64_t value, Location source)
+              : NodeBase(NodeKind::Integer, std::move(source)), _value(value)
+          {
+          }
 
           [[nodiscard]] std::uint64_t Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::uint64_t Value(const std::uint64_t newValue) noexcept
