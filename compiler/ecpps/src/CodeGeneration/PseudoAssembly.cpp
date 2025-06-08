@@ -29,10 +29,12 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
 
           const auto left = ParseExpression(code, addition->Left());
 
-          auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
-               ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(), ecpps::abi::RegisterAllocation::Priority)
-               : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth *
-                                                                     addition->Left()->Type()->Size());
+          auto storage =
+              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                                                                ecpps::abi::RegisterAllocation::Priority)
+                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth *
+                                                                addition->Left()->Type()->Size());
 
           const auto right = ParseExpression(code, addition->Right());
 
@@ -41,10 +43,37 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                return ecpps::codegen::ErrorOperand{};
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
-               code.emplace_back(
-                   ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{storage.Ptr()}, storage->width});
+               code.emplace_back(ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                                storage->width});
           code.emplace_back(
               ecpps::codegen::AddInstruction{right, ecpps::codegen::RegisterOperand{storage.Ptr()}, storage->width});
+
+          return ecpps::codegen::RegisterOperand{storage.Ptr()};
+     }
+     if (const auto subtraction = dynamic_cast<ir::SubtractionNode*>(value.get()); subtraction != nullptr)
+     {
+          if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(code, subtraction->Left());
+
+          auto storage =
+              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                                                                ecpps::abi::RegisterAllocation::Priority)
+                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth *
+                                                                subtraction->Left()->Type()->Size());
+
+          const auto right = ParseExpression(code, subtraction->Right());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+              std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+               return ecpps::codegen::ErrorOperand{};
+
+          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
+               code.emplace_back(ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                                storage->width});
+          code.emplace_back(
+              ecpps::codegen::SubInstruction{right, ecpps::codegen::RegisterOperand{storage.Ptr()}, storage->width});
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }

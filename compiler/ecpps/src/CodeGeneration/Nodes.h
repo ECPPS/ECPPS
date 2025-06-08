@@ -110,6 +110,19 @@ namespace ecpps::codegen
           }
      };
 
+     struct SubInstruction
+     {
+          Operand from;
+          Operand to;
+          std::size_t width;
+          InstructionAlignment alignment{};
+
+          explicit SubInstruction(Operand from, Operand to, const std::size_t width)
+              : from(std::move(from)), to(std::move(to)), width(width)
+          {
+          }
+     };
+
      struct ReturnInstruction
      {
      };
@@ -199,8 +212,8 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction =
-         std::variant<MovInstruction, ReturnInstruction, AddInstruction /*, std::unique_ptr<CustomInstruction>*/>;
+     using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction,
+                                      SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

@@ -56,7 +56,7 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg32(std::size_t reg, std::uint32_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg16(std::size_t reg, std::uint16_t imm);
-     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg8(std::size_t reg, std::uint8_t imm);   
+     [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg8(std::size_t reg, std::uint8_t imm);
 
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
@@ -75,6 +75,31 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem16(std::size_t destination, std::size_t destinationOffset,
                                                                 std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
+     // sub
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSubImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg64(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg32(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg16(std::size_t destination, std::size_t source);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem64(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
 } // namespace ecpps::codegen::x86_64

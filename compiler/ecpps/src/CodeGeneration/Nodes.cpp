@@ -32,6 +32,15 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
                                 built += ", " + std::visit([](const auto& operand) -> std::string
                                                            { return operand.ToString(); }, instruction.from);
                                 return built;
+                           },    
+                           [](const SubInstruction& instruction)
+                           {
+                                std::string built = "sub";
+                                built += " " + std::visit([](const auto& operand) -> std::string
+                                                          { return operand.ToString(); }, instruction.to);
+                                built += ", " + std::visit([](const auto& operand) -> std::string
+                                                           { return operand.ToString(); }, instruction.from);
+                                return built;
                            },
                            [](const ReturnInstruction&) -> std::string { return "ret"; }},
          instruction);
