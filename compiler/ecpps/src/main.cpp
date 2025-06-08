@@ -101,7 +101,8 @@ int main(int argc, char* argv[])
 
      std::println("Linking objects...");
 
-     std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
+     std::vector<std::byte> imageBytes =
+         ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
 
      std::ofstream outFile(config.outputImage, std::ios::binary);
      outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());

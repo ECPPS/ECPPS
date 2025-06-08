@@ -2,13 +2,13 @@
 #include <Windows.h>
 #include <corecrt.h>
 #include <concepts>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <string>
 #include <vector>
-#include <cstdarg>
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {

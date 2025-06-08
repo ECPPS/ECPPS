@@ -3,9 +3,9 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include "../Shared/Config.h"
-#include <utility>
 
 namespace ecpps::linker
 {
@@ -66,8 +66,9 @@ namespace ecpps::linker
           std::uint32_t fileAlignment = 0x200;
 
           explicit LinkerOptions(const PESubsystem subsystem, const LinkType type, const LinkerBitness bitness)
-               : subsystem(subsystem), type(type), bitness(bitness)
-          {}
+              : subsystem(subsystem), type(type), bitness(bitness)
+          {
+          }
      };
 
      class LinkerBase
@@ -96,4 +97,4 @@ namespace ecpps::linker
                                                       std::vector<std::pair<std::string, std::size_t>> functions,
                                                       std::size_t mainOffset);
      };
-}
+} // namespace ecpps::linker
