@@ -97,10 +97,25 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      auto source = Peek().location;
      auto type = ParseSimpleTypeSpecifier();
      if (type == nullptr) return nullptr;
+     abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
+     if (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = std::get<std::string>(Peek().value);
+          if (keyword == "__mscall")
+          {
+               Advance();
+               callingConvention = abi::CallingConventionName::Microsoftx64;
+          }
+     }
+     auto name = ParseIdentifier();
 
-     FunctionSignature signature{
-         std::move(type),  false, false, ConstantExpressionSpecifier::None, SBOVector<AttributeNode>{},
-         ParseIdentifier()}; // TODO: Allow id-expression
+     FunctionSignature signature{std::move(type),
+                                 false,
+                                 false,
+                                 ConstantExpressionSpecifier::None,
+                                 SBOVector<AttributeNode>{},
+                                 std::move(name),
+                                 callingConvention}; // TODO: Allow id-expression
      if (!Match(TokenType::LeftParenthesis))
      {
           return nullptr; // TODO: Error

@@ -99,7 +99,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      // Serialise function addresses
      for (auto& [name, addr] : this->exports)
      {
-          std::size_t insertPos = (exportDirectory.AddressOfFunctions - exportRVA) + offset;
+          std::size_t insertPos = (static_cast<std::size_t>(exportDirectory.AddressOfFunctions) - exportRVA) + offset;
           if (insertPos + sizeof(std::uint32_t) > exportData.size())
           {
                exportData.resize(insertPos + sizeof(std::uint32_t));
@@ -118,9 +118,9 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      for (const auto& [name, address] : this->exports)
      {
           const std::size_t insertPos = max(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
-          if (insertPos + sizeof(std::uint32_t) > exportData.size())
+          if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
-               exportData.resize(insertPos + sizeof(std::uint32_t));
+               exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
           }
 
           std::uint32_t* pRVA = reinterpret_cast<std::uint32_t*>(exportData.data() + offset +

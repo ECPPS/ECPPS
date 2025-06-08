@@ -2,10 +2,12 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include "../Machine/ABI.h"
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
 #include "Procedural.h"
+#include <string>
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -44,13 +46,27 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      std::vector<Parameter> parameters{};
 
      IR ir{};
+     const auto returnType = this->ParseType(node.Signature().type);
+     abi::Linkage linkage = abi::Linkage::External;
+     if (node.Signature().externOptional.has_value())
+     {
+          const std::string& languageLinkage = node.Signature().externOptional.value();
+          if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
+          else
+          {
+               // TODO: Error
+          }
+     }
+     else if (node.Signature().isInline || node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None) linkage = abi::Linkage::Internal;
+     // TODO: Error on conflicting linkage specification
 
      ir._context = this->_context;
-     ir._context.contextSequence.Push(std::make_unique<FunctionContext>(this->ParseType(node.Signature().type)));
+     ir._context.contextSequence.Push(std::make_unique<FunctionContext>(returnType));
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
-     this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(node.Signature().name->ToString(0),
+     this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(linkage, node.Signature().callingConvention,
+                                                                       returnType, node.Signature().name->ToString(0),
                                                                        std::move(parameters), std::move(ir._built)));
 }
 
