@@ -77,7 +77,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         { return this->EmitSpecificSub<OperandCombination::ImmediateToRegister>(sub); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid sub operation"); }},
-                       sub.from);
+                      sub.from);
              },
              [&sub, this](const MemoryLocationOperand& memoryDestination)
              {
@@ -88,10 +88,10 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         { return this->EmitSpecificSub<OperandCombination::ImmediateToMemory>(sub); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid sub operation"); }},
-                       sub.from);
+                      sub.from);
              },
              [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid sub operation"); }},
-              sub.to);
+         sub.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }
@@ -229,7 +229,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
      }
 };
 
-// 
+//
 // Add
 //
 
@@ -347,7 +347,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
      }
 };
 
-// 
+//
 // Sub
 //
 
