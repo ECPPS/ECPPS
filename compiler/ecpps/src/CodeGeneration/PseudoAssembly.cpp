@@ -53,8 +53,8 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
      }
      return Routine::Branchless(
          std::move(instructions),
-         ecpps::abi::ABI::Current().MangleName(node.Linkage(),
-             node.Name(), node.CallingConvention(), node.ReturnType(),
+         ecpps::abi::ABI::Current().MangleName(
+             node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
              node.ParameterList() |
                  std::views::transform([](const ecpps::ir::Parameter& parameter) { return parameter.type; }) |
                  std::ranges::to<std::vector>()));
