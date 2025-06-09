@@ -328,7 +328,23 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
           if (currentToken.type == TokenType::LeftParenthesis)
           {
                Advance();
-               // TODO: Implement
+               SBOVector<NodePointer> argumentList{}; // TODO: Initialiser lists; for now expressions only
+               while (!AtEnd())
+               {
+                    argumentList.Push(ParseExpression());
+                    if (AtEnd() || Match(TokenType::RightParenthesis)) break;
+                    const auto& token = Peek();
+                    if (token.type == TokenType::Operator && std::get<std::string>(token.value) == ",") continue;
+
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                            "Expected a comma in function argument list", token.location));
+                    return nullptr;
+               }
+               Advance(); // eat )
+
+               source.endPosition = currentToken.location.endPosition;
+               expression = std::make_unique<CallOperatorNode>(std::move(expression), std::move(argumentList), source);
 
                continue;
           }

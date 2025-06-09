@@ -218,6 +218,37 @@ namespace ecpps::ast
           SBOVector<NodePointer> _body;
      };
 
+     // Not a template
+     class CallOperatorNode final : public Node
+     {
+     public:
+          explicit CallOperatorNode(NodePointer function, SBOVector<NodePointer> arguments, Location source)
+              : Node(std::move(source)), _function(std::move(function)), _arguments(std::move(arguments))
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string arguments{};
+               for (const auto& arg : this->_arguments) arguments += arg->ToString(0) + ", ";
+               if (!arguments.empty()) // trailing comma
+               {
+                    arguments.pop_back();
+                    arguments.pop_back();
+               }
+
+               return std::string(indent * PrettyIndent, ' ') + "(" + this->_function->ToString(0) + ")(" + arguments +
+                      ")";
+          }
+
+          [[nodiscard]] const NodePointer& Function(void) const noexcept { return this->_function; }
+          [[nodiscard]] const SBOVector<NodePointer>& Arguments(void) const noexcept { return this->_arguments; }
+
+     private:
+          NodePointer _function;
+          SBOVector<NodePointer> _arguments;
+     };
+
      class IdentifierNode;
 
      class ThisNode final : public Node
