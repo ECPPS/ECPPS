@@ -70,6 +70,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      ir._context.contextSequence.Push(std::make_unique<FunctionContext>(returnType));
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
+     if (typeSystem::g_void->CommonWith(returnType))
+          ir._built.push_back(std::make_unique<ir::ReturnNode>(nullptr, node.Source()));
 
      this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(
          linkage, node.Signature().callingConvention, returnType, node.Signature().name->ToString(0),
@@ -78,9 +80,23 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 {
+     const auto function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+
+     if (node.Value() == nullptr)
+     {
+          if (!typeSystem::g_void->CommonWith(function->returnType))
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                       "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
+                           function->returnType->RawName() + ")",
+                       node.Source()));
+          }
+          this->_built.push_back(std::make_unique<ir::ReturnNode>(nullptr, node.Source()));
+     }
+
      auto returnExpression = ParseExpression(node.Value());
 
-     const auto function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
      // TODO: Assert function != nullptr
      this->_built.push_back(
          std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
