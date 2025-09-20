@@ -81,6 +81,7 @@ namespace ecpps::linker
 
           virtual void CodeSection(const std::vector<std::byte>& data) = 0;
           virtual void ExportFunction(const std::string& name, std::uint32_t address) = 0;
+          virtual void ImportFunction(const std::string& name, const std::string& dll) = 0;
 
      private:
      };

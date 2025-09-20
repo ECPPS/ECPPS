@@ -220,7 +220,7 @@ namespace ecpps::ast
           {
                using std::string_literals::operator""s;
                std::string built{};
-               for (const auto& attr : this->attributes) built += attr.ToString(0) + " ";
+               for (const auto& attr : this->attributes) built += attr->ToString(0) + " ";
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
@@ -302,26 +302,6 @@ namespace ecpps::ast
      private:
           FunctionSignature _signature;
           SBOVector<NodePointer> _body;
-     };
-
-     class FunctionDeclarationNode final : public Node
-     {
-     public:
-          explicit FunctionDeclarationNode(FunctionSignature signature, Location source)
-              : Node(std::move(source)), _signature(std::move(signature))
-          {
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               std::string built = std::string(indent * PrettyIndent, ' ') + this->_signature.ToString();
-               return built + ";";
-          }
-
-          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
-
-     private:
-          FunctionSignature _signature;
      };
 
      // Not a template

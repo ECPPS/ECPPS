@@ -183,7 +183,17 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      {
           return nullptr; // TODO: Error
      }
-     while (!Match(TokenType::RightParenthesis)) {} // TODO: Parameter parsing...
+      while (!Match(TokenType::RightParenthesis))
+     {
+          auto param = ParseFunctionParameter();
+          signature.parameters.parameters.push_back(std::move(param));
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") Advance();
+          else 
+          {
+               if (Peek().type != TokenType::RightParenthesis)
+                    return nullptr; // TODO: Error
+          }
+     }
      if (!Match(TokenType::LeftBrace))
      {
           if (Match(TokenType::SemiColon))

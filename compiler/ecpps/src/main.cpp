@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
                     }
                }
 
-               const auto machineCode = emitter->EmitRoutine(procedure);
+               const auto machineCode = emitter->EmitRoutine(procedure, generatedMachineCode.size());
 			routines.emplace(procedure.name, generatedMachineCode.size());
                generatedMachineCode.append_range(machineCode);
                if (!isExtraVerbose) continue;

@@ -60,6 +60,7 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
                                                            { return operand.ToString(); }, instruction.from);
                                 return built;
                            },
+                           [](const CallInstruction& instruction) { return "call " + instruction.functionName; },
                            [](const ReturnInstruction&) -> std::string { return "ret"; }},
          instruction);
 }

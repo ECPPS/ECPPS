@@ -20,7 +20,7 @@ namespace ecpps::ir
           Scope* parentScope = nullptr;
           std::unordered_set<typeSystem::TypePointer, typeSystem::TypePointerHash, typeSystem::TypePointerEqual>
               types{};
-          std::vector<std::unique_ptr<FunctionScope>> functions{};
+          std::vector<std::shared_ptr<FunctionScope>> functions{};
      };
      using ScopePtr = std::shared_ptr<Scope>;
 
@@ -30,6 +30,8 @@ namespace ecpps::ir
 
           [[nodiscard]] const Scope& GetScope(void) const noexcept { return *this->_vScope;  }
           [[nodiscard]] Scope& GetScope(void) noexcept { return *this->_vScope;  }
+          template <typename U>
+          [[nodiscard]] U& GetScope(void) noexcept { return *static_cast<U*>(this->_vScope);  }
      protected:
           explicit ContextBase(Scope* vScope) 
                : _vScope(vScope){}
@@ -45,16 +47,14 @@ namespace ecpps::ir
               : ContextBase(vScope), returnType(std::move(returnType))
           {
           }
-          abi::Linkage linkage;
           abi::CallingConventionName callingConvention;
           typeSystem::TypePointer returnType;
           std::string name;
           std::vector<typeSystem::TypePointer> parameters;
-          bool isDllImportExport = false;
 
-          explicit FunctionContext(const abi::Linkage linkage, abi::CallingConventionName callingConvention, const typeSystem::TypePointer returnType, std::string name,
+          explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention, const typeSystem::TypePointer returnType, std::string name,
                                    std::vector<typeSystem::TypePointer> parameters)
-              : linkage(linkage), callingConvention(callingConvention), returnType(std::move(returnType)), name(std::move(name)), parameters(std::move(parameters))
+              : ContextBase(vScope), callingConvention(callingConvention), returnType(std::move(returnType)), name(std::move(name)), parameters(std::move(parameters))
           {
           }
      };
@@ -96,9 +96,11 @@ namespace ecpps::ir
           bool isInline = false;
           bool isFriend = false;
           bool isExtern = false;
-          std::optional<std::string> externLanguageLinkage{};
           ConstexprType constexprSpecifier = ConstexprType::None;
           abi::CallingConventionName callingConvention{};
+          abi::Linkage linkage;
+          bool isDllImportExport = false;
+
           struct Parameter
           {
                std::string name{};

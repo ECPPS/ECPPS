@@ -11,7 +11,7 @@ namespace ecpps
                std::size_t TNSBOSize = std::hardware_destructive_interference_size>
      class SBOQueue
      {
-          static constexpr std::size_t SBOSize = (TNSBOSize / sizeof(T)) & ~(sizeof(T) - 1);
+          static constexpr std::size_t SBOSize = (TNSBOSize / sizeof(T) + sizeof(T) - 1) & ~(sizeof(T) - 1);
           static_assert(SBOSize > 0);
           union BufferUnion
           {

@@ -182,6 +182,7 @@ namespace ecpps::linker::win
 
           std::vector<PESection> sections{};
           std::unordered_map<std::string, std::uint32_t> exports{};
+          std::unordered_map<std::string, std::vector<std::string>> imports;
 
           [[nodiscard]] std::vector<std::byte> toBytes(const std::string& imageName);
 

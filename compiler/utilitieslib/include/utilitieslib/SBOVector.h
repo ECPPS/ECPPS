@@ -25,7 +25,7 @@ namespace ecpps
           /// <summary>
           /// In elements, not bytes
           /// </summary>
-          static constexpr std::size_t SBOSize = Align(TNSBOSize / sizeof(TElement), sizeof(TElement));
+          static constexpr std::size_t SBOSize = std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
 
           union BufferUnion
           {

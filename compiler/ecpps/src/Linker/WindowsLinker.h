@@ -22,10 +22,10 @@ namespace ecpps::linker::win
 
           void CodeSection(const std::vector<std::byte>& data) override;
           void ExportFunction(const std::string& name, std::uint32_t address) override;
+          void ImportFunction(const std::string& name, const std::string& dll) override;
 
           void AddSection(const PESection& value);
           void ExportAt(const std::string& name, std::uint32_t address);
-          void ImportAt(std::uint32_t address, const std::string& name);
 
           [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName,
                                                        std::size_t entryPointAddress) const override;
@@ -41,6 +41,6 @@ namespace ecpps::linker::win
           LinkType _linkType;
           std::vector<PESection> _sections{};
           std::unordered_map<std::string, std::uint32_t> _exports{};
-          std::unordered_map<std::uint32_t, std::string> _imports{};
+          std::unordered_map<std::string, std::vector<std::string>> _imports{};
      };
 } // namespace ecpps::linker::win

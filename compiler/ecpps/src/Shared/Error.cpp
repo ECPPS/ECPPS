@@ -70,10 +70,10 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                          }
                          positionMap[line.size()] = pos; // For end position handling
 
-                         int startPos = positionMap.size() >= (diagnostic->Source().position)
+                         int startPos = positionMap.size() > (diagnostic->Source().position)
                                             ? positionMap.at(diagnostic->Source().position)
                                             : diagnostic->Source().position;
-                         int endPos = positionMap.size() >= (diagnostic->Source().endPosition)
+                         int endPos = positionMap.size() > (diagnostic->Source().endPosition)
                                           ? positionMap.at(diagnostic->Source().endPosition)
                                           : diagnostic->Source().endPosition;
 
