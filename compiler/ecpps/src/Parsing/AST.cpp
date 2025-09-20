@@ -45,6 +45,7 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(void)
          std::format("Expected a simple-type-specifier, found "),
           peek.location
      ));
+     Advance();
      return nullptr; // TODO: Error
 }
 
@@ -96,14 +97,66 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
      return ParseNameDeclaration();
 }
 
-NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); }
+NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); }//
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
+     SBOVector<AttributeNode> attributes{};
+     bool isFriend = false;
+     bool isInline = false;
+     bool isExtern = false;
+     std::optional<std::string> externOptional = std::nullopt;
+     while (Peek().type == TokenType::LeftBracket)
+     {
+          auto attributeSource = Peek().location;
+          Advance();
+          if (Match(TokenType::LeftBracket))
+          {
+               if (Match(TokenType::Identifier))
+               {
+                    std::string name = std::get<std::string>(Peek(-1).value);
+                    SBOVector<Token> arguments{};
+
+
+
+                    attributeSource.endPosition = Peek(-1).location.endPosition;
+                    attributes.EmplaceBack(name, arguments, attributeSource);
+               }
+
+               if (!Match(TokenType::RightBracket) || !Match(TokenType::RightBracket))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>("Expected ]]", Peek().location));
+               }
+          }
+          else
+          {
+               Retreat();
+               break;
+          }
+     }
+
+     while (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = std::get<std::string>(Peek().value);
+          if (keyword == "extern")
+          {
+               Advance();
+               isExtern = true;
+               if (Peek().type == TokenType::Literal && std::holds_alternative<StringLiteral>(Peek().value))
+               {
+                    const auto& literal = std::get<StringLiteral>(Peek().value);
+                    Advance();
+                    externOptional = literal.value;
+               }
+          }
+          else break;
+     }
+
      auto source = Peek().location;
      auto type = ParseSimpleTypeSpecifier();
      if (type == nullptr) return (Advance(), nullptr);
      abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
+
      if (Peek().type == TokenType::Keyword)
      {
           const auto& keyword = std::get<std::string>(Peek().value);
@@ -122,29 +175,22 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
                                  SBOVector<std::unique_ptr<AttributeNode>>{},
                                  std::move(name),
          callingConvention}; // TODO: Allow id-expression
+
+     signature.isExtern = isExtern;
+     signature.externOptional = externOptional;
+
      if (!Match(TokenType::LeftParenthesis))
      {
           return nullptr; // TODO: Error
      }
-     
-     while (!Match(TokenType::RightParenthesis))
-     {
-          auto param = ParseFunctionParameter();
-          signature.parameters.parameters.push_back(std::move(param));
-          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") Advance();
-          else 
-          {
-               if (Peek().type != TokenType::RightParenthesis)
-                    return nullptr; // TODO: Error
-          }
-     } // TODO: Parameter parsing...
-     if (Match(TokenType::SemiColon))
-     {
-          source.endPosition = Peek(-1).location.endPosition;
-          return std::make_unique<FunctionDeclarationNode>(std::move(signature), source);
-     }
+     while (!Match(TokenType::RightParenthesis)) {} // TODO: Parameter parsing...
      if (!Match(TokenType::LeftBrace))
      {
+          if (Match(TokenType::SemiColon))
+          {
+               source.endPosition = Peek(-1).location.endPosition;
+               return std::make_unique<FunctionDeclarationNode>(std::move(signature), source);
+          }
           return nullptr; // TODO: Error
      }
 
@@ -357,6 +403,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
                SBOVector<NodePointer> argumentList{}; // TODO: Initialiser lists; for now expressions only
                while (!AtEnd())
                {
+                    if (Match(TokenType::RightParenthesis)) break;
                     argumentList.Push(ParseExpression());
                     if (AtEnd() || Match(TokenType::RightParenthesis)) break;
                     const auto& token = Peek();
@@ -367,7 +414,6 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
                             "Expected a comma in function argument list", token.location));
                     return nullptr;
                }
-               Advance(); // eat )
 
                source.endPosition = currentToken.location.endPosition;
                expression = std::make_unique<CallOperatorNode>(std::move(expression), std::move(argumentList), source);

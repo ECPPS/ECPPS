@@ -4,6 +4,10 @@
 #include <memory>
 #include <unordered_set>
 #include "../TypeSystem/TypeBase.h"
+#include <SBOVector.h>
+#include <vector>
+#include <string>
+#include "../Machine/ABI.h"
 
 namespace ecpps::ir
 {
@@ -33,7 +37,7 @@ namespace ecpps::ir
      private:
           Scope* _vScope;
      };
-     using ContextPointer = std::unique_ptr<ContextBase>;
+     using ContextPointer = std::shared_ptr<ContextBase>;
 
      struct FunctionContext final : ContextBase
      {
@@ -41,7 +45,18 @@ namespace ecpps::ir
               : ContextBase(vScope), returnType(std::move(returnType))
           {
           }
+          abi::Linkage linkage;
+          abi::CallingConventionName callingConvention;
           typeSystem::TypePointer returnType;
+          std::string name;
+          std::vector<typeSystem::TypePointer> parameters;
+          bool isDllImportExport = false;
+
+          explicit FunctionContext(const abi::Linkage linkage, abi::CallingConventionName callingConvention, const typeSystem::TypePointer returnType, std::string name,
+                                   std::vector<typeSystem::TypePointer> parameters)
+              : linkage(linkage), callingConvention(callingConvention), returnType(std::move(returnType)), name(std::move(name)), parameters(std::move(parameters))
+          {
+          }
      };
      struct ClassContext final : ContextBase
      {
@@ -156,6 +171,7 @@ namespace ecpps::ir
           
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           SBOQueue<ContextPointer> contextSequence{};
+          Context(const Context&) = default;
 
           explicit Context(Diagnostics& diagnostics) : diagnostics(std::ref(diagnostics)) {}
      };
