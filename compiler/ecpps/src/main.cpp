@@ -44,6 +44,10 @@ int main(int argc, char* argv[])
      std::size_t mainOffset{};
 
      bool hadErrors = false;
+     const bool isVerbose =
+         config.verboseStatus == ecpps::VerboseStatus::Verbose ||
+                            config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
+     const bool isExtraVerbose = config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
 
      for (auto& source : sources.files)
      {
@@ -51,20 +55,22 @@ int main(int argc, char* argv[])
 
           const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
-          std::println();
-          std::println("Tokens:");
-          ecpps::Tokeniser::Print(tokens);
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("Tokens:");
+          if (isExtraVerbose) ecpps::Tokeniser::Print(tokens);
           const auto ast = ecpps::ast::AST{tokens, source.diagnostics}.Parse();
-          std::println();
-          std::println("AST:");
-          for (const auto& node : ast) std::println("{}", node->ToString(0));
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("AST:");
+          if (isExtraVerbose)
+               for (const auto& node : ast) std::println("{}", node->ToString(0));
           const auto ir = ecpps::ir::IR::Parse(source.diagnostics, ast);
-          std::println();
-          std::println("IR:");
-          for (const auto& node : ir) std::println("{}", node->ToString(0));
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("IR:");
+          if (isExtraVerbose)
+               for (const auto& node : ir) std::println("{}", node->ToString(0));
           ecpps::codegen::Compile(source, ir);
-          std::println();
-          std::println("Assembly:");
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("Assembly:");
 
           for (const auto& procedure : source.compiledRoutines)
           {
@@ -73,14 +79,18 @@ int main(int argc, char* argv[])
 
                functions.emplace_back(procedure.name, offset);
 
-               std::println("{}:", procedure.name);
-               for (const auto& instruction : procedure.instructions)
+               if (isExtraVerbose)
                {
-                    std::println("     {}", ecpps::codegen::ToString(instruction));
+                    std::println("{}:", procedure.name);
+                    for (const auto& instruction : procedure.instructions)
+                    {
+                         std::println("     {}", ecpps::codegen::ToString(instruction));
+                    }
                }
 
                const auto machineCode = emitter->EmitRoutine(procedure);
                generatedMachineCode.append_range(machineCode);
+               if (!isExtraVerbose) continue;
 
                std::println("Emitted {} bytes:", machineCode.size());
                constexpr std::size_t RowSize = 8; // in bytes
@@ -121,7 +131,7 @@ int main(int argc, char* argv[])
           return -1;
      }
 
-     std::println("Linking objects...");
+     if (isVerbose) std::println("Linking objects...");
 
      std::vector<std::byte> imageBytes =
          ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);

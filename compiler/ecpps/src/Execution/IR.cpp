@@ -17,16 +17,18 @@ using ecpps::Expression;
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, const std::vector<ASTNodePointer>& ast)
 {
      IR ir{diagnostics};
-     ir._context.types.insert(typeSystem::g_void);
-     ir._context.types.insert(typeSystem::g_char);
-     ir._context.types.insert(typeSystem::g_signedChar);
-     ir._context.types.insert(typeSystem::g_unsignedChar);
-     ir._context.types.insert(typeSystem::g_short);
-     ir._context.types.insert(typeSystem::g_int);
-     ir._context.types.insert(typeSystem::g_long);
-     ir._context.types.insert(typeSystem::g_longLong);
+     ir._context.globalScope->types.insert(typeSystem::g_void);
+     ir._context.globalScope->types.insert(typeSystem::g_char);
+     ir._context.globalScope->types.insert(typeSystem::g_signedChar);
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedChar);
+     ir._context.globalScope->types.insert(typeSystem::g_short);
+     ir._context.globalScope->types.insert(typeSystem::g_int);
+     ir._context.globalScope->types.insert(typeSystem::g_long);
+     ir._context.globalScope->types.insert(typeSystem::g_longLong);
+     ir._context.contextSequence.Push(std::make_unique<NamespaceContext>(ir._context.globalScope.get()));
      for (const auto& node : ast) ir.ParseNode(node);
      auto built = std::move(ir._built);
+     ir._context.contextSequence.Pop();
      return built;
 }
 
@@ -35,14 +37,46 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
      if (const auto functionDefinitionNode = dynamic_cast<ast::FunctionDefinitionNode*>(node.get());
          functionDefinitionNode != nullptr)
           return ParseFunctionDefinition(*functionDefinitionNode);
+     if (const auto functionDclarationNode = dynamic_cast<ast::FunctionDeclarationNode*>(node.get());
+         functionDclarationNode != nullptr)
+          return ParseFunctionDeclaration(*functionDclarationNode);
 
      if (const auto returnNode = dynamic_cast<ast::ReturnNode*>(node.get()); returnNode != nullptr)
           return ParseReturn(*returnNode);
 
      auto expression = ParseExpression(node);
-     this->_built.push_back(std::move(*expression.release()).Value()); // TODO: warn on nodiscard
+     if (expression != nullptr)
+          this->_built.push_back(std::move(*expression.release()).Value()); // TODO: warn on nodiscard
 }
 
+void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node)
+{
+     std::vector<Parameter> parameters{};
+
+     const auto returnType = this->ParseType(node.Signature().type);
+     abi::Linkage linkage = abi::Linkage::External;
+     if (node.Signature().externOptional.has_value())
+     {
+          const std::string& languageLinkage = node.Signature().externOptional.value();
+          if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
+          else
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                       "Invalid language linkage specification", node.Source()));
+          }
+     }
+     else if (node.Signature().isInline ||
+              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+          linkage = abi::Linkage::Internal;
+     // TODO: Error on conflicting linkage specification
+
+     auto functionScope = MakeFunctionScope()
+          .Name(node.Signature().name->ToString(0))
+          .ReturnType(returnType)
+          .Build();
+     this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
+}
 void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& node)
 {
      std::vector<Parameter> parameters{};
@@ -67,7 +101,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      // TODO: Error on conflicting linkage specification
 
      ir._context = this->_context;
-     ir._context.contextSequence.Push(std::make_unique<FunctionContext>(returnType));
+     auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build();
+     ir._context.contextSequence.Push(std::make_unique<FunctionContext>(functionScope.get(), returnType));
+     this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
      if (typeSystem::g_void->CommonWith(returnType))
@@ -238,7 +274,8 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 {
      if (const auto basicType = dynamic_cast<ast::BasicType*>(type.get()); basicType != nullptr)
      {
-          if (this->_context.types.contains(basicType->Value())) return *this->_context.types.find(basicType->Value());
+          if (this->_context.contextSequence.Back()->GetScope().types.contains(basicType->Value()))
+               return *this->_context.contextSequence.Back()->GetScope() .types.find(basicType->Value());
      }
 
      return nullptr;

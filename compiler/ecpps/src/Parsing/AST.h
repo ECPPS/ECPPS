@@ -137,6 +137,48 @@ namespace ecpps::ast
           [[nodiscard]] std::string ToString(std::size_t indent) const override { return "[[]]"; };
      };
 
+     enum struct ExplicitThisSpecifier : bool
+     {
+          Yes = true,
+          No = false
+     };
+
+     struct FunctionParameter
+     {
+          SBOVector<std::unique_ptr<AttributeNode>> attributes{};
+          ExplicitThisSpecifier explicitThis{};
+          NodePointer type{};
+          NodePointer name{};
+          NodePointer defaultInitialiser{};
+     };
+
+     struct FunctionParameterList
+     {
+          std::vector<FunctionParameter> parameters{};
+          [[nodiscard]] std::string ToString(void) const
+          {
+               using std::string_literals::operator""s;
+               std::string built{};
+               for (const auto& param : this->parameters)
+               {
+                    for (const auto& attr : param.attributes) built += "[["s + attr->ToString(0) + "]] ";
+                    if (param.explicitThis == ExplicitThisSpecifier::Yes) built += "this ";
+                    if (param.type != nullptr) built += param.type->ToString(0) + " ";
+                    if (param.name != nullptr) built += param.name->ToString(0);
+                    if (param.defaultInitialiser != nullptr)
+                         built += " = "s + param.defaultInitialiser->ToString(0);
+                    built += ", ";
+               }
+
+               if (!built.empty()) // trailing comma
+               {
+                    built.pop_back();
+                    built.pop_back();
+               }
+               return built;
+          }
+     };
+
      struct FunctionSignature
      {
           NodePointer type{};
@@ -145,16 +187,17 @@ namespace ecpps::ast
           bool isExtern{};
           std::optional<std::string> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
-          SBOVector<AttributeNode> attributes{};
+          SBOVector<std::unique_ptr<AttributeNode>> attributes{};
           NodePointer name;
           abi::CallingConventionName callingConvention;
+          FunctionParameterList parameters{};
           // TODO: Trailing return types
 
           [[nodiscard]] std::string ToString(void) const
           {
                using std::string_literals::operator""s;
                std::string built{};
-               for (const auto& attr : this->attributes) built += "[["s + attr.ToString(0) + "]] ";
+               for (const auto& attr : this->attributes) built += "[["s + attr->ToString(0) + "]] ";
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
@@ -172,7 +215,7 @@ namespace ecpps::ast
                built += ::ToString(this->callingConvention) + " ";
                built += this->name->ToString(0);
                built += "(";
-               // TODO: Parameters
+               built += this->parameters.ToString();
                built += ")";
 
                return built;
@@ -180,7 +223,7 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     SBOVector<AttributeNode> attributes, NodePointer name,
+                                     SBOVector<std::unique_ptr<AttributeNode>> attributes, NodePointer name,
                                      const abi::CallingConventionName callingConvention)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
                 attributes(std::move(attributes)), name(std::move(name)), callingConvention(callingConvention)
@@ -216,6 +259,26 @@ namespace ecpps::ast
      private:
           FunctionSignature _signature;
           SBOVector<NodePointer> _body;
+     };
+
+     class FunctionDeclarationNode final : public Node
+     {
+     public:
+          explicit FunctionDeclarationNode(FunctionSignature signature, Location source)
+              : Node(std::move(source)), _signature(std::move(signature))
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built = std::string(indent * PrettyIndent, ' ') + this->_signature.ToString();
+               return built + ";";
+          }
+
+          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
+
+     private:
+          FunctionSignature _signature;
      };
 
      // Not a template
@@ -457,5 +520,8 @@ namespace ecpps::ast
           // Statements
           NodePointer ParseStatement(void);
           NodePointer ParseExpressionStatement(void);
+
+          // Helpers (parse sub-components)
+          FunctionParameter ParseFunctionParameter(void);
      };
 } // namespace ecpps::ast

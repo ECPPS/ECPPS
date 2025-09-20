@@ -12,7 +12,7 @@ namespace ecpps
      class SBOQueue
      {
           static constexpr std::size_t SBOSize = (TNSBOSize / sizeof(T)) & ~(sizeof(T) - 1);
-
+          static_assert(SBOSize > 0);
           union BufferUnion
           {
                alignas(T) std::byte sbo[sizeof(T) * SBOSize];

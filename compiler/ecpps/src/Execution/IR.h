@@ -20,6 +20,7 @@ namespace ecpps::ir
           Context _context;
 
           void ParseNode(const ast::NodePointer& node);
+          void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
 

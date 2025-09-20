@@ -1,6 +1,7 @@
 #include "AST.h"
 #include <unordered_set>
 #include "ASTs\Type.h"
+#include <format>
 
 using ecpps::ast::NodePointer;
 static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
@@ -23,7 +24,7 @@ std::vector<NodePointer> ecpps::ast::AST::Parse(void)
 std::unique_ptr<ecpps::ast::IdentifierNode> ecpps::ast::AST::ParseIdentifier(void)
 {
      if (Peek().type != TokenType::Identifier) return nullptr;
-     const auto identifier = Peek();
+     const auto& identifier = Peek();
      Advance();
      // TODO: Assert holds_alternative
      return std::make_unique<IdentifierNode>(std::get<std::string>(identifier.value), identifier.location);
@@ -39,6 +40,11 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(void)
           Advance();
           return std::make_unique<BasicType>(std::get<std::string>(Peek(-1).value), source);
      }
+     const auto& peek = Peek();
+     this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+         std::format("Expected a simple-type-specifier, found "),
+          peek.location
+     ));
      return nullptr; // TODO: Error
 }
 
@@ -96,7 +102,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
      auto source = Peek().location;
      auto type = ParseSimpleTypeSpecifier();
-     if (type == nullptr) return nullptr;
+     if (type == nullptr) return (Advance(), nullptr);
      abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
      if (Peek().type == TokenType::Keyword)
      {
@@ -109,14 +115,34 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      }
      auto name = ParseIdentifier();
 
-     FunctionSignature signature{
-         std::move(type),  false, false, ConstantExpressionSpecifier::None, SBOVector<AttributeNode>{}, std::move(name),
+     FunctionSignature signature{std::move(type),
+                                 false,
+                                 false,
+                                 ConstantExpressionSpecifier::None,
+                                 SBOVector<std::unique_ptr<AttributeNode>>{},
+                                 std::move(name),
          callingConvention}; // TODO: Allow id-expression
      if (!Match(TokenType::LeftParenthesis))
      {
           return nullptr; // TODO: Error
      }
-     while (!Match(TokenType::RightParenthesis)) {} // TODO: Parameter parsing...
+     
+     while (!Match(TokenType::RightParenthesis))
+     {
+          auto param = ParseFunctionParameter();
+          signature.parameters.parameters.push_back(std::move(param));
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") Advance();
+          else 
+          {
+               if (Peek().type != TokenType::RightParenthesis)
+                    return nullptr; // TODO: Error
+          }
+     } // TODO: Parameter parsing...
+     if (Match(TokenType::SemiColon))
+     {
+          source.endPosition = Peek(-1).location.endPosition;
+          return std::make_unique<FunctionDeclarationNode>(std::move(signature), source);
+     }
      if (!Match(TokenType::LeftBrace))
      {
           return nullptr; // TODO: Error
@@ -192,7 +218,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 
 NodePointer ecpps::ast::AST::ParseIdExpression(void)
 {
-     auto currentToken = this->Peek();
+     auto& currentToken = this->Peek();
      if (currentToken.type != TokenType::Identifier) return nullptr;
 
      auto source = currentToken.location;
@@ -699,4 +725,22 @@ NodePointer ecpps::ast::AST::ParseExpressionStatement(void)
      }
 
      return expression;
+}
+
+ecpps::ast::FunctionParameter ecpps::ast::AST::ParseFunctionParameter(void)
+{
+     // TODO: Attributes
+     // TODO: explicit this
+     auto type = ParseSimpleTypeSpecifier(); // TODO: More complex types
+     FunctionParameter parameter{};
+     if (type == nullptr) return parameter;
+     parameter.type = std::move(type);
+     if (Peek().type != TokenType::Identifier) return parameter;
+     parameter.name = ParseIdentifier();
+     if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
+     {
+          Advance();
+          parameter.defaultInitialiser = ParseAssignmentExpression();
+     }
+     return parameter;
 }
