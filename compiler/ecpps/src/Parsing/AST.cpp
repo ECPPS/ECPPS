@@ -1,5 +1,6 @@
 #include "AST.h"
 #include <unordered_set>
+#include <Assert.h>
 #include "ASTs\Type.h"
 
 using ecpps::ast::NodePointer;
@@ -25,7 +26,7 @@ std::unique_ptr<ecpps::ast::IdentifierNode> ecpps::ast::AST::ParseIdentifier(voi
      if (Peek().type != TokenType::Identifier) return nullptr;
      const auto identifier = Peek();
      Advance();
-     // TODO: Assert holds_alternative
+     runtime_assert(std::holds_alternative<std::string>(identifier.value), "Identifier was not an identifier");
      return std::make_unique<IdentifierNode>(std::get<std::string>(identifier.value), identifier.location);
 }
 
@@ -56,7 +57,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
      if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
      if (Peek().type == TokenType::Keyword)
      {
-          // TODO: Assert std::holds_alternative<std::string>
+          runtime_assert(std::holds_alternative<std::string>, "Keyword was not an identifier");
           if (std::get<std::string>(Peek().value) == "namespace")
           {
                Advance();

@@ -9,5 +9,5 @@ void RuntimeAssert(bool condition, std::string_view conditionString, std::string
 #ifdef NDEBUG
 #define runtime_assert(condition, message) 
 #else
-#define runtime_assert(condition, message) RuntimeAssert(condition, message, __FILE__, __LINE__, __func__)
+#define runtime_assert(condition, message) RuntimeAssert(condition, #condition, message, __FILE__, __LINE__, __func__)
 #endif
