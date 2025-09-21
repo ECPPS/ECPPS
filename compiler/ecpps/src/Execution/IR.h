@@ -1,5 +1,4 @@
 #pragma once
-#include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
 #include "../Shared/Diagnostics.h"
@@ -7,6 +6,7 @@
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "context.h"
+#include <utility>
 
 namespace ecpps::ir
 {
@@ -37,12 +37,12 @@ namespace ecpps::ir
      {
           enum struct RefBindingKind
           {
-               None,            // No ref involved (e.g. T <- expr)
-               LValueRef,       // T& <- lvalue
-               ConstLValueRef,  // const T& <- lvalue
-               RValueRef,       // T&& <- xvalue
-               ConstRValueRef,  // const T&& <- prvalue
-               BindToTemporary, // T& <- prvalue needs temp
+               None,               // No ref involved (e.g. T <- expr)
+               LValueRef,          // T& <- lvalue
+               ConstLValueRef,     // const T& <- lvalue
+               RValueRef,          // T&& <- xvalue
+               ConstRValueRef,     // const T&& <- prvalue
+               BindToTemporary,    // T& <- prvalue needs temp
                IllFormed
           };
 
@@ -55,11 +55,9 @@ namespace ecpps::ir
                return this->isValid && this->typeSequence.SameAs() && this->refKind == RefBindingKind::None;
           }
 
-          explicit ImplicitConversion(ecpps::typeSystem::ConversionSequence typeSequence, const RefBindingKind refKind,
-                                      const bool isValid)
-              : typeSequence(std::move(typeSequence)), refKind(refKind), isValid(isValid)
-          {
-          }
+          explicit ImplicitConversion(ecpps::typeSystem::ConversionSequence typeSequence, const RefBindingKind refKind, const bool isValid)
+               : typeSequence(std::move(typeSequence)), refKind(refKind), isValid(isValid)
+          {}
           [[nodiscard]] MatchingScore Rank(void) const noexcept;
      };
 
@@ -67,10 +65,12 @@ namespace ecpps::ir
      /// Matches expression to type
      /// </summary>
      /// <returns></returns>
-     [[nodiscard]] ImplicitConversion MatchImplicitConversion(const Expression& expression,
-                                                              const typeSystem::TypePointer& type);
+     [[nodiscard]] ImplicitConversion MatchImplicitConversion(const Expression& expression, const typeSystem::TypePointer& type);
 
-     constexpr bool operator!(const MatchingScore score) { return score == MatchingScore::NotMatching; }
+     constexpr bool operator!(const MatchingScore score)
+     {
+          return score == MatchingScore::NotMatching;
+     }
      constexpr auto operator<=>(const MatchingScore left, const MatchingScore right)
      {
           return std::to_underlying(left) <=> std::to_underlying(right);
@@ -78,20 +78,20 @@ namespace ecpps::ir
      constexpr MatchingScore& operator++(MatchingScore& score)
      {
           return score = static_cast<MatchingScore>(std::to_underlying(score) + 1);
-     }
+     }                             
      constexpr MatchingScore& operator--(MatchingScore& score)
      {
           return score = static_cast<MatchingScore>(std::to_underlying(score) - 1);
-     }
+     }         
      constexpr MatchingScore& operator+=(MatchingScore& score, const std::size_t value)
      {
           return score = static_cast<MatchingScore>(std::to_underlying(score) + value);
-     }
+     }             
      constexpr MatchingScore& operator-=(MatchingScore& score, const std::size_t value)
      {
           return score = static_cast<MatchingScore>(std::to_underlying(score) - value);
      }
-  
+
      class IR
      {
      public:
@@ -103,6 +103,7 @@ namespace ecpps::ir
           Context _context;
 
           void ParseNode(const ast::NodePointer& node);
+          void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
 
@@ -114,6 +115,7 @@ namespace ecpps::ir
                                           const Location& source);
 
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
+          Expression ParseCallExpression(const ast::CallOperatorNode& node);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           typeSystem::TypePointer ParseType(const ast::NodePointer& type);
@@ -127,5 +129,9 @@ namespace ecpps::ir
           /// <param name="type"></param>
           /// <returns></returns>
           Expression ConvertIntegral(Expression&& expression, const std::shared_ptr<typeSystem::IntegralType>& type);
+
+          // matching
+          MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
+                                      const std::vector<Expression>& arguments);
      };
 } // namespace ecpps::ir
