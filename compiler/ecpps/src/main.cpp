@@ -1,3 +1,13 @@
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <fstream>
+#include <memory>
+#include <print>
+#include <ranges>
+#include <string>
+#include <utility>
+#include <vector>
 #include "CodeGeneration/CodeEmitter.h"
 #include "CodeGeneration/PseudoAssembly.h"
 #include "Execution/IR.h"
@@ -8,51 +18,40 @@
 #include "Parsing/SourceMap.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Config.h"
-#include <chrono>
-#include <cstddef>
-#include <cstdint>
-#include <fstream>
-#include <memory>
-#include <print>
-#include <string>
-#include <utility>
-#include <vector>
-#include <ranges>
 
 int main(int argc, char* argv[])
 {
-	const auto start = std::chrono::steady_clock::now();
+     const auto start = std::chrono::steady_clock::now();
 
-	ecpps::CompilerConfig config{ argc, argv };
-	ecpps::SourceMap sources{ config };
+     ecpps::CompilerConfig config{argc, argv};
+     ecpps::SourceMap sources{config};
 
-	if (sources.files.empty())
-	{
-		std::println("\x1b[31mNo input files\x1b[0m");
-		return -1;
-	}
+     if (sources.files.empty())
+     {
+          std::println("\x1b[31mNo input files\x1b[0m");
+          return -1;
+     }
 
-	auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
-	if (emitter == nullptr)
-	{
-		std::println("\x1b[31mUnsupported architecture for the code generation\x1b[0m");
-		return -1;
-	}
-	std::println("Target: {}", emitter->Name());
+     auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
+     if (emitter == nullptr)
+     {
+          std::println("\x1b[31mUnsupported architecture for the code generation\x1b[0m");
+          return -1;
+     }
+     std::println("Target: {}", emitter->Name());
 
-	std::vector<std::byte> generatedMachineCode{};
-	std::vector<std::pair<std::string, std::size_t>> functions{};
-	std::size_t mainOffset{};
+     std::vector<std::byte> generatedMachineCode{};
+     std::vector<std::pair<std::string, std::size_t>> functions{};
+     std::size_t mainOffset{};
 
      bool hadErrors = false;
-     const bool isVerbose =
-         config.verboseStatus == ecpps::VerboseStatus::Verbose ||
+     const bool isVerbose = config.verboseStatus == ecpps::VerboseStatus::Verbose ||
                             config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
      const bool isExtraVerbose = config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
 
-	for (auto& source : sources.files)
-	{
-		std::println("Compiling {}...", source.name);
+     for (auto& source : sources.files)
+     {
+          std::println("Compiling {}...", source.name);
 
           const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
@@ -73,15 +72,15 @@ int main(int argc, char* argv[])
           if (isExtraVerbose) std::println();
           if (isExtraVerbose) std::println("Assembly:");
 
-		std::unordered_map<std::string, std::size_t> routines{};
-		routines.reserve(source.compiledRoutines.size());
+          std::unordered_map<std::string, std::size_t> routines{};
+          routines.reserve(source.compiledRoutines.size());
 
-		for (const auto& procedure : source.compiledRoutines)
-		{
-			const std::size_t offset = generatedMachineCode.size();
-			if (procedure.name == "main") mainOffset = offset;
+          for (const auto& procedure : source.compiledRoutines)
+          {
+               const std::size_t offset = generatedMachineCode.size();
+               if (procedure.name == "main") mainOffset = offset;
 
-			functions.emplace_back(procedure.name, offset);
+               functions.emplace_back(procedure.name, offset);
 
                if (isExtraVerbose)
                {
@@ -93,73 +92,74 @@ int main(int argc, char* argv[])
                }
 
                const auto machineCode = emitter->EmitRoutine(procedure, generatedMachineCode.size());
-			routines.emplace(procedure.name, generatedMachineCode.size());
+               routines.emplace(procedure.name, generatedMachineCode.size());
                generatedMachineCode.append_range(machineCode);
                if (!isExtraVerbose) continue;
-		}
-		emitter->PatchCalls(generatedMachineCode, routines);
-		if (isExtraVerbose) for (auto it = routines.begin(); it != routines.end(); ++it)
-		{		
-			const auto& [routineName, routineOffset] = *it;
-			std::println("{}:", routineName);
-			// TODO: Assert
+          }
+          emitter->PatchCalls(generatedMachineCode, routines);
+          if (isExtraVerbose)
+               for (auto it = routines.begin(); it != routines.end(); ++it)
+               {
+                    const auto& [routineName, routineOffset] = *it;
+                    std::println("{}:", routineName);
+                    // TODO: Assert
 
-			std::size_t size = (std::next(it) == routines.end()) ? 
-                        generatedMachineCode.size() - routineOffset : 
-                        std::next(it)->second - routineOffset;
-			const auto& machineCode = generatedMachineCode | std::views::drop(routineOffset) | std::views::take(size);
-			constexpr std::size_t RowSize = 8; // in bytes
-			const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
-						    
-			std::println("Emitted {} bytes:", machineCode.size());
-			for (std::size_t row = 0; row < rows; row++)
-			{
-				std::print("| ");
-				const auto offset = row * RowSize;
-				for (std::size_t column = 0; column < RowSize; column++)
-				{
-					const auto byteOffset = offset + column;
-					if (byteOffset >= machineCode.size()) std::print("   ");
-					else
-						std::print("{:02x} ", static_cast<std::size_t>(machineCode[byteOffset]));
-				}
-				std::println("|");
-			}
-		}
+                    std::size_t size = (std::next(it) == routines.end()) ? generatedMachineCode.size() - routineOffset
+                                                                         : std::next(it)->second - routineOffset;
+                    const auto& machineCode =
+                        generatedMachineCode | std::views::drop(routineOffset) | std::views::take(size);
+                    constexpr std::size_t RowSize = 8; // in bytes
+                    const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
 
-		for (const auto& diag : source.diagnostics.diagnosticsList)
-		{
-			ecpps::diagnostics::PrintDiagnostic(source.name, diag);
+                    std::println("Emitted {} bytes:", machineCode.size());
+                    for (std::size_t row = 0; row < rows; row++)
+                    {
+                         std::print("| ");
+                         const auto offset = row * RowSize;
+                         for (std::size_t column = 0; column < RowSize; column++)
+                         {
+                              const auto byteOffset = offset + column;
+                              if (byteOffset >= machineCode.size()) std::print("   ");
+                              else
+                                   std::print("{:02x} ", static_cast<std::size_t>(machineCode[byteOffset]));
+                         }
+                         std::println("|");
+                    }
+               }
 
-			if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-			    (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-				break;
-			hadErrors = true;
-		}
-	}
+          for (const auto& diag : source.diagnostics.diagnosticsList)
+          {
+               ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
-	if (hadErrors)
-	{
-		const auto end = std::chrono::steady_clock::now();
+               if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
+                   (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                    break;
+               hadErrors = true;
+          }
+     }
 
-		std::println("Compilation failed. {} elapsed",
-				   std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+     if (hadErrors)
+     {
+          const auto end = std::chrono::steady_clock::now();
 
-		return -1;
-	}
+          std::println("Compilation failed. {} elapsed",
+                       std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+
+          return -1;
+     }
 
      if (isVerbose) std::println("Linking objects...");
 
-	std::vector<std::byte> imageBytes =
-		ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
+     std::vector<std::byte> imageBytes =
+         ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
 
-	std::ofstream outFile(config.outputImage, std::ios::binary);
-	outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
-	outFile.close();
+     std::ofstream outFile(config.outputImage, std::ios::binary);
+     outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
+     outFile.close();
 
-	const auto end = std::chrono::steady_clock::now();
-	std::println("Compilation successful. {} elapsed",
-			   std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+     const auto end = std::chrono::steady_clock::now();
+     std::println("Compilation successful. {} elapsed",
+                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 
-	return 0;
+     return 0;
 }

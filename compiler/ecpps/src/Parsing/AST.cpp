@@ -1,7 +1,7 @@
 #include "AST.h"
+#include <format>
 #include <unordered_set>
 #include "ASTs\Type.h"
-#include <format>
 
 using ecpps::ast::NodePointer;
 static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
@@ -42,9 +42,7 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(void)
      }
      const auto& peek = Peek();
      this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-         std::format("Expected a simple-type-specifier, found "),
-          peek.location
-     ));
+         std::format("Expected a simple-type-specifier, found "), peek.location));
      Advance();
      return nullptr; // TODO: Error
 }
@@ -97,7 +95,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
      return ParseNameDeclaration();
 }
 
-NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); }//
+NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); } //
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
@@ -117,15 +115,14 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
                     std::string name = std::get<std::string>(Peek(-1).value);
                     SBOVector<Token> arguments{};
 
-
-
                     attributeSource.endPosition = Peek(-1).location.endPosition;
                     attributes.EmplaceBack(name, arguments, attributeSource);
                }
 
                if (!Match(TokenType::RightBracket) || !Match(TokenType::RightBracket))
                {
-                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>("Expected ]]", Peek().location));
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                        std::make_unique<diagnostics::SyntaxError>("Expected ]]", Peek().location));
                }
           }
           else
@@ -149,7 +146,8 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
                     externOptional = literal.value;
                }
           }
-          else break;
+          else
+               break;
      }
 
      auto source = Peek().location;
@@ -174,7 +172,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
                                  ConstantExpressionSpecifier::None,
                                  SBOVector<std::unique_ptr<AttributeNode>>{},
                                  std::move(name),
-         callingConvention}; // TODO: Allow id-expression
+                                 callingConvention}; // TODO: Allow id-expression
 
      signature.isExtern = isExtern;
      signature.externOptional = externOptional;
@@ -183,15 +181,14 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      {
           return nullptr; // TODO: Error
      }
-      while (!Match(TokenType::RightParenthesis))
+     while (!Match(TokenType::RightParenthesis))
      {
           auto param = ParseFunctionParameter();
           signature.parameters.parameters.push_back(std::move(param));
           if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") Advance();
-          else 
+          else
           {
-               if (Peek().type != TokenType::RightParenthesis)
-                    return nullptr; // TODO: Error
+               if (Peek().type != TokenType::RightParenthesis) return nullptr; // TODO: Error
           }
      }
      if (!Match(TokenType::LeftBrace))

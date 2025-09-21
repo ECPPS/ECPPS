@@ -4,8 +4,8 @@
 #include "../Machine/ABI.h"
 #include "../Parsing/AST.h"
 #include "../TypeSystem/TypeBase.h"
-#include "NodeBase.h"
 #include "Context.h"
+#include "NodeBase.h"
 
 namespace ecpps::ir
 {
@@ -20,7 +20,8 @@ namespace ecpps::ir
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::TypePointer returnType, std::string name,
-                                 std::vector<FunctionScope::Parameter> parameterList, std::vector<NodePointer> body, Location source)
+                                 std::vector<FunctionScope::Parameter> parameterList, std::vector<NodePointer> body,
+                                 Location source)
               : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
                 _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
                 _parameterList(std::move(parameterList)), _body(std::move(body))
@@ -62,9 +63,12 @@ namespace ecpps::ir
      class FunctionCallNode final : public NodeBase
      {
      public:
-          explicit FunctionCallNode(std::shared_ptr<FunctionScope> function, std::vector<Expression> arguments, Location source)
-               : NodeBase(NodeKind::Call, std::move(source)), _function(std::move(function)), _arguments(std::move(arguments))
-          {}
+          explicit FunctionCallNode(std::shared_ptr<FunctionScope> function, std::vector<Expression> arguments,
+                                    Location source)
+              : NodeBase(NodeKind::Call, std::move(source)), _function(std::move(function)),
+                _arguments(std::move(arguments))
+          {
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -80,6 +84,7 @@ namespace ecpps::ir
 
           [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept { return this->_function; }
           [[nodiscard]] const std::vector<Expression>& Arguments(void) const noexcept { return this->_arguments; }
+
      private:
           std::shared_ptr<FunctionScope> _function;
           std::vector<Expression> _arguments;

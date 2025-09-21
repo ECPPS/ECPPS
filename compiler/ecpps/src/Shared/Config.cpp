@@ -60,10 +60,7 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                          this->verboseStatus = VerboseStatus::Default;
                     else { this->verboseStatus = VerboseStatus::Verbose; }
                }
-               else if (flag == "V")
-               {
-                    this->verboseStatus = VerboseStatus::ExtraVerbose;
-               }
+               else if (flag == "V") { this->verboseStatus = VerboseStatus::ExtraVerbose; }
                else if (lowerFlag == "output" || lowerFlag == "out")
                {
                     if (!this->outputImage.empty()) {} // TODO: Warning

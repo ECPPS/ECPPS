@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
@@ -223,7 +223,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
           layout.nameRVA = importRVA + static_cast<std::uint32_t>(nameOffset);
           importData.resize(nameOffset + dll.size() + 1);
           std::memcpy(importData.data() + nameOffset, dll.c_str(), dll.size());
-          importData[nameOffset + dll.size()] = std::byte{ 0 };
+          importData[nameOffset + dll.size()] = std::byte{0};
           currentDataOffset = importData.size();
 
           layout.originalThunkRVA = importRVA + static_cast<std::uint32_t>(originalThunkOffset);
@@ -232,42 +232,40 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
           layouts.push_back(layout);
      }
 
- /*    for (const auto& [nameOffset, name] : importNameTable)
-     {
-          const auto offset = importData.size();
+     /*    for (const auto& [nameOffset, name] : importNameTable)
+         {
+              const auto offset = importData.size();
 
-          *std::launder(reinterpret_cast<std::uint32_t*>(importData.data() + nameOffset)) = importRVA + offset;
-          importData.resize(offset + name.size() + 1);
-          std::memcpy(importData.data() + offset, name.c_str(), name.size() + 1);
-     }*/
+              *std::launder(reinterpret_cast<std::uint32_t*>(importData.data() + nameOffset)) = importRVA + offset;
+              importData.resize(offset + name.size() + 1);
+              std::memcpy(importData.data() + offset, name.c_str(), name.size() + 1);
+         }*/
 
      // Now write IMAGE_IMPORT_DESCRIPTORs
      for (std::size_t i = 0; i < layouts.size(); ++i)
      {
           auto& descriptor = *std::launder(
-               reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(importData.data() + i * sizeof(IMAGE_IMPORT_DESCRIPTOR))
-          );
+              reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(importData.data() + i * sizeof(IMAGE_IMPORT_DESCRIPTOR)));
 
           descriptor.OriginalFirstThunk = layouts[i].originalThunkRVA;
           descriptor.FirstThunk = layouts[i].firstThunkRVA;
           descriptor.Name = layouts[i].nameRVA;
      }
-     std::memset(importData.data() + layouts.size() * sizeof(IMAGE_IMPORT_DESCRIPTOR), 0, sizeof(IMAGE_IMPORT_DESCRIPTOR));
-
+     std::memset(importData.data() + layouts.size() * sizeof(IMAGE_IMPORT_DESCRIPTOR), 0,
+                 sizeof(IMAGE_IMPORT_DESCRIPTOR));
 
      // Null descriptor
      importData.resize(importData.size() + sizeof(IMAGE_IMPORT_DESCRIPTOR), std::byte{});
      const auto importSize = static_cast<std::uint32_t>(importData.size());
 
-     this->sections.emplace_back(".idata", importData,
-                                 PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
+     this->sections.emplace_back(".idata", importData, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
 
      // Update data directory with export info
      this->_ntHeaders.optionalHeader.numberOfRvaAndSizes = 2;
      this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
-         DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};  
+         DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
      this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
-         DataDirectory{.VirtualAddress = importRVA, .Size = importSize };
+         DataDirectory{.VirtualAddress = importRVA, .Size = importSize};
 
      this->_ntHeaders.optionalHeader.sizeOfImage = AlignUp(exportRVA + exportSize + importSize, sectionAlignment);
 
