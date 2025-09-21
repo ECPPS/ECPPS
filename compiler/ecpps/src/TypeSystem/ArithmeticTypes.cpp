@@ -1,4 +1,6 @@
 #include "ArithmeticTypes.h"
+#include <Assert.h>
+#include <format>
 #include <string>
 #include <utility>
 
@@ -36,7 +38,8 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
      if (IsIntegral(other))
      {
           const auto otherIntegral = std::dynamic_pointer_cast<IntegralType>(other);
-          // TODO: Assert otherIntegral != nullptr
+          runtime_assert(otherIntegral != nullptr,
+                         std::format("Integral type `{}` was not an integral type", other->RawName()));
           if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
                sequence.Push(ConversionSequence::ConversionKind::IntegralConversion);
           return ConversionSequence{sequence};
@@ -78,7 +81,8 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareT
      if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
      const auto otherCharacter = std::dynamic_pointer_cast<CharacterType>(other);
-     // TODO: Assert otherCharacter != nullptr
+     runtime_assert(otherCharacter != nullptr,
+                    std::format("Character type `{}` was not a character type", other->RawName()));
 
      if (otherCharacter->_isUnqualified)
           return ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}; // empty sequence = exact
