@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <ranges>
 
 int main(int argc, char* argv[])
 {
@@ -95,10 +96,22 @@ int main(int argc, char* argv[])
 			routines.emplace(procedure.name, generatedMachineCode.size());
                generatedMachineCode.append_range(machineCode);
                if (!isExtraVerbose) continue;
+		}
+		emitter->PatchCalls(generatedMachineCode, routines);
+		if (isExtraVerbose) for (auto it = routines.begin(); it != routines.end(); ++it)
+		{		
+			const auto& [routineName, routineOffset] = *it;
+			std::println("{}:", routineName);
+			// TODO: Assert
 
-			std::println("Emitted {} bytes:", machineCode.size());
+			std::size_t size = (std::next(it) == routines.end()) ? 
+                        generatedMachineCode.size() - routineOffset : 
+                        std::next(it)->second - routineOffset;
+			const auto& machineCode = generatedMachineCode | std::views::drop(routineOffset) | std::views::take(size);
 			constexpr std::size_t RowSize = 8; // in bytes
 			const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
+						    
+			std::println("Emitted {} bytes:", machineCode.size());
 			for (std::size_t row = 0; row < rows; row++)
 			{
 				std::print("| ");
@@ -108,12 +121,11 @@ int main(int argc, char* argv[])
 					const auto byteOffset = offset + column;
 					if (byteOffset >= machineCode.size()) std::print("   ");
 					else
-						std::print("{:02x} ", static_cast<std::size_t>(machineCode.at(byteOffset)));
+						std::print("{:02x} ", static_cast<std::size_t>(machineCode[byteOffset]));
 				}
 				std::println("|");
 			}
 		}
-		emitter->PatchCalls(generatedMachineCode, routines);
 
 		for (const auto& diag : source.diagnostics.diagnosticsList)
 		{
