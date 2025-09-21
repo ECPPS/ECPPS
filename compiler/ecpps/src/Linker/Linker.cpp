@@ -1,10 +1,10 @@
 #include "Linker.h"
 #include <memory>
+#include <stdexcept>
 #include <utility>
+#include "../CodeGeneration/PseudoAssembly.h"
 #include "WindowsLinker.h"
 #include "dllHelp.h"
-#include "../CodeGeneration/PseudoAssembly.h"
-#include <stdexcept>
 
 std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
     LinkerType type, std::unique_ptr<LinkerOptionsBase> options)
@@ -40,7 +40,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
                   config.linker == LinkerUsed::Windows32 ? LinkerBitness::x32 : LinkerBitness::x64));
      }
      break;
-     }                         
+     }
      const auto availableExports = GetExportsFromDlls({"kernel32.dll"});
      for (const auto& import : ecpps::codegen::g_functionImports)
      {
@@ -56,12 +56,8 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
                     break;
                }
           }
-          if (dllName.empty())
-               throw std::logic_error("LINK error: unresolved function " + import);
-          else
-          {
-               selectedLinker->ImportFunction(import, dllName);
-          }
+          if (dllName.empty()) throw std::logic_error("LINK error: unresolved function " + import);
+          else { selectedLinker->ImportFunction(import, dllName); }
      }
 
      selectedLinker->CodeSection(generatedMachineCode);

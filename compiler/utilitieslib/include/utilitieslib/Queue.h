@@ -127,8 +127,7 @@ namespace ecpps
 
                if (other.UseSBO())
                {
-                    for (std::size_t i = 0; i < other._size; ++i)
-                         new (StoragePtr() + i) T(other[i]);
+                    for (std::size_t i = 0; i < other._size; ++i) new (StoragePtr() + i) T(other[i]);
                }
                else
                {
@@ -136,8 +135,7 @@ namespace ecpps
                     _buffer.noSbo.begin = alloc.allocate(other._buffer.noSbo.capacity);
                     _buffer.noSbo.capacity = other._buffer.noSbo.capacity;
 
-                    for (std::size_t i = 0; i < other._size; ++i)
-                         new (_buffer.noSbo.begin + i) T(other[i]);
+                    for (std::size_t i = 0; i < other._size; ++i) new (_buffer.noSbo.begin + i) T(other[i]);
                }
 
                _size = other._size;
@@ -150,8 +148,7 @@ namespace ecpps
 
                if (other.UseSBO())
                {
-                    for (std::size_t i = 0; i < other._size; ++i)
-                         new (StoragePtr() + i) T(std::move(other[i]));
+                    for (std::size_t i = 0; i < other._size; ++i) new (StoragePtr() + i) T(std::move(other[i]));
                }
                else
                {

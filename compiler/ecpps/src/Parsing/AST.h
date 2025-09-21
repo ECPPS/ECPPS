@@ -135,17 +135,20 @@ namespace ecpps::ast
      {
      public:
           explicit AttributeNode(std::string name, SBOVector<Token> arguments, Location source)
-               : Node(std::move(source)), _name(std::move(name)), _arguments(std::move(arguments))
-          {}
+              : Node(std::move(source)), _name(std::move(name)), _arguments(std::move(arguments))
+          {
+          }
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
                std::string built = "[[" + this->_name;
                if (this->_arguments.Size() != 0)
                {
                     built += "(";
-                    
+
                     for (const auto& arg : this->_arguments)
-                         built += (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") + ", ";
+                         built +=
+                             (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
+                             ", ";
 
                     built.pop_back();
                     built.pop_back();
@@ -155,6 +158,7 @@ namespace ecpps::ast
           };
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
           [[nodiscard]] const SBOVector<Token>& Arguments(void) const noexcept { return this->_arguments; }
+
      private:
           std::string _name;
           SBOVector<Token> _arguments;
@@ -188,8 +192,7 @@ namespace ecpps::ast
                     if (param.explicitThis == ExplicitThisSpecifier::Yes) built += "this ";
                     if (param.type != nullptr) built += param.type->ToString(0) + " ";
                     if (param.name != nullptr) built += param.name->ToString(0);
-                    if (param.defaultInitialiser != nullptr)
-                         built += " = "s + param.defaultInitialiser->ToString(0);
+                    if (param.defaultInitialiser != nullptr) built += " = "s + param.defaultInitialiser->ToString(0);
                     built += ", ";
                }
 
