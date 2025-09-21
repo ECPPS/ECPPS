@@ -1,6 +1,6 @@
 #include "AST.h"
-#include <unordered_set>
 #include <Assert.h>
+#include <unordered_set>
 #include "ASTs\Type.h"
 
 using ecpps::ast::NodePointer;
@@ -57,7 +57,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
      if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
      if (Peek().type == TokenType::Keyword)
      {
-          runtime_assert(std::holds_alternative<std::string>, "Keyword was not an identifier");
+          runtime_assert(std::holds_alternative<std::string>(Peek().value), "Keyword was not an identifier");
           if (std::get<std::string>(Peek().value) == "namespace")
           {
                Advance();

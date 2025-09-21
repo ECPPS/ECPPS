@@ -1,8 +1,9 @@
 #include "IR.h"
+#include <Assert.h>
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <utility>
-#include <format>
 #include <vector>
 #include "../Machine/ABI.h"
 #include "../Parsing/ASTs/Type.h"
@@ -10,7 +11,6 @@
 #include "ControlFlow.h"
 #include "Operations.h"
 #include "Procedural.h"
-#include <Assert.h>
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -177,7 +177,8 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
 Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                const Location& source)
 {
-     runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift, "Invalid operator for a shift-expression");
+     runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
+                    "Invalid operator for a shift-expression");
 
      throw std::logic_error("Not implemented");
 
@@ -258,7 +259,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
           if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion)
           {
                const auto intType = std::dynamic_pointer_cast<typeSystem::IntegralType>(toType);
-               runtime_assert(intType != nullptr, std::format("Presumed integral type {} turned out not to be one", toType->RawName());
+               runtime_assert(intType != nullptr,
+                              std::format("Presumed integral type {} turned out not to be one", toType->RawName()));
                return ConvertIntegral(std::move(expression), intType);
           }
      }
