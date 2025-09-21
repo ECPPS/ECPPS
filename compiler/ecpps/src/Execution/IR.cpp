@@ -55,7 +55,7 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
 
 void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node)
 {
-     std::vector<Parameter> parameters{};
+     std::vector<FunctionScope::Parameter> parameters{};
 
      const auto returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;
@@ -79,14 +79,15 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           .Name(node.Signature().name->ToString(0))
           .ReturnType(returnType)
           .Build();
+	functionScope->parameters = parameters;
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
 }
 void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& node)
 {
-	SBOVector<Parameter> parameters{};
+	std::vector<FunctionScope::Parameter> parameters{};
 	for (const auto& param : node.Signature().parameters.parameters)
 	{
-		parameters.EmplaceBack(ParseType(param.type), param.name->ToString(0));
+		parameters.emplace_back(param.name->ToString(0), ParseType(param.type), false);
 	}
 
 
@@ -109,13 +110,14 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 		linkage = abi::Linkage::Internal;
 	// TODO: Error on conflicting linkage specification
 
-     auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build();
+     auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build(); 
+	functionScope->parameters = parameters;
 	functionScope->linkage = linkage;
      auto functionContext = std::make_shared<FunctionContext>(
          functionScope.get(), node.Signature().callingConvention,
 												  returnType, node.Signature().name->ToString(0),
 												  parameters |
-												  std::views::transform([](const Parameter& parameter) -> decltype(auto) { return parameter.type; }) |
+												  std::views::transform([](const FunctionScope::Parameter& parameter) -> decltype(auto) { return parameter.type; }) |
 												  std::ranges::to<std::vector>());
 
 	for (const auto& attribute : node.Signature().attributes)
@@ -304,7 +306,6 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 		// TODO: Traverse contexts
 		for (const auto& context : this->_context.contextSequence)
 		{
-
 			std::vector<Expression> arguments = node.Arguments() |
 				std::views::transform([this](const ast::NodePointer& argument)
 			{
@@ -335,6 +336,9 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 				name, "Unresolved function " + name, identifierFunction->Source()));
 		return nullptr;
 	}
+
+	// TODO: More
+	return nullptr;
 }
 
 Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)

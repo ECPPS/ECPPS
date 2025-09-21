@@ -20,7 +20,7 @@ namespace ecpps::ir
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::TypePointer returnType, std::string name,
-                                 SBOVector<Parameter> parameterList, std::vector<NodePointer> body, Location source)
+                                 std::vector<FunctionScope::Parameter> parameterList, std::vector<NodePointer> body, Location source)
               : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
                 _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
                 _parameterList(std::move(parameterList)), _body(std::move(body))
@@ -28,7 +28,7 @@ namespace ecpps::ir
           }
 
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
-          [[nodiscard]] const SBOVector<Parameter>& ParameterList(void) const noexcept
+          [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
                return this->_parameterList;
           }
@@ -55,7 +55,7 @@ namespace ecpps::ir
           abi::CallingConventionName _callingConvention;
           typeSystem::TypePointer _returnType;
           std::string _name;
-          SBOVector<Parameter> _parameterList;
+          std::vector<FunctionScope::Parameter> _parameterList;
           std::vector<NodePointer> _body;
      };
 

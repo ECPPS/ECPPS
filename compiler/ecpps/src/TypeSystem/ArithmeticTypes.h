@@ -95,7 +95,7 @@ namespace ecpps::typeSystem
      /// </summary>
      enum struct IntegerConversionRank : std::uint_fast8_t
      {
-          Unknown = -1,
+          Unknown = static_cast<std::uint_fast8_t>(~0),
 
           Bool = 0, // lowest
           Char = 1,
