@@ -12,11 +12,8 @@
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
-#include "IR.h"
 #include "Operations.h"
 #include "Procedural.h"
-
-#define runtime_assert(...)
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -77,7 +74,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      }
      else if (node.Signature().isInline ||
               node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None)
-          linkage = abi::Linkage::Internal;
+          linkage = ecpps::abi::Linkage::Internal;
      // TODO: Error on conflicting linkage specification
 
      auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build();
