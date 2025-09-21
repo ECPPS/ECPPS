@@ -1,4 +1,6 @@
 #include "IR.h"
+#include <Assert.h>
+#include <format>
 #include <memory>
 #include <queue>
 #include <ranges>
@@ -158,7 +160,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 
      auto returnExpression = ParseExpression(node.Value());
 
-     // TODO: Assert function != nullptr
+     runtime_assert(function != nullptr, "Function was null when parsing the function");
      this->_built.push_back(
          std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
 }
@@ -166,7 +168,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                   const Location& source)
 {
-     // TODO: Assert operator is one of Plus, Minus
+     runtime_assert(operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus, "Invalid additive operator");
 
      auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
      auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
@@ -206,7 +208,9 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right,
                                                         const Location& source)
 {
-     // TODO: Assert operator is one of Asterisk, Solidus, Percent
+     runtime_assert(operator_ == ast::Operator::Asterisk || operator_ == ast::Operator::Solidus ||
+                        operator_ == ast::Operator::Percent,
+                    "Operator was not multiplicative in a multiplicative-expression");
 
      auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
      auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
@@ -250,7 +254,10 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
 Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                const Location& source)
 {
-     // TODO: Assert operator is one of LeftShift, RightShift
+     runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
+                    "Invalid operator for a shift-expression");
+
+     throw std::logic_error("Not implemented");
 
      return Expression();
 }
@@ -389,7 +396,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
           if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion)
           {
                const auto intType = std::dynamic_pointer_cast<typeSystem::IntegralType>(toType);
-               // TODO: Assert intType != nullptr
+               runtime_assert(intType != nullptr,
+                              std::format("Presumed integral type {} turned out not to be one", toType->RawName()));
                return ConvertIntegral(std::move(expression), intType);
           }
      }

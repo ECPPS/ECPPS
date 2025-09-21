@@ -3,7 +3,7 @@
 #include "../Parsing/Tokeniser.h"
 #include "Emitters/x86_64.h"
 
-std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
+std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine)
 {
      std::vector<std::byte> generated{};
      generated.reserve(routine.instructions.size() * 2);

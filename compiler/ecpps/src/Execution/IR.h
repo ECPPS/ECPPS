@@ -91,7 +91,7 @@ namespace ecpps::ir
      {
           return score = static_cast<MatchingScore>(std::to_underlying(score) - value);
      }
-
+  
      class IR
      {
      public:
@@ -103,7 +103,6 @@ namespace ecpps::ir
           Context _context;
 
           void ParseNode(const ast::NodePointer& node);
-          void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
 
@@ -115,7 +114,6 @@ namespace ecpps::ir
                                           const Location& source);
 
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
-          Expression ParseCallExpression(const ast::CallOperatorNode& node);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           typeSystem::TypePointer ParseType(const ast::NodePointer& type);
@@ -129,9 +127,5 @@ namespace ecpps::ir
           /// <param name="type"></param>
           /// <returns></returns>
           Expression ConvertIntegral(Expression&& expression, const std::shared_ptr<typeSystem::IntegralType>& type);
-
-          // matching
-          MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
-                                      const std::vector<Expression>& arguments);
      };
 } // namespace ecpps::ir
