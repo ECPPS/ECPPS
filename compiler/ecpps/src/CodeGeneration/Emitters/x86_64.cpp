@@ -4,6 +4,29 @@
 #include "../../Parsing/Tokeniser.h"
 #include "x86_64/Opcodes.h"
 
+void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& source,
+                                                        const std::unordered_map<std::string, std::size_t>& routines)
+{
+     std::size_t currentOffset = 0;
+     for (auto& [index, name] : this->_relocationTable)
+     {
+          const auto offset = currentOffset + index;
+
+          // TODO: Imports
+          std::size_t foundFunction = 0;
+          for (const auto& [functionName, functionOffset] : routines)
+          {
+               if (functionName != name) continue;
+               foundFunction = functionOffset;
+               break;
+          }
+          const auto code = x86_64::GenerateIndirectCall(-offset + foundFunction);
+          source.insert_range(source.begin() + offset, code);
+
+          currentOffset += code.size();
+     }
+}
+
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const MovInstruction& mov)
 {
      return std::visit(
@@ -152,6 +175,12 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
              },
              [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
          div.to);
+}
+
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
+{
+     this->_relocationTable.emplace(this->_currentInstructionBase, call.functionName);
+     return {};
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitReturn(void) { return x86_64::GenerateRet(); }

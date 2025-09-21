@@ -163,6 +163,7 @@ namespace ecpps::abi
                                                const std::vector<typeSystem::TypePointer>& parameters);
 
           CallingConventionName DefaultCallingConventionName(void) const;
+          [[nodiscard]] const CallingConvention& CallingConventionFromName(CallingConventionName name);
 
      private:
           static ABI _current;

@@ -1,4 +1,5 @@
 #include "ABI.h"
+#include <stdexcept>
 #include <vector>
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
@@ -9,6 +10,8 @@ ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()};
 
 ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 {
+     this->_callingConventions.emplace(std::make_unique<MicrosoftX64CallingConvention>());
+
      switch (isa)
      {
      case ISA::x86_64:
@@ -255,6 +258,14 @@ ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(
      }
 
      return abi::CallingConventionName::Microsoftx64; // fallback
+}
+
+const ecpps::abi::CallingConvention& ecpps::abi::ABI::CallingConventionFromName(CallingConventionName name)
+{
+     for (const auto& cc : this->_callingConventions)
+          if (cc->Name() == name) return *cc;
+
+     throw std::logic_error("Invalid calling convention");
 }
 
 ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueStorage(std::size_t storageSize) const

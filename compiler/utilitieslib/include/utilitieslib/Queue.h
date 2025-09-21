@@ -11,8 +11,8 @@ namespace ecpps
                std::size_t TNSBOSize = std::hardware_destructive_interference_size>
      class SBOQueue
      {
-          static constexpr std::size_t SBOSize = (TNSBOSize / sizeof(T)) & ~(sizeof(T) - 1);
-
+          static constexpr std::size_t SBOSize = (TNSBOSize / sizeof(T) + sizeof(T) - 1) & ~(sizeof(T) - 1);
+          static_assert(SBOSize > 0);
           union BufferUnion
           {
                alignas(T) std::byte sbo[sizeof(T) * SBOSize];
@@ -119,6 +119,64 @@ namespace ecpps
                return iterator(this, this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
           }
           iterator end(void) { return iterator(this, this->_head == 0 ? Capacity() - 1 : this->_head - 1); }
+
+          SBOQueue(const SBOQueue& other)
+          {
+               new (_buffer.sbo) std::byte[sizeof(T) * SBOSize];
+               if (other._size == 0) return;
+
+               if (other.UseSBO())
+               {
+                    for (std::size_t i = 0; i < other._size; ++i) new (StoragePtr() + i) T(other[i]);
+               }
+               else
+               {
+                    TAllocator alloc{};
+                    _buffer.noSbo.begin = alloc.allocate(other._buffer.noSbo.capacity);
+                    _buffer.noSbo.capacity = other._buffer.noSbo.capacity;
+
+                    for (std::size_t i = 0; i < other._size; ++i) new (_buffer.noSbo.begin + i) T(other[i]);
+               }
+
+               _size = other._size;
+               _head = other._head;
+               _tail = other._tail;
+          }
+          SBOQueue(SBOQueue&& other) noexcept
+          {
+               new (_buffer.sbo) std::byte[sizeof(T) * SBOSize];
+
+               if (other.UseSBO())
+               {
+                    for (std::size_t i = 0; i < other._size; ++i) new (StoragePtr() + i) T(std::move(other[i]));
+               }
+               else
+               {
+                    _buffer.noSbo.begin = std::exchange(other._buffer.noSbo.begin, nullptr);
+                    _buffer.noSbo.capacity = std::exchange(other._buffer.noSbo.capacity, 0);
+               }
+
+               _size = std::exchange(other._size, 0);
+               _head = std::exchange(other._head, 0);
+               _tail = std::exchange(other._tail, 0);
+          }
+          SBOQueue& operator=(const SBOQueue& other)
+          {
+               if (this == &other) return *this;
+
+               this->~SBOQueue();
+               new (this) SBOQueue(other);
+               return *this;
+          }
+
+          SBOQueue& operator=(SBOQueue&& other) noexcept
+          {
+               if (this == &other) return *this;
+
+               this->~SBOQueue();
+               new (this) SBOQueue(std::move(other));
+               return *this;
+          }
 
      private:
           void Emplace(const T& value) { EmplaceImpl(value); }

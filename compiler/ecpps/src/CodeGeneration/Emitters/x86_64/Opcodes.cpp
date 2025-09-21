@@ -1591,3 +1591,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg64(std::size_t dest
 
      return code;
 }
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall(std::int32_t displacement)
+{
+     displacement -= 5; // subtract the instruction size itself
+     std::vector<std::byte> code;
+
+     code.push_back(std::byte{0xe8});
+     for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+
+     return code;
+}

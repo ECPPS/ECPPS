@@ -15,6 +15,8 @@ using ecpps::codegen::Routine;
 
 namespace ir = ecpps::ir;
 
+std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
+
 static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
      const auto& value = expression->Value();
@@ -183,6 +185,26 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }
+     if (const auto call = dynamic_cast<ir::FunctionCallNode*>(value.get()); call != nullptr)
+     {
+          const auto& function = *call->Function();
+
+          auto& currentAbi = ecpps::abi::ABI::Current();
+          const std::string functionName = currentAbi.MangleName(
+              function.linkage, function.name, function.callingConvention, function.returnType,
+              function.parameters |
+                  std::views::transform([](const ir::FunctionScope::Parameter& parameter) { return parameter.type; }) |
+                  std::ranges::to<std::vector>());
+          const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
+          // TODO: Arguments
+          if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+          code.emplace_back(ecpps::codegen::CallInstruction{functionName});
+
+          return ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+              std::get<ecpps::abi::AllocatedRegister>(
+                  callingConvention.ReturnValueStorage(function.returnType->Size()).value)
+                  .Ptr()}};
+     }
 
      throw std::logic_error("Invalid expression");
 }
@@ -212,14 +234,30 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
      {
           if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
                CompileReturn(instructions, *returnNode);
+          else if (const auto call = dynamic_cast<ir::FunctionCallNode*>(line.get()); call != nullptr)
+          {
+               const auto& function = *call->Function();
+
+               auto& currentAbi = ecpps::abi::ABI::Current();
+               const std::string functionName = currentAbi.MangleName(
+                   function.linkage, function.name, function.callingConvention, function.returnType,
+                   function.parameters |
+                       std::views::transform([](const ir::FunctionScope::Parameter& parameter)
+                                             { return parameter.type; }) |
+                       std::ranges::to<std::vector>());
+               const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
+               // TODO: Arguments
+               if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+               instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
+          }
      }
-     return Routine::Branchless(
-         std::move(instructions),
-         ecpps::abi::ABI::Current().MangleName(
-             node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
-             node.ParameterList() |
-                 std::views::transform([](const ecpps::ir::Parameter& parameter) { return parameter.type; }) |
-                 std::ranges::to<std::vector>()));
+     return Routine::Branchless(std::move(instructions),
+                                ecpps::abi::ABI::Current().MangleName(
+                                    node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+                                    node.ParameterList() |
+                                        std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                              { return parameter.type; }) |
+                                        std::ranges::to<std::vector>()));
 }
 
 void ecpps::codegen::Compile(SourceFile& source, const std::vector<ir::NodePointer>& intermediateRepresentation)

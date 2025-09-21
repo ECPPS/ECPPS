@@ -47,6 +47,9 @@ namespace ecpps::codegen::emitters
      public:
           explicit X8664Emitter(void) : CodeEmitter("x86_64") {}
 
+          virtual void PatchCalls(std::vector<std::byte>& source,
+                                  const std::unordered_map<std::string, std::size_t>& routines) override;
+
      private:
           // general overrides
           [[nodiscard]] std::vector<std::byte> EmitMov(const MovInstruction& mov) override;
@@ -54,6 +57,7 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitSub(const SubInstruction& sub) override;
           [[nodiscard]] std::vector<std::byte> EmitMul(const MulInstruction& mul) override;
           [[nodiscard]] std::vector<std::byte> EmitDiv(const DivInstruction& div) override;
+          [[nodiscard]] std::vector<std::byte> EmitCall(const CallInstruction& div) override;
           [[nodiscard]] std::vector<std::byte> EmitReturn(void) override;
 
           // x86_64 specific helpers

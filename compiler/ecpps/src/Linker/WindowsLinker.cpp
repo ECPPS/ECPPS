@@ -27,16 +27,16 @@ void ecpps::linker::win::WindowsLinker::ExportFunction(const std::string& name, 
      this->ExportAt(name, ExportDisplacement + address);
 }
 
+void ecpps::linker::win::WindowsLinker::ImportFunction(const std::string& name, const std::string& dll)
+{
+     this->_imports[dll].push_back(name);
+}
+
 void ecpps::linker::win::WindowsLinker::AddSection(const PESection& value) { this->_sections.emplace_back(value); }
 
 void ecpps::linker::win::WindowsLinker::ExportAt(const std::string& name, std::uint32_t address)
 {
      this->_exports.emplace(name, address);
-}
-
-void ecpps::linker::win::WindowsLinker::ImportAt(std::uint32_t address, const std::string& name)
-{
-     this->_imports.emplace(address, name);
 }
 
 std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::string& imageName,
@@ -51,6 +51,7 @@ ecpps::linker::win::PEImage ecpps::linker::win::WindowsLinker::Link(const std::u
                     this->_subsystem, this->_linkType, this->_fileAlignment};
      output.sections = this->_sections;
      output.exports = this->_exports;
+     output.imports = this->_imports;
 
      return output;
 }

@@ -1,5 +1,6 @@
 #include "SourceMap.h"
 #include <fstream>
+#include <print>
 
 ecpps::SourceMap::SourceMap(CompilerConfig& config) : _config(std::ref(config))
 {
@@ -8,7 +9,7 @@ ecpps::SourceMap::SourceMap(CompilerConfig& config) : _config(std::ref(config))
           std::ifstream file{fileName, std::ios::binary | std::ios::ate};
           if (!file)
           {
-               // TODO: Error
+               std::println("Error: Could not open {}", fileName);
                return;
           }
 

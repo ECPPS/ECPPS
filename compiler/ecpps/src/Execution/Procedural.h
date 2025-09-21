@@ -4,6 +4,7 @@
 #include "../Machine/ABI.h"
 #include "../Parsing/AST.h"
 #include "../TypeSystem/TypeBase.h"
+#include "Context.h"
 #include "NodeBase.h"
 
 namespace ecpps::ir
@@ -19,7 +20,8 @@ namespace ecpps::ir
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::TypePointer returnType, std::string name,
-                                 std::vector<Parameter> parameterList, std::vector<NodePointer> body, Location source)
+                                 std::vector<FunctionScope::Parameter> parameterList, std::vector<NodePointer> body,
+                                 Location source)
               : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
                 _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
                 _parameterList(std::move(parameterList)), _body(std::move(body))
@@ -27,7 +29,7 @@ namespace ecpps::ir
           }
 
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
-          [[nodiscard]] const std::vector<Parameter>& ParameterList(void) const noexcept
+          [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
                return this->_parameterList;
           }
@@ -54,7 +56,37 @@ namespace ecpps::ir
           abi::CallingConventionName _callingConvention;
           typeSystem::TypePointer _returnType;
           std::string _name;
-          std::vector<Parameter> _parameterList;
+          std::vector<FunctionScope::Parameter> _parameterList;
           std::vector<NodePointer> _body;
+     };
+
+     class FunctionCallNode final : public NodeBase
+     {
+     public:
+          explicit FunctionCallNode(std::shared_ptr<FunctionScope> function, std::vector<Expression> arguments,
+                                    Location source)
+              : NodeBase(NodeKind::Call, std::move(source)), _function(std::move(function)),
+                _arguments(std::move(arguments))
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string args{};
+               for (const auto& arg : this->_arguments) args += arg->Value()->ToString(0) + ", ";
+               if (!args.empty())
+               {
+                    args.pop_back();
+                    args.pop_back();
+               }
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_function->name + "(" + args + ")";
+          }
+
+          [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept { return this->_function; }
+          [[nodiscard]] const std::vector<Expression>& Arguments(void) const noexcept { return this->_arguments; }
+
+     private:
+          std::shared_ptr<FunctionScope> _function;
+          std::vector<Expression> _arguments;
      };
 } // namespace ecpps::ir

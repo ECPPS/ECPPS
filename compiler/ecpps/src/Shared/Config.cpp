@@ -9,6 +9,8 @@
 
 ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
 {
+     if (argc <= 1) PrintVersionAndExit();
+
      ecpps::abi::SimdFeatures simd{};
      switch (abi::ABI::Current().Isa())
      {
@@ -47,6 +49,18 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                if (flag == "WX") this->warningsAreErrors = true;
                else if (flag == "-WX")
                     this->warningsAreErrors = false;
+               else if (lowerFlag == "verbose" || lowerFlag == "v")
+               {
+                    if (lowerValue == "1" || lowerValue == "true" || lowerValue == "on")
+                         this->verboseStatus = VerboseStatus::Verbose;
+                    else if (lowerValue == "2" || lowerValue == "extra" || lowerValue == "extraverbose" ||
+                             lowerValue == "all" || lowerValue == "true" || lowerValue == "on")
+                         this->verboseStatus = VerboseStatus::ExtraVerbose;
+                    else if (lowerValue == "0" || lowerValue == "false" || lowerValue == "off")
+                         this->verboseStatus = VerboseStatus::Default;
+                    else { this->verboseStatus = VerboseStatus::Verbose; }
+               }
+               else if (flag == "V") { this->verboseStatus = VerboseStatus::ExtraVerbose; }
                else if (lowerFlag == "output" || lowerFlag == "out")
                {
                     if (!this->outputImage.empty()) {} // TODO: Warning
@@ -85,4 +99,11 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
      }
 
      abi::ABI::Current().PushSIMDRegisters(simd);
+}
+
+void ecpps::CompilerConfig::PrintVersionAndExit(void) const
+{
+     std::println("ECPPS C++ Compiler pre-v0.0.1");
+     std::println("Copyright (c) 2025 Tymi. All rights reserved.");
+     std::exit(0);
 }

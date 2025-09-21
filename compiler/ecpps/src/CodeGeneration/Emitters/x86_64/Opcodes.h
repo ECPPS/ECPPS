@@ -183,4 +183,7 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateXorReg32(std::size_t destReg, std::size_t srcReg);
      [[nodiscard]] std::vector<std::byte> GenerateXorReg64(std::size_t destReg, std::size_t srcReg);
 
+     // call
+     [[nodiscard]] std::vector<std::byte> GenerateIndirectCall(std::int32_t displacement);
+
 } // namespace ecpps::codegen::x86_64

@@ -32,6 +32,13 @@ namespace ecpps
           Error
      };
 
+     enum struct VerboseStatus : std::uint8_t
+     {
+          Default,
+          Verbose,
+          ExtraVerbose
+     };
+
      struct CompilerConfig
      {
           explicit CompilerConfig(int argc, char* argv[]);
@@ -41,5 +48,8 @@ namespace ecpps
           bool warningsAreErrors = false;
           std::string outputImage{};
           LinkerUsed linker = DefaultLinker;
+          VerboseStatus verboseStatus = VerboseStatus::Default;
+
+          [[noreturn]] void PrintVersionAndExit(void) const;
      };
 } // namespace ecpps

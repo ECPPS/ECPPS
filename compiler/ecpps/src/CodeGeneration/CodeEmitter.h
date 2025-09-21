@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -24,13 +25,19 @@ namespace ecpps::codegen
      {
      public:
           ~CodeEmitter(void) = default;
-          [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine);
+          [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+
+          virtual void PatchCalls(std::vector<std::byte>& source,
+                                  const std::unordered_map<std::string, std::size_t>& routines) = 0;
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
      protected:
           explicit CodeEmitter(std::string name) : _name(std::move(name)) {}
+
+          std::size_t _currentInstructionBase{};
+          std::map<std::size_t, std::string> _relocationTable{};
 
      private:
           [[nodiscard]] std::vector<std::byte> EmitInstruction(const Instruction& instruction);
@@ -41,6 +48,7 @@ namespace ecpps::codegen
           [[nodiscard]] virtual std::vector<std::byte> EmitSub(const SubInstruction& sub) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitMul(const MulInstruction& mul) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitDiv(const DivInstruction& div) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitCall(const CallInstruction& call) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitReturn(void) = 0;
 
           /// <summary>

@@ -167,6 +167,13 @@ namespace ecpps::codegen
      {
      };
 
+     struct CallInstruction
+     {
+          std::string functionName;
+
+          explicit CallInstruction(std::string name) : functionName(std::move(name)) {}
+     };
+
      /// <summary>
      /// Custom-defined instruction by architectures. Has no meaning in the generic code generation context
      /// Can be used for architecture-specific optimisations and intrinsics.
@@ -253,7 +260,7 @@ namespace ecpps::codegen
      };
 
      using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                                      SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
+                                      CallInstruction, SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine
