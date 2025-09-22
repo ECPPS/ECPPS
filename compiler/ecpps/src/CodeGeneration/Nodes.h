@@ -75,7 +75,7 @@ namespace ecpps::codegen
           [[nodiscard]] std::string ToString(void) const noexcept { return ""; }
      };
 
-     using Operand = std::variant<ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
+     using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {

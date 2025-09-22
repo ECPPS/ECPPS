@@ -52,8 +52,32 @@ int main(int argc, char* argv[])
      for (auto& source : sources.files)
      {
           std::println("Compiling {}...", source.name);
+          // ECPPS pushed macros (& standard)
 
-          const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
+          std::vector<ecpps::MacroReplacement> macros{};
+          macros.emplace_back("__cplusplus", std::nullopt, "202302", false); // TODO: 202302L
+          // TODO: __DATE__
+          // TODO: __FILE__
+          macros.emplace_back("__LINE__", std::nullopt, "1", false);
+          // TODO: __STDC_HOSTED__
+          // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
+          // TODO: __STDCPP_FLOAT16_T__
+          // TODO: __STDCPP_FLOAT32_T__
+          // TODO: __STDCPP_FLOAT64_T__
+          // TODO: __STDCPP_FLOAT128_T__
+          // TODO: __STDCPP_BFLOAT16_T__
+          // TODO: __TIME__
+          // TODO: feature-test macros
+          // TODO: __STDCPP_THREADS__
+
+          macros.emplace_back("__ecpps_stl_version", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_stl_version_minor", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_stl_version_patch", std::nullopt, "1", false);
+          macros.emplace_back("__ecpps_version", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
+
+          const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           if (isExtraVerbose) std::println();
           if (isExtraVerbose) std::println("Tokens:");

@@ -1,3 +1,7 @@
-int Meow(int s) { return 4; }
+#ifdef __ecpps_version
+#define A int
+#else
+#define A signed
+#endif
 
-int main() { return Meow(123); }
+A main() { return 5; }

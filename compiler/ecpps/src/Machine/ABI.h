@@ -15,6 +15,10 @@
 
 namespace ecpps::abi
 {
+     // TODO: Rename to *Width
+     constexpr std::size_t zmmSize = 512;
+     constexpr std::size_t ymmSize = 256;
+     constexpr std::size_t xmmSize = 128;
      constexpr std::size_t qwordSize = 64;
      constexpr std::size_t dwordSize = 32;
      constexpr std::size_t wordSize = 16;
@@ -88,15 +92,39 @@ namespace ecpps::abi
 
      struct StorageRef
      {
-          using ValueType = std::variant<AllocatedRegister,
+          using ValueType = std::variant<std::monostate, AllocatedRegister,
                                          std::vector<AllocatedRegister>>; // TODO: Add memory location
           ValueType value;
           explicit StorageRef(ValueType value) : value(std::move(value)) {}
+          explicit(false) StorageRef(std::nullptr_t) : value(std::monostate{}) {}
+
+          StorageRef& operator=(ValueType other) { this->value = std::move(other); return *this; }
      };
 
      enum struct CallingConventionName : std::uint_fast16_t
      {
           Microsoftx64
+     };
+
+     enum struct RequiredStorageKind : std::uint_fast8_t
+     {
+          Integer,
+          FloatingPoint,
+          Aggregate,
+          Pointer,
+          Void
+     };
+
+     struct StorageRequirement
+     {
+          std::size_t size;
+          std::size_t alignment;
+          RequiredStorageKind kind;
+
+          explicit StorageRequirement(std::size_t size, std::size_t alignment, RequiredStorageKind kind)
+              : size(size), alignment(alignment), kind(kind)
+          {
+          }
      };
 
      struct CallingConvention
@@ -108,15 +136,17 @@ namespace ecpps::abi
           }
           virtual ~CallingConvention(void) = default;
 
-          [[nodiscard]] virtual StorageRef ReturnValueStorage(std::size_t storageSize) const = 0;
-          [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(std::size_t returnSize,
-                                                                         std::vector<std::size_t> parameters) const = 0;
+          [[nodiscard]] virtual StorageRef ReturnValueStorage(StorageRequirement storageSize) const = 0;
+          [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(
+              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const = 0;
+          [[nodiscard]] virtual StorageRequirement GetRequirementsForType(
+              const typeSystem::TypePointer& type) const = 0;
 
           [[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
           [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
           [[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
 
-     private:
+     protected:
           CallingConventionName _name;
           std::size_t _shadowSpace;
           std::size_t _stackAlignment;
@@ -128,9 +158,10 @@ namespace ecpps::abi
           {
           }
 
-          [[nodiscard]] StorageRef ReturnValueStorage(std::size_t storageSize) const override;
-          [[nodiscard]] std::vector<StorageRef> LocateParameters(std::size_t returnSize,
-                                                                 std::vector<std::size_t> parameters) const override;
+          [[nodiscard]] StorageRef ReturnValueStorage(StorageRequirement storageSize) const override;
+          [[nodiscard]] std::vector<StorageRef> LocateParameters(
+              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
+          [[nodiscard]] StorageRequirement GetRequirementsForType(const typeSystem::TypePointer& type) const override;
      };
 
      enum struct RegisterAllocation : bool
@@ -164,6 +195,15 @@ namespace ecpps::abi
 
           CallingConventionName DefaultCallingConventionName(void) const;
           [[nodiscard]] const CallingConvention& CallingConventionFromName(CallingConventionName name);
+
+          const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
+          {
+               return this->_physicalRegisters;
+          }
+          const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
+          {
+               return this->_registers;
+          }
 
      private:
           static ABI _current;

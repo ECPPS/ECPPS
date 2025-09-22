@@ -85,7 +85,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                }
           }
           break;
-          case PreprocessingTokenType::OperatorOrPuncturator:
+          case PreprocessingTokenType::OperatorOrPunctuator:
           {
                if (preprocessorToken.value == "(")
                     tokens.emplace_back(TokenType::LeftParenthesis, std::monostate{}, preprocessorToken.source);
@@ -228,7 +228,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           break;
           default: colour = "\x1b[38m";
           }
-          const std::string spaces(token.location.position - previous.endPosition - 1, ' ');
+          const std::string spaces(std::max(token.location.position - previous.endPosition, 1UZ) - 1, ' ');
           previous = token.location;
 
           std::print("{}{}{}", spaces, colour, value);

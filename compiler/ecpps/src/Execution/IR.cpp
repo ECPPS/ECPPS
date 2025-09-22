@@ -86,7 +86,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      std::vector<FunctionScope::Parameter> parameters{};
      for (const auto& param : node.Signature().parameters.parameters)
      {
-          parameters.emplace_back(param.name->ToString(0), ParseType(param.type), false);
+          parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
      }
 
      IR ir{this->_context.diagnostics.get()};

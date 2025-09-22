@@ -14,7 +14,7 @@ namespace ecpps
           Number,
           CharacterLiteral,
           StringLiteral,
-          OperatorOrPuncturator
+          OperatorOrPunctuator
      };
      struct PreprocessingToken
      {
@@ -27,11 +27,43 @@ namespace ecpps
           {
           }
      };
+     enum struct MacroReplacementType : bool
+     {
+          FunctionLike = true,
+          ObjectLike = false
+     };
+
+     struct MacroReplacement
+     {
+          std::string name;
+          std::optional<std::vector<std::string>> parameters;
+          std::string contents;
+          bool isVariadic;
+
+          [[nodiscard]] MacroReplacementType Type(void) const noexcept
+          {
+               return static_cast<MacroReplacementType>(this->parameters != std::nullopt);
+          }
+
+          [[nodiscard]] std::vector<PreprocessingToken> ProcessObjectLike(
+              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+          [[nodiscard]] std::vector<PreprocessingToken> ProcessFunctionLike(
+              const std::vector<std::vector<PreprocessingToken>>& arguments, const Location& location,
+              const std::vector<ecpps::MacroReplacement>& macros) const;
+
+          explicit MacroReplacement(std::string name, std::optional<std::vector<std::string>> parameters,
+                                    std::string contents, const bool isVariadic)
+              : name(std::move(name)), parameters(std::move(parameters)), contents(std::move(contents)),
+                isVariadic(isVariadic)
+          {
+          }
+     };
      class Tokeniser;
      class Preprocessor
      {
      public:
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source);
+          [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source,
+                                                                     std::vector<MacroReplacement>& macros);
           [[nodiscard]] static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:

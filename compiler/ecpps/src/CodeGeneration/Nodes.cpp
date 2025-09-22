@@ -18,46 +18,67 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
          OverloadedVisitor{[](const MovInstruction& instruction)
                            {
                                 std::string built = "mov";
-                                built += " " + std::visit([](const auto& operand) -> std::string
-                                                          { return operand.ToString(); }, instruction.destination);
-                                built += ", " + std::visit([](const auto& operand) -> std::string
-                                                           { return operand.ToString(); }, instruction.source);
+                                built += " " +
+                                         std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.destination);
+                                built += ", " + std::visit(
+                                                    OverloadedVisitor{[](std::monostate)->std::string { return "?"; },
+                                                           [](const auto& operand) -> std::string
+                                                           { return operand.ToString(); }}, instruction.source);
                                 return built;
                            },
                            [](const AddInstruction& instruction)
                            {
                                 std::string built = "add";
-                                built += " " + std::visit([](const auto& operand) -> std::string
-                                                          { return operand.ToString(); }, instruction.to);
-                                built += ", " + std::visit([](const auto& operand) -> std::string
-                                                           { return operand.ToString(); }, instruction.from);
+                                built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.to);
+                                built += ", " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.from);
                                 return built;
                            },
                            [](const SubInstruction& instruction)
                            {
                                 std::string built = "sub";
-                                built += " " + std::visit([](const auto& operand) -> std::string
-                                                          { return operand.ToString(); }, instruction.to);
-                                built += ", " + std::visit([](const auto& operand) -> std::string
-                                                           { return operand.ToString(); }, instruction.from);
+                                built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.to);
+                                built += ", " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.from);
                                 return built;
                            },
                            [](const MulInstruction& instruction)
                            {
                                 std::string built = instruction.isSigned ? "imul" : "mul";
-                                built += " " + std::visit([](const auto& operand) -> std::string
-                                                          { return operand.ToString(); }, instruction.to);
-                                built += ", " + std::visit([](const auto& operand) -> std::string
-                                                           { return operand.ToString(); }, instruction.from);
+                                built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.to);
+                                built += ", " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.from);
                                 return built;
                            },
                            [](const DivInstruction& instruction)
                            {
                                 std::string built = instruction.isSigned ? "idiv" : "div";
-                                built += " " + std::visit([](const auto& operand) -> std::string
-                                                          { return operand.ToString(); }, instruction.to);
-                                built += ", " + std::visit([](const auto& operand) -> std::string
-                                                           { return operand.ToString(); }, instruction.from);
+                                built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.to);
+                                built += ", " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                                      [](const auto& operand) -> std::string
+                                                                      { return operand.ToString(); }},
+                                                    instruction.from);
                                 return built;
                            },
                            [](const CallInstruction& instruction) { return "call " + instruction.functionName; },
