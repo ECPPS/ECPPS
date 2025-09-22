@@ -58,6 +58,12 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
 void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node)
 {
      std::vector<FunctionScope::Parameter> parameters{};
+     const auto& astParams = node.Signature().parameters.parameters;
+     parameters.reserve(astParams.size());
+     for (const auto& param : astParams)
+     {
+          parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
+     }
 
      const auto returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;

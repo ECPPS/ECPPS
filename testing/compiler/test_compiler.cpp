@@ -1,7 +1,9 @@
 #ifdef __ecpps_version
-#define A int
+#define DllImport [[dllimport]]
 #else
-#define A signed
+#define DllImport
 #endif
 
-A main() { return 5; }
+DllImport extern "C" void ExitProcess(int);
+
+int main() { ExitProcess(21); }
