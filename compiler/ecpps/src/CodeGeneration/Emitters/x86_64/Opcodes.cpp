@@ -310,6 +310,29 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg64(std::size_t
      return binary;
 }
 
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRipToReg64(std::size_t destinationRegister,
+                                                                     std::size_t sourceOffset)
+{
+     std::vector<std::byte> binary{};
+
+     // REX prefix for 64-bit operand
+     std::uint8_t rex = 0x48;
+     if (destinationRegister >= 8) rex |= 0x04; // R bit for destination
+     binary.push_back(static_cast<std::byte>(rex));
+
+     // Opcode for MOV r64, r/m64
+     binary.push_back(static_cast<std::byte>(0x8B));
+
+     // ModRM byte: mod=00, r/m=101 signals RIP-relative addressing
+     std::uint8_t modrm = (0b00 << 6) | ((destinationRegister & 7) << 3) | 0b101;
+     binary.push_back(static_cast<std::byte>(modrm));
+
+     // 4-byte little-endian displacement
+     for (int i = 0; i < 4; i++) binary.push_back(static_cast<std::byte>((sourceOffset >> (i * 8)) & 0xFF));
+
+     return binary;
+}
+
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm)
 {

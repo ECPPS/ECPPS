@@ -9,6 +9,8 @@ if(MSVC)
     add_link_options("$<$<CONFIG:Release>:/LTCG>")
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 function(enable_pch target)
     if(MSVC AND EXISTS "${PCH_HEADER}")
         target_precompile_headers(${target} PRIVATE "${PCH_HEADER}")

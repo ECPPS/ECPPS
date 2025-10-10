@@ -54,6 +54,9 @@ namespace ecpps::codegen::x86_64
 
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg64(std::size_t destinationRegister,
                                                                 std::size_t sourceOffset, std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovRipToReg64(std::size_t destinationRegister,
+                                                                std::size_t sourceOffset);
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg32(std::size_t destination, std::size_t destinationOffset,
                                                                 std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg16(std::size_t destination, std::size_t destinationOffset,

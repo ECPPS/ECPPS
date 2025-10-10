@@ -146,11 +146,11 @@ ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const st
 {
      switch (integer->Kind())
      {
-     case TypeKind::Char: IntegerConversionRank::Char;
-     case TypeKind::Short: IntegerConversionRank::Short;
-     case TypeKind::Int: IntegerConversionRank::Int;
-     case TypeKind::Long: IntegerConversionRank::Long;
-     case TypeKind::LongLong: IntegerConversionRank::LongLong;
+     case TypeKind::Char: return IntegerConversionRank::Char;
+     case TypeKind::Short: return IntegerConversionRank::Short;
+     case TypeKind::Int: return IntegerConversionRank::Int;
+     case TypeKind::Long: return IntegerConversionRank::Long;
+     case TypeKind::LongLong: return IntegerConversionRank::LongLong;
      }
 
      return IntegerConversionRank::Unknown;
@@ -160,11 +160,11 @@ ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const In
 {
      switch (integer.Kind())
      {
-     case TypeKind::Char: IntegerConversionRank::Char;
-     case TypeKind::Short: IntegerConversionRank::Short;
-     case TypeKind::Int: IntegerConversionRank::Int;
-     case TypeKind::Long: IntegerConversionRank::Long;
-     case TypeKind::LongLong: IntegerConversionRank::LongLong;
+     case TypeKind::Char: return IntegerConversionRank::Char;
+     case TypeKind::Short: return IntegerConversionRank::Short;
+     case TypeKind::Int: return IntegerConversionRank::Int;
+     case TypeKind::Long: return IntegerConversionRank::Long;
+     case TypeKind::LongLong: return IntegerConversionRank::LongLong;
      }
 
      return IntegerConversionRank::Unknown;

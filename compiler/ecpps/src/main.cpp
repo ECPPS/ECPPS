@@ -182,7 +182,6 @@ int main(int argc, char* argv[])
 
      if (isExtraVerbose)
      {
-          std::size_t size = codeSection.size();
           constexpr std::size_t RowSize = 8; // in bytes
           const auto rows = (codeSection.size() + RowSize - 1) / RowSize;
 

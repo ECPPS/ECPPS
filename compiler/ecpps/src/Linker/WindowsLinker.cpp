@@ -69,8 +69,8 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
           {
                if (symbols[i] == symbolName)
                {
-                    std::uint32_t iatBase = 0x2028; // example IAT base RVA
-                    return iatBase + static_cast<std::uint32_t>(i * sizeof(std::uint32_t));
+                    std::uint32_t iatBase = 0x202a; // example IAT base RVA
+                    return iatBase + static_cast<std::uint32_t>(i * sizeof(std::uint64_t));
                }
           }
      }

@@ -385,7 +385,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                std::string comment{"/*"};
                ++sourceIterator;
 
-               bool closed = false;
                while (++sourceIterator != source.end())
                {
                     character = *sourceIterator;
@@ -396,7 +395,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     {
                          ++sourceIterator;
                          comment += '/';
-                         closed = true;
                          break;
                     }
                }

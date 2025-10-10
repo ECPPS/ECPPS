@@ -35,7 +35,7 @@ namespace ecpps::codegen
      class CodeEmitter
      {
      public:
-          ~CodeEmitter(void) = default;
+          virtual ~CodeEmitter(void) = default;
           [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
 

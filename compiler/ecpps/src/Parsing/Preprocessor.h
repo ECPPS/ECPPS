@@ -64,7 +64,7 @@ namespace ecpps
      public:
           [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source,
                                                                      std::vector<MacroReplacement>& macros);
-          [[nodiscard]] static void Print(const std::vector<PreprocessingToken>& ppTokens);
+          static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:
           static bool IsDigit(const char ch) { return std::isdigit(ch); }

@@ -6,7 +6,7 @@
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Expressions.h"
 #include "NodeBase.h"
-#include "context.h"
+#include "Context.h"
 
 namespace ecpps::ir
 {
