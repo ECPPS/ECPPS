@@ -417,3 +417,5 @@ _deps
 CMakeUserPresets.json
 
 out/
+build/
+.vscode/
