@@ -281,6 +281,36 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem8(std::size_t 
      return binary;
 }
 
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg64(std::size_t destinationRegister,
+                                                                     std::size_t sourceOffset,
+                                                                     std::size_t sourceRegister)
+{
+     std::vector<std::byte> binary{};
+
+     std::uint8_t rex = 0x48;
+     if (destinationRegister >= 8) rex |= 0x04; // R
+     if (sourceRegister >= 8) rex |= 0x01;      // B
+     binary.push_back(static_cast<std::byte>(rex));
+
+     binary.push_back(static_cast<std::byte>(0x8B));
+
+     if (sourceOffset <= 0x7F) 
+     {
+          std::uint8_t modrm = 0b01000000 | ((destinationRegister & 7) << 3) | (sourceRegister & 7);
+          binary.push_back(static_cast<std::byte>(modrm));
+          binary.push_back(static_cast<std::byte>(sourceOffset));
+     }
+     else
+     {
+          std::uint8_t modrm = 0b10000000 | ((destinationRegister & 7) << 3) | (sourceRegister & 7);
+          binary.push_back(static_cast<std::byte>(modrm));
+          for (int i = 0; i < 4; i++) binary.push_back(static_cast<std::byte>((sourceOffset >> (i * 8)) & 0xFF));
+     }
+
+     return binary;
+}
+
+
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm)
 {
      std::vector<std::byte> binary{};
@@ -1596,9 +1626,22 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall(std::int32_t
 {
      displacement -= 5; // subtract the instruction size itself
      std::vector<std::byte> code;
+     code.reserve(5); // E8 + rel32
 
      code.push_back(std::byte{0xe8});
      for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateRegisterCall(std::size_t reg)
+{
+     std::vector<std::byte> code;
+
+     // FF /2 -> ModR/M: 11 010 reg
+     std::uint8_t modrm = 0b11010000 | static_cast<std::uint8_t>(reg & 0x07);
+     code.push_back(std::byte{0xFF});
+     code.push_back(std::byte{modrm});
 
      return code;
 }

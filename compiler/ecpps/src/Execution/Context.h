@@ -109,37 +109,118 @@ namespace ecpps::ir
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
      };
 
+     enum struct FunctionScopeBuilderState : std::uint16_t
+     {
+          None = 0,
+          Name = 1,
+          ReturnType = 2,
+          Parameters = 4,
+          CallingConvention = 8,
+          Linkage = 16,
+          IsStatic = 32,
+          IsInline = 64,
+          IsFriend = 128,
+          IsExtern = 256,
+          ConstexprSpecifier = 512,
+          IsDllImportExport = 1024,
+          All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
+                IsExtern | ConstexprSpecifier | IsDllImportExport
+     };
+     [[nodiscard]] constexpr FunctionScopeBuilderState operator|(
+         const FunctionScopeBuilderState lhs, const FunctionScopeBuilderState rhs) noexcept
+     {
+          return static_cast<FunctionScopeBuilderState>(std::to_underlying(lhs) | std::to_underlying(rhs));
+     }
+
+     template <FunctionScopeBuilderState TState = FunctionScopeBuilderState::None>
      struct FunctionScopeBuilder
      {
           FunctionScopeBuilder(const FunctionScopeBuilder&) = delete;
           FunctionScopeBuilder(FunctionScopeBuilder&&) = default;
           FunctionScopeBuilder& operator=(const FunctionScopeBuilder&) = delete;
           FunctionScopeBuilder& operator=(FunctionScopeBuilder&&) = default;
-
-          [[nodiscard]] FunctionScopeBuilder Name(std::string value) && noexcept
+          template <FunctionScopeBuilderState UState> explicit(false) operator FunctionScopeBuilder<UState>(void) &&
           {
-               this->_scope->name = std::move(value);
-               return std::move(*this);
+               FunctionScopeBuilder<UState> newBuilder{std::exchange(this->_scope, nullptr)};
+               return newBuilder;
           }
 
-          [[nodiscard]] FunctionScopeBuilder ReturnType(typeSystem::TypePointer value) && noexcept
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(std::string value) && noexcept
           {
-               this->_scope->returnType = std::move(value);
-               return std::move(*this);
+               return std::move(*this).PropertySetter<&FunctionScope::name>(std::move(value));
+          }
+
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
+              typeSystem::TypePointer value) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::returnType>(std::move(value));
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Parameters> Parameters(
+              std::vector<FunctionScope::Parameter> value) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::parameters>(std::move(value));
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::CallingConvention> CallingConvention(
+              abi::CallingConventionName value) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::callingConvention>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Linkage> Linkage(
+              abi::Linkage value) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::linkage>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsStatic> IsStatic(
+              bool value = true) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::isStatic>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsInline> IsInline(
+              bool value = true) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::isInline>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsFriend> IsFriend(
+              bool value = true) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::isFriend>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsExtern> IsExtern(
+              bool value = true) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::isExtern>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ConstexprSpecifier> ConstexprSpecifier(
+              ConstexprType value) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::constexprSpecifier>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsDllImportExport> IsDllImportExport(
+              bool value = true) && noexcept
+          {
+               return std::move(*this).PropertySetter<&FunctionScope::isDllImportExport>(value);
           }
 
           [[nodiscard]] std::unique_ptr<FunctionScope> Build(void) && noexcept
+               requires(TState == FunctionScopeBuilderState::All)
           {
                return std::unique_ptr<FunctionScope>(std::exchange(this->_scope, nullptr));
           }
 
      private:
+          template <auto T>
+          [[nodiscard]] FunctionScopeBuilder PropertySetter(auto&& value) &&
+          {
+               this->_scope->*T = std::forward<std::remove_reference_t<decltype(value)>>(value);
+               return std::move(*this);
+          }
           explicit FunctionScopeBuilder(FunctionScope* scope) : _scope(scope) {}
           FunctionScope* _scope;
 
-          friend inline FunctionScopeBuilder MakeFunctionScope(void);
+          template <FunctionScopeBuilderState> friend struct FunctionScopeBuilder;
+          friend inline FunctionScopeBuilder<> MakeFunctionScope(void);
      };
-     inline FunctionScopeBuilder MakeFunctionScope(void) { return FunctionScopeBuilder{new FunctionScope{}}; }
+     inline FunctionScopeBuilder<> MakeFunctionScope(void) { return FunctionScopeBuilder{new FunctionScope{}}; }
 
      struct ClassScope final : Scope
      {

@@ -24,7 +24,9 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
 std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::CompilerConfig& config,
                                                             std::vector<std::byte> generatedMachineCode,
                                                             std::vector<std::pair<std::string, std::size_t>> functions,
-                                                            std::size_t mainOffset)
+                                                            std::size_t mainOffset,
+                                                            const codegen::LinkerRelocationMap& relocationMap,
+                                                            std::vector<std::byte>& diagnosticsCodeSection)
 {
      std::unique_ptr<LinkerBase> selectedLinker = nullptr;
 
@@ -60,7 +62,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
           else { selectedLinker->ImportFunction(import, dllName); }
      }
 
-     selectedLinker->CodeSection(generatedMachineCode);
+     diagnosticsCodeSection = selectedLinker->CodeSection(generatedMachineCode, relocationMap);
 
      for (const auto& [functionName, functionOffset] : functions)
           selectedLinker->ExportFunction(functionName, functionOffset);

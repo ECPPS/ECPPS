@@ -5,6 +5,7 @@
 #include <memory>
 #include <print>
 #include <ranges>
+#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -174,14 +175,40 @@ int main(int argc, char* argv[])
 
      if (isVerbose) std::println("Linking objects...");
 
-     std::vector<std::byte> imageBytes =
-         ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
+     std::vector<std::byte> codeSection{};
+
+     std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
+         config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection);
+
+     if (isExtraVerbose)
+     {
+          std::size_t size = codeSection.size();
+          constexpr std::size_t RowSize = 8; // in bytes
+          const auto rows = (codeSection.size() + RowSize - 1) / RowSize;
+
+          std::println("Emitted {} bytes, of which {} are code:", imageBytes.size(), codeSection.size());
+          for (std::size_t row = 0; row < rows; row++)
+          {
+               std::print("| ");
+               const auto offset = row * RowSize;
+               for (std::size_t column = 0; column < RowSize; column++)
+               {
+                    const auto byteOffset = offset + column;
+                    if (byteOffset >= codeSection.size()) std::print("   ");
+                    else
+                         std::print("{:02x} ", static_cast<std::size_t>(codeSection[byteOffset]));
+               }
+               std::println("|");
+          }
+     }
+
 
      std::ofstream outFile(config.outputImage, std::ios::binary);
      outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
      outFile.close();
 
      const auto end = std::chrono::steady_clock::now();
+     std::println("Fully linked {}", absolute(std::filesystem::path(config.outputImage)).string());
      std::println("Compilation successful. {} elapsed",
                   std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 

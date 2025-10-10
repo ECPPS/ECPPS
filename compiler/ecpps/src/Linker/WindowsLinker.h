@@ -20,7 +20,8 @@ namespace ecpps::linker::win
           {
           }
 
-          void CodeSection(const std::vector<std::byte>& data) override;
+          std::vector<std::byte> CodeSection(std::vector<std::byte> data,
+                                             const codegen::LinkerRelocationMap& relocationMap) override;
           void ExportFunction(const std::string& name, std::uint32_t address) override;
           void ImportFunction(const std::string& name, const std::string& dll) override;
 
@@ -29,6 +30,8 @@ namespace ecpps::linker::win
 
           [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName,
                                                        std::size_t entryPointAddress) const override;
+
+          [[nodiscard]] std::uint32_t LookupSymbol(const std::string& symbolName) const;
 
      private:
           [[nodiscard]] PEImage Link(std::uint32_t entryPoint) const;

@@ -52,6 +52,15 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
+     [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg64(std::size_t destinationRegister,
+                                                                std::size_t sourceOffset, std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg32(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg16(std::size_t destination, std::size_t destinationOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
      // add
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg32(std::size_t reg, std::uint32_t imm);
@@ -185,5 +194,6 @@ namespace ecpps::codegen::x86_64
 
      // call
      [[nodiscard]] std::vector<std::byte> GenerateIndirectCall(std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateRegisterCall(std::size_t displacement);
 
 } // namespace ecpps::codegen::x86_64

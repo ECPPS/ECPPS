@@ -83,7 +83,29 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           linkage = ecpps::abi::Linkage::Internal;
      // TODO: Error on conflicting linkage specification
 
-     auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build();
+     bool isDllImportExport{};
+
+     for (const auto& attribute : node.Signature().attributes)
+     {
+          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport") isDllImportExport = true;
+     }
+
+     auto functionScope =
+         MakeFunctionScope()
+             .Name(node.Signature().name->ToString(0))
+             .ReturnType(returnType)
+             .CallingConvention(node.Signature().callingConvention)
+             .Linkage(linkage)
+             .IsDllImportExport(isDllImportExport)
+             .IsExtern(node.Signature().isExtern)
+             .IsFriend(node.Signature().isFriend)
+             .IsInline(node.Signature().isInline)
+             .IsStatic(false) // TODO: node.Signature().isStatic
+             .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
+                                     ? ecpps::ir::ConstexprType::Constexpr
+                                     : ecpps::ir::ConstexprType::None)
+             .Parameters(parameters)
+             .Build();
      functionScope->parameters = parameters;
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
 }
@@ -114,7 +136,28 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           linkage = abi::Linkage::Internal;
      // TODO: Error on conflicting linkage specification
 
-     auto functionScope = MakeFunctionScope().Name(node.Signature().name->ToString(0)).ReturnType(returnType).Build();
+     bool isDllImportExport{};
+     
+     for (const auto& attribute : node.Signature().attributes)
+     {
+          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport") isDllImportExport = true;
+     }
+
+     auto functionScope = MakeFunctionScope()
+          .Name(node.Signature().name->ToString(0))
+             .ReturnType(returnType)
+             .CallingConvention(node.Signature().callingConvention)
+             .Linkage(linkage)
+             .IsDllImportExport(isDllImportExport)
+             .IsExtern(node.Signature().isExtern)
+             .IsFriend(node.Signature().isFriend)
+             .IsInline(node.Signature().isInline)
+             .IsStatic(false) // TODO: node.Signature().isStatic
+             .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
+                                     ? ecpps::ir::ConstexprType::Constexpr
+                                     : ecpps::ir::ConstexprType::None)
+             .Parameters(parameters)
+          .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
      auto functionContext = std::make_shared<FunctionContext>(
@@ -124,14 +167,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                    { return parameter.type; }) |
              std::ranges::to<std::vector>());
 
-     for (const auto& attribute : node.Signature().attributes)
-     {
-          if (attribute->Name() == "dllexport")
-          {
-               functionScope->isDllImportExport = true;
-               break;
-          }
-     }
 
      ir._context = this->_context;
      ir._context.contextSequence.Push(std::move(functionContext));

@@ -1,5 +1,6 @@
 #include "x86_64.h"
 #include <stdexcept>
+#include "../../CodeGeneration/PseudoAssembly.h"
 #include "../../Machine/ABI.h"
 #include "../../Parsing/Tokeniser.h"
 #include "x86_64/Opcodes.h"
@@ -8,11 +9,26 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                                         const std::unordered_map<std::string, std::size_t>& routines)
 {
      std::size_t currentOffset = 0;
+
+     constexpr static auto ApplyImportLambda = [](Address resolved) -> std::vector<std::byte>
+     { 
+               auto result = x86_64::GenerateMovImmToReg64(0, resolved.Value());
+               result.insert_range(result.end(), x86_64::GenerateMovMemToReg64(0, 0, 0));
+               result.insert_range(result.end(), x86_64::GenerateRegisterCall(0));
+               return result;
+     };
+
      for (auto& [index, name] : this->_relocationTable)
      {
           const auto offset = currentOffset + index;
 
-          // TODO: Imports
+          if (ecpps::codegen::g_functionImports.contains(name))
+          {
+               this->linkerForwardedRelocations.emplace(ByteOffset{index},
+                                          Relocation{name, ApplyImportLambda}); // Linker pass handles that, hopefully
+               continue;
+          }
+
           std::size_t foundFunction = 0;
           for (const auto& [functionName, functionOffset] : routines)
           {
