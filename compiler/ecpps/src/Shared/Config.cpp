@@ -98,6 +98,7 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
           case LinkerUsed::Windows32:
                this->outputImage = "output.exe";
                this->importedLibraries.emplace_back("KERNEL32.dll");
+               this->importedLibraries.emplace_back("USER32.dll");
                break;
           case LinkerUsed::Caosys:
                this->outputImage = "output.exe";

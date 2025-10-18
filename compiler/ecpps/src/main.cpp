@@ -129,10 +129,16 @@ int main(int argc, char* argv[])
                     std::println("{}:", routineName);
                     // TODO: Assert
 
-                    std::size_t size = (std::next(it) == routines.end()) ? generatedMachineCode.size() - routineOffset
-                                                                         : std::next(it)->second - routineOffset;
-                    const auto& machineCode =
-                        generatedMachineCode | std::views::drop(routineOffset) | std::views::take(size);
+                    std::size_t start = std::min(routineOffset, generatedMachineCode.size());
+                    std::size_t nextOffset =
+                        (std::next(it) == routines.end()) ? generatedMachineCode.size() : std::next(it)->second;
+                    std::size_t end = std::min(nextOffset, generatedMachineCode.size());
+
+                    if (start > end) start = end; // ensure empty range if misordered
+
+                    auto machineCode =
+                        std::ranges::subrange(generatedMachineCode.begin() + start, generatedMachineCode.begin() + end);
+
                     constexpr std::size_t RowSize = 8; // in bytes
                     const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
 

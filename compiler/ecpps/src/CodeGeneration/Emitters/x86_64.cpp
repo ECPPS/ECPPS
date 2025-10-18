@@ -22,7 +22,8 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
 
           if (ecpps::codegen::g_functionImports.contains(name))
           {
-               this->linkerForwardedRelocations.emplace(ByteOffset{index},
+               this->linkerForwardedRelocations.emplace(
+                   ByteOffset{offset},
                                           Relocation{name, ApplyImportLambda}); // Linker pass handles that, hopefully
                continue;
           }

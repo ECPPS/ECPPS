@@ -58,27 +58,56 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::str
      return this->Link(entryPointAddress + ExportDisplacement).toBytes(imageName);
 }
 
+template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
+{
+     return (value + alignment - 1) & ~(alignment - 1);
+}
+
 std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string& symbolName) const
 {
-     if (auto it = this->_exports.find(symbolName); it != this->_exports.end())
-     {
-          return it->second; // already absolute RVA
-     }
+     if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second; // absolute RVA
 
-     for (const auto& [dll, symbols] : this->_imports)
+     std::uint32_t iltPtr = 0; // offset to first thunk (relative to idataVA)
+     std::uint32_t iatPtr = 0; // offset to IAT entries
+     std::uint32_t currentNameOffset = 0;
+
+     // Calculate descriptorCount, thunk offsets etc. the same way as BuildIdataBuffer
+     const size_t descriptorCount = this->_imports.size() + 1;
+     const size_t descriptorSize = 20;
+     size_t totalThunks = 0;
+     for (auto& kv : this->_imports) totalThunks += kv.second.size() + 1;
+
+     const size_t intOffset = AlignUp(descriptorCount * descriptorSize, 8UZ);
+     const size_t iatOffset = intOffset + totalThunks * sizeof(std::uint64_t);
+     size_t nameOffset = AlignUp(iatOffset + totalThunks * sizeof(std::uint64_t), 2UZ);
+
+     iltPtr = static_cast<std::uint32_t>(intOffset);
+     iatPtr = static_cast<std::uint32_t>(iatOffset);
+     currentNameOffset = static_cast<std::uint32_t>(nameOffset);
+
+     // Now iterate DLLs
+     for (auto& [dll, funcs] : this->_imports)
      {
-          for (std::size_t i = 0; i < symbols.size(); ++i)
+          for (std::size_t i = 0; i < funcs.size(); ++i)
           {
-               if (symbols[i] == symbolName)
+               if (funcs[i] == symbolName)
                {
-                    std::uint32_t iatBase = 0x202a; // example IAT base RVA
-                    return iatBase + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) +
-                           static_cast<std::uint32_t>(symbols.size() * sizeof(std::uint64_t));
+                    // Compute the IAT entry RVA
+                    // The IAT starts at iatOffset relative to idataVA
+                    return 0x2000 + iatPtr + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) - 6;
                }
+
+               // Update currentNameOffset if you also need name RVA
+               currentNameOffset += 2 + static_cast<std::uint32_t>(funcs[i].size() + 1);
+               currentNameOffset = static_cast<std::uint32_t>(AlignUp(currentNameOffset, 2U));
           }
+
+          // Advance iatPtr past this DLL's thunks + null terminator
+          iatPtr += static_cast<std::uint32_t>((funcs.size() + 1) * sizeof(std::uint64_t));
      }
 
-     throw nullptr; // std::runtime_error("Symbol not found: " + symbolName);
+     throw nullptr;
+     //throw std::runtime_error("Symbol not found: " + symbolName);
 }
 
 
