@@ -8,14 +8,12 @@
 void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& source,
                                                         const std::unordered_map<std::string, std::size_t>& routines)
 {
-     std::size_t currentOffset = 0;
+     std::size_t currentOffset = 0;    
 
-     constexpr static auto ApplyImportLambda = [](Address resolved) -> std::vector<std::byte>
+     constexpr static auto ApplyImportLambda =
+         [](Address resolved, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures) -> std::vector<std::byte>
      { 
-               auto result = x86_64::GenerateMovImmToReg64(0, resolved.Value());
-               result.insert_range(result.end(), x86_64::GenerateMovRipToReg64(0, resolved.Value() - 5));
-               result.insert_range(result.end(), x86_64::GenerateRegisterCall(0));
-               return result;
+          return x86_64::GenerateIndirectCall2(resolved.Value());
      };
 
      for (auto& [index, name] : this->_relocationTable)

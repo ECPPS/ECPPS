@@ -42,8 +42,17 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
                   config.linker == LinkerUsed::Windows32 ? LinkerBitness::x32 : LinkerBitness::x64));
      }
      break;
+     case LinkerUsed::Caosys:
+     {
+          selectedLinker = ecpps::linker::Linker::CreateLinker(
+              ecpps::linker::LinkerType::PE,
+              std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
+                  ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable,
+                  LinkerBitness::x64));
      }
-     const auto availableExports = GetExportsFromDlls({"kernel32.dll"});
+     break;
+     }
+     const auto availableExports = GetExportsFromDlls(config.importedLibraries);
      for (const auto& import : ecpps::codegen::g_functionImports)
      {
           std::string dllName{};

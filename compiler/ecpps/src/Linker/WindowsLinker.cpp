@@ -16,10 +16,11 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
 {
      PESection textSection{};
      std::size_t offset{};
+     std::unordered_map<std::string, std::vector<std::byte>> relocationThunks{};
      for (const auto& [where, relocation] : relocationMap)
      {
           const auto resolvedAddress = this->LookupSymbol(relocation.symbolName);
-          auto toInsert = relocation.apply(Address{resolvedAddress});
+          auto toInsert = relocation.apply(Address{resolvedAddress - where.Value() - offset}, relocationThunks);
           auto begin = data.begin() + offset;
           offset += toInsert.size();
           data.insert_range(begin + where.Value(), std::move(toInsert));
@@ -27,6 +28,7 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
 
      textSection.name = CodeSectionName;
      textSection.flags = PESectionFlags::Read | PESectionFlags::Execute | PESectionFlags::ExecutableCode;
+     this->_sizeOfCode = data.size();
      textSection.data = std::move(data);
 
      this->AddSection(textSection);
@@ -70,7 +72,8 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
                if (symbols[i] == symbolName)
                {
                     std::uint32_t iatBase = 0x202a; // example IAT base RVA
-                    return iatBase + static_cast<std::uint32_t>(i * sizeof(std::uint64_t));
+                    return iatBase + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) +
+                           static_cast<std::uint32_t>(symbols.size() * sizeof(std::uint64_t));
                }
           }
      }
@@ -86,6 +89,14 @@ ecpps::linker::win::PEImage ecpps::linker::win::WindowsLinker::Link(const std::u
      output.sections = this->_sections;
      output.exports = this->_exports;
      output.imports = this->_imports;
+     output._ntHeaders.optionalHeader.sizeOfCode = this->_sizeOfCode;
+
+     // TODO: Real values
+     output._ntHeaders.optionalHeader.baseOfCode = 0x1000;
+     output._ntHeaders.optionalHeader.sizeOfHeapCommit = 0x1000;
+     output._ntHeaders.optionalHeader.sizeOfHeapReserve = 0x100000;
+     output._ntHeaders.optionalHeader.sizeOfStackCommit = 0x1000;
+     output._ntHeaders.optionalHeader.sizeOfStackReserve = 0x100000;
 
      return output;
 }

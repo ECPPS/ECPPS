@@ -197,6 +197,11 @@ namespace ecpps::codegen::x86_64
 
      // call
      [[nodiscard]] std::vector<std::byte> GenerateIndirectCall(std::int32_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateIndirectCall2(std::int32_t displacement);
      [[nodiscard]] std::vector<std::byte> GenerateRegisterCall(std::size_t displacement);
+
+     // push/pop
+     [[nodiscard]] std::vector<std::byte> GeneratePushReg64(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GeneratePopReg64(std::size_t reg);
 
 } // namespace ecpps::codegen::x86_64

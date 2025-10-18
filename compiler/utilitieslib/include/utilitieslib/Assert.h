@@ -8,6 +8,18 @@ void RuntimeAssert(bool condition, std::string_view conditionString, std::string
 
 #ifdef NDEBUG
 #define runtime_assert(condition, message)
+struct Empty
+{
+};
+template <typename>
+using DebugOnlyImpl = Empty;
+#ifdef _MSC_VER
+#define DebugOnly [[msvc::no_unique_address]] DebugOnlyImpl
 #else
-#define runtime_assert(condition, message) RuntimeAssert(condition, #condition, message, __FILE__, __LINE__, __func__)
+#define DebugOnly [[no_unique_address]] DebugOnlyImpl
+#endif
+#else
+#define runtime_assert(condition, message) RuntimeAssert(condition, #condition, message, __FILE__, __LINE__, __func__)  
+template <typename T>
+using DebugOnly = T;
 #endif

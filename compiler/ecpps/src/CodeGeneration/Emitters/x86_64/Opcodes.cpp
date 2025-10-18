@@ -1645,6 +1645,27 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg64(std::size_t dest
      return code;
 }
 
+std::vector<std::byte> ecpps::codegen::x86_64::GeneratePushReg64(std::size_t reg)
+{
+     std::vector<std::byte> code;
+
+     if (reg >= 8) code.push_back(std::byte{0x41}); // REX.B for r8..r15
+     code.push_back(std::byte{static_cast<std::uint8_t>(0x50 + (reg & 0x7))});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GeneratePopReg64(std::size_t reg)
+{
+     std::vector<std::byte> code;
+
+     if (reg >= 8) code.push_back(std::byte{0x41}); // REX.B for r8..r15
+     code.push_back(std::byte{static_cast<std::uint8_t>(0x58 + (reg & 0x7))});
+
+     return code;
+}
+
+
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall(std::int32_t displacement)
 {
      displacement -= 5; // subtract the instruction size itself
@@ -1652,6 +1673,20 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall(std::int32_t
      code.reserve(5); // E8 + rel32
 
      code.push_back(std::byte{0xe8});
+     for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall2(std::int32_t displacement)
+{
+     std::vector<std::byte> code;
+     code.reserve(6); // 2 bytes opcode + 4 bytes displacement
+
+     code.push_back(std::byte{0xFF}); // opcode
+     code.push_back(std::byte{0x15}); // ModRM for RIP-relative memory
+
+     // RIP-relative displacement (32-bit)
      for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((displacement >> (i * 8)) & 0xFF)});
 
      return code;

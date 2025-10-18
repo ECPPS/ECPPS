@@ -45,5 +45,7 @@ namespace ecpps::linker::win
           std::vector<PESection> _sections{};
           std::unordered_map<std::string, std::uint32_t> _exports{};
           std::unordered_map<std::string, std::vector<std::string>> _imports{};
+          std::size_t _baseOfCode{};
+          std::size_t _sizeOfCode{};
      };
 } // namespace ecpps::linker::win

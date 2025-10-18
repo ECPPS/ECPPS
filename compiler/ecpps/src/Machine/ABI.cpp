@@ -4,6 +4,7 @@
 #include <ranges>
 #include <stdexcept>
 #include <vector>
+#include "../CodeGeneration/Nodes.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
@@ -52,7 +53,8 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 
           const auto& rsp =
               this->_physicalRegisters.emplace_back(std::make_shared<PhysicalRegister>("rsp", qwordSize, id++));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("rsp", rsp, qwordSize, 0));
+          this->_registers.push_back(this->_stackPointerRegister =
+                                         std::make_shared<VirtualRegister>("rsp", rsp, qwordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("esp", rsp, dwordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("sp", rsp, wordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("spl", rsp, byteSize, 0));
@@ -355,11 +357,9 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
           break;
           }
           result.push_back(std::move(storage));
-          return result;
      }
 
-     // TODO: ERROR
-     throw nullptr;
+     return result;
 }
 
 ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetRequirementsForType(
@@ -378,6 +378,33 @@ ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetReq
      if (IsIncomplete(type)) return StorageRequirement{0, 0, RequiredStorageKind::Void};
 
      throw nullptr; // FIXME: Obvious
+}
+
+
+
+struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
+{
+     explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
+                                       const ecpps::abi::CallingConvention& callingConvention)
+         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
+           //_currentStackSize(64)    
+           _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize()) // 8 for padding
+     {
+     }
+
+protected:
+     std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final override;
+     std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const final override;
+
+private:
+     std::reference_wrapper<const ecpps::abi::CallingConvention> _currentCallingConvention;
+     std::size_t _currentStackSize;
+};
+
+std::unique_ptr<ecpps::abi::ProcedureStackManager> ecpps::abi::MicrosoftX64CallingConvention::BeginStack(
+    std::vector<ecpps::codegen::Instruction>& instructions) const
+{
+     return std::make_unique<Microsoftx64StackManager>(instructions, *this);
 }
 
 ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg) : _register(std::move(reg))
@@ -399,4 +426,24 @@ void ecpps::abi::AllocatedRegister::Release(void)
      if (this->_register == nullptr) return;
 
      ABI::Current()._allocatedRegisters.erase(std::exchange(this->_register, nullptr)->physical->id);
+}
+
+std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GeneratePrologue(void) const
+{
+     std::vector<ecpps::codegen::Instruction> instructions{};
+     const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
+     instructions.emplace_back(ecpps::codegen::SubInstruction{
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
+     return instructions;
+}
+
+std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GenerateEpilogue(void) const
+{
+     std::vector<ecpps::codegen::Instruction> instructions{};
+     const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
+     instructions.emplace_back(ecpps::codegen::AddInstruction{
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
+     return instructions;
 }

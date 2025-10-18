@@ -73,7 +73,8 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string args{};
-               for (const auto& arg : this->_arguments) args += arg->Value()->ToString(0) + ", ";
+               for (const auto& arg : this->_arguments)
+                    args += (arg == nullptr ? "__unknown" : arg->Value()->ToString(0)) + ", ";
                if (!args.empty())
                {
                     args.pop_back();

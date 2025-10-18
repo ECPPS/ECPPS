@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <optional>
 #include "SourceMap.h"
 
 namespace ecpps

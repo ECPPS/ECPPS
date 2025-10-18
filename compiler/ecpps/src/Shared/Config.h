@@ -10,6 +10,7 @@ namespace ecpps
      {
           Windows64,
           Windows32,
+          Caosys
      };
 
      constexpr LinkerUsed DefaultLinker = LinkerUsed::
@@ -49,6 +50,7 @@ namespace ecpps
           std::string outputImage{};
           LinkerUsed linker = DefaultLinker;
           VerboseStatus verboseStatus = VerboseStatus::Default;
+          std::vector<std::string> importedLibraries{};
 
           [[noreturn]] void PrintVersionAndExit(void) const;
      };

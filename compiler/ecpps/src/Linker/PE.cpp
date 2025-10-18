@@ -7,10 +7,11 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
-#include <ranges    >
 #include <map>
 #include <string>
 #include <vector>
+#include <ranges>
+#include <algorithm>
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
@@ -63,6 +64,115 @@ template <typename T = decltype([] {})> struct [[nodiscard]] Defer : T
 {
      ~Defer(void) noexcept(noexcept(T::operator())) { (*this)(); }
 };
+
+auto AppendBytes(std::vector<std::byte>& destination, const void* data, std::size_t size) -> void
+{
+     const auto* first = static_cast<const std::byte*>(data);
+     destination.insert(destination.end(), first, first + size);
+}
+
+auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view string) -> void
+{
+     for (const char character : string) destination.push_back(std::byte{static_cast<unsigned char>(character)});
+}
+static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
+                                               const std::unordered_map<std::string, std::vector<std::string>>& imports)
+{
+     const size_t descriptorCount = imports.size() + 1;
+     const size_t descriptorSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
+     const size_t thunkSize = sizeof(std::uint64_t);
+
+     // Count total thunks
+     size_t totalThunks = 0;
+     for (auto& kv : imports) totalThunks += kv.second.size() + 1;
+
+     // Calculate offsets
+     const size_t intOffset = AlignUp(descriptorCount * descriptorSize, 8uz);
+     const size_t iatOffset = intOffset + totalThunks * thunkSize;
+     size_t nameOffset = AlignUp(iatOffset + totalThunks * thunkSize, 2uz);
+
+     std::vector<std::byte> buffer(nameOffset); // preallocate for descriptors + INT + IAT
+     size_t iltPtr = intOffset;
+     size_t iatPtr = iatOffset;
+     size_t currentNameOffset = nameOffset;
+     size_t descIndex = 0;
+
+     auto ensureSize = [&](size_t size)
+     {
+          if (buffer.size() < size) buffer.resize(size);
+     };
+     auto write64 = [&](size_t off, std::uint64_t val)
+     {
+          ensureSize(off + 8);
+          std::memcpy(buffer.data() + off, &val, 8);
+     };
+     auto write16 = [&](size_t off, std::uint16_t val)
+     {
+          ensureSize(off + 2);
+          std::memcpy(buffer.data() + off, &val, 2);
+     };
+     auto writeString = [&](size_t off, std::string_view s)
+     {
+          ensureSize(off + s.size() + 1);
+          std::memcpy(buffer.data() + off, s.data(), s.size());
+          buffer[off + s.size()] = std::byte{0};
+     };
+
+     for (auto& [dll, funcs] : imports)
+     {
+          // Descriptor
+          size_t descPos = descIndex * descriptorSize;
+          IMAGE_IMPORT_DESCRIPTOR desc{};
+          desc.OriginalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
+          desc.FirstThunk = idataVA + static_cast<uint32_t>(iatPtr);
+
+          // Function thunks
+          for (auto& f : funcs)
+          {
+               const std::string funcName = f.empty() ? "Unknown" : f;
+               const uint32_t ibnRVA = idataVA + static_cast<uint32_t>(currentNameOffset);
+
+               write64(iltPtr, ibnRVA);
+               iltPtr += thunkSize;
+               write64(iatPtr, ibnRVA);
+               iatPtr += thunkSize;
+
+               // IMAGE_IMPORT_BY_NAME: Hint + Name + Null
+               write16(currentNameOffset, 0); // Hint
+               currentNameOffset += 2;
+               writeString(currentNameOffset, funcName);
+               currentNameOffset += funcName.size() + 1;
+               currentNameOffset = AlignUp(currentNameOffset, 2uz);
+          }
+
+          write64(iltPtr, 0);
+          iltPtr += thunkSize;
+          write64(iatPtr, 0);
+          iatPtr += thunkSize;
+
+          // DLL name
+          const std::string dllName = dll.empty() ? "dummy.dll" : dll;
+          const uint32_t dllRVA = idataVA + static_cast<uint32_t>(currentNameOffset);
+          writeString(currentNameOffset, dllName);
+          currentNameOffset = AlignUp(currentNameOffset + dllName.size() + 1, 2uz);
+
+          desc.Name = dllRVA;
+          ensureSize(descPos + descriptorSize);
+          std::memcpy(buffer.data() + descPos, &desc, descriptorSize);
+
+          ++descIndex;
+     }
+
+     // Final zero descriptor
+     IMAGE_IMPORT_DESCRIPTOR zero{};
+     ensureSize(descIndex * descriptorSize + descriptorSize);
+     std::memcpy(buffer.data() + descIndex * descriptorSize, &zero, descriptorSize);
+
+     // Resize buffer to actual used size
+     buffer.resize(currentNameOffset);
+
+     return buffer;
+}
 
 
 std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& imageName)
@@ -140,18 +250,15 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      }
 
      offset = 0;
-     // Serialise ordinals (start from 1)
      for (size_t i = 0; i < this->exports.size(); ++i)
      {
           const size_t insertPos = (exportDirectory.AddressOfNameOrdinals - exportRVA) + offset;
 
-          // Ensure the size of exportData is sufficient to hold the ordinals
           if (insertPos + sizeof(std::uint16_t) > exportData.size())
           {
                exportData.resize(insertPos + sizeof(std::uint16_t));
           }
 
-          // Write the ordinal (1-based index)
           std::uint16_t* pOrdinal = reinterpret_cast<std::uint16_t*>(exportData.data() + insertPos);
           *pOrdinal = static_cast<std::uint16_t>(i); // Ordinals are 1-based
           offset += sizeof(std::uint16_t);
@@ -163,87 +270,42 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
 
      std::uint32_t exportSize = currentOffset - exportRVA;
 
-     const std::uint32_t importRVA = AlignUp<std::uint32_t>(currentOffset, 0x1000);
-     const std::size_t descriptorCount = this->imports.size() + 1; // null descriptor
+// Section alignment
+     const uint32_t sectionAlign = this->_ntHeaders.optionalHeader.sectionAlignment;
+     uint32_t currentRVA = AlignUp(exportRVA + exportSize, sectionAlign);
 
-     std::vector<std::byte> importData{};
-     importData.resize(descriptorCount * sizeof(IMAGE_IMPORT_DESCRIPTOR));
+     // .idata section
+     const uint32_t importRVA = AlignUp(currentRVA, sectionAlign);
+     auto idataBuffer = BuildIdataBuffer(importRVA, this->imports);
 
-     std::vector<std::byte> thunkData{};
-     std::vector<std::byte> nameData{};
+     // Compute IAT RVA inside .idata
+     size_t descriptorCount = this->imports.size() + 1;
+     size_t totalThunkEntries = 0;
+     for (auto& kv : this->imports) totalThunkEntries += kv.second.size() + 1;
+     size_t intOffset = AlignUp(descriptorCount * sizeof(IMAGE_IMPORT_DESCRIPTOR), 8uz);
+     const uint32_t iatRVA = importRVA + static_cast<uint32_t>(intOffset + totalThunkEntries * sizeof(uint64_t));
 
-     std::uint32_t thunkRVA = importRVA + static_cast<std::uint32_t>(importData.size());
-     std::uint32_t nameRVA =
-         thunkRVA + static_cast<std::uint32_t>(this->imports.size() * 2 * sizeof(std::uint32_t)); // reserve thunk space
+     // Add .idata section
+     this->sections.emplace_back(".idata", idataBuffer, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
 
-     std::uint32_t ILTRVA = thunkRVA;
-     std::uint32_t IATRVA = ILTRVA + static_cast<std::uint32_t>(this->imports.size() * 2 * sizeof(std::uint64_t)); 
+     // Update directories
+     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
+         DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
 
-     std::size_t i{};
-     for (const auto& [dllName, funcNames] : this->imports)
-     {
-          auto* descriptor =
-              reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(importData.data() + i * sizeof(IMAGE_IMPORT_DESCRIPTOR));
+     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
+         .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t))};
 
-          descriptor->OriginalFirstThunk = ILTRVA;
-          descriptor->FirstThunk = IATRVA;
-
-          // Add thunks
-          for (const auto& funcName : funcNames)
-          {
-               // Hint/Name RVA
-               std::uint32_t funcNameRVA = nameRVA;
-
-               // Write thunk entry pointing to Hint/Name table
-               std::uint64_t thunkEntry = funcNameRVA;
-               thunkData.insert(thunkData.end(), reinterpret_cast<std::byte*>(&thunkEntry),
-                                reinterpret_cast<std::byte*>(&thunkEntry + 1));
-
-               // Write Hint/Name table entry (Hint + name + null)
-               std::uint16_t hint = 0;                                   
-               nameData.insert(nameData.end(), reinterpret_cast<std::byte*>(&hint),
-                               reinterpret_cast<std::byte*>(&hint + 1));
-               nameData.insert_range(
-                   nameData.end(),
-                   funcName | std::views::transform([](const char character) { return std::byte{static_cast<unsigned char>(character)}; }) | std::ranges::to<std::vector>());
-               if (nameData.size() & 1) nameData.push_back(std::byte{0});
-
-               nameRVA += static_cast<std::uint32_t>(2 + funcName.size() + 1) & ~1; // 2 bytes for hint
-          }
-          descriptor->Name = nameRVA;
-
-          // Write DLL name
-          nameData.insert_range(nameData.end(), dllName 
-               |
-                                  std::views::transform([](const char character)
-                                                        { return std::byte{static_cast<unsigned char>(character)}; }) 
-               | std::ranges::to<std::vector>());
-          nameData.push_back(std::byte{0});
-          nameRVA += static_cast<std::uint32_t>(dllName.size() + 1);
-
-          thunkRVA += static_cast<std::uint32_t>(funcNames.size() * sizeof(std::uint64_t));
-          ILTRVA += static_cast<std::uint32_t>(funcNames.size() * sizeof(std::uint64_t));
-          IATRVA += static_cast<std::uint32_t>(funcNames.size() * sizeof(std::uint64_t)); // zeroed IAT
-          i++;
-     }
-
-     // Null descriptor already exists at the end
-     // Merge all pieces
-     importData.insert(importData.end(), thunkData.begin(), thunkData.end());
-     importData.insert(importData.end(), nameData.begin(), nameData.end());
-
-     this->sections.emplace_back(".idata", importData, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
+     // Update sizeOfImage
+     currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());
+     this->_ntHeaders.optionalHeader.sizeOfImage = AlignUp(currentRVA, sectionAlign);
 
 
-     // Update data directory with export info
-     this->_ntHeaders.optionalHeader.numberOfRvaAndSizes = 2;
+     this->_ntHeaders.optionalHeader.numberOfRvaAndSizes = 14;
      this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
          DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
-     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
-         DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(importData.size())};
 
-     this->_ntHeaders.optionalHeader.sizeOfImage =
-         AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(importData.size()), sectionAlignment);
+     //this->_ntHeaders.optionalHeader.sizeOfImage =
+     //    AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
 
      // Headers and section layout
      constexpr std::uint32_t ntHeadersOffset = AlignUp(sizeof(DosHeader), sizeof(std::uint32_t));
@@ -252,6 +314,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
          AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),
                  this->_ntHeaders.optionalHeader.fileAlignment);
 
+     this->_ntHeaders.optionalHeader.sizeOfInitializedData = static_cast<std::uint32_t>(idataBuffer.size());
      this->_ntHeaders.fileHeader.numberOfSections = static_cast<std::uint16_t>(this->sections.size());
 
      uint32_t currentVirtualAddress = AlignUp(headersSize, this->_ntHeaders.optionalHeader.sectionAlignment);

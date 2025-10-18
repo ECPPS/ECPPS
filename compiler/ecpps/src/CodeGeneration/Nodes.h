@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-#include "..\Machine\ABI.h"
+#include "..\Machine\Storage.h"
 
 namespace ecpps::codegen
 {
@@ -163,6 +163,20 @@ namespace ecpps::codegen
           }
      };
 
+     struct PushInstruction
+     {
+          Operand source;
+
+          explicit PushInstruction(Operand source) : source(std::move(source)) {}
+     };
+
+     struct PopInstruction
+     {
+          Operand destination;
+
+          explicit PopInstruction(Operand destination) : destination(std::move(destination)) {}
+     };
+
      struct ReturnInstruction
      {
      };
@@ -260,7 +274,7 @@ namespace ecpps::codegen
      };
 
      using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                                      CallInstruction, SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
+                      CallInstruction, SubInstruction/*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

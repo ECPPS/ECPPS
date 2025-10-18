@@ -19,7 +19,9 @@ namespace ecpps::codegen
      struct Relocation
      {
           std::string symbolName;
-          std::function<std::vector<std::byte>(Address)> apply;
+          std::function<std::vector<std::byte>(
+              Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
+              apply;
      };
      using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
 

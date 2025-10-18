@@ -1,11 +1,11 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <print>
 #include <ranges>
-#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -201,10 +201,13 @@ int main(int argc, char* argv[])
           }
      }
 
-
      std::ofstream outFile(config.outputImage, std::ios::binary);
-     outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
-     outFile.close();
+     if (!outFile.is_open()) std::println("Failed to open file: {}", config.outputImage);
+     else
+     {
+          outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
+          if (!outFile) std::println("Failed during write to: {}", config.outputImage);
+     }
 
      const auto end = std::chrono::steady_clock::now();
      std::println("Fully linked {}", absolute(std::filesystem::path(config.outputImage)).string());

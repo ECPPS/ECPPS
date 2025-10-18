@@ -71,7 +71,9 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                     if (lowerValue == "win64" || lowerValue == "pe64" || lowerValue == "pe32p")
                          this->linker = LinkerUsed::Windows64;
                     else if (lowerValue == "win32" || lowerValue == "pe32")
-                         this->linker = LinkerUsed::Windows32;
+                         this->linker = LinkerUsed::Windows32;      
+                    else if (lowerValue == "cao" || lowerValue == "caosys" || lowerValue == "cao64")
+                         this->linker = LinkerUsed::Caosys;
                     else
                     {
                          // TODO: Error
@@ -93,7 +95,14 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
           switch (this->linker)
           {
           case LinkerUsed::Windows64:
-          case LinkerUsed::Windows32: this->outputImage = "output.exe"; break;
+          case LinkerUsed::Windows32:
+               this->outputImage = "output.exe";
+               this->importedLibraries.emplace_back("KERNEL32.dll");
+               break;
+          case LinkerUsed::Caosys:
+               this->outputImage = "output.exe";
+               this->importedLibraries.emplace_back("CAO.dll");
+               break;
           default: this->outputImage = "out"; break;
           }
      }

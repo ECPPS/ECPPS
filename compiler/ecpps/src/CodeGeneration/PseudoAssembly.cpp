@@ -20,6 +20,8 @@ std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
 static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
+     if (expression == nullptr) return std::monostate{};
+
      const auto& value = expression->Value();
      if (const auto integer = dynamic_cast<ir::IntegralNode*>(value.get()); integer != nullptr)
      {
@@ -260,6 +262,11 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
 static Routine CompileRoutine(const ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};
+     auto& currentAbi = ecpps::abi::ABI::Current();
+     const auto& parentCallingConvention = currentAbi.CallingConventionFromName(node.CallingConvention());
+
+     auto stackManager = parentCallingConvention.BeginStack(instructions);
+
      for (const auto& line : node.Body())
      {
           if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
@@ -268,7 +275,6 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
           {
                const auto& function = *call->Function();
 
-               auto& currentAbi = ecpps::abi::ABI::Current();
                const std::string functionName = currentAbi.MangleName(
                    function.linkage, function.name, function.callingConvention, function.returnType,
                    function.parameters |
@@ -305,6 +311,9 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
      }
+
+     stackManager->Finish();
+     
      return Routine::Branchless(std::move(instructions),
                                 ecpps::abi::ABI::Current().MangleName(
                                     node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),

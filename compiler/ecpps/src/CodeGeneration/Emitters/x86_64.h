@@ -47,7 +47,8 @@ namespace ecpps::codegen::emitters
      public:
           explicit X8664Emitter(void) : CodeEmitter("x86_64") {}
 
-          virtual void PatchCalls(std::vector<std::byte>& source,
+          virtual void PatchCalls(
+              std::vector<std::byte>& source,
                                   const std::unordered_map<std::string, std::size_t>& routines) override;
 
      private:
