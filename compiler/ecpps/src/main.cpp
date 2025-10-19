@@ -123,18 +123,24 @@ int main(int argc, char* argv[])
           }
           emitter->PatchCalls(generatedMachineCode, routines);
           if (isExtraVerbose)
-               for (auto it = routines.begin(); it != routines.end(); ++it)
+          {
+               std::vector<std::pair<std::string, std::size_t>> ordered;
+               ordered.reserve(routines.size());
+               for (const auto& r : routines) ordered.push_back(r);
+
+               std::ranges::sort(ordered, {}, &std::pair<std::string, std::size_t>::second);
+
+               for (std::size_t i = 0; i < ordered.size(); ++i)
                {
-                    const auto& [routineName, routineOffset] = *it;
+                    const auto& [routineName, routineOffset] = ordered[i];
                     std::println("{}:", routineName);
-                    // TODO: Assert
 
                     std::size_t start = std::min(routineOffset, generatedMachineCode.size());
-                    std::size_t nextOffset =
-                        (std::next(it) == routines.end()) ? generatedMachineCode.size() : std::next(it)->second;
-                    std::size_t end = std::min(nextOffset, generatedMachineCode.size());
+                    std::size_t end = (i + 1 < ordered.size())
+                                          ? std::min(ordered[i + 1].second, generatedMachineCode.size())
+                                          : generatedMachineCode.size();
 
-                    if (start > end) start = end; // ensure empty range if misordered
+                    if (start >= end) continue;
 
                     auto machineCode =
                         std::ranges::subrange(generatedMachineCode.begin() + start, generatedMachineCode.begin() + end);
@@ -157,6 +163,7 @@ int main(int argc, char* argv[])
                          std::println("|");
                     }
                }
+          }
 
           for (const auto& diag : source.diagnostics.diagnosticsList)
           {

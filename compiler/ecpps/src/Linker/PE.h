@@ -62,35 +62,35 @@ namespace ecpps::linker::win
      // Optional Header (Image)
      struct OptionalHeader
      {
-          std::uint16_t magic{};                     // Magic number (0x010B for PE32, 0x020B for PE32+)
-          std::uint8_t majorLinkerVersion{};         // Linker version
-          std::uint8_t minorLinkerVersion{};         // Linker version
-          std::uint32_t sizeOfCode{};                // Size of code section
-          std::uint32_t sizeOfInitializedData{};     // Size of initialized data section
-          std::uint32_t sizeOfUninitializedData{};   // Size of uninitialized data section
-          std::uint32_t addressOfEntryPoint{};       // Entry point address
-          std::uint32_t baseOfCode{};                // Base address of code section
-          std::uint64_t imageBase{};                 // Preferred base address
-          std::uint32_t sectionAlignment{};          // Section alignment
-          std::uint32_t fileAlignment{};             // File alignment
+          std::uint16_t magic{};                       // Magic number (0x010B for PE32, 0x020B for PE32+)
+          std::uint8_t majorLinkerVersion{};           // Linker version
+          std::uint8_t minorLinkerVersion{};           // Linker version
+          std::uint32_t sizeOfCode{};                  // Size of code section
+          std::uint32_t sizeOfInitializedData{};       // Size of initialized data section
+          std::uint32_t sizeOfUninitializedData{};     // Size of uninitialized data section
+          std::uint32_t addressOfEntryPoint{};         // Entry point address
+          std::uint32_t baseOfCode{};                  // Base address of code section
+          std::uint64_t imageBase{};                   // Preferred base address
+          std::uint32_t sectionAlignment{};            // Section alignment
+          std::uint32_t fileAlignment{};               // File alignment
           std::uint16_t majorOperatingSystemVersion{}; // OS version
           std::uint16_t minorOperatingSystemVersion{}; // OS version
-          std::uint16_t majorImageVersion{};         // Image version
-          std::uint16_t minorImageVersion{};         // Image version
-          std::uint16_t majorSubsystemVersion{};     // Subsystem version
-          std::uint16_t minorSubsystemVersion{};     // Subsystem version
-          std::uint32_t win32VersionValue{};         // Reserved
-          std::uint32_t sizeOfImage{};               // Size of the image
-          std::uint32_t sizeOfHeaders{};             // Size of headers
-          std::uint32_t checkSum{};                  // Checksum
-          std::uint16_t subsystem{};                 // Subsystem
-          std::uint16_t dllCharacteristics{};        // DLL characteristics
-          std::uint64_t sizeOfStackReserve{};        // Size of stack reserve
-          std::uint64_t sizeOfStackCommit{};         // Size of stack commit
-          std::uint64_t sizeOfHeapReserve{};         // Size of heap reserve
-          std::uint64_t sizeOfHeapCommit{};          // Size of heap commit
-          std::uint32_t loaderFlags{};               // Loader flags
-          std::uint32_t numberOfRvaAndSizes{};       // Number of RVA and sizes
+          std::uint16_t majorImageVersion{};           // Image version
+          std::uint16_t minorImageVersion{};           // Image version
+          std::uint16_t majorSubsystemVersion{};       // Subsystem version
+          std::uint16_t minorSubsystemVersion{};       // Subsystem version
+          std::uint32_t win32VersionValue{};           // Reserved
+          std::uint32_t sizeOfImage{};                 // Size of the image
+          std::uint32_t sizeOfHeaders{};               // Size of headers
+          std::uint32_t checkSum{};                    // Checksum
+          std::uint16_t subsystem{};                   // Subsystem
+          std::uint16_t dllCharacteristics{};          // DLL characteristics
+          std::uint64_t sizeOfStackReserve{};          // Size of stack reserve
+          std::uint64_t sizeOfStackCommit{};           // Size of stack commit
+          std::uint64_t sizeOfHeapReserve{};           // Size of heap reserve
+          std::uint64_t sizeOfHeapCommit{};            // Size of heap commit
+          std::uint32_t loaderFlags{};                 // Loader flags
+          std::uint32_t numberOfRvaAndSizes{};         // Number of RVA and sizes
           // Optional: Data Directory (up to 16 entries)
           DataDirectory dataDirectory[16]{};
      };
@@ -186,7 +186,7 @@ namespace ecpps::linker::win
 
           [[nodiscard]] std::vector<std::byte> toBytes(const std::string& imageName);
 
-     //private:
+          // private:
           DosHeader _dosHeader{};
           NtHeaders _ntHeaders{};
      };

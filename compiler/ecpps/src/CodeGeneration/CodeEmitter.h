@@ -22,6 +22,7 @@ namespace ecpps::codegen
           std::function<std::vector<std::byte>(
               Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
               apply;
+          std::size_t applyOutputSize;
      };
      using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
 

@@ -47,8 +47,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
           selectedLinker = ecpps::linker::Linker::CreateLinker(
               ecpps::linker::LinkerType::PE,
               std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
-                  ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable,
-                  LinkerBitness::x64));
+                  ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable, LinkerBitness::x64));
      }
      break;
      }

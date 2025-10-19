@@ -24,7 +24,7 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
           {
                this->linkerForwardedRelocations.emplace(
                    ByteOffset{offset},
-                                          Relocation{name, ApplyImportLambda}); // Linker pass handles that, hopefully
+                                          Relocation{name, ApplyImportLambda, 6}); // Linker pass handles that, hopefully
                continue;
           }
 

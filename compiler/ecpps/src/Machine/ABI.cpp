@@ -380,15 +380,12 @@ ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetReq
      throw nullptr; // FIXME: Obvious
 }
 
-
-
 struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
 {
      explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
                                        const ecpps::abi::CallingConvention& callingConvention)
          : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
-           //_currentStackSize(64)    
-           _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize()) // 8 for padding
+           _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
      {
      }
 

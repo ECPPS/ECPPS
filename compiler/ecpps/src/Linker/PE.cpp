@@ -1,6 +1,7 @@
 #include "PE.h"
 #include <Windows.h>
 #include <corecrt.h>
+#include <algorithm>
 #include <concepts>
 #include <cstdarg>
 #include <cstddef>
@@ -8,10 +9,9 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <ranges>
 #include <string>
 #include <vector>
-#include <ranges>
-#include <algorithm>
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
@@ -75,6 +75,7 @@ auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view s
 {
      for (const char character : string) destination.push_back(std::byte{static_cast<unsigned char>(character)});
 }
+
 static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
                                                const std::unordered_map<std::string, std::vector<std::string>>& imports)
 {
@@ -82,11 +83,9 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
      const size_t descriptorSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
      const size_t thunkSize = sizeof(std::uint64_t);
 
-     // Count total thunks
      size_t totalThunks = 0;
      for (auto& kv : imports) totalThunks += kv.second.size() + 1;
 
-     // Calculate offsets
      const size_t intOffset = AlignUp(descriptorCount * descriptorSize, 8uz);
      const size_t iatOffset = intOffset + totalThunks * thunkSize;
      size_t nameOffset = AlignUp(iatOffset + totalThunks * thunkSize, 2uz);
@@ -163,17 +162,14 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           ++descIndex;
      }
 
-     // Final zero descriptor
      IMAGE_IMPORT_DESCRIPTOR zero{};
      ensureSize(descIndex * descriptorSize + descriptorSize);
      std::memcpy(buffer.data() + descIndex * descriptorSize, &zero, descriptorSize);
 
-     // Resize buffer to actual used size
      buffer.resize(currentNameOffset);
 
      return buffer;
 }
-
 
 std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& imageName)
 {
@@ -270,7 +266,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
 
      std::uint32_t exportSize = currentOffset - exportRVA;
 
-// Section alignment
+     // Section alignment
      const uint32_t sectionAlign = this->_ntHeaders.optionalHeader.sectionAlignment;
      uint32_t currentRVA = AlignUp(exportRVA + exportSize, sectionAlign);
 
@@ -299,13 +295,12 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());
      this->_ntHeaders.optionalHeader.sizeOfImage = AlignUp(currentRVA, sectionAlign);
 
-
      this->_ntHeaders.optionalHeader.numberOfRvaAndSizes = 14;
      this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
          DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
 
-     //this->_ntHeaders.optionalHeader.sizeOfImage =
-     //    AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
+     // this->_ntHeaders.optionalHeader.sizeOfImage =
+     //     AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
 
      // Headers and section layout
      constexpr std::uint32_t ntHeadersOffset = AlignUp(sizeof(DosHeader), sizeof(std::uint32_t));

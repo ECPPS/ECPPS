@@ -6,8 +6,7 @@
 
 DllImport extern "C" void ExitProcess(int);
 
-int getValue()
-{ return 5; }
+int getValue() { return 5; }
 
 int main()
 {

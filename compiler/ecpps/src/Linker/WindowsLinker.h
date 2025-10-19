@@ -31,7 +31,7 @@ namespace ecpps::linker::win
           [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName,
                                                        std::size_t entryPointAddress) const override;
 
-          [[nodiscard]] std::uint32_t LookupSymbol(const std::string& symbolName) const;
+          [[nodiscard]] std::uint32_t LookupSymbol(const std::string& symbolName, std::uint32_t codeSize) const;
 
      private:
           [[nodiscard]] PEImage Link(std::uint32_t entryPoint) const;

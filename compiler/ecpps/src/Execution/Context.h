@@ -126,14 +126,13 @@ namespace ecpps::ir
           All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
                 IsExtern | ConstexprSpecifier | IsDllImportExport
      };
-     [[nodiscard]] constexpr FunctionScopeBuilderState operator|(
-         const FunctionScopeBuilderState lhs, const FunctionScopeBuilderState rhs) noexcept
+     [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
+                                                                 const FunctionScopeBuilderState rhs) noexcept
      {
           return static_cast<FunctionScopeBuilderState>(std::to_underlying(lhs) | std::to_underlying(rhs));
      }
 
-     template <FunctionScopeBuilderState TState = FunctionScopeBuilderState::None>
-     struct FunctionScopeBuilder
+     template <FunctionScopeBuilderState TState = FunctionScopeBuilderState::None> struct FunctionScopeBuilder
      {
           FunctionScopeBuilder(const FunctionScopeBuilder&) = delete;
           FunctionScopeBuilder(FunctionScopeBuilder&&) = default;
@@ -145,7 +144,8 @@ namespace ecpps::ir
                return newBuilder;
           }
 
-          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(std::string value) && noexcept
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(
+              std::string value) && noexcept
           {
                return std::move(*this).PropertySetter<&FunctionScope::name>(std::move(value));
           }
@@ -208,8 +208,7 @@ namespace ecpps::ir
           }
 
      private:
-          template <auto T>
-          [[nodiscard]] FunctionScopeBuilder PropertySetter(auto&& value) &&
+          template <auto T> [[nodiscard]] FunctionScopeBuilder PropertySetter(auto&& value) &&
           {
                this->_scope->*T = std::forward<std::remove_reference_t<decltype(value)>>(value);
                return std::move(*this);

@@ -313,7 +313,7 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
      }
 
      stackManager->Finish();
-     
+
      return Routine::Branchless(std::move(instructions),
                                 ecpps::abi::ABI::Current().MangleName(
                                     node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <ranges>
 #include "PE.h"
 
 constexpr std::string_view CodeSectionName = ".text";
@@ -12,14 +13,18 @@ constexpr std::string_view CodeSectionName = ".text";
 constexpr std::uint32_t ExportDisplacement = 0x1000;
 
 std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vector<std::byte> data,
-                                                    const codegen::LinkerRelocationMap& relocationMap)
+                                                                      const codegen::LinkerRelocationMap& relocationMap)
 {
      PESection textSection{};
      std::size_t offset{};
      std::unordered_map<std::string, std::vector<std::byte>> relocationThunks{};
+     auto codeSize = data.size();
+     for (const auto& relocation : relocationMap | std::views::values)
+          codeSize += relocation.applyOutputSize;
+     
      for (const auto& [where, relocation] : relocationMap)
      {
-          const auto resolvedAddress = this->LookupSymbol(relocation.symbolName);
+          const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, codeSize);
           auto toInsert = relocation.apply(Address{resolvedAddress - where.Value() - offset}, relocationThunks);
           auto begin = data.begin() + offset;
           offset += toInsert.size();
@@ -63,15 +68,14 @@ template <std::integral T> constexpr static T AlignUp(const T value, const T ali
      return (value + alignment - 1) & ~(alignment - 1);
 }
 
-std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string& symbolName) const
+std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string& symbolName, std::uint32_t codeSize) const
 {
-     if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second; // absolute RVA
+     if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second;
 
-     std::uint32_t iltPtr = 0; // offset to first thunk (relative to idataVA)
-     std::uint32_t iatPtr = 0; // offset to IAT entries
+     std::uint32_t iltPtr = 0;
+     std::uint32_t iatPtr = 0;
      std::uint32_t currentNameOffset = 0;
 
-     // Calculate descriptorCount, thunk offsets etc. the same way as BuildIdataBuffer
      const size_t descriptorCount = this->_imports.size() + 1;
      const size_t descriptorSize = 20;
      size_t totalThunks = 0;
@@ -85,31 +89,28 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
      iatPtr = static_cast<std::uint32_t>(iatOffset);
      currentNameOffset = static_cast<std::uint32_t>(nameOffset);
 
-     // Now iterate DLLs
+     const std::uint32_t textBegin = 0; // we are already uh in text...
+     const std::uint32_t textEnd = AlignUp(textBegin + codeSize, 0x1000U);
+     const std::uint32_t idataRva = textEnd + 0x1000;
+
      for (auto& [dll, funcs] : this->_imports)
      {
           for (std::size_t i = 0; i < funcs.size(); ++i)
           {
                if (funcs[i] == symbolName)
                {
-                    // Compute the IAT entry RVA
-                    // The IAT starts at iatOffset relative to idataVA
-                    return 0x2000 + iatPtr + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) - 6;
+                    return idataRva + iatPtr + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) - 6;
                }
 
-               // Update currentNameOffset if you also need name RVA
                currentNameOffset += 2 + static_cast<std::uint32_t>(funcs[i].size() + 1);
                currentNameOffset = static_cast<std::uint32_t>(AlignUp(currentNameOffset, 2U));
           }
 
-          // Advance iatPtr past this DLL's thunks + null terminator
           iatPtr += static_cast<std::uint32_t>((funcs.size() + 1) * sizeof(std::uint64_t));
      }
 
-     throw nullptr;
-     //throw std::runtime_error("Symbol not found: " + symbolName);
+     return 0;
 }
-
 
 ecpps::linker::win::PEImage ecpps::linker::win::WindowsLinker::Link(const std::uint32_t entryPoint) const
 {
