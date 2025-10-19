@@ -2,7 +2,7 @@
 
 #include <cstddef>
 #include <memory>
-#include <string>      
+#include <string>
 #include <unordered_set>
 #include <variant>
 
@@ -108,4 +108,4 @@ namespace ecpps::abi
           {
           }
      };
-}
+} // namespace ecpps::abi

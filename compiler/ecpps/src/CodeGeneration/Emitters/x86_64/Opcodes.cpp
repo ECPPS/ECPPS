@@ -294,7 +294,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg64(std::size_t
 
      binary.push_back(static_cast<std::byte>(0x8B));
 
-     if (sourceOffset <= 0x7F) 
+     if (sourceOffset <= 0x7F)
      {
           std::uint8_t modrm = 0b01000000 | ((destinationRegister & 7) << 3) | (sourceRegister & 7);
           binary.push_back(static_cast<std::byte>(modrm));
@@ -332,7 +332,6 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRipToReg64(std::size_t
 
      return binary;
 }
-
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm)
 {
@@ -1664,7 +1663,6 @@ std::vector<std::byte> ecpps::codegen::x86_64::GeneratePopReg64(std::size_t reg)
 
      return code;
 }
-
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateIndirectCall(std::int32_t displacement)
 {

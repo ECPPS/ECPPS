@@ -13,7 +13,7 @@ namespace ecpps
           return (number + alignment - 1) & ~(alignment - 1);
      }
      template <typename TElement, typename TAllocator = std::allocator<TElement>,
-          std::size_t TNSBOSize = std::hardware_destructive_interference_size>
+               std::size_t TNSBOSize = std::hardware_destructive_interference_size>
      class SBOVector
      {
           struct NoSBO
@@ -26,7 +26,7 @@ namespace ecpps
           /// In elements, not bytes
           /// </summary>
           static constexpr std::size_t SBOSize =
-               std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
+              std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
 
           union BufferUnion
           {
@@ -126,14 +126,14 @@ namespace ecpps
           TElement* end(void)
           {
                return UseSBO() ? std::launder(this->_size + reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo))
-                    : (this->begin() + this->_size);
+                               : (this->begin() + this->_size);
           }
 
           const TElement* end(void) const
           {
                return UseSBO()
-                    ? std::launder(this->_size + reinterpret_cast<const TElement(&)[SBOSize]>(this->_buffer.sbo))
-                    : (this->begin() + this->_size);
+                          ? std::launder(this->_size + reinterpret_cast<const TElement(&)[SBOSize]>(this->_buffer.sbo))
+                          : (this->begin() + this->_size);
           }
           template <typename... TArgs> TElement& EmplaceBack(TArgs&&... args)
           {
@@ -149,7 +149,8 @@ namespace ecpps
                          TElement* newBuffer = allocator.allocate(cap);
                          for (std::size_t i = 0; i < this->SBOSize; ++i)
                          {
-                              new (newBuffer + i) TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
+                              new (newBuffer + i)
+                                  TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
                               reinterpret_cast<TElement*>(this->_buffer.sbo)[i].~TElement();
                          }
                          _buffer.noSbo._begin = newBuffer;
@@ -172,7 +173,7 @@ namespace ecpps
                }
 
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + (_size - 1),
-                    std::forward<TArgs>(args)...);
+                                         std::forward<TArgs>(args)...);
           }
           TElement& Push(const TElement& value)
           {
@@ -197,10 +198,9 @@ namespace ecpps
                          const std::size_t oldCap = this->_buffer.noSbo._capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index, newBuf);
-                         for (std::size_t i = 0; i < index; ++i) {
-                              std::destroy_at(this->_buffer.noSbo._begin + i);
-                         }
+                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index,
+                                                 newBuf);
+                         for (std::size_t i = 0; i < index; ++i) { std::destroy_at(this->_buffer.noSbo._begin + i); }
                          allocator.deallocate(std::exchange(_buffer.noSbo._begin, newBuf), oldCap);
                          this->_buffer.noSbo._capacity = newCap;
                     }
@@ -208,7 +208,7 @@ namespace ecpps
                     return *std::construct_at(_buffer.noSbo._begin + index, value);
                }
                return *std::construct_at(
-                    std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
+                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
           }
 
           TElement& Push(TElement&& value)
@@ -234,9 +234,12 @@ namespace ecpps
                          const std::size_t oldCap = this->_buffer.noSbo._capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index, newBuf);
-                         for (std::size_t i = 0; i < index; ++i) {
-                               this->_buffer.noSbo._begin[i].~TElement();                         allocator.deallocate(std::exchange(this->_buffer.noSbo._begin, newBuf), oldCap);
+                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index,
+                                                 newBuf);
+                         for (std::size_t i = 0; i < index; ++i)
+                         {
+                              this->_buffer.noSbo._begin[i].~TElement();
+                              allocator.deallocate(std::exchange(this->_buffer.noSbo._begin, newBuf), oldCap);
                          }
                          this->_buffer.noSbo._capacity = newCap;
                     }

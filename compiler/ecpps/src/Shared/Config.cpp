@@ -71,7 +71,7 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                     if (lowerValue == "win64" || lowerValue == "pe64" || lowerValue == "pe32p")
                          this->linker = LinkerUsed::Windows64;
                     else if (lowerValue == "win32" || lowerValue == "pe32")
-                         this->linker = LinkerUsed::Windows32;      
+                         this->linker = LinkerUsed::Windows32;
                     else if (lowerValue == "cao" || lowerValue == "caosys" || lowerValue == "cao64")
                          this->linker = LinkerUsed::Caosys;
                     else

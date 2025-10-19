@@ -137,14 +137,15 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      // TODO: Error on conflicting linkage specification
 
      bool isDllImportExport{};
-     
+
      for (const auto& attribute : node.Signature().attributes)
      {
           if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport") isDllImportExport = true;
      }
 
-     auto functionScope = MakeFunctionScope()
-          .Name(node.Signature().name->ToString(0))
+     auto functionScope =
+         MakeFunctionScope()
+             .Name(node.Signature().name->ToString(0))
              .ReturnType(returnType)
              .CallingConvention(node.Signature().callingConvention)
              .Linkage(linkage)
@@ -157,7 +158,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                      ? ecpps::ir::ConstexprType::Constexpr
                                      : ecpps::ir::ConstexprType::None)
              .Parameters(parameters)
-          .Build();
+             .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
      auto functionContext = std::make_shared<FunctionContext>(
@@ -166,7 +167,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
              std::views::transform([](const FunctionScope::Parameter& parameter) -> decltype(auto)
                                    { return parameter.type; }) |
              std::ranges::to<std::vector>());
-
 
      ir._context = this->_context;
      ir._context.contextSequence.Push(std::move(functionContext));

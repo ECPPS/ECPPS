@@ -1,8 +1,8 @@
 #include "WindowsLinker.h"
 #include <cstdint>
+#include <ranges>
 #include <string>
 #include <string_view>
-#include <ranges>
 #include "PE.h"
 
 constexpr std::string_view CodeSectionName = ".text";
@@ -19,9 +19,8 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
      std::size_t offset{};
      std::unordered_map<std::string, std::vector<std::byte>> relocationThunks{};
      auto codeSize = data.size();
-     for (const auto& relocation : relocationMap | std::views::values)
-          codeSize += relocation.applyOutputSize;
-     
+     for (const auto& relocation : relocationMap | std::views::values) codeSize += relocation.applyOutputSize;
+
      for (const auto& [where, relocation] : relocationMap)
      {
           const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, codeSize);
@@ -68,7 +67,8 @@ template <std::integral T> constexpr static T AlignUp(const T value, const T ali
      return (value + alignment - 1) & ~(alignment - 1);
 }
 
-std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string& symbolName, std::uint32_t codeSize) const
+std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string& symbolName,
+                                                              std::uint32_t codeSize) const
 {
      if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second;
 

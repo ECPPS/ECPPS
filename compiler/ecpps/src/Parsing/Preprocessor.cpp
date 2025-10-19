@@ -1,9 +1,9 @@
 #include "Preprocessor.h"
+#include <Assert.h>
 #include <algorithm>
 #include <cctype>
 #include <print>
 #include <unordered_set>
-#include <Assert.h>
 #include "Tokeniser.h"
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
@@ -23,8 +23,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                location.line++;
                location.position = 0;
                for (auto& macro : macros)
-                    if (macro.name == "__LINE__")
-                         macro.contents = std::to_string(location.line);
+                    if (macro.name == "__LINE__") macro.contents = std::to_string(location.line);
                continue;
           }
           if (character == '\n')
@@ -153,7 +152,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     while (sourceIterator != source.end())
                     {
                          char c = *sourceIterator;
-                         if (c == '#'/* && location.position == 1*/)
+                         if (c == '#' /* && location.position == 1*/)
                          {
                               // peek directive name
                               auto peekIt = sourceIterator;
@@ -201,8 +200,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           if (IsCharacterBeginning(character))
           {
                std::string identifier{character};
-               while (sourceIterator != source.end() &&
-                      std::next(sourceIterator) != source.end() &&
+               while (sourceIterator != source.end() && std::next(sourceIterator) != source.end() &&
                       (character = *std::next(sourceIterator), IsCharacterContinuation(character)))
                {
                     identifier += character;
@@ -263,7 +261,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
                          }
                     }
-                    else 
+                    else
                     {
                          auto expandedTokens = it->ProcessObjectLike(location, macros);
                          tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
@@ -577,7 +575,6 @@ static std::string ExpandMacroString(const std::string& contents,
      return result;
 }
 
-
 static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::string& expanded,
                                                                     const ecpps::Location& location)
 {
@@ -587,7 +584,6 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
      for (auto& token : tokens) token.source = location;
      return tokens;
 }
-
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
@@ -619,7 +615,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     for (const auto& token : arguments[i]) argStr += token.value;
                     parameterMap[name] = argStr;
                }
-               else parameterMap[(*parameters)[i]] = "";
+               else
+                    parameterMap[(*parameters)[i]] = "";
           }
           if (isVariadic)
           {
@@ -629,7 +626,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     for (std::size_t i = parameters->size(); i < arguments.size(); ++i)
                     {
                          for (const auto& tok : arguments[i]) vargs += tok.value;
-                         if (i + 1 < arguments.size()) vargs += ","; 
+                         if (i + 1 < arguments.size()) vargs += ",";
                     }
                }
                parameterMap["__VA_ARGS__"] = vargs;

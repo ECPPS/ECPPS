@@ -1,10 +1,10 @@
 #pragma once
 #include <cctype>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-#include <optional>
 #include "SourceMap.h"
 
 namespace ecpps

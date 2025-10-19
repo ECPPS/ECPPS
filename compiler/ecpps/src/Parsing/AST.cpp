@@ -167,12 +167,9 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      }
      auto name = ParseIdentifier();
 
-     FunctionSignature signature{std::move(type),
-                                 false,
-                                 false,
-                                 ConstantExpressionSpecifier::None, std::move(attributes),
-                                 std::move(name),
-                                 callingConvention}; // TODO: Allow id-expression
+     FunctionSignature signature{
+         std::move(type),  false, false, ConstantExpressionSpecifier::None, std::move(attributes), std::move(name),
+         callingConvention}; // TODO: Allow id-expression
 
      signature.isExtern = isExtern;
      signature.externOptional = externOptional;

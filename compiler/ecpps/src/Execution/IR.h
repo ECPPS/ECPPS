@@ -4,9 +4,9 @@
 #include "../Parsing/AST.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"
-#include "Context.h"
 
 namespace ecpps::ir
 {

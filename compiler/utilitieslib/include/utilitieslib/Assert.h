@@ -11,15 +11,13 @@ void RuntimeAssert(bool condition, std::string_view conditionString, std::string
 struct Empty
 {
 };
-template <typename>
-using DebugOnlyImpl = Empty;
+template <typename> using DebugOnlyImpl = Empty;
 #ifdef _MSC_VER
 #define DebugOnly [[msvc::no_unique_address]] DebugOnlyImpl
 #else
 #define DebugOnly [[no_unique_address]] DebugOnlyImpl
 #endif
 #else
-#define runtime_assert(condition, message) RuntimeAssert(condition, #condition, message, __FILE__, __LINE__, __func__)  
-template <typename T>
-using DebugOnly = T;
+#define runtime_assert(condition, message) RuntimeAssert(condition, #condition, message, __FILE__, __LINE__, __func__)
+template <typename T> using DebugOnly = T;
 #endif

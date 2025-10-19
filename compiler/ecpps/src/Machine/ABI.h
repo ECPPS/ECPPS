@@ -1,15 +1,15 @@
 #pragma once
+#include <Assert.h>
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <variant>
 #include <vector>
+#include "../CodeGeneration/Nodes.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Machine.h"
 #include "Storage.h"
-#include "../CodeGeneration/Nodes.h"
-#include <Assert.h>
 
 /// <summary>
 /// The term "width" is always measured in bits, while "size" in bytes. ECPPS ABI defines one byte to be exactly eight
@@ -26,7 +26,7 @@ namespace ecpps::abi
           Module,
           CLinkage
      };
-     
+
      enum struct CallingConventionName : std::uint_fast16_t
      {
           Microsoftx64
@@ -90,7 +90,8 @@ namespace ecpps::abi
           [[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
           [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
           [[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
-          [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(std::vector<ecpps::codegen::Instruction>&) const = 0;
+          [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(
+              std::vector<ecpps::codegen::Instruction>&) const = 0;
 
      protected:
           CallingConventionName _name;
@@ -108,7 +109,8 @@ namespace ecpps::abi
           [[nodiscard]] std::vector<StorageRef> LocateParameters(
               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
           [[nodiscard]] StorageRequirement GetRequirementsForType(const typeSystem::TypePointer& type) const override;
-          [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(std::vector<ecpps::codegen::Instruction>& instructionVector) const final override;
+          [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(
+              std::vector<ecpps::codegen::Instruction>& instructionVector) const final override;
      };
 
      enum struct RegisterAllocation : bool
