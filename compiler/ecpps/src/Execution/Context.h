@@ -46,7 +46,7 @@ namespace ecpps::ir
               : ContextBase(vScope), returnType(std::move(returnType))
           {
           }
-          abi::CallingConventionName callingConvention;
+          abi::CallingConventionName callingConvention{};
           typeSystem::TypePointer returnType;
           std::string name;
           std::vector<typeSystem::TypePointer> parameters;
@@ -106,6 +106,16 @@ namespace ecpps::ir
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
+          struct Variable
+          {
+               std::string name{};
+               typeSystem::TypePointer type{};
+               bool isStatic = false;
+               bool isExtern = false;
+          };
+
+          std::vector<Variable> locals{};
+
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
      };
 

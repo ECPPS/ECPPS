@@ -84,25 +84,118 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg8(std::size_t 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(const std::size_t reg, const std::size_t offset,
                                                                      const std::uint32_t imm)
 {
-     return std::vector<std::byte>();
+     std::vector<std::byte> binary{};
+
+     // REX prefix for 64-bit operand
+     std::byte rex = std::byte(0x48);
+     if (reg >= R8)
+     {
+          rex |= std::byte(0x01 << 2); // REX.B
+     }
+     binary.push_back(rex);
+
+     // opcode
+     binary.push_back(std::byte(0xC7));
+
+     // ModRM byte
+     std::uint8_t modrm = 0x00; // [reg + disp32]
+     std::uint8_t regField = 0; // for MOV imm32
+     std::uint8_t rm = static_cast<uint8_t>(reg % 8);
+     modrm = 0x80 | (regField << 3) | rm; // mod = 0b10 (disp32)
+     binary.push_back(static_cast<std::byte>(modrm));
+
+     // displacement
+     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
+
+     // immediate (truncated to 32-bit, upper 32-bits ignored in x86_64 MOV [mem], imm64)
+     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+
+     return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem32(const std::size_t reg, const std::size_t offset,
                                                                      const std::uint32_t imm)
 {
-     return std::vector<std::byte>();
+     std::vector<std::byte> binary{};
+
+     std::byte rex = std::byte(0x40);            // no REX.W for 32-bit
+     if (reg >= R8) rex |= std::byte(0x01 << 2); // REX.B
+     if (rex != std::byte(0x40)) binary.push_back(rex);
+
+     binary.push_back(std::byte(0xC7)); // opcode
+
+     // Determine Mod
+     std::uint8_t mod;
+     if (offset == 0 && reg != Rbp && reg != R13) mod = 0x00; // no displacement
+     else if (offset < 0x80)
+          mod = 0x01; // 8-bit displacement
+     else
+          mod = 0x02; // 32-bit displacement
+
+     std::uint8_t rm = static_cast<uint8_t>(reg % 8);
+
+     // Special case: RSP or R12 always need a SIB
+     bool needsSIB = (rm == 4);
+     std::uint8_t modrm = (mod << 6) | (0 << 3) | rm;
+     binary.push_back(static_cast<std::byte>(modrm));
+
+     if (needsSIB) binary.push_back(std::byte(0x24)); // SIB: scale=0, index=4(none), base=rsp/r12
+
+     // displacement
+     if (mod == 0x01) // 8-bit
+          binary.push_back(static_cast<std::byte>(offset & 0xFF));
+     else if (mod == 0x02 || (mod == 0x00 && (rm == 5 || rm == 13))) // 32-bit
+          for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
+
+     // immediate
+     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+
+     return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem16(const std::size_t reg, const std::size_t offset,
                                                                      const std::uint16_t imm)
 {
-     return std::vector<std::byte>();
+     std::vector<std::byte> binary{};
+     binary.push_back(std::byte(0x66)); // operand-size override prefix
+
+     std::byte rex = std::byte(0x40);
+     if (reg >= R8) rex |= std::byte(0x01 << 2); // REX.B
+     if (rex != std::byte(0x40)) binary.push_back(rex);
+
+     binary.push_back(std::byte(0xC7)); // opcode
+     std::uint8_t modrm = 0x80 | (0 << 3) | static_cast<uint8_t>(reg % 8);
+     binary.push_back(static_cast<std::byte>(modrm));
+
+     // displacement
+     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
+
+     // immediate
+     for (int i = 0; i < 2; ++i) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+
+     return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem8(const std::size_t reg, const std::size_t offset,
                                                                     const std::uint8_t imm)
 {
-     return std::vector<std::byte>();
+     std::vector<std::byte> binary{};
+
+     std::byte rex = std::byte(0x40);
+     if (reg >= R8) rex |= std::byte(0x01 << 2); // REX.B
+     if (rex != std::byte(0x40)) binary.push_back(rex);
+
+     binary.push_back(std::byte(0xC6)); // opcode for MOV r/m8, imm8
+     std::uint8_t modrm = 0x80 | (0 << 3) | static_cast<uint8_t>(reg % 8);
+     binary.push_back(static_cast<std::byte>(modrm));
+
+     // displacement
+     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
+
+     // immediate
+     binary.push_back(static_cast<std::byte>(imm));
+
+     return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg64(const std::size_t destination,

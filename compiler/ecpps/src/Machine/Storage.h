@@ -74,10 +74,15 @@ namespace ecpps::abi
           std::shared_ptr<VirtualRegister> _register;
      };
 
+     struct MemoryLocation
+     {
+          std::size_t offset;
+          std::shared_ptr<VirtualRegister> reg;
+     };
+
      struct StorageRef
      {
-          using ValueType = std::variant<std::monostate, AllocatedRegister,
-                                         std::vector<AllocatedRegister>>; // TODO: Add memory location
+          using ValueType = std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
           ValueType value;
           explicit StorageRef(ValueType value) : value(std::move(value)) {}
           explicit(false) StorageRef(std::nullptr_t) : value(std::monostate{}) {}

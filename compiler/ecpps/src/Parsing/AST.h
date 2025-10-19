@@ -421,6 +421,88 @@ namespace ecpps::ast
           NodePointer _expression;
      };
 
+     class VariableDeclarationNode final : public Node
+     {
+     public:
+          struct Declarator
+          {
+               NodePointer name;
+               NodePointer initialiser;
+               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr) : name(std::move(name)), initialiser(std::move(initialiser))
+               {
+               }
+          };
+
+          struct Flags
+          {
+               bool isTypedef = false;
+               bool isFriend = false;
+               bool isConstexpr = false;
+               bool isConsteval = false;
+               bool isConstinit = false;
+               bool isInline = false;
+               bool isStatic = false;
+               bool isThreadLocal = false;
+               bool isExtern = false;
+               bool isMutable = false;
+               bool isConst = false;
+               bool isVolatile = false;
+          };
+
+          VariableDeclarationNode(NodePointer type, std::vector<Declarator> declarators, Flags flags,
+                                  std::optional<NodePointer> explicitSpecifier, Location source)
+              : Node(std::move(source)), _type(std::move(type)), _declarators(std::move(declarators)), _flags(flags),
+                _explicitSpecifier(std::move(explicitSpecifier))
+          {
+          }
+
+          [[nodiscard]] const NodePointer& Type(void) const noexcept { return this->_type; }
+          [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept { return this->_declarators; }
+          [[nodiscard]] const Flags& GetFlags(void) const noexcept { return this->_flags; }
+          [[nodiscard]] const std::optional<NodePointer>& ExplicitSpecifier(void) const noexcept
+          {
+               return this->_explicitSpecifier;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built(indent * PrettyIndent, ' ');
+               // add flags
+               if (this->_flags.isTypedef) built += "typedef ";
+               if (this->_flags.isConstexpr) built += "constexpr ";
+               if (this->_flags.isConsteval) built += "consteval ";
+               if (this->_flags.isConstinit) built += "constinit ";
+               if (this->_flags.isInline) built += "inline ";
+               if (this->_flags.isStatic) built += "static ";
+               if (this->_flags.isThreadLocal) built += "thread_local ";
+               if (this->_flags.isExtern) built += "extern ";
+               if (this->_flags.isMutable) built += "mutable ";
+               if (this->_flags.isConst) built += "const ";
+               if (this->_flags.isVolatile) built += "volatile ";
+               if (this->_flags.isFriend) built += "friend ";
+               if (this->_explicitSpecifier) built += "explicit ";
+
+               built += this->_type->ToString(0) + " ";
+
+               for (size_t i = 0; i < _declarators.size(); ++i)
+               {
+                    const auto& declarator = this->_declarators[i];
+                    built += declarator.name->ToString(0);
+                    if (declarator.initialiser) built += " = " + declarator.initialiser->ToString(0);
+                    if (i + 1 < this->_declarators.size()) built += ", ";
+               }
+
+               return built;
+          }
+
+     private:
+          NodePointer _type;
+          std::vector<Declarator> _declarators;
+          Flags _flags;
+          std::optional<NodePointer> _explicitSpecifier;
+     };
+
+
      class BooleanLiteralNode final : public Node
      {
      public:
@@ -521,6 +603,17 @@ namespace ecpps::ast
           NodePointer ParseBlockDeclaration(void);
           NodePointer ParseNameDeclaration(void);
           NodePointer ParseFunctionDefinition(void);
+          bool IsDeclarationStart(void);
+
+          // simple-declaration
+          NodePointer ParseSimpleDeclaration(void); // simple-declaration
+          NodePointer TryParseDeclSpecifier(void); // decl-specifier
+          NodePointer TryParseDefiningTypeSpecifier(void); // defining-type-specifier
+          NodePointer ParseInitDeclarator(void); // init-declarator
+          NodePointer TryParseDeclarator(void); // declarator
+          NodePointer TryParsePtrDeclarator(void); // ptr-declarator
+          NodePointer TryParseNoPtrDeclarator(void); // no-ptr-declarator
+          NodePointer ParseInitialiser(void); // initialiser
 
           // Expressions
           [[nodiscard]] NodePointer ParsePrimaryExpression(void);
@@ -546,6 +639,7 @@ namespace ecpps::ast
 
           // Statements
           NodePointer ParseStatement(void);
+          NodePointer ParseDeclarationStatement(void) { return ParseBlockDeclaration(); }
           NodePointer ParseExpressionStatement(void);
 
           // Helpers (parse sub-components)

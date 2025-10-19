@@ -106,6 +106,7 @@ namespace ecpps::ir
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
+          void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
 
           Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                              const Location& source);

@@ -20,11 +20,12 @@ namespace ecpps::ir
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::TypePointer returnType, std::string name,
-                                 std::vector<FunctionScope::Parameter> parameterList, std::vector<NodePointer> body,
+                                 std::vector<FunctionScope::Parameter> parameterList,
+                                 std::vector<FunctionScope::Variable> locals, std::vector<NodePointer> body,
                                  Location source)
               : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
                 _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
-                _parameterList(std::move(parameterList)), _body(std::move(body))
+                _parameterList(std::move(parameterList)), _locals(std::move(locals)), _body(std::move(body))
           {
           }
 
@@ -32,6 +33,10 @@ namespace ecpps::ir
           [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
                return this->_parameterList;
+          }                                                          
+          [[nodiscard]] const std::vector<FunctionScope::Variable>& Locals(void) const noexcept
+          {
+               return this->_locals;
           }
           [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept { return this->_body; }
 
@@ -57,6 +62,7 @@ namespace ecpps::ir
           typeSystem::TypePointer _returnType;
           std::string _name;
           std::vector<FunctionScope::Parameter> _parameterList;
+          std::vector<FunctionScope::Variable> _locals;
           std::vector<NodePointer> _body;
      };
 

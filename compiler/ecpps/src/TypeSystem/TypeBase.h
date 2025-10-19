@@ -22,6 +22,7 @@ namespace ecpps::typeSystem
           Character,
           Incomplete,
           Boolean,
+          Pointer,
 
           Count
      };
@@ -138,6 +139,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Character);
      TraitCheckerFunction(Incomplete);
      TraitCheckerFunction(Boolean);
+     TraitCheckerFunction(Pointer);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;

@@ -48,6 +48,9 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
 
      if (const auto returnNode = dynamic_cast<ast::ReturnNode*>(node.get()); returnNode != nullptr)
           return ParseReturn(*returnNode);
+     if (const auto variableDeclarationNode = dynamic_cast<ast::VariableDeclarationNode*>(node.get());
+         variableDeclarationNode != nullptr)
+          return ParseVariableDeclaration(*variableDeclarationNode);
 
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
@@ -169,17 +172,24 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
              std::ranges::to<std::vector>());
 
      ir._context = this->_context;
+     auto* vFunctionScope = functionScope.get();
      ir._context.contextSequence.Push(std::move(functionContext));
 
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
+     std::vector<FunctionScope::Variable> locals{};
+     locals.reserve(vFunctionScope->locals.size());
+     for (const auto& toCopy : vFunctionScope->locals)
+          locals.emplace_back(toCopy);
+
+
      if (typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::make_unique<ir::ReturnNode>(nullptr, node.Source()));
 
      this->_built.push_back(std::make_unique<ecpps::ir::ProcedureNode>(
          linkage, node.Signature().callingConvention, returnType, node.Signature().name->ToString(0),
-         std::move(parameters), std::move(ir._built), node.Source()));
+         std::move(parameters), std::move(locals), std::move(ir._built), node.Source()));
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
@@ -204,6 +214,106 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      runtime_assert(function != nullptr, "Function was null when parsing the function");
      this->_built.push_back(
          std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
+}
+
+void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode& node)
+{
+     const auto functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+     runtime_assert(functionContext != nullptr, "Variable declaration outside of a function is not supported");
+
+     auto& fscope = functionContext->GetScope<FunctionScope>();
+
+     auto declaredType = ParseType(node.Type());
+     if (declaredType == nullptr)
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build("Unknown type in variable declaration",
+                                                                              node.Source()));
+          return;
+     }
+
+    for (const auto& decl : node.Declarators())
+     {
+          const auto idNodePtr = decl.name.get();
+          const auto idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
+          if (idExpr == nullptr)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                       "Expected identifier in variable declarator", decl.name->Source()));
+               continue;
+          }
+
+          const std::string varName = idExpr->Value();
+
+          bool duplicate = false;
+          for (const auto& v : fscope.locals)
+          {
+               if (v.name == varName)
+               {
+                    duplicate = true;
+                    break;
+               }
+          }
+          if (!duplicate)
+          {
+               for (const auto& p : fscope.parameters)
+               {
+                    if (p.name == varName)
+                    {
+                         duplicate = true;
+                         break;
+                    }
+               }
+          }
+          if (duplicate)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                       "Redefinition of variable '" + varName + "'", decl.name->Source()));
+               continue;
+          }
+
+          FunctionScope::Variable varEntry;
+          varEntry.name = varName;
+          varEntry.type = declaredType;
+          varEntry.isStatic = node.GetFlags().isStatic;
+          varEntry.isExtern = node.GetFlags().isExtern;
+
+          fscope.locals.emplace_back(std::move(varEntry));
+          const auto& registeredVar = fscope.locals.back();
+
+          if (decl.initialiser)
+          {
+               auto initExpr = ParseExpression(decl.initialiser);
+               if (initExpr == nullptr)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                            "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
+                    continue;
+               }
+
+               auto converted = ConvertTo(std::move(initExpr), declaredType);
+               if (converted == nullptr)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                            "Cannot convert initialiser to variable type for '" + varName + "'",
+                            decl.initialiser->Source()));
+                    continue;
+               }
+
+               this->_built.push_back(
+                   std::make_unique<ir::StoreNode>(registeredVar.name, std::move(converted), decl.initialiser->Source()));
+          }
+          else
+          {
+               // TODO: default-initialiser
+               // for scalars it is an indeterminate value, but TODO: class types
+               // TODO: Error for references
+          }
+     }
 }
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
@@ -404,14 +514,83 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
 ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& type)
 {
+     auto ResolveBasicType = [this](const std::string& name) -> typeSystem::TypePointer
+     {
+          for (const auto& scope : this->_context.contextSequence)
+          {
+               for (auto& type : scope->GetScope().types)
+               {
+                    if (type->Name() == name)
+                         return type;
+               }
+          }   
+          //for (auto it = this->_context.contextSequence.Back(); it; it = (it->GetScope().parentScope ? it : nullptr))
+          //{
+          //     auto& scope = it->GetScope();
+          //     for (auto& type : scope.types)
+          //     {
+          //          if (type->Name() == name)
+          //               return type;
+          //     }
+          //     if (!scope.parentScope) break;
+          //}
+          return nullptr;
+     };
+
      if (const auto basicType = dynamic_cast<ast::BasicType*>(type.get()); basicType != nullptr)
      {
-          if (this->_context.contextSequence.Back()->GetScope().types.contains(basicType->Value()))
-               return *this->_context.contextSequence.Back()->GetScope().types.find(basicType->Value());
+          return ResolveBasicType(basicType->Value());
+     }
+     else if (const auto qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
+     {
+          Scope* currentScope = &this->_context.contextSequence.Back()->GetScope();
+          for (const auto& section : qualifiedType->Sections())
+          {
+               if (auto nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
+               {
+                    bool found = false;
+                    for (auto& sub : nsScope->subNamespaces)
+                    {
+                         if (sub->name == section.node->ToString(0))
+                         {
+                              currentScope = sub.get();
+                              found = true;
+                              break;
+                         }
+                    }
+                    if (!found) return nullptr;
+               }
+               else if (auto classScope = dynamic_cast<ir::ClassScope*>(currentScope))
+               {
+                    bool found = false;
+                    for (auto& nested : classScope->nestedClasses)
+                    {
+                         if (nested->name == section.node->ToString(0))
+                         {
+                              currentScope = nested.get();
+                              found = true;
+                              break;
+                         }
+                    }
+                    if (!found) return nullptr;
+               }
+               else { return nullptr; }
+          }
+
+          if (const auto unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
+              unqualified != nullptr)
+          {
+               for (auto& type : currentScope->types)
+               {
+                    if (type->Name() == unqualified->Value())
+                         return type;
+               }
+          }
      }
 
      return nullptr;
 }
+
 
 Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType)
 {

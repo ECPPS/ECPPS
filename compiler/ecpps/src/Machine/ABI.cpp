@@ -388,6 +388,20 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
            _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
      {
      }
+     [[nodiscard]] ecpps::abi::StorageRef ReserveStorage(const ecpps::abi::StorageRequirement& request) final override
+     {
+          const std::size_t alignmentMask = request.alignment - 1;
+          if ((this->_currentStackSize & alignmentMask) != 0)
+          {
+               this->_currentStackSize = (_currentStackSize + alignmentMask) & ~alignmentMask;
+          }
+
+          const std::size_t variableOffset = _currentStackSize;
+          this->_currentStackSize += request.size;
+
+          return ecpps::abi::StorageRef{
+              ecpps::abi::MemoryLocation{variableOffset, ABI::Current().StackPointerRegister()}};
+     }
 
 protected:
      std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final override;

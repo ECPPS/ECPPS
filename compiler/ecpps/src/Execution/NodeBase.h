@@ -25,6 +25,10 @@ namespace ecpps::ir
           Xor,
           CompareExchange,
           Call,
+          AddressOf,
+          Dereference,
+          Store,
+          Load
      };
 
      class NodeBase

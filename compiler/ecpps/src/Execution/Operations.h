@@ -178,4 +178,84 @@ namespace ecpps::ir
           bool _isWeak;
           MemoryOrdering _ordering;
      };
+
+     class LoadNode final : public NodeBase
+     {
+     public:
+          explicit LoadNode(Expression address, Location source)
+              : NodeBase(NodeKind::Load, std::move(source)), _address(std::move(address))
+          {
+          }
+
+          [[nodiscard]] const Expression& Address(void) const noexcept { return this->_address; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "*" + this->_address->Value()->ToString(0);
+          }
+
+     private:
+          Expression _address;
+     };
+
+     class StoreNode final : public NodeBase
+     {
+     public:
+          explicit StoreNode(std::string address, Expression value, Location source)
+              : NodeBase(NodeKind::Store, std::move(source)), _address(std::move(address)), _value(std::move(value))
+          {
+          }
+
+          [[nodiscard]] const std::string& Address(void) const noexcept { return this->_address; }
+          [[nodiscard]] const Expression& Value(void) const noexcept { return this->_value; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_address + " = " +
+                      this->_value->Value()->ToString(0);
+          }
+
+     private:
+          std::string _address;
+          Expression _value;
+     };
+
+     class AddressOfNode final : public NodeBase
+     {
+     public:
+          explicit AddressOfNode(Expression operand, Location source)
+              : NodeBase(NodeKind::AddressOf, std::move(source)), _operand(std::move(operand))
+          {
+          }
+
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "&" + this->_operand->Value()->ToString(0);
+          }
+
+     private:
+          Expression _operand;
+     };
+
+     class DereferenceNode final : public NodeBase
+     {
+     public:
+          explicit DereferenceNode(Expression operand, Location source)
+              : NodeBase(NodeKind::Dereference, std::move(source)), _operand(std::move(operand))
+          {
+          }
+
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "*" + this->_operand->Value()->ToString(0);
+          }
+
+     private:
+          Expression _operand;
+     };
+
 } // namespace ecpps::ir

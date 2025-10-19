@@ -18,7 +18,7 @@ namespace ir = ecpps::ir;
 
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
-static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, const ecpps::Expression& expression)
+static ecpps::codegen::Operand ParseExpression(std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable, std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
      if (expression == nullptr) return std::monostate{};
 
@@ -33,7 +33,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
      {
           if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(code, addition->Left());
+          const auto left = ParseExpression(symbolTable, code, addition->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -53,7 +53,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, addition->Right());
+          const auto right = ParseExpression(symbolTable, code, addition->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -71,7 +71,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(code, subtraction->Left());
+          const auto left = ParseExpression(symbolTable, code, subtraction->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -91,7 +91,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, subtraction->Right());
+          const auto right = ParseExpression(symbolTable, code, subtraction->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -125,7 +125,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(code, multiplication->Left());
+          const auto left = ParseExpression(symbolTable, code, multiplication->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -133,7 +133,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, multiplication->Right());
+          const auto right = ParseExpression(symbolTable, code, multiplication->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -166,7 +166,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(code, div->Left());
+          const auto left = ParseExpression(symbolTable, code, div->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -174,7 +174,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, div->Right());
+          const auto right = ParseExpression(symbolTable, code, div->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -220,7 +220,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                const auto& argument = *argumentIterator++;
                const auto& parameter = *parameterIterator++;
 
-               const auto operand = ParseExpression(code, argument);
+               const auto operand = ParseExpression(symbolTable, code, argument);
                code.emplace_back(
                    ecpps::codegen::MovInstruction{operand,
                                                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -241,7 +241,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
      throw std::logic_error("Invalid expression");
 }
 
-static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
+static void CompileReturn(std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable, std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
 {
      if (node.HasValue())
      {
@@ -250,7 +250,7 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
           const auto returnStorage =
               callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
           code.push_back(
-              ecpps::codegen::MovInstruction{ParseExpression(code, node.Value()),
+              ecpps::codegen::MovInstruction{ParseExpression(symbolTable, code, node.Value()),
                                              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
                                                  std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
                                              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
@@ -267,10 +267,28 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
 
      auto stackManager = parentCallingConvention.BeginStack(instructions);
 
+     std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>> symbolTable{};
+
+     for (const auto& decl : node.Locals())
+     {
+          // TODO: static & extern
+          const auto& type = decl.type;
+          ecpps::abi::StorageRequirement request{type->Size(), type->Alignment(),
+                                                 IsIntegral(type) ? ecpps::abi::RequiredStorageKind::Integer
+                                                 : IsFloatingPoint(type)
+                                                     ? ecpps::abi::RequiredStorageKind::FloatingPoint
+                                                 : IsPointer(type) ? ecpps::abi::RequiredStorageKind::Pointer
+                                                                   : ecpps::abi::RequiredStorageKind::Aggregate};
+
+          auto storage = stackManager->ReserveStorage(request);
+          symbolTable.emplace(decl.name, 
+              std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{std::move(storage), request});
+     }
+
      for (const auto& line : node.Body())
      {
           if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
-               CompileReturn(instructions, *returnNode);
+               CompileReturn(symbolTable, instructions, *returnNode);
           else if (const auto call = dynamic_cast<ir::FunctionCallNode*>(line.get()); call != nullptr)
           {
                const auto& function = *call->Function();
@@ -299,7 +317,7 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                     const auto& argument = *argumentIterator++;
                     const auto& parameter = *parameterIterator++;
 
-                    const auto operand = ParseExpression(instructions, argument);
+                    const auto operand = ParseExpression(symbolTable, instructions, argument);
                     instructions.emplace_back(ecpps::codegen::MovInstruction{
                         operand,
                         ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -309,6 +327,23 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
 
                if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
+          }
+          else if (const auto store = dynamic_cast<const ir::StoreNode*>(line.get()); store != nullptr)
+          {
+               runtime_assert(symbolTable.contains(store->Address()), "Invalid symbol");
+               const auto& [location, storageRequest] = symbolTable.at(store->Address());
+               // TODO: Checks
+               const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
+
+               const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
+
+               instructions.push_back(ecpps::codegen::MovInstruction{
+                   initValue,
+                                                  ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
+                                                      ecpps::codegen::RegisterOperand{memoryLocation.reg},
+                                                      memoryLocation.offset, storageRequest.size * CHAR_BIT}},
+                   storageRequest.size * CHAR_BIT
+               });
           }
      }
 
