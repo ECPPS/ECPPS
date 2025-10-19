@@ -1,4 +1,5 @@
 #include "PseudoAssembly.h"
+#include <Assert.h>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
@@ -19,6 +20,8 @@ std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
 static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
+     if (expression == nullptr) return std::monostate{};
+
      const auto& value = expression->Value();
      if (const auto integer = dynamic_cast<ir::IntegralNode*>(value.get()); integer != nullptr)
      {
@@ -196,14 +199,43 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                   std::views::transform([](const ir::FunctionScope::Parameter& parameter) { return parameter.type; }) |
                   std::ranges::to<std::vector>());
           const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
-          // TODO: Arguments
+
+          runtime_assert(function.parameters.size() == call->Arguments().size(),
+                         "Overload resolution failed to pick a function with equal amount of arguments");
+
+          const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
+          const auto parameterSizes =
+              function.parameters |
+              std::views::transform([&callingConvention](const ir::FunctionScope::Parameter& parameter)
+                                    { return callingConvention.GetRequirementsForType(parameter.type); }) |
+              std::ranges::to<std::vector>();
+
+          const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
+          auto argumentIterator = call->Arguments().begin();
+          auto parameterIterator = function.parameters.begin();
+          runtime_assert(argumentStorage.size() == call->Arguments().size(),
+                         "Failed to acquire storage for the arguments");
+          for (const auto& storage : argumentStorage)
+          {
+               const auto& argument = *argumentIterator++;
+               const auto& parameter = *parameterIterator++;
+
+               const auto operand = ParseExpression(code, argument);
+               code.emplace_back(
+                   ecpps::codegen::MovInstruction{operand,
+                                                  ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+                                                      std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
+                                                  parameter.type->Size() * CHAR_BIT});
+          }
+
           if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
 
-          return ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-              std::get<ecpps::abi::AllocatedRegister>(
-                  callingConvention.ReturnValueStorage(function.returnType->Size()).value)
-                  .Ptr()}};
+          const auto returnStorage = callingConvention.ReturnValueStorage(returnTypeSize);
+          if (std::holds_alternative<std::monostate>(returnStorage.value))
+               return ecpps::codegen::Operand{std::monostate{}};
+          return ecpps::codegen::Operand{
+              ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}};
      }
 
      throw std::logic_error("Invalid expression");
@@ -214,14 +246,14 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
      if (node.HasValue())
      {
           // TODO: Mapping function
-          code.push_back(ecpps::codegen::MovInstruction{
-              ParseExpression(code, node.Value()),
-              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                  std::get<ecpps::abi::AllocatedRegister>(ecpps::abi::MicrosoftX64CallingConvention{}
-                                                              .ReturnValueStorage(node.Value()->Type()->Size())
-                                                              .value)
-                      .Ptr()}},
-              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
+          ecpps::abi::MicrosoftX64CallingConvention callingConvention{};
+          const auto returnStorage =
+              callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
+          code.push_back(
+              ecpps::codegen::MovInstruction{ParseExpression(code, node.Value()),
+                                             ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+                                                 std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
+                                             node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
      }
 
      code.push_back(ecpps::codegen::ReturnInstruction{});
@@ -230,6 +262,11 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
 static Routine CompileRoutine(const ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};
+     auto& currentAbi = ecpps::abi::ABI::Current();
+     const auto& parentCallingConvention = currentAbi.CallingConventionFromName(node.CallingConvention());
+
+     auto stackManager = parentCallingConvention.BeginStack(instructions);
+
      for (const auto& line : node.Body())
      {
           if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
@@ -238,7 +275,6 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
           {
                const auto& function = *call->Function();
 
-               auto& currentAbi = ecpps::abi::ABI::Current();
                const std::string functionName = currentAbi.MangleName(
                    function.linkage, function.name, function.callingConvention, function.returnType,
                    function.parameters |
@@ -246,11 +282,38 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                                              { return parameter.type; }) |
                        std::ranges::to<std::vector>());
                const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
-               // TODO: Arguments
+               const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
+               const auto parameterSizes =
+                   function.parameters |
+                   std::views::transform([&callingConvention](const ir::FunctionScope::Parameter& parameter)
+                                         { return callingConvention.GetRequirementsForType(parameter.type); }) |
+                   std::ranges::to<std::vector>();
+
+               const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
+               auto argumentIterator = call->Arguments().begin();
+               auto parameterIterator = function.parameters.begin();
+               runtime_assert(argumentStorage.size() == call->Arguments().size(),
+                              "Failed to acquire storage for the arguments");
+               for (const auto& storage : argumentStorage)
+               {
+                    const auto& argument = *argumentIterator++;
+                    const auto& parameter = *parameterIterator++;
+
+                    const auto operand = ParseExpression(instructions, argument);
+                    instructions.emplace_back(ecpps::codegen::MovInstruction{
+                        operand,
+                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+                            std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
+                        parameter.type->Size() * CHAR_BIT});
+               }
+
                if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
      }
+
+     stackManager->Finish();
+
      return Routine::Branchless(std::move(instructions),
                                 ecpps::abi::ABI::Current().MangleName(
                                     node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),

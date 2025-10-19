@@ -1,12 +1,15 @@
 #pragma once
+#include <Assert.h>
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <variant>
 #include <vector>
+#include "../CodeGeneration/Nodes.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Machine.h"
+#include "Storage.h"
 
 /// <summary>
 /// The term "width" is always measured in bits, while "size" in bytes. ECPPS ABI defines one byte to be exactly eight
@@ -15,11 +18,6 @@
 
 namespace ecpps::abi
 {
-     constexpr std::size_t qwordSize = 64;
-     constexpr std::size_t dwordSize = 32;
-     constexpr std::size_t wordSize = 16;
-     constexpr std::size_t byteSize = 8;
-
      enum struct Linkage : std::uint_fast8_t
      {
           NoLinkage,
@@ -29,74 +27,49 @@ namespace ecpps::abi
           CLinkage
      };
 
-     struct PhysicalRegister
-     {
-          std::string friendlyName;
-          std::size_t width;
-          std::size_t id;
-
-          constexpr bool operator==(const PhysicalRegister& other) { return this->id == other.id; }
-          constexpr bool operator!=(const PhysicalRegister& other) { return this->id != other.id; }
-
-          /// <summary>
-          /// Constructs a new register object
-          /// </summary>
-          /// <param name="name">Name of the register</param>
-          /// <param name="width">Width (in bits) of the register</param>
-          /// <param name="id">Unique register id</param>
-          explicit PhysicalRegister(std::string name, const std::size_t width, const std::size_t id)
-              : friendlyName(std::move(name)), width(width), id(id)
-          {
-          }
-     };
-     struct VirtualRegister
-     {
-          std::string friendlyName;
-          std::shared_ptr<PhysicalRegister> physical;
-          std::size_t width;
-          std::size_t offset;
-          explicit VirtualRegister(std::string name, std::shared_ptr<PhysicalRegister> physical,
-                                   const std::size_t width, const std::size_t offset)
-              : friendlyName(std::move(name)), physical(std::move(physical)), width(width), offset(offset)
-          {
-          }
-     };
-
-     class AllocatedRegister
-     {
-     public:
-          explicit AllocatedRegister(std::shared_ptr<VirtualRegister> reg);
-
-          AllocatedRegister(const AllocatedRegister&) = delete;
-          AllocatedRegister(AllocatedRegister&&) = default;
-          AllocatedRegister& operator=(const AllocatedRegister&) = delete;
-          AllocatedRegister& operator=(AllocatedRegister&&) = default;
-
-          ~AllocatedRegister(void);
-          void Release(void);
-
-          [[nodiscard]] bool operator!(void) const noexcept { return this->_register != nullptr; }
-
-          VirtualRegister* operator->(void) noexcept { return this->_register.get(); }
-          const VirtualRegister* operator->(void) const noexcept { return this->_register.get(); }
-
-          const std::shared_ptr<VirtualRegister>& Ptr(void) const noexcept { return this->_register; }
-
-     private:
-          std::shared_ptr<VirtualRegister> _register;
-     };
-
-     struct StorageRef
-     {
-          using ValueType = std::variant<AllocatedRegister,
-                                         std::vector<AllocatedRegister>>; // TODO: Add memory location
-          ValueType value;
-          explicit StorageRef(ValueType value) : value(std::move(value)) {}
-     };
-
      enum struct CallingConventionName : std::uint_fast16_t
      {
           Microsoftx64
+     };
+
+     struct [[nodiscard]] ProcedureStackManager
+     {
+          virtual ~ProcedureStackManager(void)
+          {
+               runtime_assert(this->_wasFinished, "You did not call Finish() silly");
+          }
+          void Finish(void)
+          {
+               runtime_assert(!this->_wasFinished, "finishing up the stack twice is weird");
+
+               this->_wasFinished = true;
+
+               auto& instructions = this->_instructions.get();
+               instructions.insert_range(instructions.begin(), this->GeneratePrologue());
+               auto epilogue = this->GenerateEpilogue();
+
+               for (auto it = instructions.begin(); it != instructions.end(); ++it)
+               {
+                    if (!std::holds_alternative<codegen::ReturnInstruction>(*it)) continue;
+
+                    it = instructions.insert_range(it, epilogue);
+                    std::advance(it, epilogue.size());
+               }
+          }
+          explicit ProcedureStackManager(std::vector<codegen::Instruction>& instructions)
+              : _instructions(std::ref(instructions))
+          {
+          }
+
+          //[[nodiscard]] virtual StorageRef ReserveVariable(const StorageRequirement& request) = 0;
+
+     protected:
+          virtual std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const = 0;
+          virtual std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const = 0;
+
+     private:
+          DebugOnly<bool> _wasFinished = false;
+          std::reference_wrapper<std::vector<codegen::Instruction>> _instructions;
      };
 
      struct CallingConvention
@@ -108,15 +81,19 @@ namespace ecpps::abi
           }
           virtual ~CallingConvention(void) = default;
 
-          [[nodiscard]] virtual StorageRef ReturnValueStorage(std::size_t storageSize) const = 0;
-          [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(std::size_t returnSize,
-                                                                         std::vector<std::size_t> parameters) const = 0;
+          [[nodiscard]] virtual StorageRef ReturnValueStorage(StorageRequirement storageSize) const = 0;
+          [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(
+              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const = 0;
+          [[nodiscard]] virtual StorageRequirement GetRequirementsForType(
+              const typeSystem::TypePointer& type) const = 0;
 
           [[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
           [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
           [[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
+          [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(
+              std::vector<ecpps::codegen::Instruction>&) const = 0;
 
-     private:
+     protected:
           CallingConventionName _name;
           std::size_t _shadowSpace;
           std::size_t _stackAlignment;
@@ -128,9 +105,12 @@ namespace ecpps::abi
           {
           }
 
-          [[nodiscard]] StorageRef ReturnValueStorage(std::size_t storageSize) const override;
-          [[nodiscard]] std::vector<StorageRef> LocateParameters(std::size_t returnSize,
-                                                                 std::vector<std::size_t> parameters) const override;
+          [[nodiscard]] StorageRef ReturnValueStorage(StorageRequirement storageSize) const override;
+          [[nodiscard]] std::vector<StorageRef> LocateParameters(
+              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
+          [[nodiscard]] StorageRequirement GetRequirementsForType(const typeSystem::TypePointer& type) const override;
+          [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(
+              std::vector<ecpps::codegen::Instruction>& instructionVector) const final override;
      };
 
      enum struct RegisterAllocation : bool
@@ -164,6 +144,19 @@ namespace ecpps::abi
 
           CallingConventionName DefaultCallingConventionName(void) const;
           [[nodiscard]] const CallingConvention& CallingConventionFromName(CallingConventionName name);
+          [[nodiscard]] const std::shared_ptr<VirtualRegister>& StackPointerRegister(void) const noexcept
+          {
+               return this->_stackPointerRegister;
+          }
+
+          const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
+          {
+               return this->_physicalRegisters;
+          }
+          const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
+          {
+               return this->_registers;
+          }
 
      private:
           static ABI _current;
@@ -174,6 +167,7 @@ namespace ecpps::abi
 
           std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
           std::unordered_set<std::size_t> _allocatedRegisters{};
+          std::shared_ptr<VirtualRegister> _stackPointerRegister{};
 
           friend AllocatedRegister;
      };

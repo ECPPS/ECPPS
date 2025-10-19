@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-#include "..\Machine\ABI.h"
+#include "..\Machine\Storage.h"
 
 namespace ecpps::codegen
 {
@@ -75,7 +75,7 @@ namespace ecpps::codegen
           [[nodiscard]] std::string ToString(void) const noexcept { return ""; }
      };
 
-     using Operand = std::variant<ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
+     using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {
@@ -161,6 +161,20 @@ namespace ecpps::codegen
               : from(std::move(from)), to(std::move(to)), width(width), isSigned(isSigned)
           {
           }
+     };
+
+     struct PushInstruction
+     {
+          Operand source;
+
+          explicit PushInstruction(Operand source) : source(std::move(source)) {}
+     };
+
+     struct PopInstruction
+     {
+          Operand destination;
+
+          explicit PopInstruction(Operand destination) : destination(std::move(destination)) {}
      };
 
      struct ReturnInstruction
@@ -259,8 +273,10 @@ namespace ecpps::codegen
           NoCarryFlag,
      };
 
-     using Instruction = std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                                      CallInstruction, SubInstruction /*, std::unique_ptr<CustomInstruction>*/>;
+     using Instruction =
+         std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
+                      CallInstruction,
+                      SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

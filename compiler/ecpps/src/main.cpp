@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <print>
@@ -52,8 +53,32 @@ int main(int argc, char* argv[])
      for (auto& source : sources.files)
      {
           std::println("Compiling {}...", source.name);
+          // ECPPS pushed macros (& standard)
 
-          const auto ppTokens = ecpps::Preprocessor::Parse(source.contents);
+          std::vector<ecpps::MacroReplacement> macros{};
+          macros.emplace_back("__cplusplus", std::nullopt, "202302", false); // TODO: 202302L
+          // TODO: __DATE__
+          // TODO: __FILE__
+          macros.emplace_back("__LINE__", std::nullopt, "1", false);
+          // TODO: __STDC_HOSTED__
+          // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
+          // TODO: __STDCPP_FLOAT16_T__
+          // TODO: __STDCPP_FLOAT32_T__
+          // TODO: __STDCPP_FLOAT64_T__
+          // TODO: __STDCPP_FLOAT128_T__
+          // TODO: __STDCPP_BFLOAT16_T__
+          // TODO: __TIME__
+          // TODO: feature-test macros
+          // TODO: __STDCPP_THREADS__
+
+          macros.emplace_back("__ecpps_stl_version", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_stl_version_minor", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_stl_version_patch", std::nullopt, "1", false);
+          macros.emplace_back("__ecpps_version", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
+          macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
+
+          const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros);
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           if (isExtraVerbose) std::println();
           if (isExtraVerbose) std::println("Tokens:");
@@ -98,16 +123,28 @@ int main(int argc, char* argv[])
           }
           emitter->PatchCalls(generatedMachineCode, routines);
           if (isExtraVerbose)
-               for (auto it = routines.begin(); it != routines.end(); ++it)
-               {
-                    const auto& [routineName, routineOffset] = *it;
-                    std::println("{}:", routineName);
-                    // TODO: Assert
+          {
+               std::vector<std::pair<std::string, std::size_t>> ordered;
+               ordered.reserve(routines.size());
+               for (const auto& r : routines) ordered.push_back(r);
 
-                    std::size_t size = (std::next(it) == routines.end()) ? generatedMachineCode.size() - routineOffset
-                                                                         : std::next(it)->second - routineOffset;
-                    const auto& machineCode =
-                        generatedMachineCode | std::views::drop(routineOffset) | std::views::take(size);
+               std::ranges::sort(ordered, {}, &std::pair<std::string, std::size_t>::second);
+
+               for (std::size_t i = 0; i < ordered.size(); ++i)
+               {
+                    const auto& [routineName, routineOffset] = ordered[i];
+                    std::println("{}:", routineName);
+
+                    std::size_t start = std::min(routineOffset, generatedMachineCode.size());
+                    std::size_t end = (i + 1 < ordered.size())
+                                          ? std::min(ordered[i + 1].second, generatedMachineCode.size())
+                                          : generatedMachineCode.size();
+
+                    if (start >= end) continue;
+
+                    auto machineCode =
+                        std::ranges::subrange(generatedMachineCode.begin() + start, generatedMachineCode.begin() + end);
+
                     constexpr std::size_t RowSize = 8; // in bytes
                     const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
 
@@ -126,6 +163,7 @@ int main(int argc, char* argv[])
                          std::println("|");
                     }
                }
+          }
 
           for (const auto& diag : source.diagnostics.diagnosticsList)
           {
@@ -150,14 +188,42 @@ int main(int argc, char* argv[])
 
      if (isVerbose) std::println("Linking objects...");
 
-     std::vector<std::byte> imageBytes =
-         ecpps::linker::Linker::SelectAndLink(config, generatedMachineCode, functions, mainOffset);
+     std::vector<std::byte> codeSection{};
+
+     std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
+         config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection);
+
+     if (isExtraVerbose)
+     {
+          constexpr std::size_t RowSize = 8; // in bytes
+          const auto rows = (codeSection.size() + RowSize - 1) / RowSize;
+
+          std::println("Emitted {} bytes, of which {} are code:", imageBytes.size(), codeSection.size());
+          for (std::size_t row = 0; row < rows; row++)
+          {
+               std::print("| ");
+               const auto offset = row * RowSize;
+               for (std::size_t column = 0; column < RowSize; column++)
+               {
+                    const auto byteOffset = offset + column;
+                    if (byteOffset >= codeSection.size()) std::print("   ");
+                    else
+                         std::print("{:02x} ", static_cast<std::size_t>(codeSection[byteOffset]));
+               }
+               std::println("|");
+          }
+     }
 
      std::ofstream outFile(config.outputImage, std::ios::binary);
-     outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
-     outFile.close();
+     if (!outFile.is_open()) std::println("Failed to open file: {}", config.outputImage);
+     else
+     {
+          outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
+          if (!outFile) std::println("Failed during write to: {}", config.outputImage);
+     }
 
      const auto end = std::chrono::steady_clock::now();
+     std::println("Fully linked {}", absolute(std::filesystem::path(config.outputImage)).string());
      std::println("Compilation successful. {} elapsed",
                   std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
 

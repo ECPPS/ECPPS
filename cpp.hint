@@ -2,3 +2,4 @@
 // such as names of functions and macros.
 // For more information see https://go.microsoft.com/fwlink/?linkid=865984
 #define TraitCheckerFunction(traitName) [[nodiscard]] constexpr bool Is#traitName(const TypeBase& type) { return type.Traits().Has(TypeTraitEnum::traitName); }
+#define define_number(name, underlying) struct name : Number<underlying> { using Number<underlying>::Number<underlying>; }; [[nodiscard]] consteval name operator""_##name(const unsigned long long value) { return name{value}; }

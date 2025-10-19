@@ -5,6 +5,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include "..\Machine\ABI.h"
 #include "SourceMap.h"
 #include "Tokeniser.h"
 
@@ -502,8 +503,8 @@ namespace ecpps::ast
                return this->_tokens[this->_position + offset];
           }
           [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0) { return this->_tokens[this->_position + offset]; }
-          [[nodiscard]] void Advance(void) noexcept { this->_position++; }
-          [[nodiscard]] void Retreat(void) noexcept { this->_position--; }
+          void Advance(void) noexcept { this->_position++; }
+          void Retreat(void) noexcept { this->_position--; }
           [[nodiscard]] bool Match(const TokenType type) noexcept
           {
                if (Peek().type != type) return false;

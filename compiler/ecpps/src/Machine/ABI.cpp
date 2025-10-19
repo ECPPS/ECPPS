@@ -1,6 +1,11 @@
 #include "ABI.h"
+#include <Assert.h>
+#include <format>
+#include <ranges>
 #include <stdexcept>
 #include <vector>
+#include "../CodeGeneration/Nodes.h"
+#include "../TypeSystem/ArithmeticTypes.h"
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
 
@@ -48,7 +53,8 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 
           const auto& rsp =
               this->_physicalRegisters.emplace_back(std::make_shared<PhysicalRegister>("rsp", qwordSize, id++));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("rsp", rsp, qwordSize, 0));
+          this->_registers.push_back(this->_stackPointerRegister =
+                                         std::make_shared<VirtualRegister>("rsp", rsp, qwordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("esp", rsp, dwordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("sp", rsp, wordSize, 0));
           this->_registers.push_back(std::make_shared<VirtualRegister>("spl", rsp, byteSize, 0));
@@ -140,10 +146,6 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
      {
      case ISA::x86_64:
      {
-          constexpr auto xmmSize = 16;
-          constexpr auto ymmSize = 32;
-          constexpr auto zmmSize = 64;
-
           std::size_t id = this->_physicalRegisters.empty() ? 0 : this->_physicalRegisters.back()->id + 1;
 
           if (simd & (SimdFeatures::AVX512F | SimdFeatures::AVX512BW | SimdFeatures::AVX512DQ | SimdFeatures::AVX512VL))
@@ -151,7 +153,7 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
                for (std::size_t i = 0; i < 16; i++)
                {
                     const auto& physicalReg = this->_physicalRegisters.emplace_back(
-                        std::make_shared<PhysicalRegister>(std::string("zmm") + std::to_string(i), zmmSize, id++));
+                        std::make_shared<PhysicalRegister>(std::string("xmm") + std::to_string(i), zmmSize, id++));
                     this->_registers.push_back(std::make_shared<VirtualRegister>(std::string("zmm") + std::to_string(i),
                                                                                  physicalReg, zmmSize, 0));
                     this->_registers.push_back(std::make_shared<VirtualRegister>(std::string("ymm") + std::to_string(i),
@@ -165,7 +167,7 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
                for (std::size_t i = 0; i < 16; i++)
                {
                     const auto& physicalReg = this->_physicalRegisters.emplace_back(
-                        std::make_shared<PhysicalRegister>(std::string("ymm") + std::to_string(i), ymmSize, id++));
+                        std::make_shared<PhysicalRegister>(std::string("xmm") + std::to_string(i), ymmSize, id++));
                     this->_registers.push_back(std::make_shared<VirtualRegister>(std::string("ymm") + std::to_string(i),
                                                                                  physicalReg, ymmSize, 0));
                     this->_registers.push_back(std::make_shared<VirtualRegister>(std::string("xmm") + std::to_string(i),
@@ -268,27 +270,138 @@ const ecpps::abi::CallingConvention& ecpps::abi::ABI::CallingConventionFromName(
      throw std::logic_error("Invalid calling convention");
 }
 
-ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueStorage(std::size_t storageSize) const
+ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueStorage(
+    StorageRequirement storageSize) const
 {
-     switch (storageSize)
+     switch (storageSize.kind)
      {
-     case 1: return StorageRef{abi::ABI::Current().AllocateRegister(byteSize, "rax", RegisterAllocation::Priority)};
-     case 2: return StorageRef{abi::ABI::Current().AllocateRegister(wordSize, "rax", RegisterAllocation::Priority)};
-     case 4: return StorageRef{abi::ABI::Current().AllocateRegister(dwordSize, "rax", RegisterAllocation::Priority)};
-     case 8: return StorageRef{abi::ABI::Current().AllocateRegister(qwordSize, "rax", RegisterAllocation::Priority)};
-     default:
+     case RequiredStorageKind::Void: return StorageRef{std::monostate{}};
+     case RequiredStorageKind::Integer:
      {
+          switch (storageSize.size)
+          {
+          case 1:
+               return StorageRef{abi::ABI::Current().AllocateRegister(byteSize, "rax", RegisterAllocation::Priority)};
+          case 2:
+               return StorageRef{abi::ABI::Current().AllocateRegister(wordSize, "rax", RegisterAllocation::Priority)};
+          case 4:
+               return StorageRef{abi::ABI::Current().AllocateRegister(dwordSize, "rax", RegisterAllocation::Priority)};
+          case 8:
+               return StorageRef{abi::ABI::Current().AllocateRegister(qwordSize, "rax", RegisterAllocation::Priority)};
+          default:
+          {
+               // TODO: 16/32/64 bit + errors
+          }
+          break;
+          }
+     }
+     break;
+     case RequiredStorageKind::FloatingPoint:
+     {
+          switch (storageSize.size)
+          {
+          case 16:
+               return StorageRef{abi::ABI::Current().AllocateRegister(xmmSize, "xmm0", RegisterAllocation::Priority)};
+          case 32:
+               return StorageRef{abi::ABI::Current().AllocateRegister(ymmSize, "xmm0", RegisterAllocation::Priority)};
+          case 64:
+               return StorageRef{abi::ABI::Current().AllocateRegister(zmmSize, "xmm0", RegisterAllocation::Priority)};
+          default:
+          {
+               // TODO: errors
+          }
+          break;
+          }
      }
      break;
      }
 
-     throw nullptr;
+     throw nullptr; // FIXME: No comment needed
 }
 
 std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::LocateParameters(
-    std::size_t returnSize, std::vector<std::size_t> parameters) const
+    StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const
 {
-     return std::vector<StorageRef>();
+     std::vector<ecpps::abi::StorageRef> result{};
+     result.reserve(parameters.size());
+     // TODO: Caller saved return storage
+     std::size_t currentIndex = parameters.size();
+     std::size_t stackIndex = this->_shadowSpace;
+
+     for (const auto& parameter : parameters | std::views::reverse)
+     {
+          const auto parameterIndex = --currentIndex;
+          StorageRef storage = nullptr;
+          switch (parameterIndex)
+          {
+          case 0:
+               storage =
+                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "rcx", abi::RegisterAllocation::Priority);
+               break;
+          case 1:
+               storage =
+                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "rdx", abi::RegisterAllocation::Priority);
+               break;
+          case 2:
+               storage =
+                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "r8", abi::RegisterAllocation::Priority);
+               break;
+          case 3:
+               storage =
+                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "r9", abi::RegisterAllocation::Priority);
+               break;
+          default:
+          {
+               // TODO: Stack
+          }
+          break;
+          }
+          result.push_back(std::move(storage));
+     }
+
+     return result;
+}
+
+ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetRequirementsForType(
+    const typeSystem::TypePointer& type) const
+{
+     if (IsIntegral(type))
+     {
+          const auto integralType = std::dynamic_pointer_cast<typeSystem::IntegralType>(type);
+          runtime_assert(integralType != nullptr, std::format("Integral type `{}` was not integral", type->RawName()));
+          return StorageRequirement{integralType->Size(), integralType->Alignment(), RequiredStorageKind::Integer};
+     }
+     if (IsFloatingPoint(type))
+     {
+          // TODO: Implement floating-point types
+     }
+     if (IsIncomplete(type)) return StorageRequirement{0, 0, RequiredStorageKind::Void};
+
+     throw nullptr; // FIXME: Obvious
+}
+
+struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
+{
+     explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
+                                       const ecpps::abi::CallingConvention& callingConvention)
+         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
+           _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
+     {
+     }
+
+protected:
+     std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final override;
+     std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const final override;
+
+private:
+     std::reference_wrapper<const ecpps::abi::CallingConvention> _currentCallingConvention;
+     std::size_t _currentStackSize;
+};
+
+std::unique_ptr<ecpps::abi::ProcedureStackManager> ecpps::abi::MicrosoftX64CallingConvention::BeginStack(
+    std::vector<ecpps::codegen::Instruction>& instructions) const
+{
+     return std::make_unique<Microsoftx64StackManager>(instructions, *this);
 }
 
 ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg) : _register(std::move(reg))
@@ -310,4 +423,24 @@ void ecpps::abi::AllocatedRegister::Release(void)
      if (this->_register == nullptr) return;
 
      ABI::Current()._allocatedRegisters.erase(std::exchange(this->_register, nullptr)->physical->id);
+}
+
+std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GeneratePrologue(void) const
+{
+     std::vector<ecpps::codegen::Instruction> instructions{};
+     const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
+     instructions.emplace_back(ecpps::codegen::SubInstruction{
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
+     return instructions;
+}
+
+std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GenerateEpilogue(void) const
+{
+     std::vector<ecpps::codegen::Instruction> instructions{};
+     const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
+     instructions.emplace_back(ecpps::codegen::AddInstruction{
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
+     return instructions;
 }

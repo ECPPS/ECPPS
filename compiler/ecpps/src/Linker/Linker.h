@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "../CodeGeneration/CodeEmitter.h"
 #include "../Shared/Config.h"
 
 namespace ecpps::linker
@@ -79,7 +80,8 @@ namespace ecpps::linker
           [[nodiscard]] virtual std::vector<std::byte> ToBytes(const std::string& imageName,
                                                                std::size_t entryPointAddress) const = 0;
 
-          virtual void CodeSection(const std::vector<std::byte>& data) = 0;
+          virtual std::vector<std::byte> CodeSection(std::vector<std::byte> data,
+                                                     const codegen::LinkerRelocationMap& relocationMap) = 0;
           virtual void ExportFunction(const std::string& name, std::uint32_t address) = 0;
           virtual void ImportFunction(const std::string& name, const std::string& dll) = 0;
 
@@ -96,6 +98,8 @@ namespace ecpps::linker
           static std::vector<std::byte> SelectAndLink(const ecpps::CompilerConfig& config,
                                                       std::vector<std::byte> generatedMachineCode,
                                                       std::vector<std::pair<std::string, std::size_t>> functions,
-                                                      std::size_t mainOffset);
+                                                      std::size_t mainOffset,
+                                                      const codegen::LinkerRelocationMap& relocationMap,
+                                                      std::vector<std::byte>& diagnosticsCodeSection);
      };
 } // namespace ecpps::linker

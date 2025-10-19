@@ -100,7 +100,7 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDe
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
-     SBOVector<AttributeNode> attributes{};
+     SBOVector<std::unique_ptr<AttributeNode>> attributes{};
      bool isFriend = false;
      bool isInline = false;
      bool isExtern = false;
@@ -117,7 +117,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
                     SBOVector<Token> arguments{};
 
                     attributeSource.endPosition = Peek(-1).location.endPosition;
-                    attributes.EmplaceBack(name, arguments, attributeSource);
+                    attributes.EmplaceBack(std::make_unique<AttributeNode>(name, arguments, attributeSource));
                }
 
                if (!Match(TokenType::RightBracket) || !Match(TokenType::RightBracket))
@@ -167,13 +167,9 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      }
      auto name = ParseIdentifier();
 
-     FunctionSignature signature{std::move(type),
-                                 false,
-                                 false,
-                                 ConstantExpressionSpecifier::None,
-                                 SBOVector<std::unique_ptr<AttributeNode>>{},
-                                 std::move(name),
-                                 callingConvention}; // TODO: Allow id-expression
+     FunctionSignature signature{
+         std::move(type),  false, false, ConstantExpressionSpecifier::None, std::move(attributes), std::move(name),
+         callingConvention}; // TODO: Allow id-expression
 
      signature.isExtern = isExtern;
      signature.externOptional = externOptional;

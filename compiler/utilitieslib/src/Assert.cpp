@@ -7,4 +7,9 @@ void RuntimeAssert(bool condition, std::string_view conditionString, std::string
      if (condition) return;
      std::println("runtime_assert({}) failed: {} at {}:{} in {}", conditionString, std::move(message), file, line,
                   function);
+
+#ifdef _MSC_VER
+     __debugbreak();
+#endif
+     throw nullptr;
 }

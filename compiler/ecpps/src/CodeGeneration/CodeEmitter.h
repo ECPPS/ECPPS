@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -8,9 +9,22 @@
 #include <vector>
 #include "../Machine/Machine.h"
 #include "Nodes.h"
+#include "Numbers.h"
+
+define_number(ByteOffset, std::size_t);
+define_number(Address, std::size_t);
 
 namespace ecpps::codegen
 {
+     struct Relocation
+     {
+          std::string symbolName;
+          std::function<std::vector<std::byte>(
+              Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
+              apply;
+          std::size_t applyOutputSize;
+     };
+     using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
 
      /// <summary>
      /// Provides a foundation for all emitters.
@@ -24,7 +38,7 @@ namespace ecpps::codegen
      class CodeEmitter
      {
      public:
-          ~CodeEmitter(void) = default;
+          virtual ~CodeEmitter(void) = default;
           [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
 
@@ -33,10 +47,13 @@ namespace ecpps::codegen
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
+          LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
      protected:
           explicit CodeEmitter(std::string name) : _name(std::move(name)) {}
 
           std::size_t _currentInstructionBase{};
+          // PRE emitting: used to store locations of calls to be patched later
+          // POST emitting: contains offsets to be patched with the function address (imports)
           std::map<std::size_t, std::string> _relocationTable{};
 
      private:
