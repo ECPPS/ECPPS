@@ -21,6 +21,7 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
      {
      case ISA::x86_64:
      {
+          this->_pointerSize = 8;
           std::size_t id{};
 
           const auto& rax =
@@ -385,6 +386,7 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
      explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
                                        const ecpps::abi::CallingConvention& callingConvention)
          : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
+           //_currentStackSize(0)
            _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
      {
      }
@@ -400,7 +402,8 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
           this->_currentStackSize += request.size;
 
           return ecpps::abi::StorageRef{
-              ecpps::abi::MemoryLocation{variableOffset, ABI::Current().StackPointerRegister()}};
+              ecpps::abi::MemoryLocation{variableOffset,
+                                         ABI::Current().StackPointerRegister()}};
      }
 
 protected:

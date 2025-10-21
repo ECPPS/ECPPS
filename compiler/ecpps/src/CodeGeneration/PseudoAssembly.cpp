@@ -18,7 +18,9 @@ namespace ir = ecpps::ir;
 
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
-static ecpps::codegen::Operand ParseExpression(std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable, std::vector<Instruction>& code, const ecpps::Expression& expression)
+static ecpps::codegen::Operand ParseExpression(
+    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
+    std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
      if (expression == nullptr) return std::monostate{};
 
@@ -237,11 +239,62 @@ static ecpps::codegen::Operand ParseExpression(std::unordered_map<std::string, s
           return ecpps::codegen::Operand{
               ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}};
      }
+     if (const auto load = dynamic_cast<ir::LoadNode*>(value.get()); load != nullptr)
+     {
+          const auto& type = expression->Type();
+          const auto it = symbolTable.find(load->Address());
+          if (it == symbolTable.end()) return ecpps::codegen::ErrorOperand{};
+
+          const auto& [location, storageRequest] = it->second;
+          // TODO: Checks
+          const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
+
+          const auto width = storageRequest.size * ecpps::typeSystem::CharWidth;
+
+          return ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
+              ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
+     }
+
+     if (const auto convert = dynamic_cast<ir::ConvertNode*>(value.get()); convert != nullptr)
+     {
+          const auto inner = ParseExpression(symbolTable, code, convert->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(inner)) return ecpps::codegen::ErrorOperand{};
+
+          const auto& targetType = convert->TargetType();
+
+          std::size_t width = targetType->Size() * ecpps::typeSystem::CharWidth;
+          bool isSigned = false;
+          if (IsIntegral(targetType))
+          {
+               isSigned = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(targetType)->Sign() ==
+                          ecpps::typeSystem::Signedness::Signed;
+          }
+
+          const auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(inner)
+                                   ? ecpps::abi::ABI::Current().AllocateRegister(
+                                         std::get<ecpps::codegen::RegisterOperand>(inner).Index(),
+                                         ecpps::abi::RegisterAllocation::Priority)
+                                   : ecpps::abi::ABI::Current().AllocateRegister(width);
+
+          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(inner))
+          {
+               ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                             convert->Operand()->Type()->Size() *
+                                                                 ecpps::typeSystem::CharWidth};
+               movInstruction.isConversion = true;
+               code.emplace_back(std::move(movInstruction));
+          }
+
+          return ecpps::codegen::RegisterOperand{storage.Ptr()};
+     }
 
      throw std::logic_error("Invalid expression");
 }
 
-static void CompileReturn(std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable, std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
+static void CompileReturn(
+    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
+    std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
 {
      if (node.HasValue())
      {
@@ -281,8 +334,8 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                                                                    : ecpps::abi::RequiredStorageKind::Aggregate};
 
           auto storage = stackManager->ReserveStorage(request);
-          symbolTable.emplace(decl.name, 
-              std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{std::move(storage), request});
+          symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
+                                             std::move(storage), request});
      }
 
      for (const auto& line : node.Body())
@@ -337,13 +390,12 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
 
                const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
 
-               instructions.push_back(ecpps::codegen::MovInstruction{
-                   initValue,
+               instructions.push_back(
+                   ecpps::codegen::MovInstruction{initValue,
                                                   ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
                                                       ecpps::codegen::RegisterOperand{memoryLocation.reg},
                                                       memoryLocation.offset, storageRequest.size * CHAR_BIT}},
-                   storageRequest.size * CHAR_BIT
-               });
+                                                  storageRequest.size * CHAR_BIT});
           }
      }
 

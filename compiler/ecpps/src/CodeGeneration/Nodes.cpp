@@ -1,5 +1,6 @@
 #include "Nodes.h"
 #include <variant>
+#include <format>
 #include "../Execution/NodeBase.h"
 #include "../Machine/ABI.h"
 
@@ -19,7 +20,18 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
          OverloadedVisitor{
              [](const MovInstruction& instruction)
              {
-                  std::string built = "mov";
+                  std::string built =
+                      instruction.isConversion
+                          ? std::format("mov.{}-{}",
+                                        std::visit(OverloadedVisitor{[](std::monostate) -> std::size_t { return 0; },
+                                                                     [](const auto& operand) -> std::size_t
+                                                                     { return operand.Size(); }},
+                                                   instruction.source),
+                                        std::visit(OverloadedVisitor{[](std::monostate) -> std::size_t { return 0; },
+                                                                     [](const auto& operand) -> std::size_t
+                                                                     { return operand.Size(); }},
+                                                   instruction.destination))
+                          : "mov";
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},

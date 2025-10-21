@@ -39,13 +39,17 @@ namespace ecpps
 
      class LValue final : public ExpressionBase
      {
-     public:
+     public:        
+          using ExpressionBase::ExpressionBase;
+
           [[nodiscard]] bool IsLValue(void) const noexcept override { return true; }
      };
 
      class XValue final : public ExpressionBase
      {
-     public:
+     public:         
+          using ExpressionBase::ExpressionBase;
+
           [[nodiscard]] bool IsXValue(void) const noexcept override { return true; }
      };
      class PRValue final : public ExpressionBase

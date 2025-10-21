@@ -47,8 +47,13 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               return TypeTraits{TypeTraitEnum::Arithmetic, TypeTraitEnum::Integral, TypeTraitEnum::Literal,
-                                 TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime};
+               return TypeTraits{TypeTraitEnum::Arithmetic,
+                                 TypeTraitEnum::Integral,
+                                 TypeTraitEnum::Literal,
+                                 TypeTraitEnum::TriviallyCopyable,
+                                 TypeTraitEnum::ImplicitLifetime,
+                                 TypeTraitEnum::Scalar,
+                                 TypeTraitEnum::Object};
           }
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
@@ -82,6 +87,65 @@ namespace ecpps::typeSystem
 
      private:
           bool _isUnqualified;
+     };
+
+     class PointerType final : public QualifiedType
+     {
+     public:
+          explicit PointerType(std::shared_ptr<TypeBase> baseType, std::string name, const Qualifiers qualifiers)
+              : _baseType(std::move(baseType)), QualifiedType(std::move(name), qualifiers)
+          {
+          }
+
+          [[nodiscard]] std::shared_ptr<TypeBase> BaseType(void) const noexcept { return this->_baseType; }
+
+          [[nodiscard]] std::size_t Size(void) const noexcept override;
+
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override;
+
+          [[nodiscard]] std::string RawName(void) const noexcept override { return this->_baseType->RawName() + "*"; }
+
+          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+
+          [[nodiscard]] TypeTraits Traits(void) const noexcept final;
+          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+
+     private:
+          std::shared_ptr<TypeBase> _baseType;
+     };
+
+     class ReferenceType final : public TypeBase
+     {
+     public:
+          enum class Kind
+          {
+               LValue,
+               RValue
+          };
+
+          explicit ReferenceType(std::shared_ptr<TypeBase> baseType, Kind kind, std::string name)
+              : _baseType(std::move(baseType)), _kind(kind), TypeBase(std::move(name))
+          {
+          }
+
+          [[nodiscard]] std::shared_ptr<TypeBase> BaseType(void) const noexcept { return this->_baseType; }
+          [[nodiscard]] Kind GetKind(void) const noexcept { return this->_kind; }
+
+          [[nodiscard]] std::size_t Size(void) const noexcept override;
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override;
+
+          [[nodiscard]] std::string RawName(void) const noexcept override
+          {
+               return this->_baseType->RawName() + (_kind == Kind::LValue ? "&" : "&&");
+          }
+
+          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] TypeTraits Traits(void) const noexcept final;
+          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+
+     private:
+          std::shared_ptr<TypeBase> _baseType;
+          Kind _kind;
      };
 
      /// <summary>

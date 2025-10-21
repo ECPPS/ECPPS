@@ -28,6 +28,7 @@ namespace ecpps::ir
           AddressOf,
           Dereference,
           Store,
+          Convert,
           Load
      };
 

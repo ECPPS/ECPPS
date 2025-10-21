@@ -182,20 +182,20 @@ namespace ecpps::ir
      class LoadNode final : public NodeBase
      {
      public:
-          explicit LoadNode(Expression address, Location source)
+          explicit LoadNode(std::string address, Location source)
               : NodeBase(NodeKind::Load, std::move(source)), _address(std::move(address))
           {
           }
 
-          [[nodiscard]] const Expression& Address(void) const noexcept { return this->_address; }
+          [[nodiscard]] const std::string& Address(void) const noexcept { return this->_address; }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "*" + this->_address->Value()->ToString(0);
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_address;
           }
 
      private:
-          Expression _address;
+          std::string _address;
      };
 
      class StoreNode final : public NodeBase
@@ -256,6 +256,32 @@ namespace ecpps::ir
 
      private:
           Expression _operand;
+     };
+
+     class ConvertNode final : public NodeBase
+     {
+     public:
+          ConvertNode(Expression operand, ecpps::typeSystem::TypePointer targetType, Location source)
+              : NodeBase(NodeKind::Convert, std::move(source)), _operand(std::move(operand)),
+                _targetType(std::move(targetType))
+          {
+          }
+
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const ecpps::typeSystem::TypePointer& TargetType(void) const noexcept
+          {
+               return this->_targetType;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "convert<" + _targetType->RawName() + ">(" +
+                      _operand->Value()->ToString(0) + ")";
+          }
+
+     private:
+          Expression _operand;
+          ecpps::typeSystem::TypePointer _targetType;
      };
 
 } // namespace ecpps::ir

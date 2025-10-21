@@ -23,6 +23,9 @@ namespace ecpps::typeSystem
           Incomplete,
           Boolean,
           Pointer,
+          Scalar,
+          Reference,
+          Object,
 
           Count
      };

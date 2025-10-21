@@ -55,6 +55,54 @@ namespace ecpps::ast
           std::string _name;
      };
 
+     class PointerType final : public Node
+     {
+     public:
+          explicit PointerType(NodePointer baseType, Location source)
+              : Node(std::move(source)), _baseType(std::move(baseType))
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) + "*";
+          }
+
+          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
+
+     private:
+          NodePointer _baseType;
+     };
+
+     class ReferenceType final : public Node
+     {
+     public:
+          enum class Kind
+          {
+               LValue,
+               RValue
+          };
+
+          explicit ReferenceType(NodePointer baseType, Kind kind, Location source)
+              : Node(std::move(source)), _baseType(std::move(baseType)), _kind(kind)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) +
+                      (_kind == Kind::LValue ? "&" : "&&");
+          }
+
+          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
+          [[nodiscard]] Kind GetKind() const noexcept { return _kind; }
+
+     private:
+          NodePointer _baseType;
+          Kind _kind;
+     };
+
+
      class QualifiedType final : public Node
      {
      public:

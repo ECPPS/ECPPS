@@ -157,6 +157,7 @@ namespace ecpps::abi
           {
                return this->_registers;
           }
+          [[nodiscard]] std::size_t PointerSize(void) const noexcept { return this->_pointerSize; }
 
      private:
           static ABI _current;
@@ -168,6 +169,7 @@ namespace ecpps::abi
           std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
           std::unordered_set<std::size_t> _allocatedRegisters{};
           std::shared_ptr<VirtualRegister> _stackPointerRegister{};
+          std::size_t _pointerSize{};
 
           friend AllocatedRegister;
      };

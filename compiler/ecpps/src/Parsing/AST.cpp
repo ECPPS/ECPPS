@@ -210,25 +210,61 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      return std::make_unique<FunctionDefinitionNode>(std::move(signature), std::move(body), source);
 }
 
-bool ecpps::ast::AST::IsDeclarationStart(void)
+bool ecpps::ast::AST::IsDeclarationStart()
 {
-     const auto& t0 = Peek();
-     const auto& t1 = Peek(1);
+     size_t i = 0;
+     bool hasQualifier = false;
+     bool hasSignedness = false;
+     bool hasLong = false;
+     bool hasType = false;
 
-     if (t0.type == TokenType::Keyword)
+     while (true)
      {
-          auto& kw = std::get<std::string>(t0.value);
-          if (kw == "const" || kw == "volatile" || kw == "extern" || kw == "static" || kw == "inline" || kw == "auto" ||
-              kw == "int" || kw == "char" || kw == "float" || kw == "double")
-               return true;
+          const auto& tok = Peek(i);
+          if (tok.type != TokenType::Keyword) break;
+
+          const std::string& kw = std::get<std::string>(tok.value);
+
+          if (kw == "const" || kw == "volatile" || kw == "extern" || kw == "static" || kw == "inline" || kw == "auto")
+          {
+               hasQualifier = true;
+          }
+          else if (kw == "signed" || kw == "unsigned")
+          {
+               if (hasSignedness) break;
+               hasSignedness = true;
+          }
+          else if (kw == "short" || kw == "long") { hasLong = true; }
+          else if (kw == "int" || kw == "char" || kw == "float" || kw == "double")
+          {
+               hasType = true;
+               i++;
+               break;
+          }
+          else
+               break;
+
+          i++;
      }
 
-     if (t0.type == TokenType::Identifier && t1.type == TokenType::Identifier) return true;
+     if (hasType || hasLong) return true;
 
-     if (t0.type == TokenType::Identifier && (t1.type == TokenType::Operator && std::get<std::string>(t1.value) == "*"))
-          return true;
+     const auto& nextTok = Peek(i);
+     if (nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*") return true;
 
      return false;
+}
+
+
+std::string CombineTypeWords(const std::vector<std::string>& words)
+{
+     std::string result;
+     for (auto& w : words)
+     {
+          if (!result.empty()) result += " ";
+          result += w;
+     }
+     return result;
 }
 
 NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
@@ -350,8 +386,34 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
                }
                else if (SimpleTypes.contains(keyword)) // simple-type-specifier
                {
-                    typeSpecifier = std::make_unique<BasicType>(keyword, Peek().location);
-                    Advance();
+                    std::vector<std::string> typeWords;
+                    while (Peek().type == TokenType::Keyword &&
+                           SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                    {
+                         typeWords.push_back(std::get<std::string>(Peek().value));
+                         Advance();
+                    }
+
+                    std::string combinedType = CombineTypeWords(typeWords);
+
+                    // Parse any pointer declarators immediately following the base type
+                    std::size_t pointerLevel = 0;
+                    while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+                    {
+                         ++pointerLevel;
+                         Advance();
+                    }
+
+                    // Build the base type
+                    NodePointer base = std::make_unique<BasicType>(combinedType, source);
+
+                    // Wrap it in PointerType layers
+                    for (std::size_t i = 0; i < pointerLevel; ++i)
+                    {
+                         base = std::make_unique<PointerType>(std::move(base), source);
+                    }
+
+                    typeSpecifier = std::move(base);
                     break;
                }
                else

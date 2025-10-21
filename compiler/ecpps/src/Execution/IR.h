@@ -16,7 +16,7 @@ namespace ecpps::ir
           MaxScore = static_cast<std::size_t>(-1),
      };
 
-     enum class StandardConversionKind
+     enum struct StandardConversionKind
      {
           Identity,
           LvalueToRvalue,
@@ -92,6 +92,11 @@ namespace ecpps::ir
           return score = static_cast<MatchingScore>(std::to_underlying(score) - value);
      }
 
+     constexpr MatchingScore& operator+=(MatchingScore& destination, const MatchingScore other)
+     {
+          return destination += std::to_underlying(other);
+     }
+
      class IR
      {
      public:
@@ -117,6 +122,7 @@ namespace ecpps::ir
 
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
+          Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           typeSystem::TypePointer ParseType(const ast::NodePointer& type);

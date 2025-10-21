@@ -47,10 +47,13 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const Mov
              [&mov, this](const RegisterOperand& registerDestination)
              {
                   return std::visit(
-                      OverloadedVisitor{[&mov, this](const RegisterOperand& registerSource)
+                      OverloadedVisitor{[&mov, this](std::monostate) { return std::vector<std::byte>{}; },  
+                                        [&mov, this](const RegisterOperand& registerSource)
                                         { return this->EmitSpecificMov<OperandCombination::RegisterToRegister>(mov); },
                                         [&mov, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificMov<OperandCombination::ImmediateToRegister>(mov); },
+                                        [&mov, this](const MemoryLocationOperand& memorySource)
+                                        { return this->EmitSpecificMov<OperandCombination::MemoryToRegister>(mov); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid mov operation"); }},
                       mov.source);
@@ -361,6 +364,35 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
           case ecpps::abi::qwordSize:
                return x86_64::GenerateAddImmToMem64(destinationRegister, destinationDisplacement,
                                                     static_cast<std::uint64_t>(sourceImmediate));
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const MovInstruction& mov)
+     {
+          const MemoryLocationOperand& source = std::get<MemoryLocationOperand>(mov.source);
+          const RegisterOperand& destination = std::get<RegisterOperand>(mov.destination);
+
+          const auto destinationRegister = self->RegisterToIndex(destination);
+          const auto sourceRegister = self->RegisterToIndex(source.Register());
+          const auto sourceDisplacement = source.Displacement();
+
+          switch (mov.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateMovMemToReg8(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateMovMemToReg16(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateMovMemToReg32(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateMovMemToReg64(destinationRegister, sourceDisplacement, sourceRegister);
           }
 
           throw std::logic_error("Invalid mov operation");

@@ -72,6 +72,7 @@ namespace ecpps::codegen
 
      struct ErrorOperand
      {
+          [[nodiscard]] std::size_t Size(void) const noexcept { return 0; }
           [[nodiscard]] std::string ToString(void) const noexcept { return ""; }
      };
 
@@ -89,6 +90,7 @@ namespace ecpps::codegen
           Operand source;
           Operand destination;
           std::size_t width;
+          bool isConversion{}; // if false, no effect. Otherwise, this is a conversion mov
           InstructionAlignment alignment{};
 
           explicit MovInstruction(Operand source, Operand destination, const std::size_t width)
