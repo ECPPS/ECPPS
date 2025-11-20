@@ -36,8 +36,23 @@ namespace ecpps::ast
      class QualifiedIdNode final : public Node
      {
      public:
+          explicit QualifiedIdNode(std::vector<NodePointer> path, Location where)
+              : Node(std::move(where)), _path(std::move(path))
+          {
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& element : this->_path) built += element->ToString(0) + "::";
+               if (!built.empty())
+               {
+                    built.pop_back();
+                    built.pop_back();
+               }
+               return std::string(indent * PrettyIndent, ' ') + built;
+          }
+
      private:
-          NodePointer _unqualified;
-          SBOVector<NodePointer> _path;
+          std::vector<NodePointer> _path;
      };
 } // namespace ecpps::ast

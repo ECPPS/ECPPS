@@ -47,7 +47,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const Mov
              [&mov, this](const RegisterOperand& registerDestination)
              {
                   return std::visit(
-                      OverloadedVisitor{[&mov, this](std::monostate) { return std::vector<std::byte>{}; },  
+                      OverloadedVisitor{[&mov, this](std::monostate) { return std::vector<std::byte>{}; },
                                         [&mov, this](const RegisterOperand& registerSource)
                                         { return this->EmitSpecificMov<OperandCombination::RegisterToRegister>(mov); },
                                         [&mov, this](const IntegerOperand& integerSource)
@@ -55,7 +55,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const Mov
                                         [&mov, this](const MemoryLocationOperand& memorySource)
                                         { return this->EmitSpecificMov<OperandCombination::MemoryToRegister>(mov); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mov operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid mov operation")); }},
                       mov.source);
              },
              [&mov, this](const MemoryLocationOperand& memoryDestination)
@@ -66,10 +66,11 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const Mov
                                         [&mov, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificMov<OperandCombination::ImmediateToMemory>(mov); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mov operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid mov operation")); }},
                       mov.source);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mov operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw TracedException(std::logic_error("Invalid mov operation")); }},
          mov.destination);
 }
 
@@ -84,6 +85,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const Add
                                         { return this->EmitSpecificAdd<OperandCombination::RegisterToRegister>(add); },
                                         [&add, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificAdd<OperandCombination::ImmediateToRegister>(add); },
+                                        [&add, this](const MemoryLocationOperand& memorySource)
+                                        { return this->EmitSpecificAdd<OperandCombination::MemoryToRegister>(add); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw std::logic_error("Invalid add operation"); }},
                       add.from);
@@ -114,8 +117,10 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         { return this->EmitSpecificSub<OperandCombination::RegisterToRegister>(sub); },
                                         [&sub, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificSub<OperandCombination::ImmediateToRegister>(sub); },
+                                        [&sub, this](const MemoryLocationOperand& memorySource)
+                                        { return this->EmitSpecificSub<OperandCombination::MemoryToRegister>(sub); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid sub operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid sub operation")); }},
                       sub.from);
              },
              [&sub, this](const MemoryLocationOperand& memoryDestination)
@@ -126,7 +131,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         [&sub, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificSub<OperandCombination::ImmediateToMemory>(sub); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid sub operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid sub operation")); }},
                       sub.from);
              },
              [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid sub operation"); }},
@@ -145,7 +150,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const Mul
                                         [&mul, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid mul operation")); }},
                       mul.from);
              },
              [&mul, this](const MemoryLocationOperand& memoryDestination)
@@ -156,10 +161,11 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const Mul
                                         [&mul, this](const IntegerOperand& integerSource)
                                         { return this->EmitSpecificMul<OperandCombination::ImmediateToMemory>(mul); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw TracedException(std::logic_error("Invalid mul operation")); }},
                       mul.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw TracedException(std::logic_error("Invalid mul operation")); }},
          mul.to);
 }
 
@@ -481,6 +487,35 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
      }
 };
 
+template <>
+struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const AddInstruction& add)
+     {
+          const MemoryLocationOperand& source = std::get<MemoryLocationOperand>(add.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(add.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source.Register());
+          const auto sourceOffset = source.Displacement();
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (add.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateAddMemToReg8(destinationRegister, sourceOffset, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateAddMemToReg16(destinationRegister, sourceOffset, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateAddMemToReg32(destinationRegister, sourceOffset, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateAddMemToReg64(destinationRegister, sourceOffset, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
 //
 // Sub
 //
@@ -592,6 +627,35 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
           case ecpps::abi::wordSize: return x86_64::GenerateSubRegToReg16(destinationRegister, sourceRegister);
           case ecpps::abi::dwordSize: return x86_64::GenerateSubRegToReg32(destinationRegister, sourceRegister);
           case ecpps::abi::qwordSize: return x86_64::GenerateSubRegToReg64(destinationRegister, sourceRegister);
+          }
+
+          throw std::logic_error("Invalid mov operation");
+          return {};
+     }
+};
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> Go(X8664Emitter* self, const SubInstruction& sub)
+     {
+          const MemoryLocationOperand& source = std::get<MemoryLocationOperand>(sub.from);
+          const RegisterOperand& destination = std::get<RegisterOperand>(sub.to);
+
+          const auto sourceRegister = self->RegisterToIndex(source.Register());
+          const auto sourceRegisterOffset = source.Displacement();
+          const auto destinationRegister = self->RegisterToIndex(destination);
+
+          switch (sub.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSubMemToReg8(destinationRegister, sourceRegisterOffset, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSubMemToReg16(destinationRegister, sourceRegisterOffset, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSubMemToReg32(destinationRegister, sourceRegisterOffset, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSubMemToReg64(destinationRegister, sourceRegisterOffset, sourceRegister);
           }
 
           throw std::logic_error("Invalid mov operation");

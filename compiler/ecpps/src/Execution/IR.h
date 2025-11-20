@@ -120,6 +120,7 @@ namespace ecpps::ir
           Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                           const Location& source);
 
+          Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
           Expression ParseIdExpression(const ast::IdentifierNode& expression);

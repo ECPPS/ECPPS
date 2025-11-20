@@ -96,7 +96,11 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
      return ParseSimpleDeclaration();
 }
 
-NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); } //
+NodePointer ecpps::ast::AST::ParseNameDeclaration(void)
+{
+     if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
+     return ParseFunctionDefinition();
+}
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
@@ -254,7 +258,6 @@ bool ecpps::ast::AST::IsDeclarationStart()
 
      return false;
 }
-
 
 std::string CombineTypeWords(const std::vector<std::string>& words)
 {
@@ -568,45 +571,100 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 
 NodePointer ecpps::ast::AST::ParseIdExpression(void)
 {
-     auto& currentToken = this->Peek();
-     if (currentToken.type != TokenType::Identifier) return nullptr;
+     if (Peek().type != TokenType::Identifier) return nullptr;
 
-     auto source = currentToken.location;
-     Advance();
+     const auto source = Peek().location;
+     std::vector<NodePointer> parts;
 
-     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+     bool expectIdentifier = true;
+     bool sawTemplateKeyword = false;
+
+     while (true)
      {
-          Advance();
-          std::vector<NodePointer> templateArguments;
-          while (true)
+          if (!AtEnd() && Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "template")
           {
-               // Parse an individual type for the template argument
-               auto parsed = ParseSimpleTypeSpecifier();
-               templateArguments.push_back(std::move(parsed));
+               sawTemplateKeyword = true;
+               Advance();
+          }
 
-               // If the next token is a comma, advance and continue parsing
-               if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != ",") { Advance(); }
-               else if (Peek().type != TokenType::Operator && std::get<std::string>(Peek().value) == ">")
+          if (AtEnd() || Peek().type != TokenType::Identifier) break;
+
+          auto currentToken = Peek();
+          const auto& identifierName = std::get<std::string>(currentToken.value);
+          Advance();
+
+          if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+          {
+               Advance();
+               std::vector<NodePointer> templateArguments;
+               while (true)
                {
-                    Advance(); // Consume the '>'
-                    break;
-               }
-               else if (Peek().type != TokenType::Operator && std::get<std::string>(Peek().value) == ">>")
-               {
-                    Peek().value = ">";
-                    break;
-               }
-               else
-               {
-                    // TODO: Error
+                    auto parsed = ParseSimpleTypeSpecifier();
+                    if (!parsed) return nullptr;
+                    templateArguments.push_back(std::move(parsed));
+
+                    if (AtEnd()) return nullptr;
+
+                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
+                    {
+                         Advance();
+                         continue;
+                    }
+
+                    if (Peek().type == TokenType::Operator)
+                    {
+                         const auto op = std::get<std::string>(Peek().value);
+                         if (op == ">")
+                         {
+                              Advance();
+                              break;
+                         }
+                         if (op == ">>")
+                         {
+                              // collapse >> to >
+                              Peek().value = std::string(">");
+                              Advance();
+                              break;
+                         }
+                    }
+
                     return nullptr;
                }
+
+               // TODO: Implement
+               throw nullptr;
+               // parts.push_back(std::make_unique<TemplateIdNode>(identifierName, std::move(templateArguments),
+               //                                                  sawTemplateKeyword, currentToken.location));
           }
-          // TODO: Return simple-template-id
-          return nullptr;
+          else
+          {
+               parts.push_back(std::make_unique<IdentifierNode>(identifierName, currentToken.location));
+
+               if (sawTemplateKeyword)
+               {
+                    // TODO: Implement
+                    throw nullptr;
+               }
+          }
+
+          sawTemplateKeyword = false;
+
+          if (AtEnd()) break;
+
+          if (Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+          {
+               Advance();
+               Advance();
+               continue;
+          }
+          const auto& next = Peek();
+
+          break;
      }
 
-     return std::make_unique<IdentifierNode>(std::get<std::string>(currentToken.value), currentToken.location);
+     if (parts.empty()) return nullptr;
+     if (parts.size() == 1) return std::move(parts.front());
+     return std::make_unique<QualifiedIdNode>(std::move(parts), source);
 }
 
 NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)

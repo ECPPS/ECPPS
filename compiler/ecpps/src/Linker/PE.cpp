@@ -232,7 +232,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      offset = 0;
      for (const auto& [name, address] : this->exports)
      {
-          const std::size_t insertPos = max(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
+          const std::size_t insertPos = std::max<std::size_t>(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
@@ -355,7 +355,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      for (const auto& section : this->sections)
      {
           memcpy(sectionHeadersPtr->Name, section.name.c_str(),
-                 min(section.name.size(), sizeof(sectionHeadersPtr->Name)));
+                 std::min(section.name.size(), sizeof(sectionHeadersPtr->Name)));
           sectionHeadersPtr->VirtualAddress =
               AlignUp(section.virtualAddress, this->_ntHeaders.optionalHeader.sectionAlignment);
           sectionHeadersPtr->PointerToRawData = section.pointerToRawData;

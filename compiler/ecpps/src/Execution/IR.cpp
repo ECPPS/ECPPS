@@ -415,6 +415,11 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      return Expression();
 }
 
+Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
+{
+     return nullptr;
+}
+
 Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& node)
 {
      const auto operator_ = node.value();

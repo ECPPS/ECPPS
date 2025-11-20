@@ -80,6 +80,8 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                          std::println("Unknown linker: `{}`", value);
                     }
                }
+               else if (flag == "D")
+                    this->useDebugger = true;
                else
                {
                     // TODO: Error list of some sort on invalid flag

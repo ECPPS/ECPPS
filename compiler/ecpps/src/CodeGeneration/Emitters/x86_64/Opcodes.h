@@ -62,7 +62,7 @@ namespace ecpps::codegen::x86_64
                                                                 std::size_t sourceOffset);
 
      [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg8(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
+                                                               std::size_t sourceOffset);
 
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg64(std::size_t destinationRegister,
                                                                 std::size_t sourceOffset, std::size_t sourceRegister);
@@ -88,6 +88,15 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg32(std::size_t destination, std::size_t source);
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg16(std::size_t destination, std::size_t source);
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToReg8(std::size_t destination, std::size_t source);
+
+     [[nodiscard]] std::vector<std::byte> GenerateAddMemToReg64(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddMemToReg32(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddMemToReg16(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateAddMemToReg8(std::size_t destination, std::size_t sourceOffset,
+                                                               std::size_t sourceRegister);
 
      [[nodiscard]] std::vector<std::byte> GenerateAddRegToMem64(std::size_t destination, std::size_t destinationOffset,
                                                                 std::size_t sourceRegister);
@@ -121,6 +130,15 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem16(std::size_t destination, std::size_t destinationOffset,
                                                                 std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateSubRegToMem8(std::size_t destination, std::size_t destinationOffset,
+                                                               std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSubMemToReg64(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubMemToReg32(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubMemToReg16(std::size_t destination, std::size_t sourceOffset,
+                                                                std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSubMemToReg8(std::size_t destination, std::size_t sourceOffset,
                                                                std::size_t sourceRegister);
 
      // mul

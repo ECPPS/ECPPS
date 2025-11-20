@@ -51,6 +51,7 @@ namespace ecpps
           LinkerUsed linker = DefaultLinker;
           VerboseStatus verboseStatus = VerboseStatus::Default;
           std::vector<std::string> importedLibraries{};
+          bool useDebugger = false;
 
           [[noreturn]] void PrintVersionAndExit(void) const;
      };
