@@ -6,6 +6,6 @@ namespace ecpps::platformlib
 {
      struct NativeException : std::runtime_error
      {
-          explicit NativeException(std::string message) : runtime_error(std::move(message)) {}
+          explicit NativeException(const std::string& message) : runtime_error(message) {}
      };
 } // namespace ecpps::platformlib

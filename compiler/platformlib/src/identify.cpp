@@ -2,12 +2,12 @@
 #include "platformlib.h"
 
 #ifdef _WIN32
-#include "Windows.h"
-#elif defind(__linux__)
+#include <Windows.h>
+#elifdef __linux__
 
 #endif
+
 #include <format>
-#include <stdexcept>
 
 ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Identify(void)
 {

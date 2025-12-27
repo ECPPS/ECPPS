@@ -5,9 +5,7 @@ namespace ecpps::ast
      class IdentifierNode final : public Node
      {
      public:
-          explicit IdentifierNode(std::string value, Location where) : Node(std::move(where)), _value(std::move(value))
-          {
-          }
+          explicit IdentifierNode(std::string value, Location where) : Node(where), _value(std::move(value)) {}
           [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -21,7 +19,7 @@ namespace ecpps::ast
      class OperatorFunctionId final : Node
      {
      public:
-          explicit OperatorFunctionId(Operator op, Location where) : Node(std::move(where)), _operator(std::move(op)) {}
+          explicit OperatorFunctionId(Operator op, Location where) : Node(where), _operator(op) {}
 
           [[nodiscard]] Operator GetOperator(void) const noexcept { return this->_operator; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
@@ -36,8 +34,7 @@ namespace ecpps::ast
      class QualifiedIdNode final : public Node
      {
      public:
-          explicit QualifiedIdNode(std::vector<NodePointer> path, Location where)
-              : Node(std::move(where)), _path(std::move(path))
+          explicit QualifiedIdNode(std::vector<NodePointer> path, Location where) : Node(where), _path(std::move(path))
           {
           }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override

@@ -40,7 +40,8 @@ Checks: >
   -bugprone-bitwise-pointer-cast,
   -bugprone-exception-escape,
   -clang-analyzer-core.NonNullParamChecker,
-  -modernize-use-auto
+  -modernize-use-auto,
+  -bugprone-macro-parentheses
 
 CheckOptions:
   # Identifier naming rules

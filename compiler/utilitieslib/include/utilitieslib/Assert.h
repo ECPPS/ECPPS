@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <type_traits>
 
 void RuntimeAssert(bool condition, std::string_view conditionString, std::string message, std::string_view file,
                    std::size_t line, std::string_view function);
