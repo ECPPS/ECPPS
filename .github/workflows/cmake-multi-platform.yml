@@ -109,6 +109,7 @@ jobs:
                 clang-tidy "$f" \
                   --warnings-as-errors='*' \
                   --extra-arg=-std=c++23 \
+                  -- \
                   -I"${{ github.workspace }}/compiler/platformlib/include" \
                   -I"${{ github.workspace }}/compiler/ecpps/src" \
                   -I"${{ github.workspace }}/compiler/utilitieslib/include/utilitieslib" \
