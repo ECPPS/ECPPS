@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
 void RuntimeAssert(bool condition, std::string_view conditionString, std::string message, std::string_view file,
                    std::size_t line, std::string_view function);
@@ -15,11 +17,7 @@ template <typename T> struct Empty
      {
      }
      void operator=(auto o)
-          requires std::is_copy_assignable_v<T, decltype(o)>
-     {
-     }
-     void operator=(auto o)
-          requires std::is_move_assignable_v<T, decltype(o)>
+          requires std::assignable_from<T, decltype(o)>
      {
      }
 };

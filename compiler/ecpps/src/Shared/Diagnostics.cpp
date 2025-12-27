@@ -9,21 +9,22 @@ void ecpps::IssueICE(const TracedException& ex)
      SymInitialize(process, nullptr, TRUE);
 
      std::println("\x1b[41mInternal Compiler Error:\x1b[0m {}", ex.what());
-     for (size_t i = 0; i < ex.trace.size(); ++i)
+     for (auto* i : ex.trace)
      {
-          DWORD64 address = reinterpret_cast<DWORD64>(ex.trace[i]);
+          auto address = reinterpret_cast<DWORD64>(i);
           DWORD64 displacement = 0;
           void* storage = operator new(sizeof(SYMBOL_INFO) + MAX_PATH);
-          SYMBOL_INFO* symbol = new (storage) SYMBOL_INFO{};
+          std::memset(storage, 0, sizeof(SYMBOL_INFO) + MAX_PATH);
+          auto* symbol = new (storage) SYMBOL_INFO{};
           symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
           symbol->MaxNameLen = MAX_PATH;
 
-          if (SymFromAddr(process, address, &displacement, symbol))
+          if (SymFromAddr(process, address, &displacement, symbol) != 0)
           {
                IMAGEHLP_LINE64 line{};
                line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
                DWORD lineDisp = 0;
-               if (SymGetLineFromAddr64(process, address, &lineDisp, &line))
+               if (SymGetLineFromAddr64(process, address, &lineDisp, &line) != 0)
                     std::println("  at \x1b[34m{}:{}\x1b[0m <\x1b[32m{}\x1b[0m>", line.FileName, line.LineNumber,
                                  symbol->Name);
                else
@@ -36,7 +37,6 @@ void ecpps::IssueICE(const TracedException& ex)
      SymCleanup(process);
      ExitProcess(-1);
 }
-
 
 void ecpps::IssueICE(std::string_view message, CONTEXT* defaultContext)
 {
@@ -61,43 +61,44 @@ void ecpps::IssueICE(std::string_view message, CONTEXT* defaultContext)
      frame.AddrStack.Mode = AddrModeFlat;
 
      std::vector<void*> stack;
-     while (StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, NULL,
-                        SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+     while (StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, nullptr, SymFunctionTableAccess64,
+                        SymGetModuleBase64, nullptr) != 0)
      {
-          stack.push_back((void*)frame.AddrPC.Offset);
+          stack.push_back(reinterpret_cast<void*>(frame.AddrPC.Offset));
      }
 
      std::println("\x1b[41mInternal Compiler Error:\x1b[0m {}", message);
-     for (size_t i = 0; i < stack.size(); ++i)
+     for (auto& i : stack)
      {
-          const auto address = reinterpret_cast<DWORD64>(stack[i]);
+          const auto address = reinterpret_cast<DWORD64>(i);
           DWORD64 displacement = 0;
           void* symbolInfoStorage = operator new(sizeof(SYMBOL_INFO) + MAX_PATH);
           if (symbolInfoStorage == nullptr) break;
-          SYMBOL_INFO* symbol = new (symbolInfoStorage) SYMBOL_INFO{};
+          auto* symbol = new (symbolInfoStorage) SYMBOL_INFO{};
           symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
           symbol->MaxNameLen = MAX_PATH;
 
-          if (SymFromAddr(process, address, &displacement, symbol))
+          if (SymFromAddr(process, address, &displacement, symbol) != 0)
           {
                IMAGEHLP_LINE64 line{};
                line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
                DWORD lineDisplacement = 0;
-               HMODULE moduleHandle = (HMODULE)SymGetModuleBase64(process, address);
-               char moduleName[MAX_PATH]{};
-               if (moduleHandle) GetModuleFileNameA(moduleHandle, moduleName, MAX_PATH);
+               auto* moduleHandle = reinterpret_cast<HMODULE>(SymGetModuleBase64(process, address));
+               std::string moduleName{};
+               moduleName.resize(MAX_PATH);
+               if (moduleHandle != nullptr) GetModuleFileNameA(moduleHandle, moduleName.data(), MAX_PATH);
 
-               if (SymGetLineFromAddr64(process, address, &lineDisplacement, &line))
+               if (SymGetLineFromAddr64(process, address, &lineDisplacement, &line) != 0)
                {
                     std::println("\x1b[37m[{:02}] \x1b[34m{}:{}\x1b[0m", i, line.FileName, line.LineNumber);
                     std::println("       [\x1b[35m{}+0x{:X}\x1b[0m <\x1b[32m{}\x1b[0m>] @\x1b[35m{:x}\x1b[0m",
-                                 symbol->Name, displacement, moduleName[0] ? moduleName : "?", line.Address);
+                                 symbol->Name, displacement, moduleName[0] != '\0' ? moduleName : "?", line.Address);
                }
                else
                {
                     std::println("\x1b[37m[{:02}] \x1b[35m{}\x1b[0m", i, symbol->Name);
                     std::println("       +0x{:X} <\x1b[32m{}\x1b[0m> @\x1b[35m{:x}\x1b[0m", displacement,
-                                 moduleName[0] ? moduleName : "?", address);
+                                 moduleName[0] == '\0' ? moduleName : "?", address);
                }
           }
           else

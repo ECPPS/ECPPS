@@ -67,6 +67,18 @@ jobs:
         -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -S ${{ github.workspace }}
 
+    - name: Run clang-tidy
+      if: matrix.c_compiler == 'clang' || matrix.cpp_compiler == 'clang++'
+      shell: bash
+      run: |
+        echo "Running clang-tidy..."
+        # Find all source files
+        files=$(git ls-files '*.cpp' '*.cxx' '*.cc' '*.c')
+        # Run clang-tidy with warnings as errors
+        for f in $files; do
+          clang-tidy "$f" -- -I"${{ github.workspace }}/include"
+        done
+
     - name: Build
       # Build your program with the given configuration. Note that --config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}

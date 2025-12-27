@@ -10,7 +10,7 @@ namespace ecpps::ir
      {
      public:
           explicit ReturnNode(Expression value, Location source)
-              : NodeBase(NodeKind::Return, std::move(source)), _value(std::move(value))
+              : NodeBase(NodeKind::Return, source), _value(std::move(value))
           {
           }
 

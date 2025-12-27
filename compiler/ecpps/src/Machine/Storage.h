@@ -3,8 +3,8 @@
 #include <cstddef>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <variant>
+#include <vector>
 
 namespace ecpps::abi
 {
@@ -23,8 +23,8 @@ namespace ecpps::abi
           std::size_t width;
           std::size_t id;
 
-          constexpr bool operator==(const PhysicalRegister& other) { return this->id == other.id; }
-          constexpr bool operator!=(const PhysicalRegister& other) { return this->id != other.id; }
+          constexpr bool operator==(const PhysicalRegister& other) const { return this->id == other.id; }
+          constexpr bool operator!=(const PhysicalRegister& other) const { return this->id != other.id; }
 
           /// <summary>
           /// Constructs a new register object
@@ -82,7 +82,8 @@ namespace ecpps::abi
 
      struct StorageRef
      {
-          using ValueType = std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
+          using ValueType =
+              std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
           ValueType value;
           explicit StorageRef(ValueType value) : value(std::move(value)) {}
           explicit(false) StorageRef(std::nullptr_t) : value(std::monostate{}) {}

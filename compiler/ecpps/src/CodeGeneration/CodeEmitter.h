@@ -43,7 +43,7 @@ namespace ecpps::codegen
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
 
           virtual void PatchCalls(std::vector<std::byte>& source,
-                                  const std::unordered_map<std::string, std::size_t>& routines) = 0;
+                                  std::unordered_map<std::string, std::size_t>& routines) = 0;
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
@@ -71,7 +71,8 @@ namespace ecpps::codegen
           /// <summary>
           /// Custom instruction emitter. By default a no-op.
           /// </summary>
-          [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(const CustomInstruction& instruction)
+          [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(
+              [[maybe_unused]] const CustomInstruction& instruction)
           {
                return {};
           }

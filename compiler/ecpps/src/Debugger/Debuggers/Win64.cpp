@@ -3,11 +3,14 @@
 
 #include <DbgHelp.h>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
 #include <format>
 #include <iostream>
 #include <print>
 
-enum struct PromptResult
+enum struct PromptResult : std::uint_fast8_t
 {
      Continue,
      Exit,
@@ -38,8 +41,9 @@ static std::uint64_t ResolveRegister(const CONTEXT& ctx, const std::string& name
 
 static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
 {
-     char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME]{};
-     auto symbol = reinterpret_cast<PSYMBOL_INFO>(buffer);
+     std::string buffer{};
+     buffer.resize(sizeof(SYMBOL_INFO) + MAX_SYM_NAME);
+     auto* symbol = reinterpret_cast<PSYMBOL_INFO>(buffer.data());
      symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
      symbol->MaxNameLen = MAX_SYM_NAME;
 
@@ -48,9 +52,9 @@ static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
      std::string moduleName;
 
      DWORD64 modBase = SymGetModuleBase64(process, addr);
-     if (modBase && SymGetModuleInfo64(process, modBase, &modInfo)) { moduleName = modInfo.ModuleName; }
+     if (modBase != 0 && SymGetModuleInfo64(process, modBase, &modInfo) != 0) { moduleName = modInfo.ModuleName; }
 
-     if (SymFromAddr(process, addr, nullptr, symbol))
+     if (SymFromAddr(process, addr, nullptr, symbol) != 0)
      {
           return std::format("{}!{}+0x{:X}", moduleName.empty() ? "?" : moduleName, symbol->Name,
                              addr - symbol->Address);
@@ -73,9 +77,10 @@ static void PrintStackTrace(HANDLE process, HANDLE thread, const CONTEXT& ctx)
 
      for (int frameIndex = 0; frameIndex < 64; ++frameIndex)
      {
-          if (!StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
-                           reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), nullptr, SymFunctionTableAccess64,
-                           SymGetModuleBase64, nullptr))
+          if (StackWalk64(
+                  IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
+                  reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                  nullptr, SymFunctionTableAccess64, SymGetModuleBase64, nullptr) == 0)
                break;
 
           if (frame.AddrPC.Offset == 0) break;
@@ -86,7 +91,7 @@ static void Disassemble(HANDLE process, std::uintptr_t address, std::size_t size
 {
      std::array<std::byte, 32> bytes{};
      SIZE_T bytesRead{};
-     if (!ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), bytes.data(), size, &bytesRead))
+     if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), bytes.data(), size, &bytesRead) == 0)
      {
           std::println("Failed to read instructions at 0x{:016X} (error {})", address, GetLastError());
           return;
@@ -102,7 +107,10 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
 {
      CONTEXT ctx{};
      ctx.ContextFlags = CONTEXT_FULL;
-     if (!GetThreadContext(thread, &ctx)) { std::println("Failed to get thread context (error {})", GetLastError()); }
+     if (GetThreadContext(thread, &ctx) != 0)
+     {
+          std::println("Failed to get thread context (error {})", GetLastError());
+     }
 
      std::string input;
      std::print("> ");
@@ -112,9 +120,9 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
      std::string command;
      stream >> command;
 
-     if (command == "c" || command == "continue") { return PromptResult::Continue; }
-     else if (command == "exit") { return PromptResult::Exit; }
-     else if (command == "print")
+     if (command == "c" || command == "continue") return PromptResult::Continue;
+     if (command == "exit") return PromptResult::Exit;
+     if (command == "print")
      {
           std::string queryValue;
           std::uint64_t value{};
@@ -127,18 +135,18 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           std::println("{} = {} (0x{:x})", queryValue, value, value);
           return PromptResult::None;
      }
-     else if (command == "di")
+     if (command == "di")
      {
           std::uintptr_t addr = ctx.Rip;
           Disassemble(process, addr);
           return PromptResult::None;
      }
-     else if (command == "stack")
+     if (command == "stack")
      {
           PrintStackTrace(process, thread, ctx);
           return PromptResult::None;
      }
-     else if (command == "dq")
+     if (command == "dq")
      {
           std::string addressToken;
           std::size_t count = 1;
@@ -161,7 +169,8 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
 
           SIZE_T bytesRead = 0;
           std::vector<std::byte> buffer(count * 8);
-          if (!ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(), &bytesRead))
+          if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(),
+                                &bytesRead) != 0)
           {
                std::println("Failed to read memory at 0x{:016x} (error {})", address, GetLastError());
                return PromptResult::None;
@@ -172,7 +181,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
                for (std::size_t i = 0; i < bytesRead / 8; ++i)
                {
                     auto value = std::bit_cast<std::uint64_t*>(buffer.data())[i];
-                    std::println("{:016x}: 0x{:016x}", address + i * 8, value);
+                    std::println("{:016x}: 0x{:016x}", address + (i * 8uz), value);
                }
           }
           else if (type == "dword" || type == "d")
@@ -180,7 +189,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
                for (std::size_t i = 0; i < bytesRead / 4; ++i)
                {
                     auto value = std::bit_cast<std::uint32_t*>(buffer.data())[i];
-                    std::println("{:016x}: 0x{:08x}", address + i * 4, value);
+                    std::println("{:016x}: 0x{:08x}", address + (i * 4uz), value);
                }
           }
           else if (type == "word" || type == "w")
@@ -188,7 +197,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
                for (std::size_t i = 0; i < bytesRead / 2; ++i)
                {
                     auto value = std::bit_cast<std::uint16_t*>(buffer.data())[i];
-                    std::println("{:016x}: 0x{:04x}", address + i * 2, value);
+                    std::println("{:016x}: 0x{:04x}", address + (i * 2uz), value);
                }
           }
           else if (type == "byte" || type == "b")
@@ -204,11 +213,14 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
                for (std::size_t i = 0; i < bytesRead; ++i)
                {
                     char c = static_cast<char>(buffer[i]);
-                    std::print("{}", std::isprint(static_cast<unsigned char>(c)) ? c : '.');
+                    std::print("{}", std::isprint(static_cast<unsigned char>(c)) != 0 ? c : '.');
                }
                std::println("");
           }
-          else { std::println("Unknown type '{}'", type); }
+          else
+          {
+               std::println("Unknown type '{}'", type);
+          }
 
           return PromptResult::None;
      }
@@ -216,7 +228,8 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
      return PromptResult::None;
 }
 
-int ecpps::debugging::Win64Debugger::Debug(CompilerConfig& configuration, std::filesystem::path program) const
+int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& configuration,
+                                           std::filesystem::path program) const
 {
      std::wstring cmd = program.wstring();
      if (cmd.empty()) return -1;
@@ -230,20 +243,20 @@ int ecpps::debugging::Win64Debugger::Debug(CompilerConfig& configuration, std::f
      PROCESS_INFORMATION pi{};
      DWORD creationFlags = DEBUG_ONLY_THIS_PROCESS;
 
-     if (!CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi))
+     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) != 0)
      {
           return static_cast<int>(GetLastError());
      }
 
      SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
 
-     std::string symbolPath = "srv*C:\\Symbols*https://msdl.microsoft.com/download/symbols";
-     if (!SymInitialize(pi.hProcess, nullptr, TRUE))
+     // std::string symbolPath = "srv*C:\\Symbols*https://msdl.microsoft.com/download/symbols";
+     if (SymInitialize(pi.hProcess, nullptr, TRUE) == 0)
      {
           std::println("SymInitialize failed ({:x})", GetLastError());
      }
 
-     DWORD exitCode = 0;
+     DWORD exitCode = 0; // NOLINT
      DEBUG_EVENT dbgEvent{};
      bool running = true;
 
@@ -302,14 +315,15 @@ int ecpps::debugging::Win64Debugger::Debug(CompilerConfig& configuration, std::f
                std::string path;
                if (dbgEvent.u.LoadDll.lpImageName)
                {
-                    char nameBuffer[MAX_PATH]{};
+                    std::string nameBuffer{};
+                    nameBuffer.resize(MAX_PATH);
                     SIZE_T bytesRead = 0;
                     LPCVOID namePtr = nullptr;
                     if (ReadProcessMemory(pi.hProcess, dbgEvent.u.LoadDll.lpImageName, &namePtr, sizeof(namePtr),
                                           &bytesRead) &&
                         namePtr)
                     {
-                         ReadProcessMemory(pi.hProcess, namePtr, nameBuffer, sizeof(nameBuffer) - 1, &bytesRead);
+                         ReadProcessMemory(pi.hProcess, namePtr, nameBuffer.data(), nameBuffer.size(), &bytesRead);
                          path = nameBuffer;
                     }
                }
@@ -330,7 +344,8 @@ int ecpps::debugging::Win64Debugger::Debug(CompilerConfig& configuration, std::f
                ReadProcessMemory(pi.hProcess, dbgEvent.u.DebugString.lpDebugStringData, string.data(), string.size(),
                                  &read);
                std::print("{}", string);
-          } break;
+          }
+          break;
 
           case RIP_EVENT: running = false; break;
 
@@ -343,7 +358,7 @@ int ecpps::debugging::Win64Debugger::Debug(CompilerConfig& configuration, std::f
      if (WaitForSingleObject(pi.hProcess, 0) != WAIT_OBJECT_0) WaitForSingleObject(pi.hProcess, INFINITE);
 
      DWORD processExitCode = 0;
-     if (!GetExitCodeProcess(pi.hProcess, &processExitCode)) processExitCode = -1;
+     if (GetExitCodeProcess(pi.hProcess, &processExitCode) != 0) processExitCode = -1;
 
      CloseHandle(pi.hThread);
      CloseHandle(pi.hProcess);

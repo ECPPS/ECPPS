@@ -16,7 +16,7 @@ namespace ecpps::linker
           x64
      };
 
-     enum struct PESubsystem : std::uint8_t
+     enum struct PESubsystem : std::uint_fast8_t
      {
           Unknown = 0,
           Native = 1,

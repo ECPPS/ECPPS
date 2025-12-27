@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -27,7 +28,7 @@ namespace ecpps::abi
           CLinkage
      };
 
-     enum struct CallingConventionName : std::uint_fast16_t
+     enum struct CallingConventionName : std::uint_fast16_t // NOLINT(performance-enum-size)
      {
           Microsoftx64
      };
@@ -72,6 +73,33 @@ namespace ecpps::abi
           std::reference_wrapper<std::vector<codegen::Instruction>> _instructions;
      };
 
+     struct CallTemporaryProxy
+     {
+          virtual ~CallTemporaryProxy(void) { runtime_assert(this->_hasFinished, "Finish() was not called"); }
+
+          void Finish(std::vector<ecpps::codegen::Instruction>& instructions)
+          {
+               runtime_assert(!this->_hasFinished, "Cannot call Finish() twice");
+               this->_hasFinished = true;
+               End(instructions);
+          }
+
+     protected:
+          virtual void End(std::vector<ecpps::codegen::Instruction>& instructions) = 0;
+
+     private:
+          bool _hasFinished{};
+     };
+
+     struct WindowsABICallProxy final : CallTemporaryProxy
+     {
+          explicit WindowsABICallProxy(const std::bitset<4> savedRegisters) : _savedRegisters(savedRegisters) {}
+          virtual void End(std::vector<ecpps::codegen::Instruction>& instructions);
+
+     private:
+          std::bitset<4> _savedRegisters;
+     };
+
      struct CallingConvention
      {
           explicit CallingConvention(const CallingConventionName name, const std::size_t shadowSpace,
@@ -92,6 +120,8 @@ namespace ecpps::abi
           [[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
           [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(
               std::vector<ecpps::codegen::Instruction>&) const = 0;
+          [[nodiscard]] virtual std::unique_ptr<CallTemporaryProxy> PrepareForCall(
+              std::vector<ecpps::codegen::Instruction>& instructions) = 0;
 
      protected:
           CallingConventionName _name;
@@ -110,7 +140,9 @@ namespace ecpps::abi
               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
           [[nodiscard]] StorageRequirement GetRequirementsForType(const typeSystem::TypePointer& type) const override;
           [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(
-              std::vector<ecpps::codegen::Instruction>& instructionVector) const final override;
+              std::vector<ecpps::codegen::Instruction>& instructions) const final override;
+          [[nodiscard]] std::unique_ptr<CallTemporaryProxy> PrepareForCall(
+              std::vector<ecpps::codegen::Instruction>& instructions) final override;
      };
 
      enum struct RegisterAllocation : bool
@@ -136,14 +168,15 @@ namespace ecpps::abi
                                                            RegisterAllocation allocation);
           [[nodiscard]] AllocatedRegister AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate,
                                                            RegisterAllocation allocation);
+          [[nodiscard]] bool CheckRegisterAllocation(std::size_t width, const std::string& name) const;
 
-          [[nodiscard]] std::string MangleName(Linkage linkage, const std::string& name,
-                                               CallingConventionName callingConvetion,
-                                               const typeSystem::TypePointer& returnType,
-                                               const std::vector<typeSystem::TypePointer>& parameters);
+          [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
+                                                      CallingConventionName callingConvention,
+                                                      const typeSystem::TypePointer& returnType,
+                                                      const std::vector<typeSystem::TypePointer>& parameters);
 
           CallingConventionName DefaultCallingConventionName(void) const;
-          [[nodiscard]] const CallingConvention& CallingConventionFromName(CallingConventionName name);
+          [[nodiscard]] CallingConvention& CallingConventionFromName(CallingConventionName name);
           [[nodiscard]] const std::shared_ptr<VirtualRegister>& StackPointerRegister(void) const noexcept
           {
                return this->_stackPointerRegister;
@@ -167,7 +200,7 @@ namespace ecpps::abi
           std::vector<std::shared_ptr<VirtualRegister>> _registers;
 
           std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
-          std::unordered_set<std::size_t> _allocatedRegisters{};
+          std::unordered_map<std::size_t, std::size_t> _allocatedRegisters{};
           std::shared_ptr<VirtualRegister> _stackPointerRegister{};
           std::size_t _pointerSize{};
 
@@ -177,7 +210,7 @@ namespace ecpps::abi
 
 namespace
 {
-     std::string ToString(const ecpps::abi::CallingConventionName callingConvention)
+     std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
      {
           switch (callingConvention)
           {

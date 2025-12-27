@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <array>
 #include <string>
 #include <vector>
 #include "Error.h"
@@ -36,9 +37,9 @@ namespace ecpps
           void CaptureStack(void)
           {
                constexpr ULONG MaxFrames = 64;
-               void* frames[MaxFrames];
-               USHORT captured = CaptureStackBackTrace(0, MaxFrames, frames, nullptr);
-               trace.assign(frames, frames + captured);
+               std::array<void*, MaxFrames> frames{};
+               USHORT captured = CaptureStackBackTrace(0, MaxFrames, frames.data(), nullptr);
+               trace.assign(frames.data(), frames.data() + captured);
           }
      };
 

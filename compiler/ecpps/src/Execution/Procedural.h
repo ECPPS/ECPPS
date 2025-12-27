@@ -5,6 +5,7 @@
 #include "../Parsing/AST.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Context.h"
+#include "Expressions.h"
 #include "NodeBase.h"
 
 namespace ecpps::ir
@@ -23,9 +24,9 @@ namespace ecpps::ir
                                  std::vector<FunctionScope::Parameter> parameterList,
                                  std::vector<FunctionScope::Variable> locals, std::vector<NodePointer> body,
                                  Location source)
-              : NodeBase(NodeKind::Procedure, std::move(source)), _linkage(linkage),
-                _callingConvention(callingConvention), _returnType(std::move(returnType)), _name(std::move(name)),
-                _parameterList(std::move(parameterList)), _locals(std::move(locals)), _body(std::move(body))
+              : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
+                _returnType(std::move(returnType)), _name(std::move(name)), _parameterList(std::move(parameterList)),
+                _locals(std::move(locals)), _body(std::move(body))
           {
           }
 
@@ -33,7 +34,7 @@ namespace ecpps::ir
           [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
                return this->_parameterList;
-          }                                                          
+          }
           [[nodiscard]] const std::vector<FunctionScope::Variable>& Locals(void) const noexcept
           {
                return this->_locals;
@@ -71,8 +72,7 @@ namespace ecpps::ir
      public:
           explicit FunctionCallNode(std::shared_ptr<FunctionScope> function, std::vector<Expression> arguments,
                                     Location source)
-              : NodeBase(NodeKind::Call, std::move(source)), _function(std::move(function)),
-                _arguments(std::move(arguments))
+              : NodeBase(NodeKind::Call, source), _function(std::move(function)), _arguments(std::move(arguments))
           {
           }
 
@@ -94,6 +94,6 @@ namespace ecpps::ir
 
      private:
           std::shared_ptr<FunctionScope> _function;
-          std::vector<Expression> _arguments;
+          std::vector<Expression> _arguments{};
      };
 } // namespace ecpps::ir

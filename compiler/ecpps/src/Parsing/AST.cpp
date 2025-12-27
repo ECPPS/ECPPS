@@ -105,8 +105,15 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(void)
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
      SBOVector<std::unique_ptr<AttributeNode>> attributes{};
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
      bool isFriend = false;
      bool isInline = false;
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
      bool isExtern = false;
      std::optional<std::string> externOptional = std::nullopt;
      while (Peek().type == TokenType::LeftBracket)
@@ -216,18 +223,18 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 
 bool ecpps::ast::AST::IsDeclarationStart()
 {
-     size_t i = 0;
-     bool hasQualifier = false;
+     std::size_t i = 0;
+     bool hasQualifier = false; // NOLINT
      bool hasSignedness = false;
      bool hasLong = false;
      bool hasType = false;
 
      while (true)
      {
-          const auto& tok = Peek(i);
+          const auto& tok = Peek(static_cast<std::ptrdiff_t>(i));
           if (tok.type != TokenType::Keyword) break;
 
-          const std::string& kw = std::get<std::string>(tok.value);
+          const auto& kw = std::get<std::string>(tok.value);
 
           if (kw == "const" || kw == "volatile" || kw == "extern" || kw == "static" || kw == "inline" || kw == "auto")
           {
@@ -253,19 +260,17 @@ bool ecpps::ast::AST::IsDeclarationStart()
 
      if (hasType || hasLong) return true;
 
-     const auto& nextTok = Peek(i);
-     if (nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*") return true;
-
-     return false;
+     const auto& nextTok = Peek(static_cast<std::ptrdiff_t>(i));
+     return nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*";
 }
 
 std::string CombineTypeWords(const std::vector<std::string>& words)
 {
      std::string result;
-     for (auto& w : words)
+     for (const auto& word : words)
      {
           if (!result.empty()) result += " ";
-          result += w;
+          result += word;
      }
      return result;
 }
@@ -469,7 +474,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
 
      std::vector<VariableDeclarator> declarators{};
 
-     do {
+     do
+     {
           NodePointer id = ParseIdExpression();
           if (!id) return nullptr;
 
@@ -491,27 +497,36 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
           return nullptr;
      }
 
-     return std::make_unique<VariableDeclarationNode>(
-         std::move(typeSpecifier), std::move(declarators),
-         /*flags*/
-         VariableDeclarationNode::Flags{isTypedef, isFriend, isConstexpr, isConsteval, isConstinit, isInline, isStatic,
-                                        isThreadLocal, isExtern, isMutable, isConst, isVolatile},
-         std::move(optExplicitSpecifier), source);
+     return std::make_unique<VariableDeclarationNode>(std::move(typeSpecifier), std::move(declarators),
+                                                      /*flags*/
+                                                      VariableDeclarationNode::Flags{.isTypedef = isTypedef,
+                                                                                     .isFriend = isFriend,
+                                                                                     .isConstexpr = isConstexpr,
+                                                                                     .isConsteval = isConsteval,
+                                                                                     .isConstinit = isConstinit,
+                                                                                     .isInline = isInline,
+                                                                                     .isStatic = isStatic,
+                                                                                     .isThreadLocal = isThreadLocal,
+                                                                                     .isExtern = isExtern,
+                                                                                     .isMutable = isMutable,
+                                                                                     .isConst = isConst,
+                                                                                     .isVolatile = isVolatile},
+                                                      std::move(optExplicitSpecifier), source);
 }
 
-NodePointer ecpps::ast::AST::TryParseDeclSpecifier(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::TryParseDeclSpecifier(void) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier(void) { return {}; }
 
-NodePointer ecpps::ast::AST::ParseInitDeclarator(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::ParseInitDeclarator(void) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseDeclarator(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::TryParseDeclarator(void) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParsePtrDeclarator(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::TryParsePtrDeclarator(void) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator(void) { return {}; }
 
-NodePointer ecpps::ast::AST::ParseInitialiser(void) { return NodePointer(); }
+NodePointer ecpps::ast::AST::ParseInitialiser(void) { return {}; }
 
 NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 {
@@ -533,7 +548,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
                                 { return std::make_unique<IntegerLiteralNode>(literal.value, currentToken.location); },
                                 [&currentToken](const char literal) -> NodePointer
                                 { return std::make_unique<CharacterLiteralNode>(literal, currentToken.location); },
-                                [&currentToken](auto&&) -> NodePointer { return nullptr; }},
+                                [](auto&&) static -> NodePointer { return nullptr; }},
               currentToken.value);
      }
      break;
@@ -563,6 +578,8 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
           return ParseIdExpression();
      }
      break;
+     default:
+          throw TracedException(std::format("Invalid primary expression {}", std::to_underlying(currentToken.type)));
      }
 
      // TODO: Error
@@ -576,7 +593,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression(void)
      const auto source = Peek().location;
      std::vector<NodePointer> parts;
 
-     bool expectIdentifier = true;
+     bool expectIdentifier = true; // NOLINT
      bool sawTemplateKeyword = false;
 
      while (true)
@@ -636,15 +653,13 @@ NodePointer ecpps::ast::AST::ParseIdExpression(void)
                // parts.push_back(std::make_unique<TemplateIdNode>(identifierName, std::move(templateArguments),
                //                                                  sawTemplateKeyword, currentToken.location));
           }
-          else
-          {
-               parts.push_back(std::make_unique<IdentifierNode>(identifierName, currentToken.location));
 
-               if (sawTemplateKeyword)
-               {
-                    // TODO: Implement
-                    throw nullptr;
-               }
+          parts.push_back(std::make_unique<IdentifierNode>(identifierName, currentToken.location));
+
+          if (sawTemplateKeyword)
+          {
+               // TODO: Implement
+               throw nullptr;
           }
 
           sawTemplateKeyword = false;
@@ -657,7 +672,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression(void)
                Advance();
                continue;
           }
-          const auto& next = Peek();
+          const auto& next = Peek(); // NOLINT
 
           break;
      }
@@ -1011,6 +1026,11 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(void)
      return expression;
 }
 
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 NodePointer ecpps::ast::AST::ParseRelationalExpression(void)
 {
      auto currentToken = this->Peek();
@@ -1100,6 +1120,10 @@ NodePointer ecpps::ast::AST::ParseExpression(void)
      auto expression = ParseAssignmentExpression();
      return expression;
 }
+
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
 
 NodePointer ecpps::ast::AST::ParseStatement(void)
 {

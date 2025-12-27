@@ -12,6 +12,8 @@
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "ControlFlow.h"
+#include "Expressions.h"
+#include "NodeBase.h"
 #include "Operations.h"
 #include "Procedural.h"
 
@@ -43,18 +45,30 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, const 
 
 void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
 {
-     if (const auto functionDefinitionNode = dynamic_cast<ast::FunctionDefinitionNode*>(node.get());
+     if (auto* const functionDefinitionNode = dynamic_cast<ast::FunctionDefinitionNode*>(node.get());
          functionDefinitionNode != nullptr)
-          return ParseFunctionDefinition(*functionDefinitionNode);
-     if (const auto functionDeclarationNode = dynamic_cast<ast::FunctionDeclarationNode*>(node.get());
+     {
+          ParseFunctionDefinition(*functionDefinitionNode);
+          return;
+     }
+     if (auto* const functionDeclarationNode = dynamic_cast<ast::FunctionDeclarationNode*>(node.get());
          functionDeclarationNode != nullptr)
-          return ParseFunctionDeclaration(*functionDeclarationNode);
+     {
+          ParseFunctionDeclaration(*functionDeclarationNode);
+          return;
+     }
 
-     if (const auto returnNode = dynamic_cast<ast::ReturnNode*>(node.get()); returnNode != nullptr)
-          return ParseReturn(*returnNode);
-     if (const auto variableDeclarationNode = dynamic_cast<ast::VariableDeclarationNode*>(node.get());
+     if (auto* const returnNode = dynamic_cast<ast::ReturnNode*>(node.get()); returnNode != nullptr)
+     {
+          ParseReturn(*returnNode);
+          return;
+     }
+     if (auto* const variableDeclarationNode = dynamic_cast<ast::VariableDeclarationNode*>(node.get());
          variableDeclarationNode != nullptr)
-          return ParseVariableDeclaration(*variableDeclarationNode);
+     {
+          ParseVariableDeclaration(*variableDeclarationNode);
+          return;
+     }
 
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
@@ -196,7 +210,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 {
-     const auto function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+     auto* const function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+
+     runtime_assert(function != nullptr, "Function was null when parsing the function");
 
      if (node.Value() == nullptr)
      {
@@ -213,17 +229,16 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 
      auto returnExpression = ParseExpression(node.Value());
 
-     runtime_assert(function != nullptr, "Function was null when parsing the function");
-     this->_built.push_back(
-         std::make_unique<ir::ReturnNode>(ConvertTo(std::move(returnExpression), function->returnType), node.Source()));
+     auto converted = ConvertTo(std::move(returnExpression), function->returnType);
+     this->_built.push_back(std::make_unique<ir::ReturnNode>(std::move(converted), node.Source()));
 }
 
 void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode& node)
 {
-     const auto functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+     auto* const functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
      runtime_assert(functionContext != nullptr, "Variable declaration outside of a function is not supported");
 
-     auto& fscope = functionContext->GetScope<FunctionScope>();
+     auto& fscope = functionContext->GetScope<FunctionScope>(); // NOLINT(clang-analyzer-core.CallAndMessage)
 
      auto declaredType = ParseType(node.Type());
      if (declaredType == nullptr)
@@ -236,8 +251,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
      for (const auto& decl : node.Declarators())
      {
-          const auto idNodePtr = decl.name.get();
-          const auto idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
+          auto* const idNodePtr = decl.name.get();
+          const auto* const idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
           if (idExpr == nullptr)
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
@@ -312,14 +327,14 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           else
           {
                // TODO: default-initialiser
-               // for scalars it is an indeterminate value, but TODO: class types
+               // for scalars it is an indeterminate Value, but TODO: class types
                // TODO: Error for references
           }
      }
 }
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
-                                                  const Location& source)
+                                                  const Location& source) const
 {
      runtime_assert(operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus, "Invalid additive operator");
 
@@ -359,7 +374,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 }
 
 Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right,
-                                                        const Location& source)
+                                                        const Location& source) const
 {
      runtime_assert(operator_ == ast::Operator::Asterisk || operator_ == ast::Operator::Solidus ||
                         operator_ == ast::Operator::Percent,
@@ -404,27 +419,26 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
                                       std::make_unique<ModuloNode>(std::move(left), std::move(right), source), false);
 }
 
-Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
-                                               const Location& source)
+Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
+                                               [[maybe_unused]] ast::Operator operator_,
+                                               [[maybe_unused]] Expression right,
+                                               [[maybe_unused]] const Location& source)
 {
      runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
                     "Invalid operator for a shift-expression");
 
      throw std::logic_error("Not implemented");
 
-     return Expression();
+     return {};
 }
 
-Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
-{
-     return nullptr;
-}
+Expression ecpps::ir::IR::ParseUnaryExpression([[maybe_unused]] const ast::UnaryOperatorNode& node) { return nullptr; }
 
 Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& node)
 {
-     const auto operator_ = node.value();
-     auto left = ParseExpression(node.left());
-     auto right = ParseExpression(node.right());
+     const auto operator_ = node.Value();
+     auto left = ParseExpression(node.Left());
+     auto right = ParseExpression(node.Right());
      if (left == nullptr || right == nullptr) return nullptr;
 
      switch (operator_)
@@ -438,7 +452,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return this->ParseMultiplicativeExpression(std::move(left), operator_, std::move(right), node.Source());
      case ast::Operator::LeftShift:
      case ast::Operator::RightShift:
-          return this->ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
+          return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
+     default: throw TracedException(std::logic_error("Invalid operator for bit-shifting"));
      }
 
      return nullptr;
@@ -456,7 +471,7 @@ struct CompareByPriority
 Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 {
      // fast/hot path for identifiers
-     if (const auto identifierFunction = dynamic_cast<ast::IdentifierNode*>(node.Function().get()))
+     if (auto* const identifierFunction = dynamic_cast<ast::IdentifierNode*>(node.Function().get()))
      {
           const std::string& name = identifierFunction->Value();
           std::priority_queue<
@@ -476,7 +491,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                {
                     if (candidate->name != name) continue;
 
-                    const auto match = this->MatchFunction(candidate, arguments);
+                    const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
                     if (!match) continue;
                     candidates.emplace(match, candidate);
                }
@@ -520,7 +535,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
      for (const auto& context : this->_context.contextSequence)
      {
           const auto& scope = context->GetScope();
-          if (const auto functionScope = dynamic_cast<const FunctionScope*>(&scope))
+          if (const auto* const functionScope = dynamic_cast<const FunctionScope*>(&scope))
           {
                for (const auto& local : functionScope->locals)
                {
@@ -545,17 +560,23 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 {
      if (expression == nullptr) return nullptr;
 
-     if (const auto integerLiteral = dynamic_cast<ast::IntegerLiteralNode*>(expression.get());
+     if (auto* const integerLiteral = dynamic_cast<ast::IntegerLiteralNode*>(expression.get());
          integerLiteral != nullptr)
           return std::make_unique<PRValue>(
               typeSystem::g_int, std::make_unique<ir::IntegralNode>(integerLiteral->Value(), expression->Source()),
               true);
-     if (const auto binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
+
+     if (auto* const characterLiteral = dynamic_cast<ast::CharacterLiteralNode*>(expression.get());
+         characterLiteral != nullptr)
+          return std::make_unique<PRValue>(
+              typeSystem::g_char, std::make_unique<ir::IntegralNode>(characterLiteral->Value(), expression->Source()),
+              true);
+     if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);
-     if (const auto functionCall = dynamic_cast<ast::CallOperatorNode*>(expression.get()); functionCall != nullptr)
+     if (auto* const functionCall = dynamic_cast<ast::CallOperatorNode*>(expression.get()); functionCall != nullptr)
           return this->ParseCallExpression(*functionCall);
-     if (const auto identifier = dynamic_cast<ast::IdentifierNode*>(expression.get()); identifier != nullptr)
+     if (auto* const identifier = dynamic_cast<ast::IdentifierNode*>(expression.get()); identifier != nullptr)
           return this->ParseIdExpression(*identifier);
 
      this->_context.diagnostics.get().diagnosticsList.push_back(
@@ -571,7 +592,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
      {
           for (const auto& scope : this->_context.contextSequence)
           {
-               for (auto& type : scope->GetScope().types)
+               for (const auto& type : scope->GetScope().types)
                {
                     if (type->Name() == name) return type;
                }
@@ -592,16 +613,16 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 
      typeSystem::TypePointer result = nullptr;
 
-     if (auto basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
+     if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
      {
           result = ResolveBasicType(basicType->Value());
      }
-     else if (const auto qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
+     else if (auto* const qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
      {
           Scope* currentScope = &this->_context.contextSequence.Back()->GetScope();
           for (const auto& section : qualifiedType->Sections())
           {
-               if (auto nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
+               if (auto* nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
                {
                     bool found = false;
                     for (auto& sub : nsScope->subNamespaces)
@@ -615,7 +636,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
                     }
                     if (!found) return nullptr;
                }
-               else if (auto classScope = dynamic_cast<ir::ClassScope*>(currentScope))
+               else if (auto* classScope = dynamic_cast<ir::ClassScope*>(currentScope))
                {
                     bool found = false;
                     for (auto& nested : classScope->nestedClasses)
@@ -629,26 +650,29 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
                     }
                     if (!found) return nullptr;
                }
-               else { return nullptr; }
+               else
+               {
+                    return nullptr;
+               }
           }
 
-          if (const auto unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
+          if (auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
               unqualified != nullptr)
           {
-               for (auto& type : currentScope->types)
+               for (const auto& type : currentScope->types)
                {
                     if (type->Name() == unqualified->Value()) result = type;
                }
           }
      }
-     else if (auto ptr = dynamic_cast<const ast::PointerType*>(base); ptr)
+     else if (const auto* ptr = dynamic_cast<const ast::PointerType*>(base); ptr)
      {
           auto inner = ParseType(ptr->BaseType());
           typeSystem::Qualifiers qualifiers{};
           // TOOD: Implement qualifiers
           result = std::make_shared<typeSystem::PointerType>(inner, base->ToString(0), qualifiers);
      }
-     else if (auto ref = dynamic_cast<const ast::ReferenceType*>(base); ref)
+     else if (const auto* ref = dynamic_cast<const ast::ReferenceType*>(base); ref)
      {
           auto inner = ParseType(ref->BaseType());
           result = std::make_shared<typeSystem::ReferenceType>(inner,
@@ -665,7 +689,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
      return result;
 }
 
-Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType)
+Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
 
@@ -705,7 +729,7 @@ Expression ecpps::ir::IR::ConvertIntegral(Expression&& expression,
      const auto& expressionType = expression->Type();
      const auto& source = expression->Value()->Source();
 
-     if (const auto integralNode = dynamic_cast<IntegralNode*>(expression->Value().get()); integralNode != nullptr)
+     if (auto* const integralNode = dynamic_cast<IntegralNode*>(expression->Value().get()); integralNode != nullptr)
      {
           // promotion
           return std::make_unique<PRValue>(type, std::move(std::move(*expression).Value()),

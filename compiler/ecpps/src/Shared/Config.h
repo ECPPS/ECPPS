@@ -22,18 +22,18 @@ namespace ecpps
          Windows64; // fallback to x64 Windows
 #endif
 
-     enum struct DiagnosticType
+     enum struct DiagnosticType : std::uint_fast8_t
      {
           FileNotFound
      };
-     enum struct DiagnosticState
+     enum struct DiagnosticState : std::uint_fast8_t
      {
           Surpress,
           Warning,
           Error
      };
 
-     enum struct VerboseStatus : std::uint8_t
+     enum struct VerboseStatus : std::uint_fast8_t
      {
           Default,
           Verbose,
@@ -42,7 +42,8 @@ namespace ecpps
 
      struct CompilerConfig
      {
-          explicit CompilerConfig(int argc, char* argv[]);
+          explicit CompilerConfig(int argc,
+                                  char* argv[]); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 
           std::vector<std::string> sourceFiles{};
           std::unordered_map<DiagnosticType, DiagnosticState> diagnostics{};
@@ -53,6 +54,7 @@ namespace ecpps
           std::vector<std::string> importedLibraries{};
           bool useDebugger = false;
 
-          [[noreturn]] void PrintVersionAndExit(void) const;
+          [[noreturn]] static void PrintVersionAndExit(void);
+          [[noreturn]] static void PrintHelpAndExit(void);
      };
 } // namespace ecpps

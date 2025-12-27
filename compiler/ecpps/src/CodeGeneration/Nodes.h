@@ -1,12 +1,7 @@
 #pragma once
-#include <array>
 #include <cstdint>
-#include <list>
-#include <map>
 #include <memory>
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <variant>
 #include <vector>
 #include "..\Machine\Storage.h"
@@ -15,7 +10,6 @@ namespace ecpps::codegen
 {
      template <typename TOperand> struct OperandBase
      {
-          explicit OperandBase(const std::size_t width) : _size(width) {}
           /* static_assert(requires(const TOperand& operand) {
                 { operand.ToString() } -> std::same_as<std::string>;
            });*/
@@ -23,6 +17,11 @@ namespace ecpps::codegen
 
      protected:
           std::size_t _size;
+
+     private:
+          explicit OperandBase(const std::size_t width) : _size(width) {}
+
+          friend TOperand;
      };
 
      struct RegisterOperand : OperandBase<RegisterOperand>
@@ -32,7 +31,7 @@ namespace ecpps::codegen
           {
           }
 
-          [[nodiscard]] std::string ToString(void) const noexcept;
+          [[nodiscard]] std::string ToString(void) const;
 
           [[nodiscard]] const std::shared_ptr<abi::VirtualRegister>& Index(void) const noexcept { return this->_index; }
 
@@ -45,7 +44,7 @@ namespace ecpps::codegen
           explicit IntegerOperand(const std::size_t value, const std::size_t width) : OperandBase(width), _value(value)
           {
           }
-          [[nodiscard]] std::string ToString(void) const noexcept;
+          [[nodiscard]] std::string ToString(void) const;
 
           [[nodiscard]] std::size_t Value(void) const noexcept { return this->_value; }
 
@@ -60,7 +59,7 @@ namespace ecpps::codegen
               : OperandBase(width), _register(std::move(register_)), _displacement(displacement)
           {
           }
-          [[nodiscard]] std::string ToString(void) const noexcept;
+          [[nodiscard]] std::string ToString(void) const;
 
           [[nodiscard]] const RegisterOperand& Register(void) const noexcept { return this->_register; }
           [[nodiscard]] std::size_t Displacement(void) const noexcept { return this->_displacement; }
@@ -72,8 +71,14 @@ namespace ecpps::codegen
 
      struct ErrorOperand
      {
-          [[nodiscard]] std::size_t Size(void) const noexcept { return 0; }
-          [[nodiscard]] std::string ToString(void) const noexcept { return ""; }
+          [[nodiscard]] std::size_t Size(void) const noexcept
+          {
+               return 0;
+          } // NOLINT(readability-convert-member-functions-to-static)
+          [[nodiscard]] std::string ToString(void) const
+          {
+               return "";
+          } // NOLINT(readability-convert-member-functions-to-static)
      };
 
      using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
@@ -207,7 +212,7 @@ namespace ecpps::codegen
      /// Instruction to use for the branch jump. Each one of those is documented by a comment
      /// Procedure does not yield any jumps. None generates jmp.
      /// </summary>
-     enum struct RoutineCondition
+     enum struct RoutineCondition : std::uint_fast8_t
      {
           /// <summary>
           /// je (jump if equal / zero flag set)
@@ -314,7 +319,7 @@ namespace ecpps::codegen
      private:
           explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition,
                            const RoutineCondition loopCondition, std::string name = {})
-              : instructions(std::move(instructions)), skipCondition(skipCondition), loopCondition(loopCondition),
+              : skipCondition(skipCondition), loopCondition(loopCondition), instructions(std::move(instructions)),
                 name(std::move(name))
           {
                if (this->name.empty()) this->name = GenerateName();

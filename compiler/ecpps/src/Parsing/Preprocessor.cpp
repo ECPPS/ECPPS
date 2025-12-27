@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <print>
+#include <unordered_map>
 #include <unordered_set>
-#include "Tokeniser.h"
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
                                                                   std::vector<MacroReplacement>& macros)
@@ -34,12 +34,12 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     if (macro.name == "__LINE__") macro.contents = std::to_string(location.line);
                continue;
           }
-          if (std::isspace(character)) continue;
+          if (std::isspace(character) != 0) continue;
 
           if (character == '#' && location.position == 1)
           {
                ++sourceIterator;
-               while (sourceIterator != source.end() && std::isspace(*sourceIterator)) ++sourceIterator;
+               while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                std::string directive;
                while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
@@ -53,7 +53,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                {
                     // Parse header name: <...> or "..."
                     std::string header;
-                    while (sourceIterator != source.end() && std::isspace(*sourceIterator)) ++sourceIterator;
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                     if (sourceIterator == source.end()) break;
 
@@ -76,7 +76,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                else if (directive == "define")
                {
                     // Parse macro name
-                    while (sourceIterator != source.end() && std::isspace(*sourceIterator)) ++sourceIterator;
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                     std::string macroName;
                     if (sourceIterator != source.end() && IsCharacterBeginning(*sourceIterator))
@@ -105,7 +105,10 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                    params.push_back(currentParam);
                                    currentParam.clear();
                               }
-                              else { currentParam += *sourceIterator; }
+                              else
+                              {
+                                   currentParam += *sourceIterator;
+                              }
                               ++sourceIterator;
                          }
                          if (!currentParam.empty()) params.push_back(currentParam);
@@ -132,18 +135,17 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     bool isIfndef = (directive == "ifndef");
 
                     // Parse macro name
-                    while (sourceIterator != source.end() && std::isspace(*sourceIterator)) ++sourceIterator;
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
                     std::string macroName;
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
                     {
                          macroName += *sourceIterator++;
                     }
 
-                    bool conditionMet =
-                        isIfndef ? std::none_of(macros.begin(), macros.end(),
-                                                [&macroName](const MacroReplacement& m) { return m.name == macroName; })
-                                 : std::any_of(macros.begin(), macros.end(),
-                                               [&macroName](const MacroReplacement& m) { return m.name == macroName; });
+                    bool conditionMet = isIfndef ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
+                                                                        { return m.name == macroName; })
+                                                 : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
+                                                                       { return m.name == macroName; });
 
                     // Handle conditional block
                     std::vector<PreprocessingToken> branchTokens;
@@ -157,7 +159,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               // peek directive name
                               auto peekIt = sourceIterator;
                               ++peekIt;
-                              while (peekIt != source.end() && std::isspace(*peekIt)) ++peekIt;
+                              while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) ++peekIt;
 
                               std::string nextDirective;
                               while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
@@ -207,15 +209,15 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     ++sourceIterator;
                }
                location.endPosition = location.position;
-               auto it = std::find_if(macros.begin(), macros.end(),
-                                      [&identifier](const MacroReplacement& m) { return m.name == identifier; });
+               auto it = std::ranges::find_if(macros, [&identifier](const MacroReplacement& m)
+                                              { return m.name == identifier; });
 
                if (it != macros.end())
                {
                     if (it->Type() == ecpps::MacroReplacementType::FunctionLike)
                     {
                          auto peekIt = std::next(sourceIterator);
-                         while (peekIt != source.end() && std::isspace(*peekIt)) ++peekIt;
+                         while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) ++peekIt;
 
                          if (it->parameters && peekIt != source.end() && *peekIt == '(')
                          {
@@ -300,12 +302,12 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
 
                auto suffixIt = std::next(sourceIterator);
-               if (suffixIt != source.end() && (std::isalpha(*suffixIt) || *suffixIt == '_'))
+               if (suffixIt != source.end() && ((std::isalpha(*suffixIt) != 0) || *suffixIt == '_'))
                {
                     std::string suffix;
                     auto it = suffixIt;
 
-                    while (it != source.end() && (std::isalnum(*it) || *it == '_'))
+                    while (it != source.end() && ((std::isalnum(*it) != 0) || *it == '_'))
                     {
                          suffix += *it;
                          ++it;
@@ -424,7 +426,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                {
                     if (*sourceIterator == ')' &&
                         std::string_view{&*std::next(sourceIterator), delimiter.size()} == delimiter &&
-                        *std::next(sourceIterator, delimiter.size()) == '"')
+                        *std::next(sourceIterator, static_cast<std::streamsize>(delimiter.size())) == '"')
                     {
                          literal += ')';
                          for (std::size_t i = 0; i < delimiter.size(); ++i) literal += *++sourceIterator;
@@ -489,13 +491,14 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
      std::println("\x1b[0m");
 }
 
-bool ecpps::Preprocessor::IsOperatorOrPunctuator(const std::string& string)
+bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)
 {
      static std::unordered_set<std::string> OperatorsAndPunctuators{
          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
 
+     // return OperatorsAndPunctuators.contains(string);
      return false;
 }
 
@@ -518,7 +521,8 @@ static std::string ExpandMacroString(const std::string& contents,
           {
                std::string param;
                std::size_t j = i + 1;
-               while (j < contents.size() && (std::isalnum(contents[j]) || contents[j] == '_')) param += contents[j++];
+               while (j < contents.size() && ((std::isalnum(contents[j]) != 0) || contents[j] == '_'))
+                    param += contents[j++];
                if (parameterMap.contains(param)) result += "\"" + parameterMap.at(param) + "\"";
                i = j - 1;
                continue;
@@ -529,13 +533,13 @@ static std::string ExpandMacroString(const std::string& contents,
           {
                std::string left;
                std::size_t l = result.size();
-               while (l > 0 && !std::isspace(result[l - 1])) --l;
+               while (l > 0 && (std::isspace(result[l - 1]) == 0)) --l;
                left = result.substr(l);
                result.erase(l);
 
                std::string right{};
                std::size_t replacement = i + 2;
-               while (replacement < contents.size() && !std::isspace(contents[replacement]) &&
+               while (replacement < contents.size() && (std::isspace(contents[replacement]) == 0) &&
                       contents[replacement] != '#')
                     right += contents[replacement++];
 
@@ -547,23 +551,27 @@ static std::string ExpandMacroString(const std::string& contents,
           }
 
           // parameter replacement
-          if (std::isalnum(contents[i]) || contents[i] == '_')
+          if ((std::isalnum(contents[i]) != 0) || contents[i] == '_')
           {
                std::string token;
                std::size_t j = i;
-               while (j < contents.size() && (std::isalnum(contents[j]) || contents[j] == '_')) token += contents[j++];
+               while (j < contents.size() && ((std::isalnum(contents[j]) != 0) || contents[j] == '_'))
+                    token += contents[j++];
 
                if (parameterMap.contains(token)) result += parameterMap.at(token);
                else
                {
                     // check if token is another macro (recursive expansion)
-                    auto it = std::find_if(macros.begin(), macros.end(),
-                                           [&token](const ecpps::MacroReplacement& m) { return m.name == token; });
+                    auto it = std::ranges::find_if(macros, [&token](const ecpps::MacroReplacement& m)
+                                                   { return m.name == token; });
                     if (it != macros.end() && it->parameters == std::nullopt) // object-like
                     {
                          result += ExpandMacroString(it->contents, parameterMap, macros);
                     }
-                    else { result += token; }
+                    else
+                    {
+                         result += token;
+                    }
                }
                i = j - 1;
                continue;

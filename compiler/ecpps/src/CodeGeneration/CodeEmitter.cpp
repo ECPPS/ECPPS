@@ -1,6 +1,7 @@
 #include "CodeEmitter.h"
-#include <variant>
+#include <stdexcept>
 #include "../Parsing/Tokeniser.h"
+#include "../Shared/Diagnostics.h"
 #include "Emitters/x86_64.h"
 
 std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
@@ -24,6 +25,7 @@ std::unique_ptr<ecpps::codegen::CodeEmitter> ecpps::codegen::CodeEmitter::New(ab
      switch (isa)
      {
      case abi::ISA::x86_64: return std::make_unique<emitters::X8664Emitter>();
+     default: throw TracedException(std::runtime_error("Emitter for the selected ISA does not exist"));
      }
 
      return nullptr;

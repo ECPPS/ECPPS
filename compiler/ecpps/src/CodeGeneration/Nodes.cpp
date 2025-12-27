@@ -1,14 +1,13 @@
 #include "Nodes.h"
-#include <variant>
 #include <format>
-#include "../Execution/NodeBase.h"
-#include "../Machine/ABI.h"
+#include <variant>
+#include "../Parsing/Tokeniser.h"
 
-std::string ecpps::codegen::RegisterOperand::ToString(void) const noexcept { return this->_index->friendlyName; }
+std::string ecpps::codegen::RegisterOperand::ToString(void) const { return this->_index->friendlyName; }
 
-std::string ecpps::codegen::IntegerOperand::ToString(void) const noexcept { return std::to_string(this->_value); }
+std::string ecpps::codegen::IntegerOperand::ToString(void) const { return std::to_string(this->_value); }
 
-std::string ecpps::codegen::MemoryLocationOperand::ToString(void) const noexcept
+std::string ecpps::codegen::MemoryLocationOperand::ToString(void) const
 {
      if (this->_displacement == 0) return "[" + this->_register.ToString() + "]";
      return "[" + this->_register.ToString() + " + " + std::to_string(this->_displacement) + "]";
@@ -31,7 +30,7 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
                                                                      [](const auto& operand) -> std::size_t
                                                                      { return operand.Size(); }},
                                                    instruction.destination))
-                          : "mov";
+                          : std::format("mov.{}", instruction.width);
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},
@@ -44,7 +43,7 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
              },
              [](const AddInstruction& instruction)
              {
-                  std::string built = "add";
+                  std::string built = std::format("add.{}", instruction.width);
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},
@@ -57,7 +56,7 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
              },
              [](const SubInstruction& instruction)
              {
-                  std::string built = "sub";
+                  std::string built = std::format("sub.{}", instruction.width);
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},
@@ -70,7 +69,8 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
              },
              [](const MulInstruction& instruction)
              {
-                  std::string built = instruction.isSigned ? "imul" : "mul";
+                  std::string built = instruction.isSigned ? std::format("imul.{}", instruction.width)
+                                                           : std::format("mul.{}", instruction.width);
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},
@@ -83,7 +83,8 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
              },
              [](const DivInstruction& instruction)
              {
-                  std::string built = instruction.isSigned ? "idiv" : "div";
+                  std::string built = instruction.isSigned ? std::format("idiv.{}", instruction.width)
+                                                           : std::format("div.{}", instruction.width);
                   built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
                                                               [](const auto& operand) -> std::string
                                                               { return operand.ToString(); }},

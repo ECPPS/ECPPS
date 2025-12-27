@@ -1,9 +1,17 @@
-add_executable(ecpps
-    src/main.cpp
-    "src/Shared/Config.cpp"
- "src/Parsing/SourceMap.h" "src/Shared/Diagnostics.h" "src/Shared/Diagnostics.cpp" "src/Parsing/SourceMap.cpp" "src/Parsing/Preprocessor.h" "src/Parsing/Preprocessor.cpp" "src/Parsing/Tokeniser.cpp" "src/Parsing/AST.h" "src/Parsing/AST.cpp" "src/Parsing/ASTs/General.h" "src/Parsing/ASTs/Type.h" "src/Execution/NodeBase.h" "src/Execution/Procedural.h" "src/TypeSystem/TypeBase.h" "src/Execution/ControlFlow.h" "src/Execution/Expressions.h" "src/Execution/Operations.h" "src/Execution/IR.h" "src/Execution/IR.cpp" "src/CodeGeneration/Nodes.h" "src/CodeGeneration/Nodes.cpp" "src/CodeGeneration/PseudoAssembly.h" "src/CodeGeneration/PseudoAssembly.cpp" "src/Machine/ABI.h" "src/Machine/ABI.cpp" "src/Machine/Machine.cpp" "src/Machine/Vendor/ax86/ISA.cpp" "src/Machine/Vendor/Shared/ISA.h" "src/Machine/Vendor/aARM/ISA.cpp" "src/TypeSystem/ArithmeticTypes.h" "src/TypeSystem/ArithmeticTypes.cpp" "src/Execution/Context.h" "src/CodeGeneration/CodeEmitter.h" "src/CodeGeneration/Emitters/x86_64.cpp" "src/CodeGeneration/TranslationUnit.h" "src/CodeGeneration/CodeEmitter.cpp" "src/CodeGeneration/Emitters/x86_64.h" "src/CodeGeneration/Emitters/x86_64/Opcodes.h" "src/CodeGeneration/Emitters/x86_64/Opcodes.cpp" "src/Linker/PE.h" "src/Linker/PE.cpp" "src/Linker/WindowsLinker.h" "src/Linker/WindowsLinker.cpp" "src/Linker/Linker.h" "src/Linker/Linker.cpp" "src/Machine/Mangling.h" "src/Machine/Mangling.cpp" "src/Shared/Error.cpp" "src/TypeSystem/TypeBase.cpp" "src/Linker/dllHelp.h" "src/Linker/dllHelp.cpp" "src/Machine/Storage.h" "src/Debugger/Debugger.h" "src/Debugger/Debugger.cpp" "src/Debugger/Debuggers/Win64.cpp" "src/Debugger/Debuggers/Win64.h")
+file(GLOB_RECURSE ECPPS_SOURCES
+    "src/*.cpp"
+    "src/*.cxx"
+)
 
-target_link_libraries(ecpps platformlib)
-target_link_libraries(ecpps utilitieslib)
-target_include_directories(ecpps PUBLIC "../platformlib/include")
-target_include_directories(ecpps PUBLIC "../utilitieslib/include/utilitieslib")
+add_executable(ecpps ${ECPPS_SOURCES})
+
+target_compile_features(ecpps PUBLIC cxx_std_23)
+target_precompile_headers(ecpps PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h")
+
+target_link_libraries(ecpps PRIVATE platformlib utilitieslib)
+target_include_directories(ecpps
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "../platformlib/include"
+        "../utilitieslib/include/utilitieslib"
+)

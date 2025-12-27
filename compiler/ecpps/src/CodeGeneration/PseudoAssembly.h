@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <vector>
 #include "../Execution/NodeBase.h"
-#include "Nodes.h"
+#include "../Parsing/SourceMap.h"
 
 namespace ecpps::codegen
 {

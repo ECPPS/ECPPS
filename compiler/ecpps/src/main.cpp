@@ -1,7 +1,6 @@
 #include <Windows.h>
 #include <chrono>
 #include <cstddef>
-#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -15,7 +14,6 @@
 #include "Debugger/Debugger.h"
 #include "Execution/IR.h"
 #include "Linker/Linker.h"
-#include "Linker/WindowsLinker.h"
 #include "Parsing/AST.h"
 #include "Parsing/Preprocessor.h"
 #include "Parsing/SourceMap.h"
@@ -23,13 +21,18 @@
 #include "Shared/Config.h"
 #include "Shared/Diagnostics.h"
 
+#ifdef min
+#undef min
+#undef max
+#endif
+
 LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
 {
      switch (ExceptionInfo->ExceptionRecord->ExceptionCode)
      {
      case EXCEPTION_ACCESS_VIOLATION:
      {
-          void* faultingAddress = (void*)ExceptionInfo->ExceptionRecord->ExceptionInformation[1];
+          void* faultingAddress = reinterpret_cast<void*>(ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
           bool isWrite = ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1;
           std::string built;
           if (isWrite) built = std::format("Access violation writing to {}", faultingAddress);
@@ -50,12 +53,22 @@ LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
      return EXCEPTION_EXECUTE_HANDLER;
 }
 
+static void EnableVirtualProcessing(void)
+{
+     auto* const hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+     DWORD consoleMode{};
+     GetConsoleMode(hConsoleOutput, &consoleMode);
+     consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+     SetConsoleMode(hConsoleOutput, consoleMode);
+}
+
 int main(int argc, char* argv[])
 {
+     EnableVirtualProcessing();
      SetUnhandledExceptionFilter(WinExceptionHandler);
+
      try
      {
-
           const auto start = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
@@ -138,11 +151,6 @@ int main(int argc, char* argv[])
 
                     for (const auto& procedure : source.compiledRoutines)
                     {
-                         const std::size_t offset = generatedMachineCode.size();
-                         if (procedure.name == "_EntryPoint") mainOffset = offset;
-
-                         functions.emplace_back(procedure.name, offset);
-
                          if (isExtraVerbose)
                          {
                               std::println("{}:", procedure.name);
@@ -153,16 +161,26 @@ int main(int argc, char* argv[])
                          }
 
                          const auto machineCode = emitter->EmitRoutine(procedure, generatedMachineCode.size());
+
                          routines.emplace(procedure.name, generatedMachineCode.size());
                          generatedMachineCode.append_range(machineCode);
                          if (!isExtraVerbose) continue;
                     }
+
                     emitter->PatchCalls(generatedMachineCode, routines);
+
+                    for (const auto& [procedureName, procedurOffset] : routines)
+                    {
+                         if (procedureName == "_EntryPoint") mainOffset = procedurOffset;
+
+                         functions.emplace_back(procedureName, procedurOffset);
+                    }
+
                     if (isExtraVerbose)
                     {
                          std::vector<std::pair<std::string, std::size_t>> ordered;
                          ordered.reserve(routines.size());
-                         for (const auto& r : routines) ordered.push_back(r);
+                         for (const auto& r : routines) ordered.emplace_back(r);
 
                          std::ranges::sort(ordered, {}, &std::pair<std::string, std::size_t>::second);
 
@@ -178,8 +196,9 @@ int main(int argc, char* argv[])
 
                               if (start >= end) continue;
 
-                              auto machineCode = std::ranges::subrange(generatedMachineCode.begin() + start,
-                                                                       generatedMachineCode.begin() + end);
+                              auto machineCode = std::ranges::subrange(
+                                  generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(start),
+                                  generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(end));
 
                               constexpr std::size_t RowSize = 8; // in bytes
                               const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
@@ -194,7 +213,9 @@ int main(int argc, char* argv[])
                                         const auto byteOffset = offset + column;
                                         if (byteOffset >= machineCode.size()) std::print("   ");
                                         else
-                                             std::print("{:02x} ", static_cast<std::size_t>(machineCode[byteOffset]));
+                                             std::print("{:02x} ",
+                                                        static_cast<std::size_t>(
+                                                            machineCode[static_cast<std::ptrdiff_t>(byteOffset)]));
                                    }
                                    std::println("|");
                               }
@@ -314,14 +335,13 @@ int main(int argc, char* argv[])
                std::println("Failed to open file: {}", config.outputImage);
                return -1;
           }
-          else
+
+          outFile.write(reinterpret_cast<const char*>(imageBytes.data()),
+                        static_cast<std::streamsize>(imageBytes.size()));
+          if (!outFile)
           {
-               outFile.write(reinterpret_cast<const char*>(imageBytes.data()), imageBytes.size());
-               if (!outFile)
-               {
-                    std::println("Failed during write to: {}", config.outputImage);
-                    return -1;
-               }
+               std::println("Failed during write to: {}", config.outputImage);
+               return -1;
           }
 
           const auto outputImagePath = absolute(std::filesystem::path(config.outputImage));

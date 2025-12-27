@@ -1,6 +1,8 @@
 #include "ArithmeticTypes.h"
 #include <Assert.h>
+#ifndef NDEBUG
 #include <format>
+#endif
 #include <string>
 #include <utility>
 #include "../Machine/ABI.h"
@@ -18,7 +20,7 @@ std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 
      return 0;
 }
-std::string ecpps::typeSystem::IntegralType::RawName(void) const noexcept
+std::string ecpps::typeSystem::IntegralType::RawName(void) const
 {
      switch (this->_kind)
      {
@@ -191,20 +193,20 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
      if (!IsPointer(other)) return ConversionSequence{std::nullopt};
 
      const auto otherPointer = std::dynamic_pointer_cast<PointerType>(other);
-     runtime_assert(otherPointer != nullptr,
-                    std::format("Pointer type `{}` was not a pointer type", other->RawName()));
+     runtime_assert(otherPointer != nullptr, std::format("Pointer type `{}` was not a pointer type", other->RawName()));
 
-     return otherPointer->_baseType->CompareTo(this->_baseType); // TODO: This is not the way it should be done, but I am in a hurry
+     return otherPointer->_baseType->CompareTo(
+         this->_baseType); // TODO: This is not the way it should be done, but I am in a hurry
 }
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept
 {
-     return TypeTraits{TypeTraitEnum::Scalar,         TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
+     return TypeTraits{TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
                        TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object};
 }
 
 std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::PointerType::CommonWith(
-    const std::shared_ptr<TypeBase>& other)
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
 {
      // TODO: Implement
      return nullptr;
@@ -218,7 +220,7 @@ std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
-    const std::shared_ptr<TypeBase>& other)
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
 {
      // TODO: Implement
      throw nullptr;
@@ -230,7 +232,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) con
 }
 
 std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::ReferenceType::CommonWith(
-    const std::shared_ptr<TypeBase>& other)
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
 {
      // TODO: Implement
      return nullptr;

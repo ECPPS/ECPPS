@@ -5,11 +5,11 @@
 
 namespace ecpps::debugging
 {
-	struct Debugger
-	{
+     struct Debugger
+     {
           virtual ~Debugger(void) = default;
           [[nodiscard]] static int SelectAndDebug(CompilerConfig& configuration, std::filesystem::path program);
 
-		[[nodiscard]] virtual int Debug(CompilerConfig& configuration, std::filesystem::path program) const = 0;
-	};
-}
+          [[nodiscard]] virtual int Debug(CompilerConfig& configuration, std::filesystem::path program) const = 0;
+     };
+} // namespace ecpps::debugging

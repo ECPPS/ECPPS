@@ -4,6 +4,7 @@
 #include <cstring>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <utility>
 
 namespace ecpps
@@ -18,8 +19,8 @@ namespace ecpps
      {
           struct NoSBO
           {
-               TElement* _begin{};
-               std::size_t _capacity{};
+               TElement* begin{};
+               std::size_t capacity{};
           };
 
           /// <summary>
@@ -30,10 +31,10 @@ namespace ecpps
 
           union BufferUnion
           {
-               std::byte sbo[sizeof(TElement) * SBOSize];
+               std::byte sbo[sizeof(TElement) * SBOSize]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
                NoSBO noSbo;
 
-               explicit BufferUnion(void) {}
+               explicit BufferUnion(void) {} // NOLINT(cppcoreguidelines-pro-type-member-init)
                ~BufferUnion(void) {}
           };
 
@@ -45,16 +46,19 @@ namespace ecpps
                const bool sbo = UseSBO();
                if (sbo)
                {
-                    auto* destination = std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo));
+                    auto* destination =
+                        std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                             // modernize-avoid-c-arrays)
+                            this->_buffer.sbo));
                     std::uninitialized_fill_n(destination, count, value);
                }
                else
                {
                     const std::size_t cap = Align(count, SBOSize);
-                    this->_buffer.noSbo._capacity = cap;
+                    this->_buffer.noSbo.capacity = cap;
                     TAllocator allocator{};
-                    this->_buffer.noSbo._begin = allocator.allocate(cap);
-                    std::uninitialized_fill_n(this->_buffer.noSbo._begin, count, value);
+                    this->_buffer.noSbo.begin = allocator.allocate(cap);
+                    std::uninitialized_fill_n(this->_buffer.noSbo.begin, count, value);
                }
           }
 
@@ -63,18 +67,22 @@ namespace ecpps
                const bool sbo = other.UseSBO();
                if (sbo)
                {
-                    std::memcpy(_buffer.sbo, other._buffer.sbo, sizeof(TElement) * _size);
-                    auto* dst = reinterpret_cast<TElement*>(_buffer.sbo);
-                    const auto* src = other.begin();
-                    for (std::size_t i = 0; i < _size; ++i) std::construct_at(dst + i, src[i]);
+                    if constexpr (std::is_trivially_copyable_v<TElement>)
+                         std::memcpy(_buffer.sbo, other._buffer.sbo, sizeof(TElement) * _size);
+                    else
+                    {
+                         auto* dst = reinterpret_cast<TElement*>(_buffer.sbo);
+                         const auto* src = other.begin();
+                         for (std::size_t i = 0; i < _size; ++i) std::construct_at(dst + i, src[i]);
+                    }
                }
                else
                {
-                    const std::size_t cap = other._buffer.noSbo._capacity;
-                    _buffer.noSbo._capacity = cap;
+                    const std::size_t cap = other._buffer.noSbo.capacity;
+                    _buffer.noSbo.capacity = cap;
                     TAllocator allocator{};
-                    _buffer.noSbo._begin = allocator.allocate(cap);
-                    std::uninitialized_copy_n(other.begin(), _size, _buffer.noSbo._begin);
+                    _buffer.noSbo.begin = allocator.allocate(cap);
+                    std::uninitialized_copy_n(other.begin(), _size, _buffer.noSbo.begin);
                }
           }
 
@@ -107,32 +115,48 @@ namespace ecpps
                if (!UseSBO())
                {
                     TAllocator allocator{};
-                    allocator.deallocate(_buffer.noSbo._begin, _buffer.noSbo._capacity);
+                    allocator.deallocate(_buffer.noSbo.begin, _buffer.noSbo.capacity);
                }
           }
 
-          TElement* begin(void)
+          TElement* begin(void) // NOLINT(readability-identifier-naming)
           {
-               if (UseSBO()) return std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo));
-               return this->_buffer.noSbo._begin;
+               if (UseSBO())
+                    return std::launder(
+                        reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+               return this->_buffer.noSbo.begin;
           }
 
-          const TElement* begin(void) const
+          const TElement* begin(void) const // NOLINT(readability-identifier-naming)
           {
-               if (UseSBO()) return std::launder(reinterpret_cast<const TElement(&)[SBOSize]>(this->_buffer.sbo));
-               return this->_buffer.noSbo._begin;
+               if (UseSBO())
+                    return std::launder(
+                        reinterpret_cast<const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                      // modernize-avoid-c-arrays)
+                            this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+               return this->_buffer.noSbo.begin;
           }
 
-          TElement* end(void)
+          TElement* end(void) // NOLINT(readability-identifier-naming)
           {
-               return UseSBO() ? std::launder(this->_size + reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo))
+               return UseSBO() ? std::launder(
+                                     this->_size +
+                                     reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                             // modernize-avoid-c-arrays)
+                                         this->_buffer.sbo))
                                : (this->begin() + this->_size);
           }
 
-          const TElement* end(void) const
+          const TElement* end(void) const // NOLINT(readability-identifier-naming)
           {
                return UseSBO()
-                          ? std::launder(this->_size + reinterpret_cast<const TElement(&)[SBOSize]>(this->_buffer.sbo))
+                          ? std::launder(this->_size +
+                                         reinterpret_cast<
+                                             const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                                             this->_buffer.sbo))
                           : (this->begin() + this->_size);
           }
           template <typename... TArgs> TElement& EmplaceBack(TArgs&&... args)
@@ -147,29 +171,41 @@ namespace ecpps
                     {
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuffer = allocator.allocate(cap);
-                         for (std::size_t i = 0; i < this->SBOSize; ++i)
+                         for (std::size_t i = 0; i < SBOSize; ++i)
                          {
                               new (newBuffer + i)
                                   TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
                               reinterpret_cast<TElement*>(this->_buffer.sbo)[i].~TElement();
                          }
-                         _buffer.noSbo._begin = newBuffer;
-                         _buffer.noSbo._capacity = cap;
+                         _buffer.noSbo.begin = newBuffer;
+                         _buffer.noSbo.capacity = cap;
 
                          return *std::construct_at(newBuffer + SBOSize, std::forward<TArgs>(args)...);
                     }
 
-                    if (_buffer.noSbo._capacity < _size)
+                    if (_buffer.noSbo.capacity < _size)
                     {
-                         const std::size_t oldCap = _buffer.noSbo._capacity;
+                         const std::size_t oldCap = _buffer.noSbo.capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::memcpy(newBuf, _buffer.noSbo._begin, (_size - 1) * sizeof(TElement));
-                         allocator.deallocate(std::exchange(_buffer.noSbo._begin, newBuf), oldCap);
-                         _buffer.noSbo._capacity = newCap;
+
+                         if constexpr (std::is_trivially_copyable_v<TElement>)
+                         {
+                              std::memcpy(newBuf, _buffer.noSbo.begin, (_size - 1) * sizeof(TElement));
+                         }
+                         else
+                         {
+                              for (std::size_t i = 0; i < (_size - 1); ++i)
+                              {
+                                   new (newBuf + i) TElement(std::move(_buffer.noSbo.begin[i]));
+                                   _buffer.noSbo.begin[i].~TElement();
+                              }
+                         }
+                         allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
+                         _buffer.noSbo.capacity = newCap;
                     }
 
-                    return *std::construct_at(_buffer.noSbo._begin + (_size - 1), std::forward<TArgs>(args)...);
+                    return *std::construct_at(_buffer.noSbo.begin + (_size - 1), std::forward<TArgs>(args)...);
                }
 
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + (_size - 1),
@@ -187,28 +223,31 @@ namespace ecpps
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
                          std::memcpy(newBuf, _buffer.sbo, SBOSize * sizeof(TElement));
-                         _buffer.noSbo._begin = newBuf;
-                         _buffer.noSbo._capacity = cap;
+                         _buffer.noSbo.begin = newBuf;
+                         _buffer.noSbo.capacity = cap;
 
                          return *std::construct_at(newBuf + SBOSize, value);
                     }
 
-                    if (this->_buffer.noSbo._capacity < this->_size)
+                    if (this->_buffer.noSbo.capacity < this->_size)
                     {
-                         const std::size_t oldCap = this->_buffer.noSbo._capacity;
+                         const std::size_t oldCap = this->_buffer.noSbo.capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index,
-                                                 newBuf);
-                         for (std::size_t i = 0; i < index; ++i) { std::destroy_at(this->_buffer.noSbo._begin + i); }
-                         allocator.deallocate(std::exchange(_buffer.noSbo._begin, newBuf), oldCap);
-                         this->_buffer.noSbo._capacity = newCap;
+                         std::uninitialized_move(this->_buffer.noSbo.begin, this->_buffer.noSbo.begin + index, newBuf);
+                         for (std::size_t i = 0; i < index; ++i) { std::destroy_at(this->_buffer.noSbo.begin + i); }
+                         allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
+                         this->_buffer.noSbo.capacity = newCap;
                     }
 
-                    return *std::construct_at(_buffer.noSbo._begin + index, value);
+                    return *std::construct_at(_buffer.noSbo.begin + index, value);
                }
                return *std::construct_at(
-                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>(this->_buffer.sbo)) + index, value);
+                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                        // modernize-avoid-c-arrays)
+                       this->_buffer.sbo)) +
+                       index,
+                   value);
           }
 
           TElement& Push(TElement&& value)
@@ -223,28 +262,27 @@ namespace ecpps
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
                          std::memcpy(newBuf, this->_buffer.sbo, SBOSize * sizeof(TElement));
-                         this->_buffer.noSbo._begin = newBuf;
-                         this->_buffer.noSbo._capacity = cap;
+                         this->_buffer.noSbo.begin = newBuf;
+                         this->_buffer.noSbo.capacity = cap;
 
                          return *std::construct_at(newBuf + SBOSize, std::move(value));
                     }
 
-                    if (this->_buffer.noSbo._capacity < _size)
+                    if (this->_buffer.noSbo.capacity < _size)
                     {
-                         const std::size_t oldCap = this->_buffer.noSbo._capacity;
+                         const std::size_t oldCap = this->_buffer.noSbo.capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo._begin, this->_buffer.noSbo._begin + index,
-                                                 newBuf);
+                         std::uninitialized_move(this->_buffer.noSbo.begin, this->_buffer.noSbo.begin + index, newBuf);
                          for (std::size_t i = 0; i < index; ++i)
                          {
-                              this->_buffer.noSbo._begin[i].~TElement();
-                              allocator.deallocate(std::exchange(this->_buffer.noSbo._begin, newBuf), oldCap);
+                              this->_buffer.noSbo.begin[i].~TElement();
+                              allocator.deallocate(std::exchange(this->_buffer.noSbo.begin, newBuf), oldCap);
                          }
-                         this->_buffer.noSbo._capacity = newCap;
+                         this->_buffer.noSbo.capacity = newCap;
                     }
 
-                    return *std::construct_at(_buffer.noSbo._begin + index, std::move(value));
+                    return *std::construct_at(_buffer.noSbo.begin + index, std::move(value));
                }
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + index, std::move(value));
           }

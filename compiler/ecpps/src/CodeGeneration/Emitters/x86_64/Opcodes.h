@@ -73,6 +73,42 @@ namespace ecpps::codegen::x86_64
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg8(std::size_t destinationRegister,
                                                                std::size_t sourceOffset, std::size_t sourceRegister);
 
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem8ToReg64(std::size_t destinationRegister,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem8ToReg32(std::size_t destinationRegister,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem8ToReg16(std::size_t destinationRegister,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem16ToReg64(std::size_t destinationRegister,
+                                                                            std::size_t sourceOffset,
+                                                                            std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem16ToReg32(std::size_t destinationRegister,
+                                                                            std::size_t sourceOffset,
+                                                                            std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendMem32ToReg64(std::size_t destinationRegister,
+                                                                            std::size_t sourceOffset,
+                                                                            std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg8ToReg64(std::size_t destinationRegister,
+                                                                           std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg8ToReg32(std::size_t destinationRegister,
+                                                                           std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg8ToReg16(std::size_t destinationRegister,
+                                                                           std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg16ToReg64(std::size_t destinationRegister,
+                                                                            std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg16ToReg32(std::size_t destinationRegister,
+                                                                            std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateMovZeroExtendReg32ToReg64(std::size_t destinationRegister,
+                                                                            std::size_t sourceRegister);
+
      // add
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg64(std::size_t reg, std::uint64_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateAddImmToReg32(std::size_t reg, std::uint32_t imm);
@@ -225,7 +261,7 @@ namespace ecpps::codegen::x86_64
      // call
      [[nodiscard]] std::vector<std::byte> GenerateIndirectCall(std::int32_t displacement);
      [[nodiscard]] std::vector<std::byte> GenerateIndirectCall2(std::int32_t displacement);
-     [[nodiscard]] std::vector<std::byte> GenerateRegisterCall(std::size_t displacement);
+     [[nodiscard]] std::vector<std::byte> GenerateRegisterCall(std::size_t reg);
 
      // push/pop
      [[nodiscard]] std::vector<std::byte> GeneratePushReg64(std::size_t reg);

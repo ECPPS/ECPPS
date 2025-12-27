@@ -4,11 +4,10 @@
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
-#include "../Shared/Error.h"
 
 namespace ecpps::ir
 {
-     enum struct NodeKind
+     enum struct NodeKind : std::uint_fast8_t
      {
           Integer,
           Procedure,
@@ -35,7 +34,7 @@ namespace ecpps::ir
      class NodeBase
      {
      public:
-          explicit NodeBase(const NodeKind kind, Location source) : _kind(kind), _source(std::move(source)) {}
+          explicit NodeBase(const NodeKind kind, Location source) : _kind(kind), _source(source) {}
           virtual ~NodeBase(void) = default;
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
@@ -54,7 +53,7 @@ namespace ecpps::ir
      {
      public:
           explicit IntegralNode(const std::uint64_t value, Location source)
-              : NodeBase(NodeKind::Integer, std::move(source)), _value(value)
+              : NodeBase(NodeKind::Integer, source), _value(value)
           {
           }
 
