@@ -52,7 +52,7 @@ NodePointer ecpps::ast::AST::ParseDeclaration(void)
 {
      // TODO: special-declaration
 
-     return ParseBlockDeclaration();
+     return ParseNameDeclaration();
 }
 
 NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
@@ -93,16 +93,27 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(void)
           }
      }
 
-     return ParseNameDeclaration();
+     return ParseSimpleDeclaration();
 }
 
-NodePointer ecpps::ast::AST::ParseNameDeclaration(void) { return ParseFunctionDefinition(); } //
+NodePointer ecpps::ast::AST::ParseNameDeclaration(void)
+{
+     if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
+     return ParseFunctionDefinition();
+}
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 {
      SBOVector<std::unique_ptr<AttributeNode>> attributes{};
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
      bool isFriend = false;
      bool isInline = false;
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
      bool isExtern = false;
      std::optional<std::string> externOptional = std::nullopt;
      while (Peek().type == TokenType::LeftBracket)
@@ -210,6 +221,314 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      return std::make_unique<FunctionDefinitionNode>(std::move(signature), std::move(body), source);
 }
 
+bool ecpps::ast::AST::IsDeclarationStart()
+{
+     std::size_t i = 0;
+     bool hasQualifier = false; // NOLINT
+     bool hasSignedness = false;
+     bool hasLong = false;
+     bool hasType = false;
+
+     while (true)
+     {
+          const auto& tok = Peek(static_cast<std::ptrdiff_t>(i));
+          if (tok.type != TokenType::Keyword) break;
+
+          const auto& kw = std::get<std::string>(tok.value);
+
+          if (kw == "const" || kw == "volatile" || kw == "extern" || kw == "static" || kw == "inline" || kw == "auto")
+          {
+               hasQualifier = true;
+          }
+          else if (kw == "signed" || kw == "unsigned")
+          {
+               if (hasSignedness) break;
+               hasSignedness = true;
+          }
+          else if (kw == "short" || kw == "long") { hasLong = true; }
+          else if (kw == "int" || kw == "char" || kw == "float" || kw == "double")
+          {
+               hasType = true;
+               i++;
+               break;
+          }
+          else
+               break;
+
+          i++;
+     }
+
+     if (hasType || hasLong) return true;
+
+     const auto& nextTok = Peek(static_cast<std::ptrdiff_t>(i));
+     return nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*";
+}
+
+std::string CombineTypeWords(const std::vector<std::string>& words)
+{
+     std::string result;
+     for (const auto& word : words)
+     {
+          if (!result.empty()) result += " ";
+          result += word;
+     }
+     return result;
+}
+
+NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
+{
+     Location source = Peek().location;
+
+     //
+     // decl-specifier-seq
+     //
+
+     // decl-specifier
+     bool isFriend = false;
+     bool isTypedef = false;
+     bool isConstexpr = false;
+     bool isConsteval = false;
+     bool isConstinit = false;
+     bool isInline = false;
+     // storage-class-specifier
+     bool isStatic = false;
+     bool isThreadLocal = false;
+     bool isExtern = false;
+     bool isMutable = false;
+     std::optional<NodePointer> optExplicitSpecifier = std::nullopt;
+
+     NodePointer typeSpecifier = nullptr;
+     SBOVector<QualifiedType::Section> sections;
+
+     bool isConst = false;
+     bool isVolatile = false;
+
+     while (true)
+     {
+          if (Peek().type == TokenType::Keyword)
+          {
+               auto& keyword = std::get<std::string>(Peek().value);
+               if (keyword == "friend")
+               {
+                    if (isFriend)
+                         ; // TODO: error: duplicate 'friend'
+                    isFriend = true;
+               }
+               else if (keyword == "typedef")
+               {
+                    if (isTypedef)
+                         ; // TODO: error: duplicate 'typedef'
+                    isTypedef = true;
+               }
+               else if (keyword == "constexpr")
+               {
+                    if (isConstexpr)
+                         ; // TODO: error: duplicate 'constexpr'
+                    isConstexpr = true;
+               }
+               else if (keyword == "consteval")
+               {
+                    if (isConsteval)
+                         ; // TODO: error: duplicate 'consteval'
+                    isConsteval = true;
+               }
+               else if (keyword == "constinit")
+               {
+                    if (isConstinit)
+                         ; // TODO: error: duplicate 'constinit'
+                    isConstinit = true;
+               }
+               else if (keyword == "inline")
+               {
+                    if (isInline)
+                         ; // TODO: error: duplicate 'inline'
+                    isInline = true;
+               }
+               else if (keyword == "static")
+               {
+                    if (isStatic)
+                         ; // TODO: error: duplicate 'static'
+                    isStatic = true;
+               }
+               else if (keyword == "thread_local")
+               {
+                    if (isThreadLocal)
+                         ; // TODO: error: duplicate 'thread_local'
+                    isThreadLocal = true;
+               }
+               else if (keyword == "extern")
+               {
+                    if (isExtern)
+                         ; // TODO: error: duplicate 'extern'
+                    isExtern = true;
+               }
+               else if (keyword == "mutable")
+               {
+                    if (isMutable)
+                         ; // TODO: error: duplicate 'mutable'
+                    isMutable = true;
+               }
+               else if (keyword == "explicit") // explicit-specifier
+               {
+                    if (optExplicitSpecifier.has_value())
+                         ; // TODO: error: duplicate 'explicit'
+                    optExplicitSpecifier = ParseLogicalOrExpression();
+               }
+               else if (keyword == "const") // cv-qualifier
+               {
+                    if (isConst)
+                         ; // TODO: error: duplicate 'const'
+                    isConst = true;
+               }
+               else if (keyword == "volatile") // cv-qualifier
+               {
+                    if (isVolatile)
+                         ; // TODO: error: duplicate 'volatile'
+                    isVolatile = true;
+               }
+               else if (keyword == "struct" || keyword == "class" || keyword == "union") // elaborated-type-specifier
+               {
+               }
+               else if (keyword == "enum") // elaborated-type-specifier
+               {
+               }
+               else if (SimpleTypes.contains(keyword)) // simple-type-specifier
+               {
+                    std::vector<std::string> typeWords;
+                    while (Peek().type == TokenType::Keyword &&
+                           SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                    {
+                         typeWords.push_back(std::get<std::string>(Peek().value));
+                         Advance();
+                    }
+
+                    std::string combinedType = CombineTypeWords(typeWords);
+
+                    // Parse any pointer declarators immediately following the base type
+                    std::size_t pointerLevel = 0;
+                    while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+                    {
+                         ++pointerLevel;
+                         Advance();
+                    }
+
+                    // Build the base type
+                    NodePointer base = std::make_unique<BasicType>(combinedType, source);
+
+                    // Wrap it in PointerType layers
+                    for (std::size_t i = 0; i < pointerLevel; ++i)
+                    {
+                         base = std::make_unique<PointerType>(std::move(base), source);
+                    }
+
+                    typeSpecifier = std::move(base);
+                    break;
+               }
+               else
+                    break;
+
+               Advance();
+          }
+          else if (Peek().type == TokenType::Identifier)
+          {
+               while (true)
+               {
+                    NodePointer part =
+                        std::make_unique<BasicType>(std::get<std::string>(Peek().value), Peek().location);
+                    Advance();
+
+                    bool isTemplate = false;
+                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+                    {
+                         // TODO: Implement
+                         part = std::make_unique<QualifiedType>(SBOVector<QualifiedType::Section>{}, std::move(part),
+                                                                Peek().location);
+                         isTemplate = true;
+                    }
+
+                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+                    {
+                         Advance();
+                         sections.EmplaceBack(std::move(part), isTemplate);
+                    }
+                    else
+                    {
+                         typeSpecifier =
+                             std::make_unique<QualifiedType>(std::move(sections), std::move(part), Peek().location);
+                         break;
+                    }
+               }
+               break;
+          }
+          else
+               break;
+     }
+
+     if (typeSpecifier == nullptr)
+     {
+          // TODO: error: expected a type specifier
+          return nullptr;
+     }
+
+     using VariableDeclarator = VariableDeclarationNode::Declarator;
+
+     std::vector<VariableDeclarator> declarators{};
+     // clang-format off
+     do
+     {
+          // clang-format on
+          NodePointer id = ParseIdExpression();
+          if (!id) return nullptr;
+
+          NodePointer initialiser = nullptr;
+          if (Peek().type == TokenType::Operator &&
+              std::get<std::string>(Peek().value) == "=") // brace-or-equal-initialiser
+          {
+               Advance();
+               initialiser = ParseLogicalOrExpression();
+               if (!initialiser) return nullptr;
+          }
+
+          declarators.emplace_back(std::move(id), std::move(initialiser));
+     } while ((Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") && (Advance(), true));
+
+     if (!Match(TokenType::SemiColon))
+     {
+          // TODO: error: expected ';'
+          return nullptr;
+     }
+
+     return std::make_unique<VariableDeclarationNode>(std::move(typeSpecifier), std::move(declarators),
+                                                      /*flags*/
+                                                      VariableDeclarationNode::Flags{.isTypedef = isTypedef,
+                                                                                     .isFriend = isFriend,
+                                                                                     .isConstexpr = isConstexpr,
+                                                                                     .isConsteval = isConsteval,
+                                                                                     .isConstinit = isConstinit,
+                                                                                     .isInline = isInline,
+                                                                                     .isStatic = isStatic,
+                                                                                     .isThreadLocal = isThreadLocal,
+                                                                                     .isExtern = isExtern,
+                                                                                     .isMutable = isMutable,
+                                                                                     .isConst = isConst,
+                                                                                     .isVolatile = isVolatile},
+                                                      std::move(optExplicitSpecifier), source);
+}
+
+NodePointer ecpps::ast::AST::TryParseDeclSpecifier(void) { return {}; }
+
+NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier(void) { return {}; }
+
+NodePointer ecpps::ast::AST::ParseInitDeclarator(void) { return {}; }
+
+NodePointer ecpps::ast::AST::TryParseDeclarator(void) { return {}; }
+
+NodePointer ecpps::ast::AST::TryParsePtrDeclarator(void) { return {}; }
+
+NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator(void) { return {}; }
+
+NodePointer ecpps::ast::AST::ParseInitialiser(void) { return {}; }
+
 NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 {
      if (this->AtEnd()) return nullptr;
@@ -230,13 +549,13 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
                                 { return std::make_unique<IntegerLiteralNode>(literal.value, currentToken.location); },
                                 [&currentToken](const char literal) -> NodePointer
                                 { return std::make_unique<CharacterLiteralNode>(literal, currentToken.location); },
-                                [&currentToken](auto&&) -> NodePointer { return nullptr; }},
+                                [](auto&&) static -> NodePointer { return nullptr; }},
               currentToken.value);
      }
      break;
      case TokenType::Keyword:
      {
-          const auto keyword = std::get<std::string>(currentToken.value);
+          const auto& keyword = std::get<std::string>(currentToken.value);
           if (keyword == "this")
           {
                this->Advance();
@@ -260,6 +579,8 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
           return ParseIdExpression();
      }
      break;
+     default:
+          throw TracedException(std::format("Invalid primary expression {}", std::to_underlying(currentToken.type)));
      }
 
      // TODO: Error
@@ -268,45 +589,98 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
 
 NodePointer ecpps::ast::AST::ParseIdExpression(void)
 {
-     auto& currentToken = this->Peek();
-     if (currentToken.type != TokenType::Identifier) return nullptr;
+     if (Peek().type != TokenType::Identifier) return nullptr;
 
-     auto source = currentToken.location;
-     Advance();
+     const auto source = Peek().location;
+     std::vector<NodePointer> parts;
 
-     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+     bool expectIdentifier = true; // NOLINT
+     bool sawTemplateKeyword = false;
+
+     while (true)
      {
-          Advance();
-          std::vector<NodePointer> templateArguments;
-          while (true)
+          if (!AtEnd() && Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "template")
           {
-               // Parse an individual type for the template argument
-               auto parsed = ParseSimpleTypeSpecifier();
-               templateArguments.push_back(std::move(parsed));
+               sawTemplateKeyword = true;
+               Advance();
+          }
 
-               // If the next token is a comma, advance and continue parsing
-               if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != ",") { Advance(); }
-               else if (Peek().type != TokenType::Operator && std::get<std::string>(Peek().value) == ">")
+          if (AtEnd() || Peek().type != TokenType::Identifier) break;
+
+          auto currentToken = Peek();
+          const auto& identifierName = std::get<std::string>(currentToken.value);
+          Advance();
+
+          if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+          {
+               Advance();
+               std::vector<NodePointer> templateArguments;
+               while (true)
                {
-                    Advance(); // Consume the '>'
-                    break;
-               }
-               else if (Peek().type != TokenType::Operator && std::get<std::string>(Peek().value) == ">>")
-               {
-                    Peek().value = ">";
-                    break;
-               }
-               else
-               {
-                    // TODO: Error
+                    auto parsed = ParseSimpleTypeSpecifier();
+                    if (!parsed) return nullptr;
+                    templateArguments.push_back(std::move(parsed));
+
+                    if (AtEnd()) return nullptr;
+
+                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
+                    {
+                         Advance();
+                         continue;
+                    }
+
+                    if (Peek().type == TokenType::Operator)
+                    {
+                         const auto op = std::get<std::string>(Peek().value);
+                         if (op == ">")
+                         {
+                              Advance();
+                              break;
+                         }
+                         if (op == ">>")
+                         {
+                              // collapse >> to >
+                              Peek().value = std::string(">");
+                              Advance();
+                              break;
+                         }
+                    }
+
                     return nullptr;
                }
+
+               // TODO: Implement
+               throw nullptr;
+               // parts.push_back(std::make_unique<TemplateIdNode>(identifierName, std::move(templateArguments),
+               //                                                  sawTemplateKeyword, currentToken.location));
           }
-          // TODO: Return simple-template-id
-          return nullptr;
+
+          parts.push_back(std::make_unique<IdentifierNode>(identifierName, currentToken.location));
+
+          if (sawTemplateKeyword)
+          {
+               // TODO: Implement
+               throw nullptr;
+          }
+
+          sawTemplateKeyword = false;
+
+          if (AtEnd()) break;
+
+          if (Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+          {
+               Advance();
+               Advance();
+               continue;
+          }
+          const auto& next = Peek(); // NOLINT
+
+          break;
      }
 
-     return std::make_unique<IdentifierNode>(std::get<std::string>(currentToken.value), currentToken.location);
+     if (parts.empty()) return nullptr;
+     if (parts.size() == 1) return std::move(parts.front());
+     return std::make_unique<QualifiedIdNode>(std::move(parts), source);
 }
 
 NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
@@ -414,7 +788,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
                     if (token.type == TokenType::Operator && std::get<std::string>(token.value) == ",") continue;
 
                     this->_diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                             "Expected a comma in function argument list", token.location));
                     return nullptr;
                }
@@ -653,6 +1027,11 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(void)
      return expression;
 }
 
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 NodePointer ecpps::ast::AST::ParseRelationalExpression(void)
 {
      auto currentToken = this->Peek();
@@ -743,6 +1122,10 @@ NodePointer ecpps::ast::AST::ParseExpression(void)
      return expression;
 }
 
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
+
 NodePointer ecpps::ast::AST::ParseStatement(void)
 {
      auto source = this->Peek().location;
@@ -759,6 +1142,7 @@ NodePointer ecpps::ast::AST::ParseStatement(void)
           }
           return std::make_unique<ReturnNode>(std::move(value), source);
      }
+     if (IsDeclarationStart()) return ParseDeclarationStatement();
      return ParseExpressionStatement();
 }
 

@@ -15,14 +15,15 @@ namespace ecpps
           static_assert(SBOSize > 0);
           union BufferUnion
           {
-               alignas(T) std::byte sbo[sizeof(T) * SBOSize];
+               alignas(T) std::byte // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+                   sbo[sizeof(T) * SBOSize];
                struct
                {
                     T* begin{};
                     std::size_t capacity{};
                } noSbo;
 
-               explicit BufferUnion(void) noexcept {}
+               explicit BufferUnion(void) noexcept {} // NOLINT(cppcoreguidelines-pro-type-member-init)
                ~BufferUnion(void) noexcept {}
           };
 
@@ -60,7 +61,7 @@ namespace ecpps
           std::size_t Size(void) const noexcept { return this->_size; }
           bool Empty(void) const noexcept { return this->_size == 0; }
 
-          class iterator
+          class iterator // NOLINT
           {
           public:
                using difference_type = std::ptrdiff_t;
@@ -113,12 +114,12 @@ namespace ecpps
                std::size_t _index;
           };
 
-          iterator begin(void)
+          iterator begin(void) // NOLINT
           {
                if (this->_size == 0) return end();
                return iterator(this, this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
           }
-          iterator end(void) { return iterator(this, this->_head == 0 ? Capacity() - 1 : this->_head - 1); }
+          iterator end(void) { return iterator(this, this->_head == 0 ? Capacity() - 1 : this->_head - 1); } // NOLINT
 
           SBOQueue(const SBOQueue& other)
           {
@@ -178,7 +179,6 @@ namespace ecpps
                return *this;
           }
 
-     private:
           void Emplace(const T& value) { EmplaceImpl(value); }
           void Emplace(T&& value) { EmplaceImpl(std::move(value)); }
 
@@ -218,14 +218,21 @@ namespace ecpps
 
           T* StoragePtr(void) noexcept
           {
-               return UseSBO() ? std::launder(reinterpret_cast<T(&)[TNSBOSize / sizeof(T)]>(this->_buffer.sbo))
+               return UseSBO() ? std::launder(reinterpret_cast<
+                                              T(&)[TNSBOSize / sizeof(T)]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                            // modernize-avoid-c-arrays)
+                                     this->_buffer.sbo))
                                : this->_buffer.noSbo.begin;
           }
 
-          const T* StoragePtr() const noexcept
+          const T* StoragePtr(void) const noexcept
           {
-               return UseSBO() ? std::launder(reinterpret_cast<const T(&)[TNSBOSize / sizeof(T)]>(this->_buffer.sbo))
-                               : _buffer.noSbo.begin;
+               return UseSBO()
+                          ? std::launder(reinterpret_cast<
+                                         const T(&)[TNSBOSize / sizeof(T)]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                             // modernize-avoid-c-arrays)
+                                this->_buffer.sbo))
+                          : _buffer.noSbo.begin;
           }
 
           T& operator[](std::size_t index) { return *(StoragePtr() + index); }
@@ -240,12 +247,12 @@ namespace ecpps
                return StoragePtr() + (this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
           }
 
-          constexpr std::size_t Capacity(void) const noexcept
+          [[nodiscard]] constexpr std::size_t Capacity(void) const noexcept
           {
                return UseSBO() ? SBOSize : this->_buffer.noSbo.capacity;
           }
 
-          bool UseSBO(void) const noexcept { return this->_size <= SBOSize; }
+          [[nodiscard]] bool UseSBO(void) const noexcept { return this->_size <= SBOSize; }
 
      private:
           BufferUnion _buffer;

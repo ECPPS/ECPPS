@@ -3,15 +3,18 @@
 #include <corecrt.h>
 #include <algorithm>
 #include <concepts>
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ctime>
-#include <map>
 #include <ranges>
 #include <string>
 #include <vector>
+
+#ifdef min
+#undef min
+#undef max
+#endif
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
@@ -22,42 +25,42 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
                                      bool isRelocatable, PESubsystem subsystem, LinkType linkType,
                                      std::uint32_t fileAlignment)
 {
-     this->_dosHeader.e_magic = DosMagic;
-     this->_dosHeader.e_cblp = 0x90;
-     this->_dosHeader.e_cp = 3;
-     this->_dosHeader.e_cparhdr = 4;
-     this->_dosHeader.e_lfarlc = 0x40;
-     this->_dosHeader.e_sp = 0xb8;
-     this->_dosHeader.e_maxalloc = 0xFFFF;
-     this->_dosHeader.e_lfanew = 0xe8;
+     this->dosHeader.e_magic = DosMagic;
+     this->dosHeader.e_cblp = 0x90;
+     this->dosHeader.e_cp = 3;
+     this->dosHeader.e_cparhdr = 4;
+     this->dosHeader.e_lfarlc = 0x40;
+     this->dosHeader.e_sp = 0xb8;
+     this->dosHeader.e_maxalloc = 0xFFFF;
+     this->dosHeader.e_lfanew = 0xe8;
 
-     this->_ntHeaders.signature = PeMagic;
-     this->_ntHeaders.fileHeader.machine = IMAGE_FILE_MACHINE_AMD64;
-     this->_ntHeaders.fileHeader.sizeOfOptionalHeader = sizeof(OptionalHeader);
-     this->_ntHeaders.fileHeader.characteristics =
+     this->ntHeaders.signature = PeMagic;
+     this->ntHeaders.fileHeader.machine = IMAGE_FILE_MACHINE_AMD64;
+     this->ntHeaders.fileHeader.sizeOfOptionalHeader = sizeof(OptionalHeader);
+     this->ntHeaders.fileHeader.characteristics =
          (linkType == LinkType::Executable ? IMAGE_FILE_EXECUTABLE_IMAGE
                                            : (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DLL)) |
          IMAGE_FILE_LARGE_ADDRESS_AWARE;
      const std::time_t currentTime = std::time(nullptr);
-     this->_ntHeaders.fileHeader.timeDateStamp = static_cast<std::uint32_t>(currentTime);
+     this->ntHeaders.fileHeader.timeDateStamp = static_cast<std::uint32_t>(currentTime);
 
-     this->_ntHeaders.optionalHeader.subsystem = static_cast<std::uint16_t>(subsystem);
-     this->_ntHeaders.optionalHeader.majorSubsystemVersion = 6;
-     this->_ntHeaders.optionalHeader.minorSubsystemVersion = 0;
-     this->_ntHeaders.optionalHeader.fileAlignment = fileAlignment;
-     this->_ntHeaders.optionalHeader.magic = MagicPE32Plus;
-     this->_ntHeaders.optionalHeader.majorLinkerVersion = 1;
-     this->_ntHeaders.optionalHeader.minorLinkerVersion = 0;
-     this->_ntHeaders.optionalHeader.majorOperatingSystemVersion = 6;
-     this->_ntHeaders.optionalHeader.minorOperatingSystemVersion = 0;
-     this->_ntHeaders.optionalHeader.dllCharacteristics = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA |
-                                                          (isNxCompatible ? IMAGE_DLLCHARACTERISTICS_NX_COMPAT : 0) |
-                                                          (isRelocatable ? IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE : 0);
-     this->_ntHeaders.optionalHeader.loaderFlags = 0;
-     this->_ntHeaders.optionalHeader.imageBase = imageBase;
-     this->_ntHeaders.optionalHeader.sectionAlignment = 0x1000;
-     this->_ntHeaders.optionalHeader.sizeOfHeaders = sizeof(NtHeaders) + sizeof(DosHeader);
-     this->_ntHeaders.optionalHeader.addressOfEntryPoint = entryPoint;
+     this->ntHeaders.optionalHeader.subsystem = static_cast<std::uint16_t>(subsystem);
+     this->ntHeaders.optionalHeader.majorSubsystemVersion = 6;
+     this->ntHeaders.optionalHeader.minorSubsystemVersion = 0;
+     this->ntHeaders.optionalHeader.fileAlignment = fileAlignment;
+     this->ntHeaders.optionalHeader.magic = MagicPE32Plus;
+     this->ntHeaders.optionalHeader.majorLinkerVersion = 1;
+     this->ntHeaders.optionalHeader.minorLinkerVersion = 0;
+     this->ntHeaders.optionalHeader.majorOperatingSystemVersion = 6;
+     this->ntHeaders.optionalHeader.minorOperatingSystemVersion = 0;
+     this->ntHeaders.optionalHeader.dllCharacteristics = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA |
+                                                         (isNxCompatible ? IMAGE_DLLCHARACTERISTICS_NX_COMPAT : 0) |
+                                                         (isRelocatable ? IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE : 0);
+     this->ntHeaders.optionalHeader.loaderFlags = 0;
+     this->ntHeaders.optionalHeader.imageBase = imageBase;
+     this->ntHeaders.optionalHeader.sectionAlignment = 0x1000;
+     this->ntHeaders.optionalHeader.sizeOfHeaders = sizeof(NtHeaders) + sizeof(DosHeader);
+     this->ntHeaders.optionalHeader.addressOfEntryPoint = entryPoint;
 }
 
 template <typename T = decltype([] {})> struct [[nodiscard]] Defer : T
@@ -84,11 +87,11 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
      const size_t thunkSize = sizeof(std::uint64_t);
 
      size_t totalThunks = 0;
-     for (auto& kv : imports) totalThunks += kv.second.size() + 1;
+     for (const auto& kv : imports) totalThunks += kv.second.size() + 1;
 
      const size_t intOffset = AlignUp(descriptorCount * descriptorSize, 8uz);
-     const size_t iatOffset = intOffset + totalThunks * thunkSize;
-     size_t nameOffset = AlignUp(iatOffset + totalThunks * thunkSize, 2uz);
+     const size_t iatOffset = intOffset + (totalThunks * thunkSize);
+     size_t nameOffset = AlignUp(iatOffset + (totalThunks * thunkSize), 2uz);
 
      std::vector<std::byte> buffer(nameOffset); // preallocate for descriptors + INT + IAT
      size_t iltPtr = intOffset;
@@ -117,7 +120,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           buffer[off + s.size()] = std::byte{0};
      };
 
-     for (auto& [dll, funcs] : imports)
+     for (const auto& [dll, funcs] : imports)
      {
           // Descriptor
           size_t descPos = descIndex * descriptorSize;
@@ -126,7 +129,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           desc.FirstThunk = idataVA + static_cast<uint32_t>(iatPtr);
 
           // Function thunks
-          for (auto& f : funcs)
+          for (const auto& f : funcs)
           {
                const std::string funcName = f.empty() ? "Unknown" : f;
                const uint32_t ibnRVA = idataVA + static_cast<uint32_t>(currentNameOffset);
@@ -163,15 +166,15 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
      }
 
      IMAGE_IMPORT_DESCRIPTOR zero{};
-     ensureSize(descIndex * descriptorSize + descriptorSize);
-     std::memcpy(buffer.data() + descIndex * descriptorSize, &zero, descriptorSize);
+     ensureSize((descIndex * descriptorSize) + descriptorSize);
+     std::memcpy(buffer.data() + (descIndex * descriptorSize), &zero, descriptorSize);
 
      buffer.resize(currentNameOffset);
 
      return buffer;
 }
 
-std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& imageName)
+std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& imageName)
 {
      // Add export directory
      IMAGE_EXPORT_DIRECTORY exportDirectory{};
@@ -184,13 +187,13 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      exportDirectory.NumberOfNames = static_cast<std::uint32_t>(this->exports.size());
 
      // Calculate aligned offsets
-     const std::uint32_t sectionAlignment = this->_ntHeaders.optionalHeader.sectionAlignment;
+     const std::uint32_t sectionAlignment = this->ntHeaders.optionalHeader.sectionAlignment;
 
      std::vector<std::byte> exportData{};
 
      constexpr std::uint32_t exportRVA = AlignUp(0x2000, 0x1000); // Aligned RVA for export section
      std::uint32_t currentOffset = exportRVA + sizeof(exportDirectory);
-     const std::string dllName = imageName;
+     const std::string& dllName = imageName;
      exportData.resize(dllName.size() + 1);
      std::memcpy(exportData.data(), dllName.c_str(), dllName.size() + 1);
      exportDirectory.Name = currentOffset; // Typically 0 for no name in this case
@@ -232,7 +235,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      offset = 0;
      for (const auto& [name, address] : this->exports)
      {
-          const std::size_t insertPos = max(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
+          const std::size_t insertPos =
+              std::max<std::size_t>(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
@@ -267,7 +271,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      std::uint32_t exportSize = currentOffset - exportRVA;
 
      // Section alignment
-     const uint32_t sectionAlign = this->_ntHeaders.optionalHeader.sectionAlignment;
+     const uint32_t sectionAlign = this->ntHeaders.optionalHeader.sectionAlignment;
      uint32_t currentRVA = AlignUp(exportRVA + exportSize, sectionAlign);
 
      // .idata section
@@ -279,27 +283,27 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      size_t totalThunkEntries = 0;
      for (auto& kv : this->imports) totalThunkEntries += kv.second.size() + 1;
      size_t intOffset = AlignUp(descriptorCount * sizeof(IMAGE_IMPORT_DESCRIPTOR), 8uz);
-     const uint32_t iatRVA = importRVA + static_cast<uint32_t>(intOffset + totalThunkEntries * sizeof(uint64_t));
+     const uint32_t iatRVA = importRVA + static_cast<uint32_t>(intOffset + (totalThunkEntries * sizeof(std::uint64_t)));
 
      // Add .idata section
      this->sections.emplace_back(".idata", idataBuffer, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
 
      // Update directories
-     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
+     this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
          DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
 
-     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
+     this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
          .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t))};
 
      // Update sizeOfImage
      currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());
-     this->_ntHeaders.optionalHeader.sizeOfImage = AlignUp(currentRVA, sectionAlign);
+     this->ntHeaders.optionalHeader.sizeOfImage = AlignUp(currentRVA, sectionAlign);
 
-     this->_ntHeaders.optionalHeader.numberOfRvaAndSizes = 14;
-     this->_ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
+     this->ntHeaders.optionalHeader.numberOfRvaAndSizes = 14;
+     this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
          DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
 
-     // this->_ntHeaders.optionalHeader.sizeOfImage =
+     // this->ntHeaders.optionalHeader.sizeOfImage =
      //     AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
 
      // Headers and section layout
@@ -307,12 +311,12 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      constexpr std::uint32_t sectionHeadersOffset = ntHeadersOffset + sizeof(NtHeaders);
      const std::uint32_t headersSize =
          AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),
-                 this->_ntHeaders.optionalHeader.fileAlignment);
+                 this->ntHeaders.optionalHeader.fileAlignment);
 
-     this->_ntHeaders.optionalHeader.sizeOfInitializedData = static_cast<std::uint32_t>(idataBuffer.size());
-     this->_ntHeaders.fileHeader.numberOfSections = static_cast<std::uint16_t>(this->sections.size());
+     this->ntHeaders.optionalHeader.sizeOfInitializedData = static_cast<std::uint32_t>(idataBuffer.size());
+     this->ntHeaders.fileHeader.numberOfSections = static_cast<std::uint16_t>(this->sections.size());
 
-     uint32_t currentVirtualAddress = AlignUp(headersSize, this->_ntHeaders.optionalHeader.sectionAlignment);
+     uint32_t currentVirtualAddress = AlignUp(headersSize, this->ntHeaders.optionalHeader.sectionAlignment);
 
      // Section header details
      for (auto& section : this->sections)
@@ -320,8 +324,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
           section.virtualAddress = currentVirtualAddress;
           currentVirtualAddress =
               AlignUp(currentVirtualAddress + AlignUp(static_cast<std::uint32_t>(section.data.size()),
-                                                      this->_ntHeaders.optionalHeader.sectionAlignment),
-                      this->_ntHeaders.optionalHeader.sectionAlignment);
+                                                      this->ntHeaders.optionalHeader.sectionAlignment),
+                      this->ntHeaders.optionalHeader.sectionAlignment);
      }
 
      std::uint32_t fileSize = headersSize;
@@ -332,36 +336,36 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      {
           section.pointerToRawData = fileSize;
           fileSize = AlignUp(fileSize + static_cast<std::uint32_t>(section.data.size()),
-                             this->_ntHeaders.optionalHeader.fileAlignment);
-          imageSize += AlignUp(static_cast<std::uint32_t>(section.data.size()),
-                               this->_ntHeaders.optionalHeader.sectionAlignment);
+                             this->ntHeaders.optionalHeader.fileAlignment);
+          imageSize +=
+              AlignUp(static_cast<std::uint32_t>(section.data.size()), this->ntHeaders.optionalHeader.sectionAlignment);
      }
 
-     this->_ntHeaders.optionalHeader.sizeOfImage = imageSize;
+     this->ntHeaders.optionalHeader.sizeOfImage = imageSize;
 
      std::vector<std::byte> binary(fileSize, std::byte{0});
 
      // Copy DOS header
-     memcpy(binary.data(), &this->_dosHeader, sizeof(DosHeader));
-     auto dosHeaderPtr = reinterpret_cast<DosHeader*>(binary.data());
+     memcpy(binary.data(), &this->dosHeader, sizeof(DosHeader));
+     auto* dosHeaderPtr = reinterpret_cast<DosHeader*>(binary.data());
      dosHeaderPtr->e_lfanew = ntHeadersOffset;
 
      // Copy NT headers
-     auto ntHeadersPtr = reinterpret_cast<NtHeaders*>(binary.data() + ntHeadersOffset);
-     memcpy(ntHeadersPtr, &this->_ntHeaders, sizeof(NtHeaders));
+     auto* ntHeadersPtr = reinterpret_cast<NtHeaders*>(binary.data() + ntHeadersOffset);
+     memcpy(ntHeadersPtr, &this->ntHeaders, sizeof(NtHeaders));
 
      // Copy section headers
-     auto sectionHeadersPtr = reinterpret_cast<SectionHeader*>(binary.data() + sectionHeadersOffset);
+     auto* sectionHeadersPtr = reinterpret_cast<SectionHeader*>(binary.data() + sectionHeadersOffset);
      for (const auto& section : this->sections)
      {
           memcpy(sectionHeadersPtr->Name, section.name.c_str(),
-                 min(section.name.size(), sizeof(sectionHeadersPtr->Name)));
+                 std::min(section.name.size(), sizeof(sectionHeadersPtr->Name)));
           sectionHeadersPtr->VirtualAddress =
-              AlignUp(section.virtualAddress, this->_ntHeaders.optionalHeader.sectionAlignment);
+              AlignUp(section.virtualAddress, this->ntHeaders.optionalHeader.sectionAlignment);
           sectionHeadersPtr->PointerToRawData = section.pointerToRawData;
           sectionHeadersPtr->SizeOfRawData = static_cast<std::uint32_t>(section.data.size());
           sectionHeadersPtr->VirtualSize =
-              AlignUp(static_cast<std::uint32_t>(section.data.size()), this->_ntHeaders.optionalHeader.fileAlignment);
+              AlignUp(static_cast<std::uint32_t>(section.data.size()), this->ntHeaders.optionalHeader.fileAlignment);
           sectionHeadersPtr->Characteristics = static_cast<std::uint32_t>(section.flags);
           ++sectionHeadersPtr;
      }
@@ -371,7 +375,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::toBytes(const std::string& i
      {
           if (!section.data.empty())
           {
-               auto sectionDataPtr = binary.data() + section.pointerToRawData;
+               auto* sectionDataPtr = binary.data() + section.pointerToRawData;
                memcpy(sectionDataPtr, section.data.data(), section.data.size());
           }
      }

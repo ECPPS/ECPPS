@@ -14,26 +14,26 @@
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
 
-namespace ir = ecpps::ir;
-
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
-static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, const ecpps::Expression& expression)
+static ecpps::codegen::Operand ParseExpression(
+    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
+    std::vector<Instruction>& code, const ecpps::Expression& expression)
 {
      if (expression == nullptr) return std::monostate{};
 
      const auto& value = expression->Value();
-     if (const auto integer = dynamic_cast<ir::IntegralNode*>(value.get()); integer != nullptr)
+     if (auto* const integer = dynamic_cast<ecpps::ir::IntegralNode*>(value.get()); integer != nullptr)
      {
           const auto width = expression->Type()->Size() * ecpps::typeSystem::CharWidth;
 
           return ecpps::codegen::IntegerOperand{integer->Value(), width};
      }
-     if (const auto addition = dynamic_cast<ir::AdditionNode*>(value.get()); addition != nullptr)
+     if (auto* const addition = dynamic_cast<ecpps::ir::AdditionNode*>(value.get()); addition != nullptr)
      {
           if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(code, addition->Left());
+          const auto left = ParseExpression(symbolTable, code, addition->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -53,25 +53,35 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, addition->Right());
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+          if (std::holds_alternative<ecpps::codegen::RegisterOperand>(right) &&
+              *std::get<ecpps::codegen::RegisterOperand>(right).Index()->physical ==
+                  *destinationStorage.Ptr()->physical)
+               destinationStorage =
+                   ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
                return ecpps::codegen::ErrorOperand{};
 
-          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
+          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left) ||
+              *std::get<ecpps::codegen::RegisterOperand>(left).Index()->physical != *destinationStorage->physical)
                code.emplace_back(ecpps::codegen::MovInstruction{
                    left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+
+          code.append_range(codeBuffer);
+
           code.emplace_back(ecpps::codegen::AddInstruction{
               right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
-     if (const auto subtraction = dynamic_cast<ir::SubtractionNode*>(value.get()); subtraction != nullptr)
+     if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(code, subtraction->Left());
+          const auto left = ParseExpression(symbolTable, code, subtraction->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -91,7 +101,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, subtraction->Right());
+          const auto right = ParseExpression(symbolTable, code, subtraction->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -106,7 +116,8 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
 
-     if (const auto multiplication = dynamic_cast<ir::MultiplicationNode*>(value.get()); multiplication != nullptr)
+     if (auto* const multiplication = dynamic_cast<ecpps::ir::MultiplicationNode*>(value.get());
+         multiplication != nullptr)
      {
           if (multiplication->Left() == nullptr || multiplication->Right() == nullptr)
                return ecpps::codegen::ErrorOperand{};
@@ -125,7 +136,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(code, multiplication->Left());
+          const auto left = ParseExpression(symbolTable, code, multiplication->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -133,7 +144,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, multiplication->Right());
+          const auto right = ParseExpression(symbolTable, code, multiplication->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -148,7 +159,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }
 
-     if (const auto div = dynamic_cast<ir::DivideNode*>(value.get()); div != nullptr)
+     if (auto* const div = dynamic_cast<ecpps::ir::DivideNode*>(value.get()); div != nullptr)
      {
           if (div->Left() == nullptr || div->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
@@ -166,7 +177,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(code, div->Left());
+          const auto left = ParseExpression(symbolTable, code, div->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -174,7 +185,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(code, div->Right());
+          const auto right = ParseExpression(symbolTable, code, div->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -188,25 +199,28 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }
-     if (const auto call = dynamic_cast<ir::FunctionCallNode*>(value.get()); call != nullptr)
+     if (auto* const call = dynamic_cast<ecpps::ir::FunctionCallNode*>(value.get()); call != nullptr)
      {
           const auto& function = *call->Function();
 
           auto& currentAbi = ecpps::abi::ABI::Current();
-          const std::string functionName = currentAbi.MangleName(
+          const std::string functionName = ecpps::abi::ABI::MangleName(
               function.linkage, function.name, function.callingConvention, function.returnType,
               function.parameters |
-                  std::views::transform([](const ir::FunctionScope::Parameter& parameter) { return parameter.type; }) |
+                  std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                        { return parameter.type; }) |
                   std::ranges::to<std::vector>());
-          const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
+          auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
 
           runtime_assert(function.parameters.size() == call->Arguments().size(),
                          "Overload resolution failed to pick a function with equal amount of arguments");
 
+          const auto callAbi = callingConvention.PrepareForCall(code);
+
           const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
           const auto parameterSizes =
               function.parameters |
-              std::views::transform([&callingConvention](const ir::FunctionScope::Parameter& parameter)
+              std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
                                     { return callingConvention.GetRequirementsForType(parameter.type); }) |
               std::ranges::to<std::vector>();
 
@@ -220,7 +234,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
                const auto& argument = *argumentIterator++;
                const auto& parameter = *parameterIterator++;
 
-               const auto operand = ParseExpression(code, argument);
+               const auto operand = ParseExpression(symbolTable, code, argument);
                code.emplace_back(
                    ecpps::codegen::MovInstruction{operand,
                                                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -230,6 +244,7 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
 
           if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
+          callAbi->Finish(code);
 
           const auto returnStorage = callingConvention.ReturnValueStorage(returnTypeSize);
           if (std::holds_alternative<std::monostate>(returnStorage.value))
@@ -237,11 +252,61 @@ static ecpps::codegen::Operand ParseExpression(std::vector<Instruction>& code, c
           return ecpps::codegen::Operand{
               ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}};
      }
+     if (auto* const load = dynamic_cast<ecpps::ir::LoadNode*>(value.get()); load != nullptr)
+     {
+          const auto it = symbolTable.find(load->Address());
+          if (it == symbolTable.end()) return ecpps::codegen::ErrorOperand{};
+
+          const auto& [location, storageRequest] = it->second;
+          // TODO: Checks
+          const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
+
+          const auto width = storageRequest.size * ecpps::typeSystem::CharWidth;
+
+          return ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
+              ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
+     }
+
+     if (auto* const convert = dynamic_cast<ecpps::ir::ConvertNode*>(value.get()); convert != nullptr)
+     {
+          const auto inner = ParseExpression(symbolTable, code, convert->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(inner)) return ecpps::codegen::ErrorOperand{};
+
+          const auto& targetType = convert->TargetType();
+
+          std::size_t width = targetType->Size() * ecpps::typeSystem::CharWidth;
+          bool isSigned = false; // NOLINT
+          if (IsIntegral(targetType))
+          {
+               isSigned = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(targetType)->Sign() ==
+                          ecpps::typeSystem::Signedness::Signed;
+          }
+
+          const auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(inner)
+                                   ? ecpps::abi::ABI::Current().AllocateRegister(
+                                         std::get<ecpps::codegen::RegisterOperand>(inner).Index(),
+                                         ecpps::abi::RegisterAllocation::Priority)
+                                   : ecpps::abi::ABI::Current().AllocateRegister(width);
+
+          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(inner))
+          {
+               ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                             convert->Operand()->Type()->Size() *
+                                                                 ecpps::typeSystem::CharWidth};
+               movInstruction.isConversion = true;
+               code.emplace_back(std::move(movInstruction));
+          }
+
+          return ecpps::codegen::RegisterOperand{storage.Ptr()};
+     }
 
      throw std::logic_error("Invalid expression");
 }
 
-static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
+static void CompileReturn(
+    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
+    std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
 {
      if (node.HasValue())
      {
@@ -249,17 +314,17 @@ static void CompileReturn(std::vector<Instruction>& code, const ecpps::ir::Retur
           ecpps::abi::MicrosoftX64CallingConvention callingConvention{};
           const auto returnStorage =
               callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
-          code.push_back(
-              ecpps::codegen::MovInstruction{ParseExpression(code, node.Value()),
+          code.emplace_back(
+              ecpps::codegen::MovInstruction{ParseExpression(symbolTable, code, node.Value()),
                                              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
                                                  std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
                                              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
      }
 
-     code.push_back(ecpps::codegen::ReturnInstruction{});
+     code.emplace_back(ecpps::codegen::ReturnInstruction{});
 }
 
-static Routine CompileRoutine(const ir::ProcedureNode& node)
+static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};
      auto& currentAbi = ecpps::abi::ABI::Current();
@@ -267,25 +332,43 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
 
      auto stackManager = parentCallingConvention.BeginStack(instructions);
 
+     std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>> symbolTable{};
+
+     for (const auto& decl : node.Locals())
+     {
+          // TODO: static & extern
+          const auto& type = decl.type;
+          ecpps::abi::StorageRequirement request{type->Size(), type->Alignment(),
+                                                 IsIntegral(type) ? ecpps::abi::RequiredStorageKind::Integer
+                                                 : IsFloatingPoint(type)
+                                                     ? ecpps::abi::RequiredStorageKind::FloatingPoint
+                                                 : IsPointer(type) ? ecpps::abi::RequiredStorageKind::Pointer
+                                                                   : ecpps::abi::RequiredStorageKind::Aggregate};
+
+          auto storage = stackManager->ReserveStorage(request);
+          symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
+                                             std::move(storage), request});
+     }
+
      for (const auto& line : node.Body())
      {
-          if (const auto returnNode = dynamic_cast<ir::ReturnNode*>(line.get()); returnNode != nullptr)
-               CompileReturn(instructions, *returnNode);
-          else if (const auto call = dynamic_cast<ir::FunctionCallNode*>(line.get()); call != nullptr)
+          if (auto* const returnNode = dynamic_cast<ecpps::ir::ReturnNode*>(line.get()); returnNode != nullptr)
+               CompileReturn(symbolTable, instructions, *returnNode);
+          else if (auto* const call = dynamic_cast<ecpps::ir::FunctionCallNode*>(line.get()); call != nullptr)
           {
                const auto& function = *call->Function();
 
-               const std::string functionName = currentAbi.MangleName(
+               const std::string functionName = ecpps::abi::ABI::MangleName(
                    function.linkage, function.name, function.callingConvention, function.returnType,
                    function.parameters |
-                       std::views::transform([](const ir::FunctionScope::Parameter& parameter)
+                       std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                              { return parameter.type; }) |
                        std::ranges::to<std::vector>());
                const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
                const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
                const auto parameterSizes =
                    function.parameters |
-                   std::views::transform([&callingConvention](const ir::FunctionScope::Parameter& parameter)
+                   std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
                                          { return callingConvention.GetRequirementsForType(parameter.type); }) |
                    std::ranges::to<std::vector>();
 
@@ -299,7 +382,7 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                     const auto& argument = *argumentIterator++;
                     const auto& parameter = *parameterIterator++;
 
-                    const auto operand = ParseExpression(instructions, argument);
+                    const auto operand = ParseExpression(symbolTable, instructions, argument);
                     instructions.emplace_back(ecpps::codegen::MovInstruction{
                         operand,
                         ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -310,24 +393,40 @@ static Routine CompileRoutine(const ir::ProcedureNode& node)
                if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
+          else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)
+          {
+               runtime_assert(symbolTable.contains(store->Address()), "Invalid symbol");
+               const auto& [location, storageRequest] = symbolTable.at(store->Address());
+               // TODO: Checks
+               const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
+
+               const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
+
+               instructions.emplace_back(
+                   ecpps::codegen::MovInstruction{initValue,
+                                                  ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
+                                                      ecpps::codegen::RegisterOperand{memoryLocation.reg},
+                                                      memoryLocation.offset, storageRequest.size * CHAR_BIT}},
+                                                  storageRequest.size * CHAR_BIT});
+          }
      }
 
      stackManager->Finish();
 
-     return Routine::Branchless(std::move(instructions),
-                                ecpps::abi::ABI::Current().MangleName(
-                                    node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
-                                    node.ParameterList() |
-                                        std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                                              { return parameter.type; }) |
-                                        std::ranges::to<std::vector>()));
+     return Routine::Branchless(
+         std::move(instructions),
+         ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+                                     node.ParameterList() |
+                                         std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                               { return parameter.type; }) |
+                                         std::ranges::to<std::vector>()));
 }
 
-void ecpps::codegen::Compile(SourceFile& source, const std::vector<ir::NodePointer>& intermediateRepresentation)
+void ecpps::codegen::Compile(SourceFile& source, const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation)
 {
      for (const auto& node : intermediateRepresentation)
      {
-          if (const auto procedureNode = dynamic_cast<ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
+          if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
                source.compiledRoutines.push_back(CompileRoutine(*procedureNode));
      }
 }

@@ -26,7 +26,7 @@ IncludeCategories:
     # Headers in <> without extension.
     - Regex: '<([A-Za-z0-9\/-_])+>'
       Priority: 30
-                               
-Cpp11BracedListStyle: true                 
+
+Cpp11BracedListStyle: true
 SpaceBeforeParens: ControlStatements
 AccessModifierOffset: -5

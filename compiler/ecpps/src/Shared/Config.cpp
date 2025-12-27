@@ -4,10 +4,12 @@
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <utility>
 #include "../Machine/ABI.h"
 #include "../Machine/Machine.h"
 
-ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
+ecpps::CompilerConfig::CompilerConfig(
+    int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {
      if (argc <= 1) PrintVersionAndExit();
 
@@ -24,7 +26,7 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
           break;
      }
 
-     for (std::size_t i = 1; i < argc; i++)
+     for (std::size_t i = 1; std::cmp_less(i, argc); i++)
      {
           if (argv[i] == nullptr) break;
 
@@ -33,7 +35,7 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
           if (fullArgument.starts_with('/')) // switch
           {
                auto flag = fullArgument.substr(1);
-               auto value = flag.substr(flag.find(':') + 1);
+               auto value = flag.find(':') == std::string::npos ? "" : flag.substr(flag.find(':') + 1);
                flag = flag.substr(0, flag.find(':'));
                const auto lowerFlag =
                    flag |
@@ -58,7 +60,8 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                          this->verboseStatus = VerboseStatus::ExtraVerbose;
                     else if (lowerValue == "0" || lowerValue == "false" || lowerValue == "off")
                          this->verboseStatus = VerboseStatus::Default;
-                    else { this->verboseStatus = VerboseStatus::Verbose; }
+                    else
+                         this->verboseStatus = VerboseStatus::Verbose;
                }
                else if (flag == "V") { this->verboseStatus = VerboseStatus::ExtraVerbose; }
                else if (lowerFlag == "output" || lowerFlag == "out")
@@ -80,6 +83,10 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                          std::println("Unknown linker: `{}`", value);
                     }
                }
+               else if (flag == "D")
+                    this->useDebugger = true;
+               else if (flag == "?" || lowerFlag == "help")
+                    PrintHelpAndExit();
                else
                {
                     // TODO: Error list of some sort on invalid flag
@@ -90,30 +97,77 @@ ecpps::CompilerConfig::CompilerConfig(int argc, char* argv[])
                this->sourceFiles.emplace_back(fullArgument);
      }
 
-     if (this->outputImage.empty())
+     switch (this->linker)
      {
-          switch (this->linker)
-          {
-          case LinkerUsed::Windows64:
-          case LinkerUsed::Windows32:
-               this->outputImage = "output.exe";
-               this->importedLibraries.emplace_back("KERNEL32.dll");
-               this->importedLibraries.emplace_back("USER32.dll");
-               break;
-          case LinkerUsed::Caosys:
-               this->outputImage = "output.exe";
-               this->importedLibraries.emplace_back("CAO.dll");
-               break;
-          default: this->outputImage = "out"; break;
-          }
+     case LinkerUsed::Windows64:
+     case LinkerUsed::Windows32:
+          if (this->outputImage.empty()) this->outputImage = "output.exe";
+          this->importedLibraries.emplace_back("KERNEL32.dll");
+          this->importedLibraries.emplace_back("USER32.dll");
+          break;
+     case LinkerUsed::Caosys:
+          if (this->outputImage.empty()) this->outputImage = "output.exe";
+          this->importedLibraries.emplace_back("CAO.dll");
+          break;
+     default:
+          if (this->outputImage.empty()) this->outputImage = "out";
+          break;
      }
 
      abi::ABI::Current().PushSIMDRegisters(simd);
 }
 
-void ecpps::CompilerConfig::PrintVersionAndExit(void) const
+void ecpps::CompilerConfig::PrintVersionAndExit(void)
 {
      std::println("ECPPS C++ Compiler pre-v0.0.1");
      std::println("Copyright (c) 2025 Tymi. All rights reserved.");
+     std::exit(0);
+}
+
+void ecpps::CompilerConfig::PrintHelpAndExit(void)
+{
+     std::println("ECPPS C++ Compiler pre-v0.0.1");
+     std::println("Copyright (c) 2025 Tymi. All rights reserved.");
+
+     std::println("Usage:");
+     std::println("  ecpps [options] <source files>");
+     std::println();
+     std::println("Options:");
+     std::println("  /? | /help");
+     std::println("      Show this help and exit.");
+     std::println();
+     std::println("  /WX");
+     std::println("      Treat warnings as errors.");
+     std::println();
+     std::println("  /-WX");
+     std::println("      Do not treat warnings as errors.");
+     std::println();
+     std::println("  /verbose[:level] | /v[:level]");
+     std::println("      Enable verbose output.");
+     std::println("      Levels:");
+     std::println("        0, off        Default output");
+     std::println("        1, on, true   Verbose output");
+     std::println("        2, extra, all Extra verbose output");
+     std::println();
+     std::println("  /V");
+     std::println("      Enable extra verbose output.");
+     std::println();
+     std::println("  /output:<file> | /out:<file>");
+     std::println("      Specify output image name.");
+     std::println();
+     std::println("  /image:<type>");
+     std::println("      Select output image / linker:");
+     std::println("        win64, pe64, pe32p   Windows 64-bit");
+     std::println("        win32, pe32         Windows 32-bit");
+     std::println("        cao, caosys, cao64  CAOSYS image");
+     std::println();
+     std::println("  /D");
+     std::println("      Enable debugger support.");
+     std::println();
+     std::println("Examples:");
+     std::println("  ecpps /WX /image:win64 /out:app.exe main.cpp");
+     std::println("  ecpps /verbose:2 test.cpp");
+     std::println();
+
      std::exit(0);
 }

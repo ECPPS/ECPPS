@@ -1,12 +1,14 @@
 #pragma once
 
 #include <SBOVector.h>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
+#include "../Shared/Diagnostics.h"
+#include "../Shared/Error.h"
 #include "..\Machine\ABI.h"
-#include "SourceMap.h"
 #include "Tokeniser.h"
 
 namespace ecpps::ast
@@ -16,7 +18,7 @@ namespace ecpps::ast
      class Node
      {
      public:
-          explicit Node(Location location) : _location(std::move(location)) {}
+          explicit Node(Location location) : _location(location) {}
           virtual ~Node(void) = default;
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
@@ -28,14 +30,14 @@ namespace ecpps::ast
      };
      using NodePointer = std::unique_ptr<Node>;
 
-     enum struct ConstantExpressionSpecifier
+     enum struct ConstantExpressionSpecifier : std::uint_fast8_t
      {
           None,
           Constexpr,
           Consteval,
           Constinit
      };
-     enum struct Operator : std::uint8_t
+     enum struct Operator : std::uint_fast8_t
      {
           Function,              // ()
           Ellipsis,              // ...
@@ -136,10 +138,10 @@ namespace ecpps::ast
      {
      public:
           explicit AttributeNode(std::string name, SBOVector<Token> arguments, Location source)
-              : Node(std::move(source)), _name(std::move(name)), _arguments(std::move(arguments))
+              : Node(source), _name(std::move(name)), _arguments(std::move(arguments))
           {
           }
-          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          [[nodiscard]] std::string ToString([[maybe_unused]] std::size_t indent) const override
           {
                std::string built = "[[" + this->_name;
                if (this->_arguments.Size() != 0)
@@ -262,7 +264,7 @@ namespace ecpps::ast
      {
      public:
           explicit FunctionDeclarationNode(FunctionSignature signature, Location source)
-              : Node(std::move(source)), _signature(std::move(signature))
+              : Node(source), _signature(std::move(signature))
           {
           }
 
@@ -282,7 +284,7 @@ namespace ecpps::ast
      {
      public:
           explicit FunctionDefinitionNode(FunctionSignature signature, SBOVector<NodePointer> body, Location source)
-              : Node(std::move(source)), _signature(std::move(signature)), _body(std::move(body))
+              : Node(source), _signature(std::move(signature)), _body(std::move(body))
           {
           }
 
@@ -313,7 +315,7 @@ namespace ecpps::ast
      {
      public:
           explicit CallOperatorNode(NodePointer function, SBOVector<NodePointer> arguments, Location source)
-              : Node(std::move(source)), _function(std::move(function)), _arguments(std::move(arguments))
+              : Node(source), _function(std::move(function)), _arguments(std::move(arguments))
           {
           }
 
@@ -344,14 +346,14 @@ namespace ecpps::ast
      class ThisNode final : public Node
      {
      public:
-          explicit ThisNode(Location source) : Node(std::move(source)) {}
+          explicit ThisNode(Location source) : Node(source) {}
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "this";
           }
      };
 
-     enum struct UnaryOperatorType : std::uint8_t
+     enum struct UnaryOperatorType : std::uint_fast8_t
      {
           Prefix,
           Postfix,
@@ -361,13 +363,13 @@ namespace ecpps::ast
      {
      public:
           explicit UnaryOperatorNode(Operator value, NodePointer operand, const UnaryOperatorType type, Location source)
-              : Node(std::move(source)), _value(std::move(value)), _operand(std::move(operand)), _type(type)
+              : Node(source), _value(value), _operand(std::move(operand)), _type(type)
           {
           }
-          [[nodiscard]] const Operator& value(void) const noexcept { return this->_value; }
-          [[nodiscard]] const NodePointer& operand(void) const noexcept { return this->_operand; }
-          [[nodiscard]] UnaryOperatorType unaryType(void) const noexcept { return this->_type; }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] const Operator& Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] const NodePointer& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] UnaryOperatorType UnaryType(void) const noexcept { return this->_type; }
+          [[nodiscard]] std::string ToString([[maybe_unused]] const std::size_t indent) const override
           {
                return this->_type == UnaryOperatorType::Postfix
                           ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
@@ -384,12 +386,12 @@ namespace ecpps::ast
      {
      public:
           explicit BinaryOperatorNode(NodePointer left, Operator value, NodePointer right, Location source)
-              : Node(std::move(source)), _left(std::move(left)), _value(std::move(value)), _right(std::move(right))
+              : Node(source), _left(std::move(left)), _value(value), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Operator& value(void) const noexcept { return this->_value; }
-          [[nodiscard]] const NodePointer& left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const NodePointer& right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Operator& Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] const NodePointer& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const NodePointer& Right(void) const noexcept { return this->_right; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "(" + this->_left->ToString(0) + " " +
@@ -406,7 +408,7 @@ namespace ecpps::ast
      {
      public:
           explicit ReturnNode(NodePointer expression, Location source)
-              : Node(std::move(source)), _expression(std::move(expression))
+              : Node(source), _expression(std::move(expression))
           {
           }
 
@@ -421,11 +423,93 @@ namespace ecpps::ast
           NodePointer _expression;
      };
 
+     class VariableDeclarationNode final : public Node
+     {
+     public:
+          struct Declarator
+          {
+               NodePointer name;
+               NodePointer initialiser;
+               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr)
+                   : name(std::move(name)), initialiser(std::move(initialiser))
+               {
+               }
+          };
+
+          struct Flags
+          {
+               bool isTypedef = false;
+               bool isFriend = false;
+               bool isConstexpr = false;
+               bool isConsteval = false;
+               bool isConstinit = false;
+               bool isInline = false;
+               bool isStatic = false;
+               bool isThreadLocal = false;
+               bool isExtern = false;
+               bool isMutable = false;
+               bool isConst = false;
+               bool isVolatile = false;
+          };
+
+          VariableDeclarationNode(NodePointer type, std::vector<Declarator> declarators, Flags flags,
+                                  std::optional<NodePointer> explicitSpecifier, Location source)
+              : Node(source), _type(std::move(type)), _declarators(std::move(declarators)), _flags(flags),
+                _explicitSpecifier(std::move(explicitSpecifier))
+          {
+          }
+
+          [[nodiscard]] const NodePointer& Type(void) const noexcept { return this->_type; }
+          [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept { return this->_declarators; }
+          [[nodiscard]] const Flags& GetFlags(void) const noexcept { return this->_flags; }
+          [[nodiscard]] const std::optional<NodePointer>& ExplicitSpecifier(void) const noexcept
+          {
+               return this->_explicitSpecifier;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built(indent * PrettyIndent, ' ');
+               // add flags
+               if (this->_flags.isTypedef) built += "typedef ";
+               if (this->_flags.isConstexpr) built += "constexpr ";
+               if (this->_flags.isConsteval) built += "consteval ";
+               if (this->_flags.isConstinit) built += "constinit ";
+               if (this->_flags.isInline) built += "inline ";
+               if (this->_flags.isStatic) built += "static ";
+               if (this->_flags.isThreadLocal) built += "thread_local ";
+               if (this->_flags.isExtern) built += "extern ";
+               if (this->_flags.isMutable) built += "mutable ";
+               if (this->_flags.isConst) built += "const ";
+               if (this->_flags.isVolatile) built += "volatile ";
+               if (this->_flags.isFriend) built += "friend ";
+               if (this->_explicitSpecifier) built += "explicit ";
+
+               built += this->_type->ToString(0) + " ";
+
+               for (size_t i = 0; i < _declarators.size(); ++i)
+               {
+                    const auto& declarator = this->_declarators[i];
+                    built += declarator.name->ToString(0);
+                    if (declarator.initialiser) built += " = " + declarator.initialiser->ToString(0);
+                    if (i + 1 < this->_declarators.size()) built += ", ";
+               }
+
+               return built;
+          }
+
+     private:
+          NodePointer _type;
+          std::vector<Declarator> _declarators;
+          Flags _flags;
+          std::optional<NodePointer> _explicitSpecifier;
+     };
+
      class BooleanLiteralNode final : public Node
      {
      public:
-          explicit BooleanLiteralNode(const bool value, Location source) : Node(std::move(source)), _value(value) {}
-          [[nodiscard]] bool value(void) const noexcept { return this->_value; }
+          explicit BooleanLiteralNode(const bool value, Location source) : Node(source), _value(value) {}
+          [[nodiscard]] bool Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false");
@@ -437,16 +521,13 @@ namespace ecpps::ast
      class StringLiteralNode final : public Node
      {
      public:
-          explicit StringLiteralNode(std::string value, Location source)
-              : Node(std::move(source)), _value(std::move(value))
-          {
-          }
+          explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value)) {}
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
           }
-          [[nodiscard]] const std::string& value(void) const noexcept { return this->_value; }
+          [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
 
      private:
           std::string _value;
@@ -455,10 +536,7 @@ namespace ecpps::ast
      class IntegerLiteralNode final : public Node
      {
      public:
-          explicit IntegerLiteralNode(const unsigned long long value, Location source)
-              : Node(std::move(source)), _value(value)
-          {
-          }
+          explicit IntegerLiteralNode(const unsigned long long value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] unsigned long long Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -472,8 +550,8 @@ namespace ecpps::ast
      class CharacterLiteralNode final : public Node
      {
      public:
-          explicit CharacterLiteralNode(const char value, Location source) : Node(std::move(source)), _value(value) {}
-          [[nodiscard]] char value(void) const noexcept { return this->_value; }
+          explicit CharacterLiteralNode(const char value, Location source) : Node(source), _value(value) {}
+          [[nodiscard]] char Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
@@ -521,6 +599,17 @@ namespace ecpps::ast
           NodePointer ParseBlockDeclaration(void);
           NodePointer ParseNameDeclaration(void);
           NodePointer ParseFunctionDefinition(void);
+          bool IsDeclarationStart(void);
+
+          // simple-declaration
+          NodePointer ParseSimpleDeclaration(void);               // simple-declaration
+          static NodePointer TryParseDeclSpecifier(void);         // decl-specifier
+          static NodePointer TryParseDefiningTypeSpecifier(void); // defining-type-specifier
+          static NodePointer ParseInitDeclarator(void);           // init-declarator
+          static NodePointer TryParseDeclarator(void);            // declarator
+          static NodePointer TryParsePtrDeclarator(void);         // ptr-declarator
+          static NodePointer TryParseNoPtrDeclarator(void);       // no-ptr-declarator
+          static NodePointer ParseInitialiser(void);              // initialiser
 
           // Expressions
           [[nodiscard]] NodePointer ParsePrimaryExpression(void);
@@ -546,6 +635,7 @@ namespace ecpps::ast
 
           // Statements
           NodePointer ParseStatement(void);
+          NodePointer ParseDeclarationStatement(void) { return ParseBlockDeclaration(); }
           NodePointer ParseExpressionStatement(void);
 
           // Helpers (parse sub-components)

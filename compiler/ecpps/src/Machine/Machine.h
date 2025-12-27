@@ -1,11 +1,10 @@
 #pragma once
 #include <cstdint>
-#include <type_traits>
 #include <utility>
 
 namespace ecpps::abi
 {
-     enum struct Architecture
+     enum struct Architecture : std::uint_fast8_t
      {
           x86,
           ARM
@@ -54,7 +53,7 @@ namespace ecpps::abi
      };
      constexpr bool operator&(const SimdFeatures features, const SimdFeatures other)
      {
-          return std::to_underlying(features) & std::to_underlying(other);
+          return (std::to_underlying(features) & std::to_underlying(other)) != 0;
      }
      constexpr SimdFeatures operator|(const SimdFeatures features, const SimdFeatures other)
      {

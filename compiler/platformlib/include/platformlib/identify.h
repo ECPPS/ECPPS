@@ -3,7 +3,7 @@
 
 namespace ecpps::platformlib
 {
-     enum struct ArchitectureBitness
+     enum struct ArchitectureBitness : std::uint_fast8_t
      {
           x86_64,
           x86_32,
@@ -11,7 +11,7 @@ namespace ecpps::platformlib
           ARM64
      };
 
-     enum struct OperatingSystem
+     enum struct OperatingSystem : std::uint_fast8_t
      {
           Windows,
           WindowsOnWindows,

@@ -1,10 +1,13 @@
 #include "ABI.h"
 #include <Assert.h>
+#ifndef NDEBUG
 #include <format>
+#endif
 #include <ranges>
 #include <stdexcept>
 #include <vector>
 #include "../CodeGeneration/Nodes.h"
+#include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
@@ -21,6 +24,7 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
      {
      case ISA::x86_64:
      {
+          this->_pointerSize = 8;
           std::size_t id{};
 
           const auto& rax =
@@ -82,10 +86,10 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 
           const auto& r8 =
               this->_physicalRegisters.emplace_back(std::make_shared<PhysicalRegister>("r8", qwordSize, id++));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("rdi", rdi, qwordSize, 0));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("edi", rdi, dwordSize, 0));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("di", rdi, wordSize, 0));
-          this->_registers.push_back(std::make_shared<VirtualRegister>("dil", rdi, byteSize, 0));
+          this->_registers.push_back(std::make_shared<VirtualRegister>("r8", r8, qwordSize, 0));
+          this->_registers.push_back(std::make_shared<VirtualRegister>("r8d", r8, dwordSize, 0));
+          this->_registers.push_back(std::make_shared<VirtualRegister>("r8w", r8, wordSize, 0));
+          this->_registers.push_back(std::make_shared<VirtualRegister>("r8b", r8, byteSize, 0));
 
           const auto& r9 =
               this->_physicalRegisters.emplace_back(std::make_shared<PhysicalRegister>("r9", qwordSize, id++));
@@ -137,6 +141,7 @@ ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
           this->_registers.push_back(std::make_shared<VirtualRegister>("r15b", r15, byteSize, 0));
      }
      break;
+     default: throw TracedException("ISA not handled yet");
      }
 }
 
@@ -188,6 +193,7 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
           }
      }
      break;
+     default: throw TracedException("ISA not implemented yet");
      }
 }
 
@@ -197,7 +203,8 @@ ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::size_
 {
      for (const auto& reg : this->_registers)
      {
-          if (reg->width != width || this->_allocatedRegisters.contains(reg->physical->id)) continue;
+          if (reg->width != width || this->_allocatedRegisters.try_emplace(reg->physical->id, 0).first->second > 0)
+               continue;
           return AllocatedRegister{reg};
      }
 
@@ -210,7 +217,8 @@ ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::size_
      for (const auto& reg : this->_registers)
      {
           if (reg->width != width || (reg->friendlyName != name && reg->physical->friendlyName != name)) continue;
-          if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(reg->physical->id))
+          if (allocation == RegisterAllocation::Normal &&
+              this->_allocatedRegisters.try_emplace(reg->physical->id, 0).first->second > 0)
                continue;
           return AllocatedRegister{reg};
      }
@@ -225,7 +233,8 @@ ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(std::size_t widt
      for (const auto& reg : this->_registers)
      {
           if (reg->width != width || reg->physical != toAllocate) continue;
-          if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(reg->physical->id))
+          if (allocation == RegisterAllocation::Normal &&
+              this->_allocatedRegisters.try_emplace(reg->physical->id, 0).first->second > 0)
                continue;
           return AllocatedRegister{reg};
      }
@@ -236,10 +245,26 @@ ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(std::size_t widt
 ecpps::abi::AllocatedRegister ecpps::abi::ABI::AllocateRegister(const std::shared_ptr<VirtualRegister>& toAllocate,
                                                                 RegisterAllocation allocation)
 {
-     if (allocation == RegisterAllocation::Normal && this->_allocatedRegisters.contains(toAllocate->physical->id))
+     if (allocation == RegisterAllocation::Normal &&
+         this->_allocatedRegisters.try_emplace(toAllocate->physical->id, 0).first->second > 0)
           return AllocatedRegister{nullptr};
 
      return AllocatedRegister{toAllocate};
+}
+
+bool ecpps::abi::ABI::CheckRegisterAllocation(std::size_t width, const std::string& name) const
+{
+     for (const auto& reg : this->_registers)
+     {
+          if (reg->width != width || reg->physical->friendlyName != name) continue;
+          if (!this->_allocatedRegisters.contains(reg->physical->id) ||
+              this->_allocatedRegisters.at(reg->physical->id) == 0)
+               return false;
+
+          return true;
+     }
+
+     return false;
 }
 
 std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name,
@@ -257,12 +282,13 @@ ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(
      switch (this->_isa)
      {
      case abi::ISA::x86_64: return abi::CallingConventionName::Microsoftx64;
+     default: throw TracedException("ISA not handled yet");
      }
 
      return abi::CallingConventionName::Microsoftx64; // fallback
 }
 
-const ecpps::abi::CallingConvention& ecpps::abi::ABI::CallingConventionFromName(CallingConventionName name)
+ecpps::abi::CallingConvention& ecpps::abi::ABI::CallingConventionFromName(CallingConventionName name)
 {
      for (const auto& cc : this->_callingConventions)
           if (cc->Name() == name) return *cc;
@@ -314,19 +340,20 @@ ecpps::abi::StorageRef ecpps::abi::MicrosoftX64CallingConvention::ReturnValueSto
           }
      }
      break;
+     default: throw TracedException("Not implemented storage size");
      }
 
      throw nullptr; // FIXME: No comment needed
 }
 
 std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::LocateParameters(
-    StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const
+    [[maybe_unused]] StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const
 {
      std::vector<ecpps::abi::StorageRef> result{};
      result.reserve(parameters.size());
      // TODO: Caller saved return storage
      std::size_t currentIndex = parameters.size();
-     std::size_t stackIndex = this->_shadowSpace;
+     std::size_t stackIndex = this->_shadowSpace; // NOLINT
 
      for (const auto& parameter : parameters | std::views::reverse)
      {
@@ -385,13 +412,28 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
      explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
                                        const ecpps::abi::CallingConvention& callingConvention)
          : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
+           //_currentStackSize(0)
            _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
      {
      }
+     [[nodiscard]] ecpps::abi::StorageRef ReserveStorage(const ecpps::abi::StorageRequirement& request) final
+     {
+          const std::size_t alignmentMask = request.alignment - 1;
+          if ((this->_currentStackSize & alignmentMask) != 0)
+          {
+               this->_currentStackSize = (_currentStackSize + alignmentMask) & ~alignmentMask;
+          }
+
+          const std::size_t variableOffset = _currentStackSize;
+          this->_currentStackSize += request.size;
+
+          return ecpps::abi::StorageRef{
+              ecpps::abi::MemoryLocation{.offset = variableOffset, .reg = ABI::Current().StackPointerRegister()}};
+     }
 
 protected:
-     std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final override;
-     std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const final override;
+     [[nodiscard]] std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final;
+     [[nodiscard]] std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const final;
 
 private:
      std::reference_wrapper<const ecpps::abi::CallingConvention> _currentCallingConvention;
@@ -404,25 +446,115 @@ std::unique_ptr<ecpps::abi::ProcedureStackManager> ecpps::abi::MicrosoftX64Calli
      return std::make_unique<Microsoftx64StackManager>(instructions, *this);
 }
 
+std::unique_ptr<ecpps::abi::CallTemporaryProxy> ecpps::abi::MicrosoftX64CallingConvention::PrepareForCall(
+    std::vector<ecpps::codegen::Instruction>& instructions)
+{
+     auto& abi = ABI::Current();
+     const auto pointerWidth = abi.PointerSize() * byteSize;
+     const bool wasRcxUsed = abi.CheckRegisterAllocation(pointerWidth, "rcx");
+     const bool wasRdxUsed = abi.CheckRegisterAllocation(pointerWidth, "rdx");
+     const bool wasR8Used = abi.CheckRegisterAllocation(pointerWidth, "r8");
+     const bool wasR9Used = abi.CheckRegisterAllocation(pointerWidth, "r9");
+     std::shared_ptr<VirtualRegister> rcx{};
+     std::shared_ptr<VirtualRegister> rdx{};
+     std::shared_ptr<VirtualRegister> r8{};
+     std::shared_ptr<VirtualRegister> r9{};
+     std::shared_ptr<VirtualRegister> rsp = abi.StackPointerRegister();
+
+     const auto& registers = abi.VirtualRegisters();
+     for (const auto& reg : registers)
+     {
+          if (reg->width != pointerWidth) continue;
+
+          if (rcx != nullptr && rdx != nullptr && r8 != nullptr && r9 != nullptr) break;
+
+          if (reg->physical->friendlyName == "rcx")
+          {
+               rcx = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "rdx")
+          {
+               rdx = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "r8")
+          {
+               r8 = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "r9")
+          {
+               r9 = reg;
+               continue;
+          }
+     }
+     std::bitset<4> savedRegisters{};
+
+     if (wasRcxUsed)
+     {
+          instructions.emplace_back(ecpps::codegen::MovInstruction{
+              ecpps::codegen::RegisterOperand{rcx},
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp}, 0, pointerWidth},
+              pointerWidth});
+          savedRegisters.set(0);
+     }
+
+     if (wasRdxUsed)
+     {
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::RegisterOperand{rdx},
+                                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   abi.PointerSize(), pointerWidth},
+                                             pointerWidth});
+          savedRegisters.set(1);
+     }
+
+     if (wasR8Used)
+     {
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::RegisterOperand{r8},
+                                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   2 * abi.PointerSize(), pointerWidth},
+                                             pointerWidth});
+          savedRegisters.set(2);
+     }
+
+     if (wasR9Used)
+     {
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::RegisterOperand{r8},
+                                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   3 * abi.PointerSize(), pointerWidth},
+                                             pointerWidth});
+          savedRegisters.set(3);
+     }
+
+     return std::make_unique<WindowsABICallProxy>(savedRegisters);
+}
+
 ecpps::abi::AllocatedRegister::AllocatedRegister(std::shared_ptr<VirtualRegister> reg) : _register(std::move(reg))
 {
      if (this->_register == nullptr) return;
 
-     abi::ABI::Current()._allocatedRegisters.emplace(this->_register->physical->id);
+     abi::ABI::Current()._allocatedRegisters.try_emplace(this->_register->physical->id, 0).first->second++;
 }
 
 ecpps::abi::AllocatedRegister::~AllocatedRegister(void)
 {
      if (this->_register == nullptr) return;
 
-     ABI::Current()._allocatedRegisters.erase(this->_register->physical->id);
+     (*abi::ABI::Current()._allocatedRegisters.try_emplace(this->_register->physical->id, 1).first).second--;
 }
 
 void ecpps::abi::AllocatedRegister::Release(void)
 {
      if (this->_register == nullptr) return;
 
-     ABI::Current()._allocatedRegisters.erase(std::exchange(this->_register, nullptr)->physical->id);
+     (*abi::ABI::Current()
+           ._allocatedRegisters.try_emplace(std::exchange(this->_register, nullptr)->physical->id, 1)
+           .first)
+         .second--;
 }
 
 std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GeneratePrologue(void) const
@@ -443,4 +575,69 @@ std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GenerateEpilo
          ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
          ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
      return instructions;
+}
+
+void ecpps::abi::WindowsABICallProxy::End(std::vector<ecpps::codegen::Instruction>& instructions)
+{
+     auto& abi = ABI::Current();
+     const bool wasRcxUsed = this->_savedRegisters.test(0);
+     const bool wasRdxUsed = this->_savedRegisters.test(1);
+     const bool wasR8Used = this->_savedRegisters.test(2);
+     const bool wasR9Used = this->_savedRegisters.test(3);
+     std::shared_ptr<VirtualRegister> rcx{};
+     std::shared_ptr<VirtualRegister> rdx{};
+     std::shared_ptr<VirtualRegister> r8{};
+     std::shared_ptr<VirtualRegister> r9{};
+     std::shared_ptr<VirtualRegister> rsp = abi.StackPointerRegister();
+     const auto pointerWidth = abi.PointerSize() * byteSize;
+
+     const auto& registers = abi.VirtualRegisters();
+     for (const auto& reg : registers)
+     {
+          if (rcx != nullptr && rdx != nullptr && r8 != nullptr && r9 != nullptr) break;
+
+          if (reg->physical->friendlyName == "rcx")
+          {
+               rcx = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "rdx")
+          {
+               rdx = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "r8")
+          {
+               r8 = reg;
+               continue;
+          }
+          if (reg->physical->friendlyName == "r9")
+          {
+               r9 = reg;
+               continue;
+          }
+     }
+
+     if (wasRcxUsed)
+          instructions.emplace_back(ecpps::codegen::MovInstruction{
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp}, 0, pointerWidth},
+              ecpps::codegen::RegisterOperand{rcx}, pointerWidth});
+
+     if (wasRdxUsed)
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   abi.PointerSize(), pointerWidth},
+                                             ecpps::codegen::RegisterOperand{rdx}, pointerWidth});
+
+     if (wasR8Used)
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   2 * abi.PointerSize(), pointerWidth},
+                                             ecpps::codegen::RegisterOperand{r8}, pointerWidth});
+
+     if (wasR9Used)
+          instructions.emplace_back(
+              ecpps::codegen::MovInstruction{ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{rsp},
+                                                                                   3 * abi.PointerSize(), pointerWidth},
+                                             ecpps::codegen::RegisterOperand{r9}, pointerWidth});
 }

@@ -1,0 +1,73 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "x64-Debug MSVC",
+      "description": "Debug build using MSVC x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Debug MSVC",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug MSVC"
+      }
+    },
+    {
+      "name": "x64-Release MSVC",
+      "description": "RelWithDebInfo build using MSVC x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Release MSVC",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Release MSVC"
+      }
+    },
+    {
+      "name": "x64-Clang-cl-Debug",
+      "description": "Debug build using Clang-cl x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug",
+        "CMAKE_CXX_COMPILER_ID": "Clang"
+      }
+    },
+    {
+      "name": "x64-Clang-cl-Release",
+      "description": "RelWithDebInfo build using Clang-cl x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Release",
+        "CMAKE_CXX_COMPILER_ID": "Clang"
+      }
+    },
+    {
+      "name": "x64-Clang-Debug",
+      "description": "Debug build using regular Clang x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Clang-Debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_COMPILER_ID": "Clang"
+      }
+    },
+    {
+      "name": "x64-Clang-Release",
+      "description": "RelWithDebInfo build using regular Clang x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/x64-Clang-Release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_COMPILER_ID": "Clang"
+      }
+    }
+  ]
+}

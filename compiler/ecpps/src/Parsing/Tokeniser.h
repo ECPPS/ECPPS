@@ -6,7 +6,6 @@
 #include <variant>
 #include <vector>
 #include "Preprocessor.h"
-#include "SourceMap.h"
 
 namespace ecpps
 {
@@ -113,7 +112,7 @@ namespace ecpps
      private:
           static bool IsKeyword(const std::string& identifier);
 
-          static std::optional<std::uintmax_t> parseInteger(const std::string& str)
+          static std::optional<std::uintmax_t> ParseInteger(const std::string& str)
           {
                std::size_t idx = 0;
                try
@@ -121,13 +120,13 @@ namespace ecpps
                     auto val = std::stoull(str, &idx, 0);
                     if (idx == str.size()) return val;
                }
-               catch (...)
+               catch (...) // NOLINT(bugprone-empty-catch)
                {
                }
                return std::nullopt;
           }
 
-          static std::optional<long double> parseFloat(const std::string& str)
+          static std::optional<long double> ParseFloat(const std::string& str)
           {
                std::size_t idx = 0;
                try
@@ -135,7 +134,7 @@ namespace ecpps
                     auto val = std::stold(str, &idx);
                     if (idx == str.size()) return val;
                }
-               catch (...)
+               catch (...) // NOLINT(bugprone-empty-catch)
                {
                }
                return std::nullopt;

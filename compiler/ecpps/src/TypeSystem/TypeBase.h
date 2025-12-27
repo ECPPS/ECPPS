@@ -11,7 +11,7 @@ namespace ecpps::typeSystem
 {
      constexpr std::size_t CharWidth = 8; // implementation-defined property
 
-     enum struct TypeTraitEnum
+     enum struct TypeTraitEnum : std::uint_fast8_t
      {
           ImplicitLifetime,
           Arithmetic,
@@ -22,13 +22,17 @@ namespace ecpps::typeSystem
           Character,
           Incomplete,
           Boolean,
+          Pointer,
+          Scalar,
+          Reference,
+          Object,
 
           Count
      };
 
      struct ConversionSequence
      {
-          enum struct ConversionKind
+          enum struct ConversionKind : std::uint_fast8_t
           {
                LvalueToRValue = 16,
                ArrayToPointer = 15,
@@ -96,7 +100,7 @@ namespace ecpps::typeSystem
           virtual ~TypeBase(void) = default;
           explicit TypeBase(std::string name) : _name(std::move(name)) {}
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
-          [[nodiscard]] virtual std::string RawName(void) const noexcept = 0;
+          [[nodiscard]] virtual std::string RawName(void) const = 0;
 
           [[nodiscard]] virtual TypeTraits Traits(void) const noexcept = 0;
 
@@ -138,6 +142,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Character);
      TraitCheckerFunction(Incomplete);
      TraitCheckerFunction(Boolean);
+     TraitCheckerFunction(Pointer);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
@@ -188,19 +193,23 @@ namespace ecpps::typeSystem
           {
           }
 
-          [[nodiscard]] Qualifiers qualifiers(void) const noexcept { return this->_qualifiers; }
-          [[nodiscard]] Qualifiers qualifiers(const Qualifiers newQualifiers) noexcept
+          [[nodiscard]] Qualifiers qualifiers(void) const noexcept // NOLINT(readability-identifier-naming)
+          {
+               return this->_qualifiers;
+          }
+          [[nodiscard]] Qualifiers qualifiers( // NOLINT(readability-identifier-naming)
+              const Qualifiers newQualifiers) noexcept
           {
                return std::exchange(this->_qualifiers, newQualifiers);
           }
 
           [[nodiscard]] constexpr bool IsConst(void) const noexcept
           {
-               return std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Const);
+               return (std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Const)) != 0;
           }
           [[nodiscard]] constexpr bool IsVolatile(void) const noexcept
           {
-               return std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Volatile);
+               return (std::to_underlying(this->_qualifiers) & std::to_underlying(Qualifiers::Volatile)) != 0;
           }
 
      private:
@@ -225,7 +234,7 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
           {
-               return typeid(*other) == typeid(VoidType)
+               return typeid(*other) == typeid(VoidType) // NOLINT
                           ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
                           : ConversionSequence{std::nullopt};
           }

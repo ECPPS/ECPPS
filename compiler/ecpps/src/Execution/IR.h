@@ -16,7 +16,7 @@ namespace ecpps::ir
           MaxScore = static_cast<std::size_t>(-1),
      };
 
-     enum class StandardConversionKind
+     enum struct StandardConversionKind : std::uint_fast8_t
      {
           Identity,
           LvalueToRvalue,
@@ -35,7 +35,7 @@ namespace ecpps::ir
 
      struct ImplicitConversion
      {
-          enum struct RefBindingKind
+          enum struct RefBindingKind : std::uint_fast8_t
           {
                None,            // No ref involved (e.g. T <- expr)
                LValueRef,       // T& <- lvalue
@@ -92,6 +92,11 @@ namespace ecpps::ir
           return score = static_cast<MatchingScore>(std::to_underlying(score) - value);
      }
 
+     constexpr MatchingScore& operator+=(MatchingScore& destination, const MatchingScore other)
+     {
+          return destination += std::to_underlying(other);
+     }
+
      class IR
      {
      public:
@@ -106,20 +111,23 @@ namespace ecpps::ir
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
+          void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
 
           Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
-                                             const Location& source);
+                                             const Location& source) const;
           Expression ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right,
-                                                   const Location& source);
-          Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
-                                          const Location& source);
+                                                   const Location& source) const;
+          static Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
+                                                 const Location& source);
 
+          static Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
+          Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           typeSystem::TypePointer ParseType(const ast::NodePointer& type);
-          Expression ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType);
+          Expression ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType) const;
 
           /// <summary>
           /// Only for integral conversions that are known to be integral conversions. If the conversion is not
@@ -128,10 +136,11 @@ namespace ecpps::ir
           /// <param name="expression"></param>
           /// <param name="type"></param>
           /// <returns></returns>
-          Expression ConvertIntegral(Expression&& expression, const std::shared_ptr<typeSystem::IntegralType>& type);
+          static Expression ConvertIntegral(Expression&& expression,
+                                            const std::shared_ptr<typeSystem::IntegralType>& type);
 
           // matching
-          MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
-                                      const std::vector<Expression>& arguments);
+          static MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
+                                             const std::vector<Expression>& arguments);
      };
 } // namespace ecpps::ir

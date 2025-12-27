@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include "../Machine/ABI.h"
+#include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 
 namespace ecpps::ir
@@ -46,13 +47,13 @@ namespace ecpps::ir
               : ContextBase(vScope), returnType(std::move(returnType))
           {
           }
-          abi::CallingConventionName callingConvention;
+          abi::CallingConventionName callingConvention{};
           typeSystem::TypePointer returnType;
           std::string name;
           std::vector<typeSystem::TypePointer> parameters;
 
           explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention,
-                                   const typeSystem::TypePointer returnType, std::string name,
+                                   [[maybe_unused]] typeSystem::TypePointer returnType, std::string name,
                                    std::vector<typeSystem::TypePointer> parameters)
               : ContextBase(vScope), callingConvention(callingConvention), returnType(std::move(returnType)),
                 name(std::move(name)), parameters(std::move(parameters))
@@ -67,7 +68,7 @@ namespace ecpps::ir
           explicit NamespaceContext(Scope* vScope) : ContextBase(vScope) {}
      };
 
-     enum struct ConstexprType : std::uint8_t
+     enum struct ConstexprType : std::uint_fast8_t
      {
           None,
           Constexpr,
@@ -96,7 +97,7 @@ namespace ecpps::ir
           bool isExtern = false;
           ConstexprType constexprSpecifier = ConstexprType::None;
           abi::CallingConventionName callingConvention{};
-          abi::Linkage linkage;
+          abi::Linkage linkage{};
           bool isDllImportExport = false;
 
           struct Parameter
@@ -106,6 +107,16 @@ namespace ecpps::ir
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
+          struct Variable
+          {
+               std::string name{};
+               typeSystem::TypePointer type{};
+               bool isStatic = false;
+               bool isExtern = false;
+          };
+
+          std::vector<Variable> locals{};
+
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
      };
 
@@ -147,58 +158,58 @@ namespace ecpps::ir
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(
               std::string value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::name>(std::move(value));
+               return std::move(*this).template PropertySetter<&FunctionScope::name>(std::move(value));
           }
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
               typeSystem::TypePointer value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::returnType>(std::move(value));
+               return std::move(*this).template PropertySetter<&FunctionScope::returnType>(std::move(value));
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Parameters> Parameters(
               std::vector<FunctionScope::Parameter> value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::parameters>(std::move(value));
+               return std::move(*this).template PropertySetter<&FunctionScope::parameters>(std::move(value));
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::CallingConvention> CallingConvention(
               abi::CallingConventionName value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::callingConvention>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::callingConvention>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Linkage> Linkage(
               abi::Linkage value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::linkage>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::linkage>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsStatic> IsStatic(
               bool value = true) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::isStatic>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::isStatic>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsInline> IsInline(
               bool value = true) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::isInline>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::isInline>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsFriend> IsFriend(
               bool value = true) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::isFriend>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::isFriend>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsExtern> IsExtern(
               bool value = true) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::isExtern>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::isExtern>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ConstexprSpecifier> ConstexprSpecifier(
               ConstexprType value) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::constexprSpecifier>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::constexprSpecifier>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsDllImportExport> IsDllImportExport(
               bool value = true) && noexcept
           {
-               return std::move(*this).PropertySetter<&FunctionScope::isDllImportExport>(value);
+               return std::move(*this).template PropertySetter<&FunctionScope::isDllImportExport>(value);
           }
 
           [[nodiscard]] std::unique_ptr<FunctionScope> Build(void) && noexcept
@@ -247,7 +258,6 @@ namespace ecpps::ir
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           SBOQueue<ContextPointer> contextSequence{};
-          Context(const Context&) = default;
 
           explicit Context(Diagnostics& diagnostics) : diagnostics(std::ref(diagnostics)) {}
      };

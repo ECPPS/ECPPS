@@ -14,7 +14,7 @@ namespace ecpps::abi
 
           // TODO: namespaces and classes
           [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
-                                                      CallingConventionName callingConvetion,
+                                                      CallingConventionName callingConvention,
                                                       const typeSystem::TypePointer& returnType,
                                                       const std::vector<typeSystem::TypePointer>& parameters);
      };

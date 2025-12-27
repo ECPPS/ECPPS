@@ -5,7 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "SourceMap.h"
+#include "../Shared/Error.h"
 
 namespace ecpps
 {
@@ -68,9 +68,9 @@ namespace ecpps
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:
-          static bool IsDigit(const char ch) { return std::isdigit(ch); }
-          static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) || ch == '_'; }
-          static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) || ch == '_'; }
+          static bool IsDigit(const char ch) { return std::isdigit(ch) != 0; }
+          static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) != 0 || ch == '_'; }
+          static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) != 0 || ch == '_'; }
           static bool IsOperatorOrPunctuator(const std::string& string);
           static bool IsOperatorOrPunctuatorBeginning(char ch);
 

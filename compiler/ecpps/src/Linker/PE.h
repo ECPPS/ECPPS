@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -20,25 +19,27 @@ namespace ecpps::linker::win
 
      struct DosHeader
      {
-          std::uint16_t e_magic;    // Magic number (0x5A4D)
-          std::uint16_t e_cblp;     // Bytes on last page of file
-          std::uint16_t e_cp;       // Pages in file
-          std::uint16_t e_crlc;     // Relocations
-          std::uint16_t e_cparhdr;  // Size of header in paragraphs
-          std::uint16_t e_minalloc; // Minimum extra paragraphs needed
-          std::uint16_t e_maxalloc; // Maximum extra paragraphs needed
-          std::uint16_t e_ss;       // Initial (relative) SS
-          std::uint16_t e_sp;       // Initial SP
-          std::uint16_t e_csum;     // Checksum
-          std::uint16_t e_ip;       // Initial IP
-          std::uint16_t e_cs;       // Initial (relative) CS
-          std::uint16_t e_lfarlc;   // File address of relocation table
-          std::uint16_t e_ovno;     // Overlay number
-          std::uint16_t e_res[4];   // Reserved words
-          std::uint16_t e_oemid;    // OEM identifier (for e_oeminfo)
-          std::uint16_t e_oeminfo;  // OEM information; e_oemid specific
-          std::uint16_t e_res2[10]; // Reserved words
-          std::uint32_t e_lfanew;   // File address of new exe header
+          std::uint16_t e_magic;    // Magic number (0x5A4D)             NOLINT(readability-identifier-naming)
+          std::uint16_t e_cblp;     // Bytes on last page of file        NOLINT(readability-identifier-naming)
+          std::uint16_t e_cp;       // Pages in file                     NOLINT(readability-identifier-naming)
+          std::uint16_t e_crlc;     // Relocations                       NOLINT(readability-identifier-naming)
+          std::uint16_t e_cparhdr;  // Size of header in paragraphs      NOLINT(readability-identifier-naming)
+          std::uint16_t e_minalloc; // Minimum extra paragraphs needed   NOLINT(readability-identifier-naming)
+          std::uint16_t e_maxalloc; // Maximum extra paragraphs needed   NOLINT(readability-identifier-naming)
+          std::uint16_t e_ss;       // Initial (relative) SS             NOLINT(readability-identifier-naming)
+          std::uint16_t e_sp;       // Initial SP                        NOLINT(readability-identifier-naming)
+          std::uint16_t e_csum;     // Checksum                          NOLINT(readability-identifier-naming)
+          std::uint16_t e_ip;       // Initial IP                        NOLINT(readability-identifier-naming)
+          std::uint16_t e_cs;       // Initial (relative) CS             NOLINT(readability-identifier-naming)
+          std::uint16_t e_lfarlc;   // File address of relocation table  NOLINT(readability-identifier-naming)
+          std::uint16_t e_ovno;     // Overlay number                    NOLINT(readability-identifier-naming)
+          std::uint16_t e_res[4];   // Reserved words                    NOLINT(readability-identifier-naming,
+                                    // cppcoreguidelines-avoid-c-arrays)
+          std::uint16_t e_oemid;    // OEM identifier (for e_oeminfo)    NOLINT(readability-identifier-naming)
+          std::uint16_t e_oeminfo;  // OEM information; e_oemid specific NOLINT(readability-identifier-naming)
+          std::uint16_t e_res2[10]; // Reserved words                    NOLINT(readability-identifier-naming,
+                                    // cppcoreguidelines-avoid-c-arrays)
+          std::uint32_t e_lfanew;   // File address of new exe header    NOLINT(readability-identifier-naming)
      };
 
      // COFF File Header
@@ -55,8 +56,8 @@ namespace ecpps::linker::win
 
      struct DataDirectory
      {
-          std::uint32_t VirtualAddress;
-          std::uint32_t Size;
+          std::uint32_t VirtualAddress; // NOLINT(readability-identifier-naming)
+          std::uint32_t Size;           // NOLINT(readability-identifier-naming)
      };
 
      // Optional Header (Image)
@@ -92,7 +93,7 @@ namespace ecpps::linker::win
           std::uint32_t loaderFlags{};                 // Loader flags
           std::uint32_t numberOfRvaAndSizes{};         // Number of RVA and sizes
           // Optional: Data Directory (up to 16 entries)
-          DataDirectory dataDirectory[16]{};
+          DataDirectory dataDirectory[16]{}; // NOLINT(cppcoreguidelines-avoid-c-arrays)
      };
 
      // NT Headers
@@ -105,16 +106,17 @@ namespace ecpps::linker::win
 
      struct SectionHeader
      {
-          char Name[8];
-          std::uint32_t VirtualSize;
-          std::uint32_t VirtualAddress; // RVA of the section
-          std::uint32_t SizeOfRawData;
-          std::uint32_t PointerToRawData;
-          std::uint32_t PointerToRelocations;
-          std::uint32_t PointerToLinenumbers;
-          std::uint16_t NumberOfRelocations;
-          std::uint16_t NumberOfLinenumbers;
-          std::uint32_t Characteristics;
+          char Name[8];                       // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays,
+                                              // readability-identifier-naming)
+          std::uint32_t VirtualSize;          // NOLINT(readability-identifier-naming)
+          std::uint32_t VirtualAddress;       // NOLINT(readability-identifier-naming)
+          std::uint32_t SizeOfRawData;        // NOLINT(readability-identifier-naming)
+          std::uint32_t PointerToRawData;     // NOLINT(readability-identifier-naming)
+          std::uint32_t PointerToRelocations; // NOLINT(readability-identifier-naming)
+          std::uint32_t PointerToLinenumbers; // NOLINT(readability-identifier-naming)
+          std::uint16_t NumberOfRelocations;  // NOLINT(readability-identifier-naming)
+          std::uint16_t NumberOfLinenumbers;  // NOLINT(readability-identifier-naming)
+          std::uint32_t Characteristics;      // NOLINT(readability-identifier-naming)
      };
 
      struct ImportEntry
@@ -184,10 +186,10 @@ namespace ecpps::linker::win
           std::unordered_map<std::string, std::uint32_t> exports{};
           std::unordered_map<std::string, std::vector<std::string>> imports;
 
-          [[nodiscard]] std::vector<std::byte> toBytes(const std::string& imageName);
+          [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName);
 
           // private:
-          DosHeader _dosHeader{};
-          NtHeaders _ntHeaders{};
+          DosHeader dosHeader{};
+          NtHeaders ntHeaders{};
      };
 } // namespace ecpps::linker::win

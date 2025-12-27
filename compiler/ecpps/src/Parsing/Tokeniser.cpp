@@ -57,15 +57,17 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                {
                     if (isFloat)
                     {
-                         if (auto val = parseFloat(numericPart))
-                              tokens.emplace_back(TokenType::Literal,
-                                                  UserDefinedLiteral{FloatingPointLiteral{*val}, suffix},
-                                                  preprocessorToken.source);
+                         if (auto val = ParseFloat(numericPart))
+                              tokens.emplace_back(
+                                  TokenType::Literal,
+                                  UserDefinedLiteral{.value = FloatingPointLiteral{*val}, .name = suffix},
+                                  preprocessorToken.source);
                     }
                     else
                     {
-                         if (auto val = parseInteger(numericPart))
-                              tokens.emplace_back(TokenType::Literal, UserDefinedLiteral{IntegerLiteral{*val}, suffix},
+                         if (auto val = ParseInteger(numericPart))
+                              tokens.emplace_back(TokenType::Literal,
+                                                  UserDefinedLiteral{.value = IntegerLiteral{*val}, .name = suffix},
                                                   preprocessorToken.source);
                     }
                }
@@ -73,13 +75,13 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                {
                     if (isFloat)
                     {
-                         if (auto val = parseFloat(numericPart))
+                         if (auto val = ParseFloat(numericPart))
                               tokens.emplace_back(TokenType::Literal, FloatingPointLiteral{*val},
                                                   preprocessorToken.source);
                     }
                     else
                     {
-                         if (auto val = parseInteger(numericPart))
+                         if (auto val = ParseInteger(numericPart))
                               tokens.emplace_back(TokenType::Literal, IntegerLiteral{*val}, preprocessorToken.source);
                     }
                }
@@ -228,7 +230,11 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           break;
           default: colour = "\x1b[38m";
           }
-          const std::string spaces(std::max(token.location.position - previous.endPosition, 1UZ) - 1, ' ');
+          const std::string spaces(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
+                                                static_cast<std::ptrdiff_t>(previous.endPosition),
+                                            1Z) -
+                                       1Z,
+                                   ' ');
           previous = token.location;
 
           std::print("{}{}{}", spaces, colour, value);

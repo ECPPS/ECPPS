@@ -35,7 +35,7 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
      if (!fileName.empty() || diagnostic->Source().line != 0)
           location = fileName + ":" + std::to_string(diagnostic->Source().line) + ":" +
                      std::to_string(diagnostic->Source().position) + " ";
-     std::println("{}{}[{}]\x1b[0m {} : {}", std::string(indent * 5, ' '), location, ToString(diagnostic->Level()),
+     std::println("{}{}[{}]\x1b[0m {} : {}", std::string(indent * 5uz, ' '), location, ToString(diagnostic->Level()),
                   diagnostic->Name(), diagnostic->Message());
 
      if (!fileName.empty() && diagnostic->Source().line > 0)
@@ -44,10 +44,10 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
           if (file)
           {
                std::string line;
-               int currentLine = 0;
+               std::size_t currentLine = 0;
                while (std::getline(file, line))
                {
-                    ++currentLine;
+                    currentLine++;
                     if (currentLine == diagnostic->Source().line)
                     {
                          std::string expandedLine;
@@ -70,15 +70,15 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                          }
                          positionMap[line.size()] = pos; // For end position handling
 
-                         int startPos = positionMap.size() > (diagnostic->Source().position)
-                                            ? positionMap.at(diagnostic->Source().position)
-                                            : diagnostic->Source().position;
-                         int endPos = positionMap.size() > (diagnostic->Source().endPosition)
-                                          ? positionMap.at(diagnostic->Source().endPosition)
-                                          : diagnostic->Source().endPosition;
+                         std::size_t startPos = positionMap.size() > (diagnostic->Source().position)
+                                                    ? positionMap.at(diagnostic->Source().position)
+                                                    : diagnostic->Source().position;
+                         std::size_t endPos = positionMap.size() > (diagnostic->Source().endPosition)
+                                                  ? positionMap.at(diagnostic->Source().endPosition)
+                                                  : diagnostic->Source().endPosition;
 
-                         std::println("{} {}", std::string(indent * 5, ' '), expandedLine);
-                         std::println("{}   {}{}{}\x1b[0m", std::string(indent * 5, ' '), "   ",
+                         std::println("{} {}", std::string(indent * 5uz, ' '), expandedLine);
+                         std::println("{}   {}{}{}\x1b[0m", std::string(indent * 5uz, ' '), "   ",
                                       std::string(startPos, ' '), colour, std::string(endPos - startPos + 2, '^'));
                          break;
                     }

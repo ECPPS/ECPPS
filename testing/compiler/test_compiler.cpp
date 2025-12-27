@@ -1,15 +1,35 @@
+// NOLINTBEGIN
+
 #ifdef __ecpps_version
-#define DllImport [[dllimport]]
+[[dllimport]] extern "C" void ExitProcess(int);
+[[dllimport]] extern "C" void DebugBreak();
 #else
-#define DllImport
+extern "C" void ExitProcess(int);
+extern "C" void DebugBreak();
 #endif
 
-DllImport extern "C" void ExitProcess(int);
-
-int getValue() { return 5; }
-
-int main()
+short One()
 {
-     ExitProcess(getValue());
-     return 0;
+     char x = 97;
+     return x;
 }
+
+int Two()
+{
+     char x = 97;
+     return x;
+}
+
+unsigned int Three()
+{
+     unsigned char x = 97;
+     return x;
+}
+
+int main() { return One() + Two() + Three(); }
+
+#ifdef __ecpps_version
+extern "C" void _EntryPoint() { ExitProcess(main()); }
+#endif
+
+// NOLINTEND

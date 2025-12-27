@@ -1,8 +1,11 @@
 #include "ArithmeticTypes.h"
 #include <Assert.h>
+#ifndef NDEBUG
 #include <format>
+#endif
 #include <string>
 #include <utility>
+#include "../Machine/ABI.h"
 
 std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 {
@@ -17,7 +20,7 @@ std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 
      return 0;
 }
-std::string ecpps::typeSystem::IntegralType::RawName(void) const noexcept
+std::string ecpps::typeSystem::IntegralType::RawName(void) const
 {
      switch (this->_kind)
      {
@@ -137,10 +140,10 @@ std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLo
 // long long
 std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_longLong =
     std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::LongLong,
-                                               "unsigned long long", typeSystem::Qualifiers::None);
+                                               "long long", typeSystem::Qualifiers::None);
 std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLongLong =
     std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
-                                               "long long", typeSystem::Qualifiers::None);
+                                               "unsigned long long", typeSystem::Qualifiers::None);
 
 ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const std::shared_ptr<IntegralType>& integer)
 {
@@ -179,4 +182,58 @@ std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::PromoteInteg
      if (rank < IntegerConversionRank::Int) return integer->Sign() == Signedness::Signed ? g_int : g_unsignedInt;
 
      return integer;
+}
+
+std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+
+std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(const std::shared_ptr<TypeBase>& other)
+{
+     if (!IsPointer(other)) return ConversionSequence{std::nullopt};
+
+     const auto otherPointer = std::dynamic_pointer_cast<PointerType>(other);
+     runtime_assert(otherPointer != nullptr, std::format("Pointer type `{}` was not a pointer type", other->RawName()));
+
+     return otherPointer->_baseType->CompareTo(
+         this->_baseType); // TODO: This is not the way it should be done, but I am in a hurry
+}
+
+ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept
+{
+     return TypeTraits{TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
+                       TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object};
+}
+
+std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::PointerType::CommonWith(
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+{
+     // TODO: Implement
+     return nullptr;
+}
+
+std::size_t ecpps::typeSystem::ReferenceType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+
+std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
+
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+{
+     // TODO: Implement
+     throw nullptr;
+}
+
+ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) const noexcept
+{
+     return TypeTraits{TypeTraitEnum::Reference, TypeTraitEnum::Literal};
+}
+
+std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::ReferenceType::CommonWith(
+    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+{
+     // TODO: Implement
+     return nullptr;
 }

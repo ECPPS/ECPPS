@@ -1,23 +1,22 @@
 #pragma once
 
 #include <concepts>
-#include <cstddef>
 
 namespace ecpps
 {
      template <std::integral TUnderlying> struct Number
      {
-          TUnderlying _value;
+          TUnderlying value;
 
-          [[nodiscard]] TUnderlying& Value(void) noexcept { return this->_value; }
-          [[nodiscard]] TUnderlying Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] TUnderlying& Value(void) noexcept { return this->value; }
+          [[nodiscard]] TUnderlying Value(void) const noexcept { return this->value; }
 
           [[nodiscard]] friend bool operator==(const Number& lhs, const Number& rhs) noexcept
           {
                return lhs.Value() == rhs.Value();
           }
 
-          explicit(false) constexpr Number(const TUnderlying value) : _value(value) {}
+          explicit(false) constexpr Number(const TUnderlying value) : value(value) {}
      };
 
 #define define_number(name, underlying)                                                                                \

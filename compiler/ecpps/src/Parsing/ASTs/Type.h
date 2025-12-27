@@ -1,7 +1,6 @@
 #pragma once
 #include <memory>
 #include "../AST.h"
-#include "..\SourceMap.h"
 #include "General.h"
 
 namespace ecpps::ast
@@ -11,12 +10,12 @@ namespace ecpps::ast
      public:
           explicit NamespaceAliasNode(std::unique_ptr<IdentifierNode> name,
                                       SBOVector<std::unique_ptr<IdentifierNode>> aliasedNamespace, Location source)
-              : Node(std::move(source)), _aliasName(std::move(name)), _aliasedNamespace(std::move(aliasedNamespace))
+              : Node(source), _aliasName(std::move(name)), _aliasedNamespace(std::move(aliasedNamespace))
           {
           }
 
-          [[nodiscard]] const std::unique_ptr<IdentifierNode>& name(void) const noexcept { return this->_aliasName; }
-          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode>>& aliasedNamespace(void) const noexcept
+          [[nodiscard]] const std::unique_ptr<IdentifierNode>& Name(void) const noexcept { return this->_aliasName; }
+          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode>>& AliasedNamespace(void) const noexcept
           {
                return this->_aliasedNamespace;
           }
@@ -43,7 +42,7 @@ namespace ecpps::ast
      class BasicType final : public Node
      {
      public:
-          explicit BasicType(std::string name, Location source) : Node(std::move(source)), _name(std::move(name)) {}
+          explicit BasicType(std::string name, Location source) : Node(source), _name(std::move(name)) {}
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -53,6 +52,50 @@ namespace ecpps::ast
 
      private:
           std::string _name;
+     };
+
+     class PointerType final : public Node
+     {
+     public:
+          explicit PointerType(NodePointer baseType, Location source) : Node(source), _baseType(std::move(baseType)) {}
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) + "*";
+          }
+
+          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
+
+     private:
+          NodePointer _baseType;
+     };
+
+     class ReferenceType final : public Node
+     {
+     public:
+          enum class Kind : std::uint_fast8_t
+          {
+               LValue,
+               RValue
+          };
+
+          explicit ReferenceType(NodePointer baseType, Kind kind, Location source)
+              : Node(source), _baseType(std::move(baseType)), _kind(kind)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) +
+                      (_kind == Kind::LValue ? "&" : "&&");
+          }
+
+          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
+          [[nodiscard]] Kind GetKind() const noexcept { return _kind; }
+
+     private:
+          NodePointer _baseType;
+          Kind _kind;
      };
 
      class QualifiedType final : public Node
@@ -66,7 +109,7 @@ namespace ecpps::ast
           };
 
           explicit QualifiedType(SBOVector<Section> sections, NodePointer unqualified, Location source)
-              : Node(std::move(source)), _sections(std::move(sections)), _unqualifiedType(std::move(unqualified))
+              : Node(source), _sections(std::move(sections)), _unqualifiedType(std::move(unqualified))
           {
           }
 

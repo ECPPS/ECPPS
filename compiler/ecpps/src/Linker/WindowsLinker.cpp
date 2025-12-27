@@ -25,9 +25,9 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
      {
           const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, codeSize);
           auto toInsert = relocation.apply(Address{resolvedAddress - where.Value() - offset}, relocationThunks);
-          auto begin = data.begin() + offset;
+          auto begin = data.begin() + static_cast<std::streamsize>(offset);
           offset += toInsert.size();
-          data.insert_range(begin + where.Value(), std::move(toInsert));
+          data.insert_range(begin + static_cast<std::streamsize>(where.Value()), std::move(toInsert));
      }
 
      textSection.name = CodeSectionName;
@@ -59,7 +59,7 @@ void ecpps::linker::win::WindowsLinker::ExportAt(const std::string& name, std::u
 std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::string& imageName,
                                                                   const std::size_t entryPointAddress) const
 {
-     return this->Link(entryPointAddress + ExportDisplacement).toBytes(imageName);
+     return this->Link(entryPointAddress + ExportDisplacement).ToBytes(imageName);
 }
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
@@ -79,11 +79,11 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
      const size_t descriptorCount = this->_imports.size() + 1;
      const size_t descriptorSize = 20;
      size_t totalThunks = 0;
-     for (auto& kv : this->_imports) totalThunks += kv.second.size() + 1;
+     for (const auto& kv : this->_imports) totalThunks += kv.second.size() + 1;
 
      const size_t intOffset = AlignUp(descriptorCount * descriptorSize, 8UZ);
-     const size_t iatOffset = intOffset + totalThunks * sizeof(std::uint64_t);
-     size_t nameOffset = AlignUp(iatOffset + totalThunks * sizeof(std::uint64_t), 2UZ);
+     const size_t iatOffset = intOffset + (totalThunks * sizeof(std::uint64_t));
+     size_t nameOffset = AlignUp(iatOffset + (totalThunks * sizeof(std::uint64_t)), 2UZ);
 
      iltPtr = static_cast<std::uint32_t>(intOffset);
      iatPtr = static_cast<std::uint32_t>(iatOffset);
@@ -93,7 +93,7 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
      const std::uint32_t textEnd = AlignUp(textBegin + codeSize, 0x1000U);
      const std::uint32_t idataRva = textEnd + 0x1000;
 
-     for (auto& [dll, funcs] : this->_imports)
+     for (const auto& [dll, funcs] : this->_imports)
      {
           for (std::size_t i = 0; i < funcs.size(); ++i)
           {
@@ -119,14 +119,14 @@ ecpps::linker::win::PEImage ecpps::linker::win::WindowsLinker::Link(const std::u
      output.sections = this->_sections;
      output.exports = this->_exports;
      output.imports = this->_imports;
-     output._ntHeaders.optionalHeader.sizeOfCode = this->_sizeOfCode;
+     output.ntHeaders.optionalHeader.sizeOfCode = this->_sizeOfCode;
 
      // TODO: Real values
-     output._ntHeaders.optionalHeader.baseOfCode = 0x1000;
-     output._ntHeaders.optionalHeader.sizeOfHeapCommit = 0x1000;
-     output._ntHeaders.optionalHeader.sizeOfHeapReserve = 0x100000;
-     output._ntHeaders.optionalHeader.sizeOfStackCommit = 0x1000;
-     output._ntHeaders.optionalHeader.sizeOfStackReserve = 0x100000;
+     output.ntHeaders.optionalHeader.baseOfCode = 0x1000;
+     output.ntHeaders.optionalHeader.sizeOfHeapCommit = 0x1000;
+     output.ntHeaders.optionalHeader.sizeOfHeapReserve = 0x100000;
+     output.ntHeaders.optionalHeader.sizeOfStackCommit = 0x1000;
+     output.ntHeaders.optionalHeader.sizeOfStackReserve = 0x100000;
 
      return output;
 }
