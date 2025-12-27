@@ -97,7 +97,7 @@ namespace ecpps::linker
 
           static std::vector<std::byte> SelectAndLink(const ecpps::CompilerConfig& config,
                                                       std::vector<std::byte> generatedMachineCode,
-                                                      std::vector<std::pair<std::string, std::size_t>> functions,
+                                                      const std::vector<std::pair<std::string, std::size_t>>& functions,
                                                       std::size_t mainOffset,
                                                       const codegen::LinkerRelocationMap& relocationMap,
                                                       std::vector<std::byte>& diagnosticsCodeSection);

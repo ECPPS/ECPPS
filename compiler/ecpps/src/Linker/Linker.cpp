@@ -21,12 +21,10 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
      return nullptr;
 }
 
-std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::CompilerConfig& config,
-                                                            std::vector<std::byte> generatedMachineCode,
-                                                            std::vector<std::pair<std::string, std::size_t>> functions,
-                                                            std::size_t mainOffset,
-                                                            const codegen::LinkerRelocationMap& relocationMap,
-                                                            std::vector<std::byte>& diagnosticsCodeSection)
+std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
+    const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
+    const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
+    const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection)
 {
      std::unique_ptr<LinkerBase> selectedLinker = nullptr;
 
@@ -67,10 +65,10 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(const ecpps::Compile
                }
           }
           if (dllName.empty()) throw std::logic_error("LINK error: unresolved function " + import);
-          else { selectedLinker->ImportFunction(import, dllName); }
+          selectedLinker->ImportFunction(import, dllName);
      }
 
-     diagnosticsCodeSection = selectedLinker->CodeSection(generatedMachineCode, relocationMap);
+     diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);
 
      for (const auto& [functionName, functionOffset] : functions)
           selectedLinker->ExportFunction(functionName, functionOffset);

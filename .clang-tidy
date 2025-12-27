@@ -41,7 +41,8 @@ Checks: >
   -bugprone-exception-escape,
   -clang-analyzer-core.NonNullParamChecker,
   -modernize-use-auto,
-  -bugprone-macro-parentheses
+  -bugprone-macro-parentheses,
+  -readability-suspicious-call-argument
 
 CheckOptions:
   # Identifier naming rules
