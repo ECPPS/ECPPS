@@ -24,15 +24,16 @@ jobs:
 
           - name: clang20
             compiler: clang
+            llvm: stable
             llvm_version: 20.1.8
 
           - name: clang21
             compiler: clang
-            llvm_version: 21.1.8
+            llvm: nightly
 
           - name: clang21-format
             compiler: clang
-            llvm_version: 21.1.8
+            llvm: nightly
             run_format: true
 
     name: Windows / ${{ matrix.name }}
@@ -43,11 +44,18 @@ jobs:
       - name: Update submodules
         run: git submodule update --init --depth 1
 
-      - name: Install LLVM
-        if: matrix.compiler == 'clang'
+      - name: Install LLVM (stable)
+        if: matrix.llvm == 'stable'
         shell: pwsh
         run: |
           choco install llvm --version=${{ matrix.llvm_version }} -y
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Install LLVM (nightly)
+        if: matrix.llvm == 'nightly'
+        shell: pwsh
+        run: |
+          choco install llvm-nightly -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
       - name: Tool versions
