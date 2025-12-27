@@ -135,8 +135,8 @@ jobs:
         shell: bash
         run: |
           for cfg in Debug Release; do
-            if (Test-Path build/$cfg/CTestTestfile.cmake) {
-              ctest --test-dir build/$cfg -C $cfg
+            if [ -f "build/$cfg/CTestTestfile.cmake" ]; then
+              ctest --test-dir build/$cfg -C "$cfg"
             else
               echo "No tests found for $cfg, skipping"
             fi
