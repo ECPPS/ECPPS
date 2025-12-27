@@ -8,25 +8,13 @@ extern "C" void ExitProcess(int);
 extern "C" void DebugBreak();
 #endif
 
-short One()
+int main()
 {
-     char x = 97;
-     return x;
-}
+     int variable = 7;
+     int* pointer = &variable;
 
-int Two()
-{
-     char x = 97;
-     return x;
+     return *pointer;
 }
-
-unsigned int Three()
-{
-     unsigned char x = 97;
-     return x;
-}
-
-int main() { return One() + Two() + Three(); }
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }

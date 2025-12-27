@@ -6,7 +6,7 @@
 
 namespace ecpps::ir
 {
-     enum struct BinaryOperationLevel
+     enum struct BinaryOperationLevel : std::uint_fast8_t
      {
           None,         // +            => add tmp
           Atomic,       // (atomic) +   => lock add tmp
@@ -14,7 +14,7 @@ namespace ecpps::ir
           AtomicAssign, // (atomic) +=  => lock add
      };
 
-     enum struct MemoryOrdering
+     enum struct MemoryOrdering : std::uint_fast8_t
      {
           Acquire,
           Release,
@@ -44,7 +44,7 @@ namespace ecpps::ir
      {
      public:
           explicit AdditionNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Addition, std::move(source)), _left(std::move(left)), _right(std::move(right))
+              : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -66,7 +66,7 @@ namespace ecpps::ir
 
      public:
           explicit SubtractionNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -88,7 +88,7 @@ namespace ecpps::ir
 
      public:
           explicit MultiplicationNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -110,7 +110,7 @@ namespace ecpps::ir
 
      public:
           explicit DivideNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -132,7 +132,7 @@ namespace ecpps::ir
 
      public:
           explicit ModuloNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, std::move(source)), _left(std::move(left)), _right(std::move(right))
+              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
           [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
@@ -154,7 +154,7 @@ namespace ecpps::ir
      public:
           explicit CompareExchangeNode(Expression address, Expression expected, Expression replacement, bool isWeak,
                                        MemoryOrdering ordering, Location source)
-              : NodeBase(NodeKind::CompareExchange, std::move(source)), _address(std::move(address)),
+              : NodeBase(NodeKind::CompareExchange, source), _address(std::move(address)),
                 _expected(std::move(expected)), _replacement(std::move(replacement)), _isWeak(isWeak),
                 _ordering(ordering)
           {
@@ -183,7 +183,7 @@ namespace ecpps::ir
      {
      public:
           explicit LoadNode(std::string address, Location source)
-              : NodeBase(NodeKind::Load, std::move(source)), _address(std::move(address))
+              : NodeBase(NodeKind::Load, source), _address(std::move(address))
           {
           }
 
@@ -202,7 +202,7 @@ namespace ecpps::ir
      {
      public:
           explicit StoreNode(std::string address, Expression value, Location source)
-              : NodeBase(NodeKind::Store, std::move(source)), _address(std::move(address)), _value(std::move(value))
+              : NodeBase(NodeKind::Store, source), _address(std::move(address)), _value(std::move(value))
           {
           }
 
@@ -224,7 +224,7 @@ namespace ecpps::ir
      {
      public:
           explicit AddressOfNode(Expression operand, Location source)
-              : NodeBase(NodeKind::AddressOf, std::move(source)), _operand(std::move(operand))
+              : NodeBase(NodeKind::AddressOf, source), _operand(std::move(operand))
           {
           }
 
@@ -243,7 +243,7 @@ namespace ecpps::ir
      {
      public:
           explicit DereferenceNode(Expression operand, Location source)
-              : NodeBase(NodeKind::Dereference, std::move(source)), _operand(std::move(operand))
+              : NodeBase(NodeKind::Dereference, source), _operand(std::move(operand))
           {
           }
 
@@ -262,8 +262,7 @@ namespace ecpps::ir
      {
      public:
           ConvertNode(Expression operand, ecpps::typeSystem::TypePointer targetType, Location source)
-              : NodeBase(NodeKind::Convert, std::move(source)), _operand(std::move(operand)),
-                _targetType(std::move(targetType))
+              : NodeBase(NodeKind::Convert, source), _operand(std::move(operand)), _targetType(std::move(targetType))
           {
           }
 

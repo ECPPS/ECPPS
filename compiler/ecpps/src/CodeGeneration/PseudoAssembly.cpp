@@ -1,5 +1,7 @@
 #include "PseudoAssembly.h"
 #include <Assert.h>
+#include <Shared/Diagnostics.h>
+#include <TypeSystem/TypeBase.h>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
@@ -10,6 +12,7 @@
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Nodes.h"
 
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
@@ -266,6 +269,56 @@ static ecpps::codegen::Operand ParseExpression(
           return ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
               ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
      }
+     if (auto* const addressOf = dynamic_cast<ecpps::ir::AddressOfNode*>(value.get()); addressOf != nullptr)
+     {
+          const auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+
+          runtime_assert(std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operand),
+                         "Invalid operand for the address-of instruction");
+
+          const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operand);
+
+          auto& abi = ecpps::abi::ABI::Current();
+
+          const auto resultReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+
+          code.emplace_back(ecpps::codegen::TakeAddressInstruction{
+              ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                    abi.PointerSize() * ecpps::typeSystem::CharWidth},
+              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}}});
+
+          return ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}};
+     }
+
+     if (auto* const indirection = dynamic_cast<ecpps::ir::DereferenceNode*>(value.get()); indirection != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
+          const auto pointerType =
+              std::dynamic_pointer_cast<ecpps::typeSystem::PointerType>(indirection->Operand()->Type());
+
+          auto operandToPerformIndirectionOn = ParseExpression(symbolTable, code, indirection->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn))
+          {
+               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+               const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn);
+
+               code.emplace_back(ecpps::codegen::MovInstruction{
+                   ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                         abi.PointerSize() * ecpps::typeSystem::CharWidth},
+                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}},
+                   abi.PointerSize() * ecpps::typeSystem::CharWidth});
+               return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}, 0,
+                                                            pointerType->Size() * ecpps::typeSystem::CharWidth};
+          }
+
+          if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
+          {
+               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+          }
+
+          throw TracedException("Invalid operand for the address-of instruction");
+     }
 
      if (auto* const convert = dynamic_cast<ecpps::ir::ConvertNode*>(value.get()); convert != nullptr)
      {
@@ -396,18 +449,36 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)
           {
                runtime_assert(symbolTable.contains(store->Address()), "Invalid symbol");
+
                const auto& [location, storageRequest] = symbolTable.at(store->Address());
-               // TODO: Checks
                const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
 
                const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
 
-               instructions.emplace_back(
-                   ecpps::codegen::MovInstruction{initValue,
-                                                  ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
-                                                      ecpps::codegen::RegisterOperand{memoryLocation.reg},
-                                                      memoryLocation.offset, storageRequest.size * CHAR_BIT}},
-                                                  storageRequest.size * CHAR_BIT});
+               const ecpps::codegen::Operand dest{
+                   ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
+                                                         memoryLocation.offset, storageRequest.size * CHAR_BIT}};
+
+               const bool srcIsMem = std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(initValue);
+               const bool dstIsMem = true;
+
+               if (srcIsMem && dstIsMem)
+               {
+                    const auto tempReg = currentAbi.AllocateRegister(storageRequest.size * CHAR_BIT);
+
+                    instructions.emplace_back(ecpps::codegen::MovInstruction{
+                        initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
+                        storageRequest.size * CHAR_BIT});
+
+                    instructions.emplace_back(ecpps::codegen::MovInstruction{
+                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
+                        storageRequest.size * CHAR_BIT});
+               }
+               else
+               {
+                    instructions.emplace_back(
+                        ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
+               }
           }
      }
 

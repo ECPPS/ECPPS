@@ -490,7 +490,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg32(std::size_t
      std::uint8_t rex = 0x40;
      if (destinationRegister >= 8) rex |= 0x04; // R
      if (sourceRegister >= 8) rex |= 0x01;      // B
-     binary.push_back(static_cast<std::byte>(rex));
+     if (rex != 0x40) binary.push_back(static_cast<std::byte>(rex));
 
      binary.push_back(static_cast<std::byte>(0x8B)); // MOV r32, [r/m32]
 
@@ -2591,6 +2591,61 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateRegisterCall(std::size_t 
      std::uint8_t modrm = 0b11010000 | static_cast<std::uint8_t>(reg & 0x07);
      code.push_back(std::byte{0xFF});
      code.push_back(std::byte{modrm});
+
+     return code;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateLeaToReg(std::size_t sourceRegister,
+                                                                std::size_t sourceDisplacement,
+                                                                std::size_t destinationRegister)
+{
+     std::vector<std::byte> code;
+
+     constexpr bool rexW = true;
+     const bool rexR = destinationRegister >= 8;
+     const bool rexB = sourceRegister >= 8;
+
+     std::uint8_t rex = 0x40;
+     if (rexW) rex |= 0x08;
+     if (rexR) rex |= 0x04;
+     if (rexB) rex |= 0x01;
+     code.push_back(std::byte{rex});
+
+     // opcode: LEA r64, m
+     code.push_back(std::byte{0x8D});
+
+     const std::uint8_t dst = static_cast<std::uint8_t>(destinationRegister & 7);
+     const std::uint8_t base = static_cast<std::uint8_t>(sourceRegister & 7);
+
+     const bool needsSib = base == 4;   // RSP / R12
+     const bool forceDisp8 = base == 5; // RBP / R13 with mod=00 is illegal
+
+     std::int64_t disp = static_cast<std::int64_t>(sourceDisplacement);
+
+     std::uint8_t mod{};
+     if (disp == 0 && !forceDisp8) mod = 0b00;
+     else if (disp >= -128 && disp <= 127)
+          mod = 0b01;
+     else
+          mod = 0b10;
+
+     // ModRM
+     std::uint8_t modrm = static_cast<std::uint8_t>((mod << 6) | (dst << 3) | (needsSib ? 4 : base));
+     code.push_back(std::byte{modrm});
+
+     // SIB
+     if (needsSib)
+     {
+          std::uint8_t sib = static_cast<std::uint8_t>((0 << 6) | (4 << 3) | base);
+          code.push_back(std::byte{sib});
+     }
+
+     if (mod == 0b01) { code.push_back(std::byte{static_cast<std::uint8_t>(disp)}); }
+     else if (mod == 0b10)
+     {
+          std::int32_t d32 = static_cast<std::int32_t>(disp);
+          for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((d32 >> (i * 8)) & 0xFF)});
+     }
 
      return code;
 }
