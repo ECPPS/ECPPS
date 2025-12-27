@@ -1,5 +1,4 @@
 #pragma once
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -13,7 +12,7 @@ namespace ecpps::linker::win
      class WindowsLinker final : public LinkerBase
      {
      public:
-          explicit WindowsLinker(LinkerOptions<LinkerType::PE> options)
+          explicit WindowsLinker(const LinkerOptions<LinkerType::PE>& options)
               : _imageBase(options.baseAddress), _isNxCompatible(options.enableNXBit),
                 _isRelocatable(options.dynamicBase), _subsystem(options.subsystem),
                 _fileAlignment(options.fileAlignment), _linkType(options.type)
