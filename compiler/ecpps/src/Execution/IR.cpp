@@ -90,7 +90,8 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
-          const std::string& languageLinkage = node.Signature().externOptional.value();
+          const std::string& languageLinkage =
+              node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
@@ -143,7 +144,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
-          const std::string& languageLinkage = node.Signature().externOptional.value();
+          const std::string& languageLinkage =
+              node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
