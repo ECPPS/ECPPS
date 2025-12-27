@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -261,7 +262,17 @@ namespace ecpps
                     {
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
-                         std::memcpy(newBuf, this->_buffer.sbo, SBOSize * sizeof(TElement));
+                         TElement* sboPtr = std::launder(
+                             reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                     // modernize-avoid-c-arrays)
+                                 _buffer.sbo));
+
+                         for (std::size_t i = 0; i < index; ++i)
+                         {
+                              newBuf[i] = std::move(sboPtr[i]);
+                              sboPtr[i].~TElement();
+                         }
+
                          this->_buffer.noSbo.begin = newBuf;
                          this->_buffer.noSbo.capacity = cap;
 

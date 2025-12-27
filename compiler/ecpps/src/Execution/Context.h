@@ -258,7 +258,6 @@ namespace ecpps::ir
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           SBOQueue<ContextPointer> contextSequence{};
-          Context(const Context&) = default;
 
           explicit Context(Diagnostics& diagnostics) : diagnostics(std::ref(diagnostics)) {}
      };

@@ -3,6 +3,7 @@ project(ECPPS)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
 
@@ -29,9 +30,17 @@ if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_link_options("$<$<CONFIG:Release>:/LTCG>")
 endif()   
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
     add_compile_options(
+        -Weverything
+        -Wno-padded
+        -Wno-missing-prototypes
+        -Wno-unused-parameter
+        -Wno-unused-variable
+        -fms-compatibility-version=19.36
         -Wno-potentially-evaluated-expression
+        -Wno-unused-private-field
+        -Wno-unused-function
     )
 endif()
 
@@ -39,8 +48,16 @@ if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
         -Wall
         -Wextra
-    )        
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+        -Werror
+        -Wno-unused-parameter
+        -Wno-unused-but-set-variable
+        -Wno-potentially-evaluated-expression
+        -Wno-unused-private-field
+        -Wno-unused-variable
+        -Wno-unused-function
+        -std=c++23
+        $<$<CONFIG:Release>:-O3>
+    )
 endif()
 
 function(enable_pch target)
