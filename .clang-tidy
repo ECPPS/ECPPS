@@ -39,7 +39,8 @@ Checks: >
   -readability-convert-member-functions-to-static,
   -bugprone-bitwise-pointer-cast,
   -bugprone-exception-escape,
-  -clang-analyzer-core.NonNullParamChecker
+  -clang-analyzer-core.NonNullParamChecker,
+  -modernize-use-auto
 
 CheckOptions:
   # Identifier naming rules

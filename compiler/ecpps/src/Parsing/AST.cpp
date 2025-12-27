@@ -787,7 +787,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
                     if (token.type == TokenType::Operator && std::get<std::string>(token.value) == ",") continue;
 
                     this->_diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                             "Expected a comma in function argument list", token.location));
                     return nullptr;
                }

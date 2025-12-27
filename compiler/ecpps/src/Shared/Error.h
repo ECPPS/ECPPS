@@ -61,7 +61,7 @@ namespace ecpps::diagnostics
      {
      public:
           explicit DiagnosticsBase(std::string name, std::string message, Location source)
-              : _name(std::move(name)), _message(std::move(message)), _source(std::move(source))
+              : _name(std::move(name)), _message(std::move(message)), _source(source)
           {
           }
           [[nodiscard]] DiagnosticsLevel Level(void) const noexcept override { return TLevel; }
@@ -89,8 +89,7 @@ namespace ecpps::diagnostics
      {
      public:
           explicit InternalCompilerError(std::string message, std::vector<std::string> trace, Location source)
-              : DiagnosticsBase("internal-compiler-error", std::move(message), std::move(source)),
-                _trace(std::move(trace))
+              : DiagnosticsBase("internal-compiler-error", std::move(message), source), _trace(std::move(trace))
           {
           }
 
@@ -104,7 +103,7 @@ namespace ecpps::diagnostics
      {
      public:
           explicit SyntaxError(std::string message, Location source)
-              : DiagnosticsBase("syntax-error", std::move(message), std::move(source))
+              : DiagnosticsBase("syntax-error", std::move(message), source)
           {
           }
           [[nodiscard]] std::string Message(void) const noexcept override;
@@ -114,8 +113,7 @@ namespace ecpps::diagnostics
      {
      public:
           explicit UnresolvedSymbolError(std::string symbol, std::string message, Location source)
-              : DiagnosticsBase("unresolved-symbol-error", std::move(message), std::move(source)),
-                _symbol(std::move(symbol))
+              : DiagnosticsBase("unresolved-symbol-error", std::move(message), source), _symbol(std::move(symbol))
           {
           }
           [[nodiscard]] std::string Message(void) const noexcept override;
@@ -128,7 +126,7 @@ namespace ecpps::diagnostics
      {
      public:
           explicit TypeError(std::string message, Location source)
-              : DiagnosticsBase("type-error", std::move(message), std::move(source))
+              : DiagnosticsBase("type-error", std::move(message), source)
           {
           }
           [[nodiscard]] std::string Message(void) const noexcept override;
@@ -141,7 +139,7 @@ namespace ecpps::diagnostics
      public:
           template <typename... TArgs>
                requires std::is_constructible_v<TDiagnostics, TArgs...>
-          [[nodiscard]] std::unique_ptr<TDiagnostics> build(TArgs&&... args) const noexcept
+          [[nodiscard]] std::unique_ptr<TDiagnostics> Build(TArgs&&... args) const noexcept
           {
                return std::make_unique<TDiagnostics>(std::forward<TArgs>(args)...);
           }

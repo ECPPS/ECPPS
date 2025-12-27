@@ -230,7 +230,11 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           break;
           default: colour = "\x1b[38m";
           }
-          const std::string spaces(std::max(token.location.position - previous.endPosition, 1UZ) - 1, ' ');
+          const std::string spaces(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
+                                                static_cast<std::ptrdiff_t>(previous.endPosition),
+                                            1Z) -
+                                       1Z,
+                                   ' ');
           previous = token.location;
 
           std::print("{}{}{}", spaces, colour, value);

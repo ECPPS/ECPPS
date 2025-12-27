@@ -95,7 +95,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           else
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                        "Invalid language linkage specification", node.Source()));
           }
      }
@@ -148,7 +148,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           else
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                        "Invalid language linkage specification", node.Source()));
           }
      }
@@ -219,7 +219,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
           if (!typeSystem::g_void->CommonWith(function->returnType))
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                        "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
                            function->returnType->RawName() + ")",
                        node.Source()));
@@ -244,7 +244,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
      if (declaredType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   std::format("Unknown type {} in variable declaration", node.Type()->ToString(0)), node.Source()));
           return;
      }
@@ -256,7 +256,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           if (idExpr == nullptr)
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                        "Expected identifier in variable declarator", decl.name->Source()));
                continue;
           }
@@ -286,7 +286,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           if (duplicate)
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                        "Redefinition of variable '" + varName + "'", decl.name->Source()));
                continue;
           }
@@ -306,7 +306,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (initExpr == nullptr)
                {
                     this->_context.diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                             "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
                     continue;
                }
@@ -315,7 +315,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (converted == nullptr)
                {
                     this->_context.diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                             "Cannot convert initialiser to variable type for '" + varName + "'",
                             decl.initialiser->Source()));
                     continue;
@@ -346,7 +346,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           // TODO: Classes
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
                   left->Value()->Source()));
 
@@ -359,7 +359,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      if (resultType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
                   left->Value()->Source()));
           return nullptr;
@@ -388,7 +388,7 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
           // TODO: Classes
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
                   left->Value()->Source()));
 
@@ -401,7 +401,7 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
      if (resultType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
                   left->Value()->Source()));
           return nullptr;
@@ -517,7 +517,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
           }
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.build(
+              ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
                   name, "Unresolved function " + name, identifierFunction->Source()));
           return nullptr;
      }
@@ -550,7 +550,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
      }
 
      this->_context.diagnostics.get().diagnosticsList.push_back(
-         ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.build(
+         ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
              name, "Unresolved identifier " + name, expression.Source()));
 
      return nullptr;
@@ -580,7 +580,7 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseIdExpression(*identifier);
 
      this->_context.diagnostics.get().diagnosticsList.push_back(
-         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
              expression->ToString(0) + " cannot appear in this context.", expression->Source()));
 
      return nullptr;
@@ -696,7 +696,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
      if (!comparison.IsValid())
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.build(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                   "Cannot convert from " + expression->Type()->Name() + " (aka " + expression->Type()->RawName() +
                       ") to type " + toType->Name() + " (aka " + toType->RawName() + ")",
                   expression->Value()->Source()));
