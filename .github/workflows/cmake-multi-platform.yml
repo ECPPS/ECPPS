@@ -128,7 +128,7 @@ jobs:
           name: build-msvc-Release
           path: build/Release
       - name: Run tests (optional)
-        shell: pwsh
+        shell: bash
         run: |
           for cfg in Debug Release; do
             if (Test-Path build/$cfg/CTestTestfile.cmake) {
