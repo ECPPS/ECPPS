@@ -120,14 +120,14 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
      using std::string_literals::operator""s;
      Location previous{0, 0, 0};
      const auto maxLine = tokens.back().location.line;
-     std::size_t maxLineWidth = ecpps::DigitCount(maxLine) + 1uz;
+     std::size_t maxLineWidth = ecpps::DigitCount(maxLine);
 
      for (const auto& token : tokens)
      {
           if (token.location.line != previous.line)
           {
                std::println();
-               std::print("{:<{}}", token.location.line, maxLineWidth);
+               std::print("{:>{}}  ", token.location.line, maxLineWidth);
                previous.line = token.location.line;
                previous.position = 0;
                previous.endPosition = 0;
