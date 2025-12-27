@@ -651,9 +651,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
                     if (!found) return nullptr;
                }
                else
-               {
                     return nullptr;
-               }
           }
 
           if (auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
