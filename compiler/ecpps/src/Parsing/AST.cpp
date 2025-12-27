@@ -473,9 +473,10 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(void)
      using VariableDeclarator = VariableDeclarationNode::Declarator;
 
      std::vector<VariableDeclarator> declarators{};
-
+     // clang-format off
      do
      {
+          // clang-format on
           NodePointer id = ParseIdExpression();
           if (!id) return nullptr;
 
