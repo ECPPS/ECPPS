@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Numbers.h>
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -9,7 +10,6 @@
 #include <vector>
 #include "../Machine/Machine.h"
 #include "Nodes.h"
-#include "Numbers.h"
 
 define_number(ByteOffset, std::size_t);
 define_number(Address, std::size_t);
