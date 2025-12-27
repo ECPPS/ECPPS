@@ -66,14 +66,15 @@ jobs:
           clang-tidy --version
 
       - name: Configure
+        shell: pwsh
         run: |
-          if [ "${{ matrix.compiler }}" = "msvc" ]; then
-            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          elif [ "${{ matrix.compiler }}" = "clang" ]; then
-            cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          elif [ "${{ matrix.compiler }}" = "clang-cl" ]; then
-            cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          fi
+          if ("${{ matrix.compiler }}" -eq "msvc") {
+              cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          } elseif ("${{ matrix.compiler }}" -eq "clang") {
+              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
+              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          }
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
