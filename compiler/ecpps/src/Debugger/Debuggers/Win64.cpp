@@ -218,9 +218,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
                std::println("");
           }
           else
-          {
                std::println("Unknown type '{}'", type);
-          }
 
           return PromptResult::None;
      }
