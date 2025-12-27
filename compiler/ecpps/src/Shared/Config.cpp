@@ -61,9 +61,7 @@ ecpps::CompilerConfig::CompilerConfig(
                     else if (lowerValue == "0" || lowerValue == "false" || lowerValue == "off")
                          this->verboseStatus = VerboseStatus::Default;
                     else
-                    {
                          this->verboseStatus = VerboseStatus::Verbose;
-                    }
                }
                else if (flag == "V") { this->verboseStatus = VerboseStatus::ExtraVerbose; }
                else if (lowerFlag == "output" || lowerFlag == "out")
