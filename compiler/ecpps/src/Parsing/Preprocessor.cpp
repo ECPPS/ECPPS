@@ -106,9 +106,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                    currentParam.clear();
                               }
                               else
-                              {
                                    currentParam += *sourceIterator;
-                              }
                               ++sourceIterator;
                          }
                          if (!currentParam.empty()) params.push_back(currentParam);
@@ -569,9 +567,7 @@ static std::string ExpandMacroString(const std::string& contents,
                          result += ExpandMacroString(it->contents, parameterMap, macros);
                     }
                     else
-                    {
                          result += token;
-                    }
                }
                i = j - 1;
                continue;
