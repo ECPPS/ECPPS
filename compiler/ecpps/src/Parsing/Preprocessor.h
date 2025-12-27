@@ -76,4 +76,15 @@ namespace ecpps
 
           friend class Tokeniser;
      };
+
+     constexpr std::size_t DigitCount(std::uint64_t value)
+     {
+          std::size_t count = 1;
+          while (value >= 10)
+          {
+               value /= 10;
+               ++count;
+          }
+          return count;
+     }
 } // namespace ecpps

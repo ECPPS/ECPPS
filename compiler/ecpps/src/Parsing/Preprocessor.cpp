@@ -10,7 +10,29 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                                                   std::vector<MacroReplacement>& macros)
 {
      std::vector<ecpps::PreprocessingToken> tokens{};
-     Location location{0, 0, 0};
+     Location location{1, 0, 0};
+     auto Advance = [&](auto& it)
+     {
+          const char c = *it;
+          ++it;
+
+          if (c == '\r')
+          {
+               if (it != source.end() && *it == '\n') ++it;
+               ++location.line;
+               location.position = 0;
+          }
+          else if (c == '\n')
+          {
+               ++location.line;
+               location.position = 0;
+          }
+          else { ++location.position; }
+     };
+     auto AdvanceIf = [&](auto& it, char expected)
+     {
+          if (it != source.end() && *it == expected) Advance(it);
+     };
 
      for (auto sourceIterator = source.begin(); sourceIterator != source.end(); ++sourceIterator)
      {
@@ -123,7 +145,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     std::string contents;
                     while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')
                     {
-                         contents += *sourceIterator++;
+                         contents += *sourceIterator;
+                         Advance(sourceIterator);
                     }
 
                     macros.emplace_back(macroName, parameters, contents, isVariadic);
@@ -149,6 +172,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     std::vector<PreprocessingToken> branchTokens;
                     bool inElse = false;
                     std::string builtSource{};
+                    const auto previousLine = location.line;
                     while (sourceIterator != source.end())
                     {
                          char c = *sourceIterator;
@@ -156,13 +180,14 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          {
                               // peek directive name
                               auto peekIt = sourceIterator;
-                              ++peekIt;
-                              while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) ++peekIt;
+                              Advance(peekIt);
+                              while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
 
                               std::string nextDirective;
                               while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
                               {
-                                   nextDirective += *peekIt++;
+                                   nextDirective += *peekIt;
+                                   Advance(peekIt);
                               }
 
                               if (nextDirective == "else")
@@ -180,10 +205,12 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                          if (conditionMet && !inElse) builtSource += c;
 
-                         ++sourceIterator;
-                         location.position++;
+                         Advance(sourceIterator);
                     }
-                    const auto parsed = Parse(builtSource, macros);
+                    auto parsed = Parse(builtSource, macros);
+                    for (auto& token : parsed) token.source.line += previousLine - 1;
+                    location.line++;
+
                     tokens.reserve(tokens.size() + parsed.size());
                     tokens.insert_range(tokens.end(), parsed);
 
@@ -375,6 +402,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     if (character == '\n' || character == '\r') break;
                     comment += character;
                }
+               location.line++;
 
                location.endPosition = location.position;
           }
@@ -462,6 +490,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 {
      Location previous{0, 0, 0};
+     const auto maxLine = ppTokens.back().source.line;
+     std::size_t maxLineWidth = ecpps::DigitCount(maxLine) + 1uz;
 
      for (const auto& token : ppTokens)
      {
@@ -484,7 +514,7 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
           const std::string spaces(token.source.position - previous.endPosition - 1, ' ');
           previous = token.source;
 
-          std::print("{}{}{}", spaces, colour, token.value);
+          std::print("{:<{}}{}{}{}", token.source.line, maxLineWidth, spaces, colour, token.value);
      }
      std::println("\x1b[0m");
 }
