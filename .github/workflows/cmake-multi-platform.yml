@@ -7,108 +7,102 @@ on:
     branches: [ main, development ]
 
 jobs:
-  windows:
+  clang-format:
+    name: Run clang-format
     runs-on: windows-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        name:
-          - msvc
-          - clang20
-          - clang21
-          - clang21-format
-        include:
-          - name: msvc
-            compiler: msvc
-
-          - name: clang20
-            compiler: clang
-            llvm: stable
-            llvm_version: 20.1.8
-
-          - name: clang21
-            compiler: clang
-            llvm: nightly
-
-          - name: clang21-format
-            compiler: clang
-            llvm: nightly
-            run_format: true
-
-    name: Windows / ${{ matrix.name }}
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update submodules
-        run: git submodule update --init --depth 1
-
-      - name: Install LLVM (stable)
-        if: matrix.llvm == 'stable'
+      - name: Install LLVM
         shell: pwsh
         run: |
-          choco install llvm --version=${{ matrix.llvm_version }} -y
+          choco install llvm --version=20.1.8 -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-      - name: Install LLVM (nightly)
-        if: matrix.llvm == 'nightly'
-        shell: pwsh
-        run: |
-          choco install llvm-nightly -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
-
-      - name: Tool versions
-        if: matrix.compiler == 'clang'
-        run: |
-          clang --version
-          clang-format --version
-          clang-tidy --version
-
-      - name: Configure (MSVC)
-        if: matrix.compiler == 'msvc'
-        run: >
-          cmake -S . -B build
-          -G "Visual Studio 17 2022"
-          -A x64
-          -DCMAKE_CXX_STANDARD=23
-
-      - name: Configure (Clang)
-        if: matrix.compiler == 'clang'
-        run: >
-          cmake -S . -B build
-          -G Ninja
-          -DCMAKE_C_COMPILER=clang-cl
-          -DCMAKE_CXX_COMPILER=clang-cl
-          -DCMAKE_CXX_STANDARD=23
-
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Test (optional)
-        shell: pwsh
-        run: |
-          if (Test-Path build\CTestTestfile.cmake) {
-            ctest --test-dir build -C Release
-          } else {
-            echo "No tests found, skipping"
-          }
-
-      - name: clang-format
-        if: matrix.run_format == true
+      - name: Run clang-format
         shell: bash
         run: |
-          clang-format --version
           git ls-files '*.cpp' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' \
             | while read -r f; do
                 clang-format --style=file --dry-run --Werror "$f" || exit 1
               done
 
-      - name: clang-tidy
-        if: matrix.compiler == 'clang'
+  build-windows:
+    runs-on: windows-latest
+    needs: clang-format
+
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [msvc, clang, clang-cl]
+        build_type: [Debug, Release]
+        include:
+          - compiler: msvc
+            name: msvc
+          - compiler: clang
+            name: clang20
+            llvm_version: 20.1.8
+          - compiler: clang-cl
+            name: clang20-cl
+            llvm_version: 20.1.8
+
+    name: Windows / ${{ matrix.name }} / ${{ matrix.build_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM
+        if: matrix.compiler != 'msvc'
+        shell: pwsh
+        run: |
+          choco install llvm --version=${{ matrix.llvm_version }} -y
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Tool versions
+        if: matrix.compiler != 'msvc'
+        run: |
+          clang --version
+          clang-format --version
+          clang-tidy --version
+
+      - name: Configure
+        run: |
+          if [ "${{ matrix.compiler }}" = "msvc" ]; then
+            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          elif [ "${{ matrix.compiler }}" = "clang" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          elif [ "${{ matrix.compiler }}" = "clang-cl" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          fi
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.name }}-${{ matrix.build_type }}
+          path: build
+
+  clang-tidy:
+    name: Run clang-tidy
+    runs-on: windows-latest
+    needs: build-windows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Release build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-clang20-Release
+          path: build
+      - name: Install LLVM
+        shell: pwsh
+        run: |
+          choco install llvm --version=20.1.8 -y
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+      - name: Run clang-tidy
         shell: bash
         run: |
-          echo "Running clang-tidy..."
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
             | while read -r f; do
                 clang-tidy "$f" \
@@ -116,3 +110,29 @@ jobs:
                   --extra-arg=-std=c++23 \
                   || exit 1
               done
+
+  run-tests:
+    name: Run Tests
+    runs-on: windows-latest
+    needs: build-windows
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Debug and Release build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-msvc-Debug
+          path: build/Debug
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-msvc-Release
+          path: build/Release
+      - name: Run tests (optional)
+        shell: pwsh
+        run: |
+          for cfg in Debug Release; do
+            if (Test-Path build/$cfg/CTestTestfile.cmake) {
+              ctest --test-dir build/$cfg -C $cfg
+            else
+              echo "No tests found for $cfg, skipping"
+            fi
+          done
