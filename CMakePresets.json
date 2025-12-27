@@ -8,7 +8,9 @@
       "binaryDir": "${sourceDir}/out/build/x64-Debug MSVC",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug MSVC"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug MSVC",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
@@ -18,7 +20,9 @@
       "binaryDir": "${sourceDir}/out/build/x64-Release MSVC",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Release MSVC"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Release MSVC",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
@@ -29,7 +33,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug",
-        "CMAKE_CXX_COMPILER_ID": "Clang"
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
@@ -40,7 +45,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Release",
-        "CMAKE_CXX_COMPILER_ID": "Clang"
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
@@ -53,7 +59,8 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_COMPILER_ID": "Clang"
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
     },
     {
@@ -66,8 +73,47 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Release",
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
-        "CMAKE_CXX_COMPILER_ID": "Clang"
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "x64-Debug MSVC Parallel",
+      "configurePreset": "x64-Debug MSVC",
+      "description": "Parallel build using all cores",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Release MSVC Parallel",
+      "configurePreset": "x64-Release MSVC",
+      "description": "Parallel build using all cores",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Clang-cl-Debug Parallel",
+      "configurePreset": "x64-Clang-cl-Debug",
+      "description": "Parallel build using all cores",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Clang-cl-Release Parallel",
+      "configurePreset": "x64-Clang-cl-Release",
+      "description": "Parallel build using all cores",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Clang-Debug Parallel",
+      "configurePreset": "x64-Clang-Debug",
+      "description": "Parallel build using all cores",
+      "jobs": 0
+    },
+    {
+      "name": "x64-Clang-Release Parallel",
+      "configurePreset": "x64-Clang-Release",
+      "description": "Parallel build using all cores",
+      "jobs": 0
     }
   ]
 }
