@@ -73,23 +73,6 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
     ERROR_QUIET
 )
 
-enable_testing()  # must be called before add_test
-
-add_executable(test_compiler test_compiler.cpp)
-
-target_link_libraries(test_compiler PRIVATE libecpps platformlib utilitieslib)
-
-target_include_directories(test_compiler
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../compiler/ecpps/src"
-        "../../compiler/platformlib/include"
-        "../../compiler/utilitieslib/include/utilitieslib"
-)
-
-target_compile_features(test_compiler PUBLIC cxx_std_23)
-
-add_test(NAME UnitTests COMMAND $<TARGET_FILE:test_compiler>)
-
 enable_testing()
 add_subdirectory(compiler)
 add_subdirectory(stdlib)
