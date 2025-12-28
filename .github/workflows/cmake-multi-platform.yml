@@ -95,7 +95,7 @@ jobs:
           } elseif ("${{ matrix.compiler }}" -eq "clang") {
               $sanFlags = ""
               if ($enableClangSan) {
-                  $sanFlags = "-DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined'"
+                  $sanFlags = "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
               }
 
               cmake -S . -B build -G Ninja `
@@ -114,7 +114,7 @@ jobs:
           }
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
+        run: cmake --build build --config ${{ matrix.build_type }} --parallel
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
