@@ -5,11 +5,15 @@ on:
     branches: [ main, development, 'feature/**' ]
   pull_request:
     branches: [ main, development, 'feature/**' ]
+    types: [opened, synchronize, reopened, labeled, unlabeled] 
 
 jobs:
   setup-llvm:
     name: Install LLVM
     runs-on: windows-latest
+    if: |
+      github.event_name != 'pull_request' || 
+      !contains(github.event.pull_request.labels.*.name, 'blocked')
     outputs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
     steps:
