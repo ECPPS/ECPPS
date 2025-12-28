@@ -80,6 +80,12 @@ jobs:
           $enableClangSan = (-not $isFeature) -and $isDebug -and ("${{ matrix.compiler }}" -eq "clang")
           $enableMsvcSan = (-not $isFeature) -and $isDebug -and ("${{ matrix.compiler }}" -eq "msvc")
 
+          # CCache integration for clang
+          if ("${{ matrix.compiler }}" -eq "clang" -or "${{ matrix.compiler }}" -eq "clang-cl") {
+              setx CC "ccache clang"
+              setx CXX "ccache clang++"
+          }
+
           if ("${{ matrix.compiler }}" -eq "msvc") {
               $asanFlags = ""
               if ($enableMsvcSan) { $asanFlags = "-DCMAKE_CXX_FLAGS=/fsanitize=address" }
@@ -106,6 +112,13 @@ jobs:
                 -DCMAKE_CXX_STANDARD=23 `
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           }
+
+      - name: Copy ASan DLLs for MSVC
+        if: ${{ matrix.compiler == 'msvc' && matrix.build_type == 'Debug' }}
+        shell: pwsh
+        run: |
+          $asanDLL = "C:\Program Files\LLVM\lib\clang\20.1.8\lib\windows\clang_rt.asan_dynamic-x86_64.dll"
+          Copy-Item $asanDLL -Destination "build/testing/compiler/Debug" -Force
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
