@@ -13,7 +13,7 @@ int main()
      int variable = 7;
      int* pointer = &variable;
 
-     return *pointer;
+     return 1 + *(pointer);
 }
 
 #ifdef __ecpps_version
