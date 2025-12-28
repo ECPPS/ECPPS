@@ -113,14 +113,6 @@ jobs:
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           }
 
-      - name: Copy ASan DLL (Clang only)
-        if: ${{ matrix.compiler != 'msvc' && matrix.build_type == 'Debug' }}
-        shell: pwsh
-        run: |
-          $asanDLL = "C:\Program Files\LLVM\bin\clang_rt.asan_dynamic-x86_64.dll"
-          Copy-Item $asanDLL -Destination "build/testing/compiler/$($env:CONFIGURATION)" -Force
-
-      - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
       
       - name: Run tests (Clang ASan)
