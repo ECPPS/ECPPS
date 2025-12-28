@@ -111,7 +111,7 @@ jobs:
         run: |
           if ($env:ASAN_OPTIONS -eq $null) { $env:ASAN_OPTIONS="abort_on_error=1" }
           if ($env:UBSAN_OPTIONS -eq $null) { $env:UBSAN_OPTIONS="print_stacktrace=1" }
-          ctest --test-dir build/testing/compiler --output-on-failure
+          ctest --test-dir build/testing/compiler --output-on-failure -C "$cfg"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -164,5 +164,5 @@ jobs:
         shell: bash
         run: |
           for cfg in Debug Release; do
-            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir build/$cfg -C "$cfg" || echo "No tests for $cfg"
+            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
           done
