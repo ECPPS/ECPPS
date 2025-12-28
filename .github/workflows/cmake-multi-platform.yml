@@ -23,6 +23,11 @@ jobs:
         run: |
           choco install llvm --version=20.1.8 -y
           echo "::set-output name=llvm-path::C:\Program Files\LLVM\bin"
+      - name: Install ccache
+        shell: pwsh
+        run: |
+          choco install ccache -y
+          echo "C:\Program Files\ccache" >> $env:GITHUB_PATH
 
   clang-format:
     name: Run clang-format
@@ -111,7 +116,7 @@ jobs:
         run: |
           if ($env:ASAN_OPTIONS -eq $null) { $env:ASAN_OPTIONS="abort_on_error=1" }
           if ($env:UBSAN_OPTIONS -eq $null) { $env:UBSAN_OPTIONS="print_stacktrace=1" }
-          ctest --test-dir build/testing/compiler --output-on-failure -C "$cfg"
+          ctest --test-dir build/testing/compiler --output-on-failure -C Debug
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
