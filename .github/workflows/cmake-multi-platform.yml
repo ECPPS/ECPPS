@@ -94,7 +94,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
                 $asanFlags
           } elseif ("${{ matrix.compiler }}" -eq "clang") {
-              $clangResDir = &(clang -print-resource-dir)
+              $clangResDir = (clang -print-resource-dir)
               $libDir = "$clangResDir/lib/windows"
 
               $sanFlags = @()
