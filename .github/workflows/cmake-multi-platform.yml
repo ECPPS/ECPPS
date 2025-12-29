@@ -95,7 +95,7 @@ jobs:
                 $asanFlags
           } elseif ("${{ matrix.compiler }}" -eq "clang") {
               $clangResDir = (clang -print-resource-dir)
-              $libDir = "$clangResDir/lib/windows"
+              $libPath = "$clangResDir/lib/windows"
 
               $sanFlags = @()
               if ($enableClangSan) {
