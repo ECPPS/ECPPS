@@ -103,7 +103,7 @@ jobs:
                   $asanLib = "$libPath\clang_rt.asan-x86_64.lib"
                   $ubsanLib = "$libPath\clang_rt.ubsan_standalone-x86_64.lib"
                   
-                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=`"$libDir/clang_rt.asan-x86_64.lib`" -Xlinker /wholearchive:`"$libDir/clang_rt.asan-x86_64.lib`""
+                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=`"clang_rt.asan-x86_64.lib`" -Xlinker /wholearchive:`"clang_rt.asan-x86_64.lib`""
 
               }
               cmake -S . -B build -G Ninja `
