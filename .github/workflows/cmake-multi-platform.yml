@@ -99,11 +99,11 @@ jobs:
 
               $sanFlags = @()
               if ($enableClangSan) {
-                  $sanFlags += "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer"
+                  $sanFlags += "-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer"
                   $asanLib = "$libPath\clang_rt.asan-x86_64.lib"
                   $ubsanLib = "$libPath\clang_rt.ubsan_standalone-x86_64.lib"
                   
-                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined -Xlinker /wholearchive:`"$asanLib`" -Xlinker /wholearchive:`"$ubsanLib`" -Xlinker /NODEFAULTLIB:clang_rt.asan_dynamic-x86_64.lib -Xlinker /NODEFAULTLIB:clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"
+                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
 
               }
               cmake -S . -B build -G Ninja `
