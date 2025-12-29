@@ -97,7 +97,7 @@ jobs:
               $sanFlags = @()
               if ($enableClangSan) {
                   $sanFlags += "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-omit-frame-pointer"
-                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined -static-libasan -static-libubsan"
               }
               cmake -S . -B build -G Ninja `
                 -DCMAKE_C_COMPILER=clang `
@@ -113,15 +113,6 @@ jobs:
                 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           }
 
-      - name: Copy Clang ASan DLL
-        if: ${{ (matrix.compiler == 'clang' || matrix.compiler == 'clang-cl') && matrix.build_type == 'Debug' }}
-        shell: pwsh
-        run: |
-          $llvmPath = "C:\Program Files\LLVM"
-          $clangVersion = "20.1.8"
-          $asanDLL = Join-Path $llvmPath "lib\clang\$clangVersion\lib\windows\clang_rt.asan_dynamic-x86_64.dll"
-          if (-Not (Test-Path $asanDLL)) { Write-Error "ASan DLL not found at $asanDLL"; exit 1 }
-          Copy-Item $asanDLL -Destination "build/testing/compiler/Debug" -Force
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }} --parallel
