@@ -14,6 +14,9 @@
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
 
+#ifdef __clang__
+[[clang::no_sanitize("address")]]
+#endif
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
 static ecpps::codegen::Operand ParseExpression(
