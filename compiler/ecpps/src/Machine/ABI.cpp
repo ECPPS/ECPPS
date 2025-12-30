@@ -14,6 +14,9 @@
 
 using ecpps::abi::ABI;
 
+#ifdef __clang__
+__attribute__((no_sanitize("address")))
+#endif
 ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()};
 
 ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
