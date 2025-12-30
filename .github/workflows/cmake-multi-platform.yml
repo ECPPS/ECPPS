@@ -103,7 +103,7 @@ jobs:
                   $asanLib = "$libPath\clang_rt.asan-x86_64.lib"
                   $ubsanLib = "$libPath\clang_rt.ubsan_standalone-x86_64.lib"
                   
-                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=`"clang_rt.asan-x86_64.lib`" -Xlinker /wholearchive:`"clang_rt.asan-x86_64.lib`""
+                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
 
               }
               cmake -S . -B build -G Ninja `
@@ -130,6 +130,9 @@ jobs:
         run: |
           $env:ASAN_OPTIONS="abort_on_error=1"
           $env:UBSAN_OPTIONS="print_stacktrace=1"
+          $clangPath = (clang -print-resource-dir)
+          $libDir = "$clangPath\\lib\\windows"
+          $env:path += ";$libDir"
           ctest --test-dir build/testing/compiler --output-on-failure -C Debug
 
       - name: Upload build artifact
