@@ -1,5 +1,7 @@
 #include "PseudoAssembly.h"
 #include <Assert.h>
+#include <Shared/Diagnostics.h>
+#include <TypeSystem/TypeBase.h>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
@@ -10,6 +12,7 @@
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Nodes.h"
 
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
@@ -76,6 +79,28 @@ static ecpps::codegen::Operand ParseExpression(
               right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
+     }
+     if (auto* const addition = dynamic_cast<ecpps::ir::AdditionAssignNode*>(value.get()); addition != nullptr)
+     {
+          if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(symbolTable, code, addition->Left());
+
+          auto destinationStorage = left;
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+              std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+               return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(ecpps::codegen::AddInstruction{
+              right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return destinationStorage;
      }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
@@ -266,6 +291,56 @@ static ecpps::codegen::Operand ParseExpression(
           return ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
               ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
      }
+     if (auto* const addressOf = dynamic_cast<ecpps::ir::AddressOfNode*>(value.get()); addressOf != nullptr)
+     {
+          const auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+
+          runtime_assert(std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operand),
+                         "Invalid operand for the address-of instruction");
+
+          const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operand);
+
+          auto& abi = ecpps::abi::ABI::Current();
+
+          const auto resultReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+
+          code.emplace_back(ecpps::codegen::TakeAddressInstruction{
+              ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                    abi.PointerSize() * ecpps::typeSystem::CharWidth},
+              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}}});
+
+          return ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}};
+     }
+
+     if (auto* const indirection = dynamic_cast<ecpps::ir::DereferenceNode*>(value.get()); indirection != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
+          const auto pointerType =
+              std::dynamic_pointer_cast<ecpps::typeSystem::PointerType>(indirection->Operand()->Type());
+
+          auto operandToPerformIndirectionOn = ParseExpression(symbolTable, code, indirection->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn))
+          {
+               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+               const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn);
+
+               code.emplace_back(ecpps::codegen::MovInstruction{
+                   ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                         abi.PointerSize() * ecpps::typeSystem::CharWidth},
+                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}},
+                   abi.PointerSize() * ecpps::typeSystem::CharWidth});
+               return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}, 0,
+                                                            pointerType->Size() * ecpps::typeSystem::CharWidth};
+          }
+
+          if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
+          {
+               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+          }
+
+          throw TracedException("Invalid operand for the address-of instruction");
+     }
 
      if (auto* const convert = dynamic_cast<ecpps::ir::ConvertNode*>(value.get()); convert != nullptr)
      {
@@ -299,6 +374,32 @@ static ecpps::codegen::Operand ParseExpression(
           }
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
+     }
+     if (auto* const postIncrement = dynamic_cast<ecpps::ir::PostIncrementNode*>(value.get()); postIncrement != nullptr)
+     {
+          if (postIncrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(symbolTable, code, postIncrement->Operand());
+
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
+              postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ecpps::codegen::IntegerOperand{
+              postIncrement->IncrementValue(), postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(
+              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                             postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          code.emplace_back(ecpps::codegen::AddInstruction{
+              right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
 
      throw std::logic_error("Invalid expression");
@@ -396,18 +497,56 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)
           {
                runtime_assert(symbolTable.contains(store->Address()), "Invalid symbol");
+
                const auto& [location, storageRequest] = symbolTable.at(store->Address());
-               // TODO: Checks
                const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
 
                const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
 
-               instructions.emplace_back(
-                   ecpps::codegen::MovInstruction{initValue,
-                                                  ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
-                                                      ecpps::codegen::RegisterOperand{memoryLocation.reg},
-                                                      memoryLocation.offset, storageRequest.size * CHAR_BIT}},
-                                                  storageRequest.size * CHAR_BIT});
+               const ecpps::codegen::Operand dest{
+                   ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
+                                                         memoryLocation.offset, storageRequest.size * CHAR_BIT}};
+
+               const bool srcIsMem = std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(initValue);
+               const bool dstIsMem = true;
+
+               if (srcIsMem && dstIsMem)
+               {
+                    const auto tempReg = currentAbi.AllocateRegister(storageRequest.size * CHAR_BIT);
+
+                    instructions.emplace_back(ecpps::codegen::MovInstruction{
+                        initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
+                        storageRequest.size * CHAR_BIT});
+
+                    instructions.emplace_back(ecpps::codegen::MovInstruction{
+                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
+                        storageRequest.size * CHAR_BIT});
+               }
+               else
+               {
+                    instructions.emplace_back(
+                        ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
+               }
+          }
+          else if (auto* const addition = dynamic_cast<ecpps::ir::AdditionAssignNode*>(line.get()); addition != nullptr)
+          {
+               if (addition->Left() == nullptr || addition->Right() == nullptr) continue;
+
+               const auto left = ParseExpression(symbolTable, instructions, addition->Left());
+
+               const auto& destinationStorage = left;
+
+               std::vector<Instruction> codeBuffer{};
+               const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+
+               if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+                   std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+                    continue;
+
+               instructions.append_range(codeBuffer);
+
+               instructions.emplace_back(ecpps::codegen::AddInstruction{
+                   right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
           }
      }
 

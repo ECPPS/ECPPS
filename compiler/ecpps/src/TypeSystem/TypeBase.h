@@ -143,6 +143,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Incomplete);
      TraitCheckerFunction(Boolean);
      TraitCheckerFunction(Pointer);
+     TraitCheckerFunction(Scalar);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;

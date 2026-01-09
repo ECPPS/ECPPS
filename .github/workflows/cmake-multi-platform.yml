@@ -7,47 +7,51 @@ on:
     branches: [ main, development ]
 
 jobs:
+  setup-llvm:
+    name: Install LLVM
+    runs-on: windows-latest
+    outputs:
+      llvm-path: ${{ steps.set-path.outputs.llvm-path }}
+    steps:
+      - name: Install LLVM
+        shell: pwsh
+        id: set-path
+        run: |
+          choco install llvm --version=20.1.8 -y
+          echo "::set-output name=llvm-path::C:\Program Files\LLVM\bin"
+
   clang-format:
     name: Run clang-format
     runs-on: windows-latest
+    needs: setup-llvm
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install LLVM
-        shell: pwsh
-        run: |
-          choco install llvm --version=20.1.8 -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
-
-      - name: Run clang-format
+      - name: Run clang-format in parallel
         shell: bash
+        env:
+          PATH: ${{ needs.setup-llvm.outputs.llvm-path }}:$PATH
         run: |
-          git ls-files '*.cpp' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' \
-            | while read -r f; do
-                clang-format --style=file --dry-run --Werror "$f" || exit 1
-              done
+          git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' \
+            | xargs -P $(nproc) -I {} clang-format --style=file --dry-run --Werror "{}"
 
   build-windows:
     runs-on: windows-latest
     needs: clang-format
-
     strategy:
       fail-fast: false
       matrix:
-        compiler: [msvc, clang, clang-cl]
+        compiler: [msvc, Clang, Clang-cl]
         build_type: [Debug, Release]
         include:
           - compiler: msvc
             name: msvc
-          - compiler: clang
+          - compiler: Clang
             name: clang20
             llvm_version: 20.1.8
-          - compiler: clang-cl
+          - compiler: Clang-cl
             name: clang20-cl
             llvm_version: 20.1.8
-
     name: Windows / ${{ matrix.name }} / ${{ matrix.build_type }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -58,32 +62,28 @@ jobs:
           choco install llvm --version=${{ matrix.llvm_version }} -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-      - name: Tool versions
-        if: matrix.compiler != 'msvc'
-        run: |
-          clang --version
-          clang-format --version
-          clang-tidy --version
-
       - name: Configure
         shell: pwsh
         run: |
-          if ("${{ matrix.compiler }}" -eq "msvc") {
-              cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          } elseif ("${{ matrix.compiler }}" -eq "clang") {
-              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
-              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          if ("${{ matrix.compiler }}" -eq "msvc") {		
+            cmake -S . -G "Visual Studio 17 2022" --preset "x64-${{ matrix.build_type }} MSVC"
+          } else {
+            cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
           }
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
+        run: |
+          if ("${{ matrix.compiler }}" -eq "msvc") {
+            cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
+          } else { 
+            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
+          }
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: build
+          path: out/build
 
   clang-tidy:
     name: Run clang-tidy
@@ -96,26 +96,20 @@ jobs:
         with:
           name: build-clang20-Release
           path: build
-      - name: Install LLVM
-        shell: pwsh
-        run: |
-          choco install llvm --version=20.1.8 -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
-      - name: Run clang-tidy
+      - name: Run clang-tidy in parallel
         shell: bash
+        env:
+          PATH: C:\Program Files\LLVM\bin:$PATH
         run: |
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
-            | while read -r f; do
-                clang-tidy "$f" \
-                  --warnings-as-errors='*' \
-                  --extra-arg=-std=c++23 \
-                  -- \
-                  -I"${{ github.workspace }}/compiler/platformlib/include" \
-                  -I"${{ github.workspace }}/compiler/platformlib/include/platformlib" \
-                  -I"${{ github.workspace }}/compiler/ecpps/src" \
-                  -I"${{ github.workspace }}/compiler/utilitieslib/include/utilitieslib" \
-                  || exit 1
-              done
+          | xargs -P $(nproc) -I {} clang-tidy {} \
+              --warnings-as-errors='*' \
+              --extra-arg=-std=c++23 \
+              -- \
+              -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
+              -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
+              -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
+              -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib"
 
   run-tests:
     name: Run Tests
@@ -123,7 +117,7 @@ jobs:
     needs: build-windows
     steps:
       - uses: actions/checkout@v4
-      - name: Download Debug and Release build artifacts
+      - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-msvc-Debug
@@ -132,13 +126,9 @@ jobs:
         with:
           name: build-msvc-Release
           path: build/Release
-      - name: Run tests (optional)
+      - name: Run tests
         shell: bash
         run: |
           for cfg in Debug Release; do
-            if [ -f "build/$cfg/CTestTestfile.cmake" ]; then
-              ctest --test-dir build/$cfg -C "$cfg"
-            else
-              echo "No tests found for $cfg, skipping"
-            fi
+            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir build/$cfg -C "$cfg" || echo "No tests for $cfg"
           done

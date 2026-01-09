@@ -260,6 +260,15 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
          div.to);
 }
 
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const TakeAddressInstruction& lea)
+{
+     return std::visit(OverloadedVisitor{[&lea, this](const RegisterOperand&)
+                                         { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
+                                         [](auto&&) -> std::vector<std::byte>
+                                         { throw std::logic_error("Invalid address-of operation"); }},
+                       lea.to);
+}
+
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
 {
      this->_relocationTable.emplace(this->_currentInstructionBase, call.functionName);
@@ -316,7 +325,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint32_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -344,7 +353,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateMovImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -374,7 +383,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateMovRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -398,7 +407,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
           case ecpps::abi::qwordSize: return x86_64::GenerateMovRegToReg64(destinationRegister, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -562,7 +571,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -591,7 +600,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateMovMemToReg64(destinationRegister, sourceDisplacement, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -619,7 +628,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateAddImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -649,7 +658,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateAddRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -673,7 +682,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
           case ecpps::abi::qwordSize: return x86_64::GenerateAddRegToReg64(destinationRegister, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -702,7 +711,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateAddMemToReg64(destinationRegister, sourceOffset, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -740,7 +749,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -768,7 +777,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateSubImmToReg64(destinationRegister, static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -798,7 +807,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateSubRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -822,7 +831,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
           case ecpps::abi::qwordSize: return x86_64::GenerateSubRegToReg64(destinationRegister, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -851,7 +860,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateSubMemToReg64(destinationRegister, sourceRegisterOffset, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -921,7 +930,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
                                                           static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -951,7 +960,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateSignedMulRegToMem64(destinationRegister, destinationDisplacement, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -975,7 +984,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
           case ecpps::abi::qwordSize: return x86_64::GenerateSignedMulRegToReg64(destinationRegister, sourceRegister);
           }
 
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
      }
 };
@@ -1094,7 +1103,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 #ifdef __clang__
 #pragma GCC diagnostic pop
 #endif
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           // NOLINTEND(clang-analyzer-deadcode.DeadStores)
           return {};
      }
@@ -1116,7 +1125,26 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 #ifdef __clang__
 #pragma GCC diagnostic pop
 #endif
-          throw std::logic_error("Invalid mov operation");
+          throw TracedException(std::logic_error("Invalid mov operation"));
           return {};
+     }
+};
+
+// lea
+
+template <>
+struct ecpps::codegen::emitters::EmitSpecificLeaImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const TakeAddressInstruction& lea)
+     {
+          const auto& source = lea.from;
+          const auto& destination = std::get<RegisterOperand>(lea.to);
+
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
+          const auto sourceRegisterOffset = source.Displacement();
+          const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+
+          return x86_64::GenerateLeaToReg(sourceRegister, sourceRegisterOffset, destinationRegister);
      }
 };

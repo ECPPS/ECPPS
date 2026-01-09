@@ -195,6 +195,17 @@ namespace ecpps::codegen
           explicit CallInstruction(std::string name) : functionName(std::move(name)) {}
      };
 
+     struct TakeAddressInstruction
+     {
+          MemoryLocationOperand from;
+          Operand to;
+
+          explicit TakeAddressInstruction(MemoryLocationOperand from, Operand to)
+              : from(std::move(from)), to(std::move(to))
+          {
+          }
+     };
+
      /// <summary>
      /// Custom-defined instruction by architectures. Has no meaning in the generic code generation context
      /// Can be used for architecture-specific optimisations and intrinsics.
@@ -282,7 +293,7 @@ namespace ecpps::codegen
 
      using Instruction =
          std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                      CallInstruction,
+                      CallInstruction, TakeAddressInstruction,
                       SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 

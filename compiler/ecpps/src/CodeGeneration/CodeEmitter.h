@@ -66,6 +66,7 @@ namespace ecpps::codegen
           [[nodiscard]] virtual std::vector<std::byte> EmitMul(const MulInstruction& mul) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitDiv(const DivInstruction& div) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitCall(const CallInstruction& call) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitLea(const TakeAddressInstruction& lea) = 0;
           [[nodiscard]] virtual std::vector<std::byte> EmitReturn(void) = 0;
 
           /// <summary>

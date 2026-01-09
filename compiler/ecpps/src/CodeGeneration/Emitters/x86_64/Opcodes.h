@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace ecpps::codegen::x86_64
+namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
 {
      constexpr std::size_t Rax = 0;
      constexpr std::size_t Rcx = 1;
@@ -266,5 +266,9 @@ namespace ecpps::codegen::x86_64
      // push/pop
      [[nodiscard]] std::vector<std::byte> GeneratePushReg64(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GeneratePopReg64(std::size_t reg);
+
+     // lea
+     [[nodiscard]] std::vector<std::byte> GenerateLeaToReg(std::size_t sourceRegister, std::size_t sourceDisplacement,
+                                                           std::size_t destinationRegister);
 
 } // namespace ecpps::codegen::x86_64
