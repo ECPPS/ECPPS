@@ -375,6 +375,32 @@ static ecpps::codegen::Operand ParseExpression(
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }
+     if (auto* const postIncrement = dynamic_cast<ecpps::ir::PostIncrementNode*>(value.get()); postIncrement != nullptr)
+     {
+          if (postIncrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(symbolTable, code, postIncrement->Operand());
+
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
+              postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ecpps::codegen::IntegerOperand{
+              postIncrement->IncrementValue(), postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(
+              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                             postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          code.emplace_back(ecpps::codegen::AddInstruction{
+              right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
+     }
 
      throw std::logic_error("Invalid expression");
 }

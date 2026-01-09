@@ -497,6 +497,28 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
 {
      runtime_assert(operand != nullptr, "Operand was null");
 
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin pre-increment operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<LValue>(
+              operandType,
+              std::make_unique<AdditionAssignNode>(
+                  std::move(operand),
+                  std::make_unique<PRValue>(operandType, std::make_unique<IntegralNode>(1, source), true), source),
+              false);
+     }
+
+     throw TracedException("Not implemented");
+
      return nullptr;
 }
 
@@ -507,12 +529,17 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
      {
-          return std::make_unique<PRValue>(
-              operandType,
-              std::make_unique<AdditionAssignNode>(
-                  std::move(operand),
-                  std::make_unique<PRValue>(operandType, std::make_unique<IntegralNode>(1, source), true), source),
-              false);
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin post-increment operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<PRValue>(operandType,
+                                           std::make_unique<PostIncrementNode>(std::move(operand), 1, source), false);
      }
 
      throw TracedException("Not implemented");

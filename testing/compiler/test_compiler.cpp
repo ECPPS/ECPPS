@@ -11,12 +11,16 @@ extern "C" void DebugBreak();
 int main()
 {
      int variable = 7;
-     variable++;
-     return variable;
+     int x = variable + 1234;
+     return x;
 }
 
 #ifdef __ecpps_version
-extern "C" void _EntryPoint() { ExitProcess(main()); }
+extern "C" void _EntryPoint()
+{
+     (((((ExitProcess)))))(((((main))))());
+     ;
+}
 #endif
 
 // NOLINTEND

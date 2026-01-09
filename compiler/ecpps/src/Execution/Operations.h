@@ -81,6 +81,26 @@ namespace ecpps::ir
           Expression _left;
           Expression _right;
      };
+     class PostIncrementNode final : public NodeBase
+     {
+     public:
+          explicit PostIncrementNode(Expression operand, std::size_t increment, Location source)
+              : NodeBase(NodeKind::Addition, source), _operand(std::move(operand)), _increment(increment)
+          {
+          }
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_operand->Value()->ToString(0) + " ++ " +
+                      std::to_string(this->_increment);
+          }
+
+     private:
+          Expression _operand;
+          std::size_t _increment;
+     };
 
      class SubtractionNode final : public NodeBase
      {

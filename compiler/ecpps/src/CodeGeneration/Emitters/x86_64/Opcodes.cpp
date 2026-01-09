@@ -375,21 +375,57 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t
 {
      std::vector<std::byte> binary{};
 
-     if (destination >= 8 || sourceRegister >= 8)
-          binary.push_back(static_cast<std::byte>(0x40 | (static_cast<int>(sourceRegister >= 8) << 2) |
-                                                  static_cast<int>(destination >= 8)));
+     // Determine if REX is needed
+     bool rexW = false; // 32-bit, so W = 0
+     bool rexR = sourceRegister >= 8;
+     bool rexB = destination >= 8;
 
-     binary.push_back(static_cast<std::byte>(0x89));
+     bool needsRex = rexW || rexR || rexB;
 
-     if (destinationOffset <= 0x7F)
+     // Push REX if needed
+     if (needsRex) { binary.push_back(static_cast<std::byte>(0x40 | (rexR << 2) | (rexB << 0))); }
+
+     binary.push_back(static_cast<std::byte>(0x89)); // mov r/m32, r32
+
+     // ModRM byte
+     std::uint8_t modrm{};
+     std::byte sib{};
+     bool useSib = (destination & 7) == 4; // RSP or R12 as base requires SIB
+
+     if (destinationOffset == 0 && (destination & 7) != 5) // no disp
      {
-          binary.push_back(static_cast<std::byte>(0x45 | ((sourceRegister & 7) << 3) | (destination & 7)));
-          binary.push_back(static_cast<std::byte>(destinationOffset));
+          modrm = static_cast<std::uint8_t>((sourceRegister & 7) << 3 | (destination & 7));
+     }
+     else if (destinationOffset <= 0xFF) // 8-bit displacement
+     {
+          modrm = static_cast<std::uint8_t>(0x40 | ((sourceRegister & 7) << 3) | (destination & 7));
+     }
+     else // 32-bit displacement
+     {
+          modrm = static_cast<std::uint8_t>(0x80 | ((sourceRegister & 7) << 3) | (destination & 7));
+     }
+
+     if (useSib)
+     {
+          modrm = (modrm & 0xC0) | 0x04 | ((sourceRegister & 7) << 3); // Mod bits + reg + rm=100
+          sib = static_cast<std::byte>(0x24 | ((rexB ? 1 << 2 : 0)));  // scale=0, index=4 (none), base=destination&7
+          binary.push_back(std::byte{modrm});
+          binary.push_back(sib);
      }
      else
      {
-          binary.push_back(static_cast<std::byte>(0x85 | ((sourceRegister & 7) << 3) | (destination & 7)));
-          for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((destinationOffset >> (i * 8)) & 0xFF));
+          binary.push_back(std::byte{modrm});
+     }
+
+     // Append displacement if needed
+     if (destinationOffset != 0 || (destination & 7) == 5) // displacement mandatory if base=RBP/R13
+     {
+          if (destinationOffset <= 0xFF) { binary.push_back(static_cast<std::byte>(destinationOffset & 0xFF)); }
+          else
+          {
+               for (int i = 0; i < 4; ++i)
+                    binary.push_back(static_cast<std::byte>((destinationOffset >> (i * 8)) & 0xFF));
+          }
      }
 
      return binary;
