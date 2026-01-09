@@ -74,16 +74,16 @@ jobs:
       - name: Build
         run: |
           if ("${{ matrix.compiler }}" -eq "msvc") {
-            cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
+            cmake --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
           } else { 
-            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
+            cmake --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
           }
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: build
+          path: out/build
 
   clang-tidy:
     name: Run clang-tidy
