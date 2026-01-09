@@ -126,7 +126,7 @@ jobs:
           $clangPath = (clang -print-resource-dir)
           $libDir = "$clangPath\\lib\\windows"
           $env:path += ";$libDir"
-          ctest --test-dir build/testing/compiler --output-on-failure -C Debug
+          ctest --test-dir out/build/testing/compiler --output-on-failure -C Debug
           
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
