@@ -413,9 +413,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t
           binary.push_back(sib);
      }
      else
-     {
           binary.push_back(std::byte{modrm});
-     }
 
      // Append displacement if needed
      if (destinationOffset != 0 || (destination & 7) == 5) // displacement mandatory if base=RBP/R13

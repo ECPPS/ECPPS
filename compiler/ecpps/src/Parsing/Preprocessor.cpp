@@ -28,9 +28,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                location.position = 0;
           }
           else
-          {
-               ++location.position;
-          }
+               location.position++;
      };
      auto AdvanceIf = [&](auto& it, char expected)
      {
