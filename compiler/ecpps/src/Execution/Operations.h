@@ -60,6 +60,27 @@ namespace ecpps::ir
           Expression _left;
           Expression _right;
      };
+     /// </summary>
+     class AdditionAssignNode final : public NodeBase
+     {
+     public:
+          explicit AdditionAssignNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) +
+                      " += " + this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
 
      class SubtractionNode final : public NodeBase
      {

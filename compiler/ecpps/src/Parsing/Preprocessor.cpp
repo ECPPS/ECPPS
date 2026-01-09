@@ -27,7 +27,10 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                ++location.line;
                location.position = 0;
           }
-          else { ++location.position; }
+          else
+          {
+               ++location.position;
+          }
      };
      auto AdvanceIf = [&](auto& it, char expected)
      {
@@ -473,7 +476,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           else if (IsOperatorOrPunctuatorBeginning(character))
           {
                std::string operatorOrPunctuator{character};
-               while (sourceIterator != source.end() && IsOperatorOrPunctuator(operatorOrPunctuator + *sourceIterator))
+               while (sourceIterator != source.end() &&
+                      IsOperatorOrPunctuator(operatorOrPunctuator + *std::next(sourceIterator)))
                {
                     ++sourceIterator;
                     operatorOrPunctuator += *sourceIterator;
@@ -526,8 +530,8 @@ bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::str
          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
 
-     // return OperatorsAndPunctuators.contains(string);
-     return false;
+     return OperatorsAndPunctuators.contains(string);
+     // return false;
 }
 
 bool ecpps::Preprocessor::IsOperatorOrPunctuatorBeginning(char ch)

@@ -11,9 +11,8 @@ extern "C" void DebugBreak();
 int main()
 {
      int variable = 7;
-     int* pointer = &variable;
-
-     return 1 + *(pointer);
+     variable++;
+     return variable;
 }
 
 #ifdef __ecpps_version

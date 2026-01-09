@@ -119,8 +119,10 @@ namespace ecpps::ir
                                                    const Location& source) const;
           static Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                  const Location& source);
-          Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
-          Expression ParseAddressOfExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParseAddressOfExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParsePreIncrementExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParsePostIncrementExpression(Expression operand, const Location& source) const;
 
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);

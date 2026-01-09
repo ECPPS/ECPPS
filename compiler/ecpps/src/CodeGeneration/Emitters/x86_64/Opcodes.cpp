@@ -1123,17 +1123,30 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem64(std::size_t
                                                                      std::uint32_t imm)
 {
      std::vector<std::byte> binary{};
-     binary.push_back(static_cast<std::byte>(0x48 | (reg >= 8 ? 0x01 : 0)));
-     binary.push_back(static_cast<std::byte>(0x81)); // opcode /0 for ADD
 
-     if (offset <= 0x7F)
+     const bool disp8 = offset <= 0x7F;
+     const bool needsSib = ((reg & 7) == 4); // RSP / R12
+
+     std::uint8_t rex = 0x48;   // REX.W
+     if (reg >= 8) rex |= 0x01; // REX.B
+     binary.push_back(static_cast<std::byte>(rex));
+
+     binary.push_back(static_cast<std::byte>(0x81)); // ADD r/m, imm32
+
+     const std::uint8_t mod = disp8 ? 0b01 : 0b10;
+     const std::uint8_t rm = needsSib ? 4 : (reg & 7);
+
+     binary.push_back(static_cast<std::byte>((mod << 6) | rm));
+
+     if (needsSib)
      {
-          binary.push_back(static_cast<std::byte>(0x45 | ((reg & 7) << 3)));
-          binary.push_back(static_cast<std::byte>(offset));
+          // scale=0, index=none(100), base=reg&7
+          binary.push_back(static_cast<std::byte>((0 << 6) | (4 << 3) | (reg & 7)));
      }
+
+     if (disp8) { binary.push_back(static_cast<std::byte>(offset)); }
      else
      {
-          binary.push_back(static_cast<std::byte>(0x85 | ((reg & 7) << 3)));
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
      }
 
@@ -1146,17 +1159,24 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem32(std::size_t
                                                                      std::uint32_t imm)
 {
      std::vector<std::byte> binary{};
-     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x41));
+
+     const bool disp8 = offset <= 0x7F;
+     const bool needsSib = ((reg & 7) == 4);
+
+     if (reg >= 8) binary.push_back(static_cast<std::byte>(0x41)); // REX.B
+
      binary.push_back(static_cast<std::byte>(0x81));
 
-     if (offset <= 0x7F)
-     {
-          binary.push_back(static_cast<std::byte>(0x45 | ((reg & 7) << 3)));
-          binary.push_back(static_cast<std::byte>(offset));
-     }
+     const std::uint8_t mod = disp8 ? 0b01 : 0b10;
+     const std::uint8_t rm = needsSib ? 4 : (reg & 7);
+
+     binary.push_back(static_cast<std::byte>((mod << 6) | rm));
+
+     if (needsSib) { binary.push_back(static_cast<std::byte>((0 << 6) | (4 << 3) | (reg & 7))); }
+
+     if (disp8) { binary.push_back(static_cast<std::byte>(offset)); }
      else
      {
-          binary.push_back(static_cast<std::byte>(0x85 | ((reg & 7) << 3)));
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
      }
 
@@ -1169,19 +1189,26 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem16(std::size_t
                                                                      std::uint16_t imm)
 {
      std::vector<std::byte> binary{};
-     binary.push_back(static_cast<std::byte>(0x66));
+
+     binary.push_back(static_cast<std::byte>(0x66)); // operand-size override
+
+     const bool disp8 = offset <= 0x7F;
+     const bool needsSib = ((reg & 7) == 4);
+
      if (reg >= 8) binary.push_back(static_cast<std::byte>(0x41));
 
      binary.push_back(static_cast<std::byte>(0x81));
 
-     if (offset <= 0x7F)
-     {
-          binary.push_back(static_cast<std::byte>(0x45 | ((reg & 7) << 3)));
-          binary.push_back(static_cast<std::byte>(offset));
-     }
+     const std::uint8_t mod = disp8 ? 0b01 : 0b10;
+     const std::uint8_t rm = needsSib ? 4 : (reg & 7);
+
+     binary.push_back(static_cast<std::byte>((mod << 6) | rm));
+
+     if (needsSib) { binary.push_back(static_cast<std::byte>((0 << 6) | (4 << 3) | (reg & 7))); }
+
+     if (disp8) { binary.push_back(static_cast<std::byte>(offset)); }
      else
      {
-          binary.push_back(static_cast<std::byte>(0x85 | ((reg & 7) << 3)));
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
      }
 
@@ -1195,17 +1222,29 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem8(std::size_t 
                                                                     std::uint8_t imm)
 {
      std::vector<std::byte> binary{};
-     if (reg >= 8 || (reg & 7) >= 4) binary.push_back(static_cast<std::byte>(0x40 | (reg >= 8 ? 0x01 : 0)));
+
+     const bool disp8 = offset <= 0x7F;
+     const bool needsSib = ((reg & 7) == 4);
+
+     if (reg >= 8 || (reg & 7) >= 4)
+     {
+          std::uint8_t rex = 0x40;
+          if (reg >= 8) rex |= 0x01;
+          binary.push_back(static_cast<std::byte>(rex));
+     }
+
      binary.push_back(static_cast<std::byte>(0x80));
 
-     if (offset <= 0x7F)
-     {
-          binary.push_back(static_cast<std::byte>(0x45 | ((reg & 7) << 3)));
-          binary.push_back(static_cast<std::byte>(offset));
-     }
+     const std::uint8_t mod = disp8 ? 0b01 : 0b10;
+     const std::uint8_t rm = needsSib ? 4 : (reg & 7);
+
+     binary.push_back(static_cast<std::byte>((mod << 6) | rm));
+
+     if (needsSib) { binary.push_back(static_cast<std::byte>((0 << 6) | (4 << 3) | (reg & 7))); }
+
+     if (disp8) { binary.push_back(static_cast<std::byte>(offset)); }
      else
      {
-          binary.push_back(static_cast<std::byte>(0x85 | ((reg & 7) << 3)));
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
      }
 

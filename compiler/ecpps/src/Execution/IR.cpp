@@ -16,6 +16,7 @@
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "Parsing/AST.h"
 #include "Procedural.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
@@ -438,6 +439,8 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
 // indirection
 Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const Location& source) const
 {
+     runtime_assert(operand != nullptr, "Operand was null");
+
      auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(operand->Type());
 
      if (pointerType == nullptr)
@@ -468,6 +471,8 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
 
 Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Location& source) const
 {
+     runtime_assert(operand != nullptr, "Operand was null");
+
      if (!operand->IsLValue())
      {
 
@@ -488,6 +493,30 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
      return std::make_unique<PRValue>(std::move(pointerType),
                                       std::make_unique<AddressOfNode>(std::move(operand), source), false);
 }
+Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     return nullptr;
+}
+
+Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          return std::make_unique<PRValue>(
+              operandType,
+              std::make_unique<AdditionAssignNode>(
+                  std::move(operand),
+                  std::make_unique<PRValue>(operandType, std::make_unique<IntegralNode>(1, source), true), source),
+              false);
+     }
+
+     throw TracedException("Not implemented");
+}
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
 {
@@ -501,6 +530,10 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
      case ast::Operator::Minus: throw TracedException(std::logic_error("Not implemented"));
      case ast::Operator::Asterisk: return this->ParseDereferenceExpression(std::move(operand), node.Source());
      case ast::Operator::Ampersand: return this->ParseAddressOfExpression(std::move(operand), node.Source());
+     case ast::Operator::Increment:
+          return node.UnaryType() == ast::UnaryOperatorType::Prefix
+                     ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
+                     : this->ParsePostIncrementExpression(std::move(operand), node.Source());
      default: throw TracedException(std::logic_error("Invalid unary operator"));
      }
 }

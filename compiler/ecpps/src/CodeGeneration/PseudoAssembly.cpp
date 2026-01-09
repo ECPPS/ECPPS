@@ -80,6 +80,28 @@ static ecpps::codegen::Operand ParseExpression(
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
+     if (auto* const addition = dynamic_cast<ecpps::ir::AdditionAssignNode*>(value.get()); addition != nullptr)
+     {
+          if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(symbolTable, code, addition->Left());
+
+          auto destinationStorage = left;
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+              std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+               return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(ecpps::codegen::AddInstruction{
+              right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return destinationStorage;
+     }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
@@ -479,6 +501,26 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
                     instructions.emplace_back(
                         ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
                }
+          }
+          else if (auto* const addition = dynamic_cast<ecpps::ir::AdditionAssignNode*>(line.get()); addition != nullptr)
+          {
+               if (addition->Left() == nullptr || addition->Right() == nullptr) continue;
+
+               const auto left = ParseExpression(symbolTable, instructions, addition->Left());
+
+               const auto& destinationStorage = left;
+
+               std::vector<Instruction> codeBuffer{};
+               const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+
+               if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+                   std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+                    continue;
+
+               instructions.append_range(codeBuffer);
+
+               instructions.emplace_back(ecpps::codegen::AddInstruction{
+                   right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
           }
      }
 
