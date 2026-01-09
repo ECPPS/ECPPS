@@ -45,10 +45,10 @@ jobs:
         include:
           - compiler: msvc
             name: msvc
-          - compiler: clang
+          - compiler: Clang
             name: clang20
             llvm_version: 20.1.8
-          - compiler: clang-cl
+          - compiler: Clang-cl
             name: clang20-cl
             llvm_version: 20.1.8
     name: Windows / ${{ matrix.name }} / ${{ matrix.build_type }}
