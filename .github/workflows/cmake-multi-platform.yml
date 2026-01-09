@@ -118,7 +118,7 @@ jobs:
           }
           
       - name: Run tests (Clang ASan)
-        if: ${{ matrix.compiler != 'msvc' && matrix.build_type == 'Debug' }}
+        if: ${{ matrix.compiler == 'Clang' && matrix.build_type == 'Debug' }}
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS="abort_on_error=1"
@@ -126,7 +126,7 @@ jobs:
           $clangPath = (clang -print-resource-dir)
           $libDir = "$clangPath\\lib\\windows"
           $env:path += ";$libDir"
-          ctest --test-dir out/build/testing/compiler --output-on-failure -C Debug
+          ctest --test-dir out/build/x64-Clang-Debug --output-on-failure -C Debug
           
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
