@@ -76,6 +76,36 @@
 				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
 			}
+		},
+		{
+			"name": "x64-Clang-cl-Debug-ASan",
+			"description": "Debug build using Clang-cl x64 with AddressSanitizer",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug-ASan",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug-ASan",
+				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_C_FLAGS": "/fsanitize=address",
+				"CMAKE_CXX_FLAGS": "/fsanitize=address"
+			}
+		},
+		{
+			"name": "x64-Clang-Debug-ASan",
+			"description": "Debug build using regular Clang x64 with AddressSanitizer",
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-ASan",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-ASan",
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++",
+				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+				"CMAKE_C_FLAGS": "-fsanitize=address",
+				"CMAKE_CXX_FLAGS": "-fsanitize=address"
+			}
 		}
 	],
 	"buildPresets": [
@@ -113,6 +143,18 @@
 			"name": "x64-Clang-Release Parallel",
 			"configurePreset": "x64-Clang-Release",
 			"description": "Parallel build using all cores",
+			"jobs": 8
+		},
+		{
+			"name": "x64-Clang-cl-Debug-ASan Parallel",
+			"configurePreset": "x64-Clang-cl-Debug-ASan",
+			"description": "Parallel ASan build using all cores",
+			"jobs": 8
+		},
+		{
+			"name": "x64-Clang-Debug-ASan Parallel",
+			"configurePreset": "x64-Clang-Debug-ASan",
+			"description": "Parallel ASan build using all cores",
 			"jobs": 8
 		}
 	]

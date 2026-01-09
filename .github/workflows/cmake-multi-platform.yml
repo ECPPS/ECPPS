@@ -94,25 +94,26 @@ jobs:
               $clangResDir = (clang -print-resource-dir)
               $libDir = "$clangResDir/lib/windows"
 
-              $sanFlags = @()
               if ($enableClangSan) {
-                  $sanFlags += "-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer"
-                  $asanLib = "$libPath\clang_rt.asan-x86_64.lib"
-                  $ubsanLib = "$libPath\clang_rt.ubsan_standalone-x86_64.lib"
-                  
-                  $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
-
+                cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}-ASan
               }
-              cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }} $sanFlags
+              else {
+                cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
+              }
           } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
               cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
           }
 
 
       - name: Build
-        run: |
+        run: |		    
+          $enableClangSan = (-not $isFeature) -and $isDebug -and ("${{ matrix.compiler }}" -eq "clang")
           if ("${{ matrix.compiler }}" -eq "msvc") {
             cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
+          } else { 
+            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
+          } elseif ($enableClangSan) { 
+            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-ASan Parallel" --parallel
           } else { 
             cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
           }
