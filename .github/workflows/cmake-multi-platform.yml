@@ -106,13 +106,12 @@ jobs:
 
 
       - name: Build
-        run: |		    
+        shell: pwsh
+        run: |
           $enableClangSan = (-not $isFeature) -and $isDebug -and ("${{ matrix.compiler }}" -eq "clang")
           if ("${{ matrix.compiler }}" -eq "msvc") {
             cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
-          } else { 
-            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
-          } elseif ($enableClangSan) { 
+          } elseif ($enableClangSan) {
             cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-ASan Parallel" --parallel
           } else { 
             cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel

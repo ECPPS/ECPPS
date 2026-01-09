@@ -98,7 +98,7 @@
 			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-ASan",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-ASan",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug",
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++",
 				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
