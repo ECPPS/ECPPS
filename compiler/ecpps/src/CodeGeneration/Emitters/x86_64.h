@@ -48,6 +48,11 @@ namespace ecpps::codegen::emitters
           static std::vector<std::byte> operator()(X8664Emitter* self, const DivInstruction& div);
      };
 
+     template <OperandCombination> struct EmitSpecificLeaImpl
+     {
+          static std::vector<std::byte> operator()(X8664Emitter* self, const TakeAddressInstruction& div);
+     };
+
      class X8664Emitter final : public CodeEmitter
      {
      public:
@@ -63,6 +68,7 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitSub(const SubInstruction& sub) override;
           [[nodiscard]] std::vector<std::byte> EmitMul(const MulInstruction& mul) override;
           [[nodiscard]] std::vector<std::byte> EmitDiv(const DivInstruction& div) override;
+          [[nodiscard]] std::vector<std::byte> EmitLea(const TakeAddressInstruction& lea) override;
           [[nodiscard]] std::vector<std::byte> EmitCall(const CallInstruction& call) override;
           [[nodiscard]] std::vector<std::byte> EmitReturn(void) override;
 
@@ -98,6 +104,12 @@ namespace ecpps::codegen::emitters
                return EmitSpecificDivImpl<TOperandCombination>{}(this, div);
           }
 
+          template <OperandCombination TOperandCombination>
+          [[nodiscard]] std::vector<std::byte> EmitSpecificLea(const TakeAddressInstruction& lea)
+          {
+               return EmitSpecificLeaImpl<TOperandCombination>{}(this, lea);
+          }
+
           // x86 operand conventions
           static std::size_t RegisterToIndex(const RegisterOperand& register_);
 
@@ -107,5 +119,6 @@ namespace ecpps::codegen::emitters
           template <OperandCombination> friend struct EmitSpecificSubImpl;
           template <OperandCombination> friend struct EmitSpecificMulImpl;
           template <OperandCombination> friend struct EmitSpecificDivImpl;
+          template <OperandCombination> friend struct EmitSpecificLeaImpl;
      };
 } // namespace ecpps::codegen::emitters

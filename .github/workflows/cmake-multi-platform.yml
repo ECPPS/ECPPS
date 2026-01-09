@@ -49,15 +49,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [msvc, clang, clang-cl]
+        compiler: [msvc, Clang, Clang-cl]
         build_type: [Debug, Release]
         include:
           - compiler: msvc
             name: msvc
-          - compiler: clang
+          - compiler: Clang
             name: clang20
             llvm_version: 20.1.8
-          - compiler: clang-cl
+          - compiler: Clang-cl
             name: clang20-cl
             llvm_version: 20.1.8
     name: Windows / ${{ matrix.name }} / ${{ matrix.build_type }}
@@ -89,10 +89,7 @@ jobs:
           if ("${{ matrix.compiler }}" -eq "msvc") {
               $asanFlags = ""
               if ($enableMsvcSan) { $asanFlags = "-DCMAKE_CXX_FLAGS=/fsanitize=address" }
-              cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
-                -DCMAKE_CXX_STANDARD=23 `
-                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
-                $asanFlags
+              cmake -S . -G "Visual Studio 17 2022" --preset "x64-${{ matrix.build_type }} MSVC" $asanFlags
           } elseif ("${{ matrix.compiler }}" -eq "clang") {
               $clangResDir = (clang -print-resource-dir)
               $libDir = "$clangResDir/lib/windows"
@@ -106,24 +103,20 @@ jobs:
                   $sanFlags += "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address"
 
               }
-              cmake -S . -B build -G Ninja `
-                -DCMAKE_C_COMPILER=clang `
-                -DCMAKE_CXX_COMPILER=clang++ `
-                -DCMAKE_CXX_STANDARD=23 `
-                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
-                $sanFlags
+              cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }} $sanFlags
           } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
-              cmake -S . -B build -G Ninja `
-                -DCMAKE_C_COMPILER=clang-cl `
-                -DCMAKE_CXX_COMPILER=clang-cl `
-                -DCMAKE_CXX_STANDARD=23 `
-                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+              cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
           }
 
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} --parallel
-      
+        run: |
+          if ("${{ matrix.compiler }}" -eq "msvc") {
+            cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
+          } else { 
+            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
+          }
+          
       - name: Run tests (Clang ASan)
         if: ${{ matrix.compiler != 'msvc' && matrix.build_type == 'Debug' }}
         shell: pwsh
@@ -134,12 +127,12 @@ jobs:
           $libDir = "$clangPath\\lib\\windows"
           $env:path += ";$libDir"
           ctest --test-dir build/testing/compiler --output-on-failure -C Debug
-
+          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: build
+          path: out/build
 
   clang-tidy:
     name: Run clang-tidy
@@ -186,5 +179,5 @@ jobs:
         shell: bash
         run: |
           for cfg in Debug Release; do
-            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
+            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir out/build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
           done

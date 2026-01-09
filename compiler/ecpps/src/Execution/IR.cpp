@@ -1,5 +1,6 @@
 #include "IR.h"
 #include <Assert.h>
+#include <TypeSystem/TypeBase.h>
 #include <format>
 #include <memory>
 #include <queue>
@@ -15,6 +16,7 @@
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "Parsing/AST.h"
 #include "Procedural.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
@@ -434,7 +436,134 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
      return {};
 }
 
-Expression ecpps::ir::IR::ParseUnaryExpression([[maybe_unused]] const ast::UnaryOperatorNode& node) { return nullptr; }
+// indirection
+Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(operand->Type());
+
+     if (pointerType == nullptr)
+     {
+          // TODO: Classes
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Cannot perform this unary operation on " + operand->Type()->Name(), operand->Value()->Source()));
+
+          return nullptr;
+     }
+
+     // TODO: lvalue-to-rvalue conversions
+     // if (!operand->IsPRValue())
+     // {
+
+     //      this->_context.diagnostics.get().diagnosticsList.push_back(
+     //          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+     //              "A prvalue is required for an indirection", operand->Value()->Source()));
+
+     //      return nullptr;
+     // }
+
+     return std::make_unique<LValue>(pointerType->BaseType(),
+                                     std::make_unique<DereferenceNode>(std::move(operand), source), false);
+}
+
+Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     if (!operand->IsLValue())
+     {
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "An lvalue is required for a the address-of operator", operand->Value()->Source()));
+
+          return nullptr;
+     }
+
+     // TODO:
+     // 1. pointer-to-member
+     // 2. function pointer
+
+     auto pointerType = std::make_unique<typeSystem::PointerType>(operand->Type(), operand->Type()->Name() + "*",
+                                                                  typeSystem::Qualifiers::None);
+
+     return std::make_unique<PRValue>(std::move(pointerType),
+                                      std::make_unique<AddressOfNode>(std::move(operand), source), false);
+}
+Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin pre-increment operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<LValue>(
+              operandType,
+              std::make_unique<AdditionAssignNode>(
+                  std::move(operand),
+                  std::make_unique<PRValue>(operandType, std::make_unique<IntegralNode>(1, source), true), source),
+              false);
+     }
+
+     throw TracedException("Not implemented");
+
+     return nullptr;
+}
+
+Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin post-increment operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<PRValue>(operandType,
+                                           std::make_unique<PostIncrementNode>(std::move(operand), 1, source), false);
+     }
+
+     throw TracedException("Not implemented");
+}
+
+Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
+{
+     const auto operator_ = node.Value();
+     auto operand = ParseExpression(node.Operand());
+     if (operand == nullptr) return nullptr;
+
+     switch (operator_)
+     {
+     case ast::Operator::Plus:
+     case ast::Operator::Minus: throw TracedException(std::logic_error("Not implemented"));
+     case ast::Operator::Asterisk: return this->ParseDereferenceExpression(std::move(operand), node.Source());
+     case ast::Operator::Ampersand: return this->ParseAddressOfExpression(std::move(operand), node.Source());
+     case ast::Operator::Increment:
+          return node.UnaryType() == ast::UnaryOperatorType::Prefix
+                     ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
+                     : this->ParsePostIncrementExpression(std::move(operand), node.Source());
+     default: throw TracedException(std::logic_error("Invalid unary operator"));
+     }
+}
 
 Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& node)
 {
@@ -455,7 +584,7 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
      case ast::Operator::LeftShift:
      case ast::Operator::RightShift:
           return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
-     default: throw TracedException(std::logic_error("Invalid operator for bit-shifting"));
+     default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 
      return nullptr;
@@ -576,6 +705,9 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
      if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);
+     if (auto* const unaryExpression = dynamic_cast<ast::UnaryOperatorNode*>(expression.get());
+         unaryExpression != nullptr)
+          return this->ParseUnaryExpression(*unaryExpression);
      if (auto* const functionCall = dynamic_cast<ast::CallOperatorNode*>(expression.get()); functionCall != nullptr)
           return this->ParseCallExpression(*functionCall);
      if (auto* const identifier = dynamic_cast<ast::IdentifierNode*>(expression.get()); identifier != nullptr)
@@ -689,7 +821,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
      return result;
 }
 
-Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::TypePointer& toType) const
+Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::TypePointer& toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
 
@@ -723,8 +855,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression&& expression, const typeSystem::T
      return nullptr;
 }
 
-Expression ecpps::ir::IR::ConvertIntegral(Expression&& expression,
-                                          const std::shared_ptr<typeSystem::IntegralType>& type)
+Expression ecpps::ir::IR::ConvertIntegral(Expression expression, const std::shared_ptr<typeSystem::IntegralType>& type)
 {
      const auto& expressionType = expression->Type();
      const auto& source = expression->Value()->Source();

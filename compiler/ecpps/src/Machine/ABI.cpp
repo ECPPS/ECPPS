@@ -492,6 +492,8 @@ std::unique_ptr<ecpps::abi::CallTemporaryProxy> ecpps::abi::MicrosoftX64CallingC
                continue;
           }
      }
+     runtime_assert(rcx != nullptr && rdx != nullptr && r8 != nullptr && r9 != nullptr,
+                    "Cannot find volatile registers");
      std::bitset<4> savedRegisters{};
 
      if (wasRcxUsed)
@@ -597,6 +599,8 @@ void ecpps::abi::WindowsABICallProxy::End(std::vector<ecpps::codegen::Instructio
      const auto& registers = abi.VirtualRegisters();
      for (const auto& reg : registers)
      {
+          if (reg->width != pointerWidth) continue;
+
           if (rcx != nullptr && rdx != nullptr && r8 != nullptr && r9 != nullptr) break;
 
           if (reg->physical->friendlyName == "rcx")
@@ -620,6 +624,8 @@ void ecpps::abi::WindowsABICallProxy::End(std::vector<ecpps::codegen::Instructio
                continue;
           }
      }
+     runtime_assert(rcx != nullptr && rdx != nullptr && r8 != nullptr && r9 != nullptr,
+                    "Cannot find volatile registers");
 
      if (wasRcxUsed)
           instructions.emplace_back(ecpps::codegen::MovInstruction{

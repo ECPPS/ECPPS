@@ -777,10 +777,10 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(void)
           }
           if (currentToken.type == TokenType::LeftParenthesis)
           {
-               Advance();
                SBOVector<NodePointer> argumentList{}; // TODO: Initialiser lists; for now expressions only
                while (!AtEnd())
                {
+                    Advance();
                     if (Match(TokenType::RightParenthesis)) break;
                     argumentList.Push(ParseExpression());
                     if (AtEnd() || Match(TokenType::RightParenthesis)) break;

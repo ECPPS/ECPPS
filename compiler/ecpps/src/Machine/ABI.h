@@ -94,7 +94,7 @@ namespace ecpps::abi
      struct WindowsABICallProxy final : CallTemporaryProxy
      {
           explicit WindowsABICallProxy(const std::bitset<4> savedRegisters) : _savedRegisters(savedRegisters) {}
-          virtual void End(std::vector<ecpps::codegen::Instruction>& instructions);
+          void End(std::vector<ecpps::codegen::Instruction>& instructions) override;
 
      private:
           std::bitset<4> _savedRegisters;
