@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [msvc, clang, clang-cl]
+        compiler: [msvc, Clang, Clang-cl]
         build_type: [Debug, Release]
         include:
           - compiler: msvc
