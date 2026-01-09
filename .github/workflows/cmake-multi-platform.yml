@@ -72,7 +72,7 @@ jobs:
           }
 
       - name: Build
-        run: cmake --build build --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }} --parallel
+        run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
