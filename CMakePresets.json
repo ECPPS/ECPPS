@@ -173,13 +173,13 @@
 			"jobs": 8
 		},
 		{
-			"name": "x64-Clang-cl-Debug-ASan-Parallel",
-			"configurePreset": "x64-Clang-cl-Debug-ASan",
+			"name": "x64-Clang-Debug-Parallel",
+			"configurePreset": "x64-Clang-Debug",
 			"jobs": 8
 		},
 		{
-			"name": "Linux-Clang-Debug-Parallel",
-			"configurePreset": "Linux-Clang-Debug",
+			"name": "x64-Clang-cl-Debug-Parallel",
+			"configurePreset": "x64-Clang-cl-Debug",
 			"jobs": 8
 		},
 		{
@@ -188,13 +188,13 @@
 			"jobs": 8
 		},
 		{
-			"name": "x64-Clang-cl-Release-ASan-Parallel",
-			"configurePreset": "x64-Clang-cl-Release-ASan",
+			"name": "x64-Clang-Release-Parallel",
+			"configurePreset": "x64-Clang-Release",
 			"jobs": 8
 		},
 		{
-			"name": "Linux-Clang-Release-Parallel",
-			"configurePreset": "Linux-Clang-Release",
+			"name": "x64-Clang-cl-Release-Parallel",
+			"configurePreset": "x64-Clang-cl-Release",
 			"jobs": 8
 		}
 	]
