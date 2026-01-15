@@ -181,6 +181,21 @@
 			"name": "Linux-Clang-Debug-Parallel",
 			"configurePreset": "Linux-Clang-Debug",
 			"jobs": 8
+		},
+		{
+			"name": "x64-MSVC-Release-Parallel",
+			"configurePreset": "x64-MSVC-Release",
+			"jobs": 8
+		},
+		{
+			"name": "x64-Clang-cl-Release-ASan-Parallel",
+			"configurePreset": "x64-Clang-cl-Release-ASan",
+			"jobs": 8
+		},
+		{
+			"name": "Linux-Clang-Release-Parallel",
+			"configurePreset": "Linux-Clang-Release",
+			"jobs": 8
 		}
 	]
 }
