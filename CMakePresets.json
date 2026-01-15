@@ -131,6 +131,14 @@
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug-ASan"
 			}
+		},		
+		{
+			"name": "x64-Clang-cl-Release",
+			"inherits": [ "base", "clang-cl", "relwithdebinfo" ],
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug-ASan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug-ASan"
+			}
 		},
 		{
 			"name": "x64-Clang-Debug",
