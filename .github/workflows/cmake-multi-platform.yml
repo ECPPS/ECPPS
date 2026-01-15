@@ -52,7 +52,7 @@ jobs:
         compiler: [msvc, Clang, Clang-cl]
         build_type: [Debug, Release]
         include:
-          - compiler: msvc
+          - compiler: MSVC
             name: msvc
           - compiler: Clang
             name: clang20
@@ -76,7 +76,7 @@ jobs:
         run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
       - name: Build
         shell: pwsh
-        run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}" --parallel
+        run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
           
       - name: Run tests (Clang ASan)
         if: ${{ matrix.compiler == 'MSVC' && matrix.build_type == 'Debug' }}
