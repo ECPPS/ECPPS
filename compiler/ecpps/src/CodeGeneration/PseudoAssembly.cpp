@@ -438,6 +438,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
 
      std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>> symbolTable{};
 
+     symbolTable.reserve(node.Locals().size());
      for (const auto& decl : node.Locals())
      {
           // TODO: static & extern

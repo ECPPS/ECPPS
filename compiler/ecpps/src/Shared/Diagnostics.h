@@ -1,6 +1,11 @@
 #pragma once
 
+#ifdef _WIN32
 #include <Windows.h>
+#elifdef __linux__
+#include <execinfo.h>
+#endif
+#include <platformlib/platformlib.h>
 #include <array>
 #include <string>
 #include <vector>
@@ -36,15 +41,25 @@ namespace ecpps
      private:
           void CaptureStack(void)
           {
-               constexpr ULONG MaxFrames = 64;
+               constexpr std::size_t MaxFrames = 64;
                std::array<void*, MaxFrames> frames{};
-               USHORT captured = CaptureStackBackTrace(0, MaxFrames, frames.data(), nullptr);
+
+#ifdef _WIN32
+               const USHORT captured = CaptureStackBackTrace(0, static_cast<ULONG>(MaxFrames), frames.data(), nullptr);
                trace.assign(frames.data(), frames.data() + captured);
+#elifdef __linux__
+               const int captured = ::backtrace(frames.data(), static_cast<int>(MaxFrames));
+               if (captured > 0) trace.assign(frames.data(), frames.data() + captured);
+               else
+                    trace.clear();
+#else
+               trace.clear();
+#endif
           }
      };
 
      void IssueICE(const TracedException& ex);
-     void IssueICE(std::string_view message, CONTEXT* defaultContext);
+     void IssueICE(std::string_view message, platformlib::DebuggerContext* defaultContext);
 } // namespace ecpps
 
 using ecpps::TracedException;

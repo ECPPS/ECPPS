@@ -6,6 +6,14 @@
 
 namespace ecpps
 {
+     enum struct CompilerStrategy : std::uint8_t
+     {
+          HighMemory = 0, // the default
+          Multithreaded = 1,
+          LowMemory = 2
+     };
+     inline CompilerStrategy compilerStrategy{};
+
      enum struct LinkerUsed : std::uint_fast8_t
      {
           Windows64,

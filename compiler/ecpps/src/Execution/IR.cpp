@@ -136,6 +136,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
 void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& node)
 {
      std::vector<FunctionScope::Parameter> parameters{};
+     parameters.reserve(node.Signature().parameters.parameters.size());
      for (const auto& param : node.Signature().parameters.parameters)
      {
           parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
@@ -837,7 +838,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
           return nullptr;
      }
 
-     if (comparison.Sequence().Size() == 0) return std::move(expression);
+     if (comparison.Sequence().Size() == 0) return expression;
 
      if (comparison.Sequence().Size() == 1)
      {

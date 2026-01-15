@@ -57,6 +57,7 @@ if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unused-function
         -std=c++23
         $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:RelWithDebInfo>:-O3>
     )
 endif()
 

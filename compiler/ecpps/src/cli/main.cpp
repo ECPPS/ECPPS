@@ -1,4 +1,7 @@
+#ifdef _WIN32
 #include <Windows.h>
+#endif
+
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -27,6 +30,13 @@
 #undef max
 #endif
 
+#ifdef _WIN32
+
+template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platformlib::DebuggerContext, CONTEXT>
+{
+     constexpr static bool IsValid = true;
+};
+
 LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
 {
      switch (ExceptionInfo->ExceptionRecord->ExceptionCode)
@@ -40,14 +50,16 @@ LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
           else
                built = std::format("Access violation reading {}", faultingAddress);
 
-          ecpps::IssueICE(built, ExceptionInfo->ContextRecord);
+          ecpps::IssueICE(built, &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
      }
      break;
-     case EXCEPTION_INT_DIVIDE_BY_ZERO: ecpps::IssueICE("Divide by zero", ExceptionInfo->ContextRecord); break;
+     case EXCEPTION_INT_DIVIDE_BY_ZERO:
+          ecpps::IssueICE("Divide by zero", &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
+          break;
      default:
           ecpps::IssueICE(
               std::format("Unhandled exception has occurred: {}", ExceptionInfo->ExceptionRecord->ExceptionCode),
-              ExceptionInfo->ContextRecord);
+              &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
           break;
      }
 
@@ -62,6 +74,7 @@ static void EnableVirtualProcessing(void)
      consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
      SetConsoleMode(hConsoleOutput, consoleMode);
 }
+#endif
 
 int main(int argc, char* argv[])
 {

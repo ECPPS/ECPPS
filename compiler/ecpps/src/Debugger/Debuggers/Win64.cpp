@@ -17,27 +17,7 @@ enum struct PromptResult : std::uint_fast8_t
      None
 };
 
-static std::uint64_t ResolveRegister(const CONTEXT& ctx, const std::string& name)
-{
-     if (name == "rip") return ctx.Rip;
-     if (name == "rsp") return ctx.Rsp;
-     if (name == "rbp") return ctx.Rbp;
-     if (name == "rax") return ctx.Rax;
-     if (name == "rbx") return ctx.Rbx;
-     if (name == "rcx") return ctx.Rcx;
-     if (name == "rdx") return ctx.Rdx;
-     if (name == "rsi") return ctx.Rsi;
-     if (name == "rdi") return ctx.Rdi;
-     if (name == "r8") return ctx.R8;
-     if (name == "r9") return ctx.R9;
-     if (name == "r10") return ctx.R10;
-     if (name == "r11") return ctx.R11;
-     if (name == "r12") return ctx.R12;
-     if (name == "r13") return ctx.R13;
-     if (name == "r14") return ctx.R14;
-     if (name == "r15") return ctx.R15;
-     return 0;
-}
+static std::uint64_t ResolveRegister(const CONTEXT& ctx, const std::string& name) { return 0; }
 
 static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
 {
