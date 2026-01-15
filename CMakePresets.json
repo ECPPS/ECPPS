@@ -49,7 +49,11 @@
 		{
 			"name": "msvc",
 			"hidden": true,
-			"inherits": [ "windows" ]
+			"inherits": [ "windows" ],
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "cl",
+				"CMAKE_CXX_COMPILER": "cl"
+			}
 		},
 		{
 			"name": "clang-cl",
