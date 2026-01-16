@@ -67,9 +67,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
 	   -Wno-shadow-uncaptured-local
 	   -Wno-comma
 	   -Wno-nrvo
-		-Wno-unknown-warning-option
+	   -Wno-unknown-warning-option
 	   -Wno-undefined-func-template
 	   -Wno-nonportable-system-include-path
+	   -Wno-c++20-compat
     )
 endif()
 
