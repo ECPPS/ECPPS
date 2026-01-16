@@ -26,7 +26,13 @@
 				"CMAKE_BUILD_TYPE": "RelWithDebInfo"
 			}
 		},
-
+		{
+			"name": "release",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
+		},
 		{
 			"name": "windows",
 			"hidden": true,
@@ -86,7 +92,7 @@
 			"hidden": true,
 			"cacheVariables": {
 				"CMAKE_C_FLAGS": "/fsanitize=address",
-				"CMAKE_CXX_FLAGS": "/fsanitize=address"
+				"CMAKE_CXX_FLAGS": "/fsanitize=address /fsanitize=fuzzer"
 			}
 		},
 		{
@@ -132,14 +138,6 @@
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug"
 			}
 		},
-		{
-			"name": "x64-Clang-cl-Debug-ASan",
-			"inherits": [ "x64-Clang-cl-Debug", "asan-windows" ],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug-ASan",
-			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug-ASan"
-			}
-		},		
 		{
 			"name": "x64-Clang-cl-Release",
 			"inherits": [ "base", "clang-cl", "relwithdebinfo" ],
