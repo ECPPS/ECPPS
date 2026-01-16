@@ -53,7 +53,7 @@ jobs:
         build_type: [Debug, Release]
         include:
           - compiler: MSVC
-            name: MSVC
+            name: msvc
           - compiler: Clang
             name: clang20
             llvm_version: 20.1.8
