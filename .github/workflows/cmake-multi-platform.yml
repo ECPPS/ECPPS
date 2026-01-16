@@ -47,7 +47,7 @@ jobs:
     runs-on: windows-latest
     needs: clang-format
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         compiler: [MSVC, Clang, Clang-cl]
         build_type: [Debug, Release]
@@ -71,6 +71,10 @@ jobs:
           choco install llvm --version=${{ matrix.llvm_version }} -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
+      - name: Setup MSVC Developer Environment
+        if: matrix.compiler == 'MSVC'
+        uses: microsoft/setup-msvc@v1
+					    
       - name: Configure
         shell: pwsh
         run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
