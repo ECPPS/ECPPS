@@ -33,6 +33,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
     add_compile_options(
         -Weverything
+	   -Werror
         -Wno-padded
         -Wno-missing-prototypes
         -Wno-unused-parameter
@@ -41,6 +42,35 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
         -Wno-potentially-evaluated-expression
         -Wno-unused-private-field
         -Wno-unused-function
+	   -Wno-c++98-compat
+	   -Wno-c++98-compat-pedantic
+	   -Wno-pre-c++17-compat
+	   -Wno-pre-c++23-compat
+	   -Wno-shadow-field-in-constructor
+	   -Wno-ctad-maybe-unsupported
+	   -Wno-missing-noreturn
+	   -Wno-reserved-macro-identifier
+	   -Wno-reserved-identifier
+	   -Wno-implicit-int-conversion
+	   -Wno-undefined-reinterpret-cast # pretty naive of it to assume every reinterpret_cast is undefined...
+	   -Wno-sign-conversion
+	   -Wno-unique-object-duplication
+	   -Wno-exit-time-destructors
+	   -Wno-switch-enum
+	   -Wno-covered-switch-default
+	   -Wno-unsafe-buffer-usage-in-libc-call
+	   -Wno-unsafe-buffer-usage
+	   -Wno-switch-default
+	   -Wno-global-constructors
+	   -Wno-unused-macros
+	   -Wno-deprecated-copy-with-dtor
+	   -Wno-shadow-uncaptured-local
+	   -Wno-comma
+	   -Wno-nrvo
+	   -Wno-unknown-warning-option
+	   -Wno-undefined-func-template
+	   -Wno-nonportable-system-include-path
+	   -Wno-c++20-compat
     )
 endif()
 
@@ -57,6 +87,7 @@ if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unused-function
         -std=c++23
         $<$<CONFIG:Release>:-O3>
+        $<$<CONFIG:RelWithDebInfo>:-O3>
     )
 endif()
 
@@ -73,7 +104,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
     ERROR_QUIET
 )
 
-
+enable_testing()
 add_subdirectory(compiler)
 add_subdirectory(stdlib)
 add_subdirectory(testing)

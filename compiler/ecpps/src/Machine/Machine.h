@@ -18,7 +18,7 @@ namespace ecpps::abi
           ARM64,
      };
 
-     enum struct SimdFeatures : std::uint_fast16_t
+     enum struct SimdFeatures : std::uint_fast32_t
      {
           None = 0,
 

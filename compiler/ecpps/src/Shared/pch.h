@@ -8,7 +8,10 @@
 #pragma clang diagnostic ignored "-Weverything"
 #endif
 
-#include <corecrt.h>
+#ifdef _WIN32
+#include <corecrt.h> // NOLINT
+#endif
+
 #include <algorithm>     // NOLINT
 #include <chrono>        // NOLINT
 #include <concepts>      // NOLINT
@@ -37,9 +40,11 @@
 #include <variant>       // NOLINT
 #include <vector>        // NOLINT
 
+#ifdef _WIN32
 #include <Windows.h>
 
 #include <DbgHelp.h>
+#endif
 
 // NOLINTEND()
 #ifdef __clang__

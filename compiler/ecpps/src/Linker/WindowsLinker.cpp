@@ -72,7 +72,6 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
 {
      if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second;
 
-     std::uint32_t iltPtr = 0;
      std::uint32_t iatPtr = 0;
      std::uint32_t currentNameOffset = 0;
 
@@ -85,7 +84,6 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
      const size_t iatOffset = intOffset + (totalThunks * sizeof(std::uint64_t));
      size_t nameOffset = AlignUp(iatOffset + (totalThunks * sizeof(std::uint64_t)), 2UZ);
 
-     iltPtr = static_cast<std::uint32_t>(intOffset);
      iatPtr = static_cast<std::uint32_t>(iatOffset);
      currentNameOffset = static_cast<std::uint32_t>(nameOffset);
 

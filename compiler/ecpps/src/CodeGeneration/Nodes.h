@@ -4,7 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include "..\Machine\Storage.h"
+#include "../Machine/Storage.h"
 
 namespace ecpps::codegen
 {

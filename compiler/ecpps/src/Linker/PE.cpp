@@ -1,6 +1,7 @@
 #include "PE.h"
-#include <Windows.h>
+#ifdef _WIN32
 #include <corecrt.h>
+#endif
 #include <algorithm>
 #include <concepts>
 #include <cstddef>
@@ -11,10 +12,119 @@
 #include <string>
 #include <vector>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-to-enum, modernize-macro-to-enum)
+
+#define IMAGE_SIZEOF_FILE_HEADER 20
+
+#define IMAGE_FILE_RELOCS_STRIPPED 0x0001         // Relocation info stripped from file.
+#define IMAGE_FILE_EXECUTABLE_IMAGE 0x0002        // File is executable  (i.e. no unresolved external references).
+#define IMAGE_FILE_LINE_NUMS_STRIPPED 0x0004      // Line nunbers stripped from file.
+#define IMAGE_FILE_LOCAL_SYMS_STRIPPED 0x0008     // Local symbols stripped from file.
+#define IMAGE_FILE_AGGRESIVE_WS_TRIM 0x0010       // Aggressively trim working set
+#define IMAGE_FILE_LARGE_ADDRESS_AWARE 0x0020     // App can handle >2gb addresses
+#define IMAGE_FILE_BYTES_REVERSED_LO 0x0080       // Bytes of machine word are reversed.
+#define IMAGE_FILE_32BIT_MACHINE 0x0100           // 32 bit word machine.
+#define IMAGE_FILE_DEBUG_STRIPPED 0x0200          // Debugging info stripped from file in .DBG file
+#define IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP 0x0400 // If Image is on removable media, copy and run from the swap file.
+#define IMAGE_FILE_NET_RUN_FROM_SWAP 0x0800       // If Image is on Net, copy and run from the swap file.
+#define IMAGE_FILE_SYSTEM 0x1000                  // System File.
+#define IMAGE_FILE_DLL 0x2000                     // File is a DLL.
+#define IMAGE_FILE_UP_SYSTEM_ONLY 0x4000          // File should only be run on a UP machine
+#define IMAGE_FILE_BYTES_REVERSED_HI 0x8000       // Bytes of machine word are reversed.
+
+#define IMAGE_FILE_MACHINE_UNKNOWN 0
+#define IMAGE_FILE_MACHINE_TARGET_HOST                                                                                 \
+     0x0001                              // Useful for indicating we want to interact with the host and not a WoW guest.
+#define IMAGE_FILE_MACHINE_I386 0x014c   // Intel 386.
+#define IMAGE_FILE_MACHINE_R3000 0x0162  // MIPS little-endian, 0x160 big-endian
+#define IMAGE_FILE_MACHINE_R4000 0x0166  // MIPS little-endian
+#define IMAGE_FILE_MACHINE_R10000 0x0168 // MIPS little-endian
+#define IMAGE_FILE_MACHINE_WCEMIPSV2 0x0169 // MIPS little-endian WCE v2
+#define IMAGE_FILE_MACHINE_ALPHA 0x0184     // Alpha_AXP
+#define IMAGE_FILE_MACHINE_SH3 0x01a2       // SH3 little-endian
+#define IMAGE_FILE_MACHINE_SH3DSP 0x01a3
+#define IMAGE_FILE_MACHINE_SH3E 0x01a4  // SH3E little-endian
+#define IMAGE_FILE_MACHINE_SH4 0x01a6   // SH4 little-endian
+#define IMAGE_FILE_MACHINE_SH5 0x01a8   // SH5
+#define IMAGE_FILE_MACHINE_ARM 0x01c0   // ARM Little-Endian
+#define IMAGE_FILE_MACHINE_THUMB 0x01c2 // ARM Thumb/Thumb-2 Little-Endian
+#define IMAGE_FILE_MACHINE_ARMNT 0x01c4 // ARM Thumb-2 Little-Endian
+#define IMAGE_FILE_MACHINE_AM33 0x01d3
+#define IMAGE_FILE_MACHINE_POWERPC 0x01F0 // IBM PowerPC Little-Endian
+#define IMAGE_FILE_MACHINE_POWERPCFP 0x01f1
+#define IMAGE_FILE_MACHINE_IA64 0x0200      // Intel 64
+#define IMAGE_FILE_MACHINE_MIPS16 0x0266    // MIPS
+#define IMAGE_FILE_MACHINE_ALPHA64 0x0284   // ALPHA64
+#define IMAGE_FILE_MACHINE_MIPSFPU 0x0366   // MIPS
+#define IMAGE_FILE_MACHINE_MIPSFPU16 0x0466 // MIPS
+#define IMAGE_FILE_MACHINE_AXP64 IMAGE_FILE_MACHINE_ALPHA64
+#define IMAGE_FILE_MACHINE_TRICORE 0x0520 // Infineon
+#define IMAGE_FILE_MACHINE_CEF 0x0CEF
+#define IMAGE_FILE_MACHINE_EBC 0x0EBC   // EFI Byte Code
+#define IMAGE_FILE_MACHINE_AMD64 0x8664 // AMD64 (K8)
+#define IMAGE_FILE_MACHINE_M32R 0x9041  // M32R little-endian
+#define IMAGE_FILE_MACHINE_ARM64 0xAA64 // ARM64 Little-Endian
+#define IMAGE_FILE_MACHINE_CEE 0xC0EE
+
+#define IMAGE_SUBSYSTEM_UNKNOWN 0                  // Unknown subsystem.
+#define IMAGE_SUBSYSTEM_NATIVE 1                   // Image doesn't require a subsystem.
+#define IMAGE_SUBSYSTEM_WINDOWS_GUI 2              // Image runs in the Windows GUI subsystem.
+#define IMAGE_SUBSYSTEM_WINDOWS_CUI 3              // Image runs in the Windows character subsystem.
+#define IMAGE_SUBSYSTEM_OS2_CUI 5                  // image runs in the OS/2 character subsystem.
+#define IMAGE_SUBSYSTEM_POSIX_CUI 7                // image runs in the Posix character subsystem.
+#define IMAGE_SUBSYSTEM_NATIVE_WINDOWS 8           // image is a native Win9x driver.
+#define IMAGE_SUBSYSTEM_WINDOWS_CE_GUI 9           // Image runs in the Windows CE subsystem.
+#define IMAGE_SUBSYSTEM_EFI_APPLICATION 10         //
+#define IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER 11 //
+#define IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER 12      //
+#define IMAGE_SUBSYSTEM_EFI_ROM 13
+#define IMAGE_SUBSYSTEM_XBOX 14
+#define IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION 16
+#define IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG 17
+
+// DllCharacteristics Entries
+
+//      IMAGE_LIBRARY_PROCESS_INIT            0x0001     // Reserved.
+//      IMAGE_LIBRARY_PROCESS_TERM            0x0002     // Reserved.
+//      IMAGE_LIBRARY_THREAD_INIT             0x0004     // Reserved.
+//      IMAGE_LIBRARY_THREAD_TERM             0x0008     // Reserved.
+#define IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA 0x0020 // Image can handle a high entropy 64-bit virtual address space.
+#define IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE 0x0040    // DLL can move.
+#define IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY 0x0080 // Code Integrity Image
+#define IMAGE_DLLCHARACTERISTICS_NX_COMPAT 0x0100       // Image is NX compatible
+#define IMAGE_DLLCHARACTERISTICS_NO_ISOLATION 0x0200    // Image understands isolation and doesn't want it
+#define IMAGE_DLLCHARACTERISTICS_NO_SEH 0x0400       // Image does not use SEH.  No SE handler may reside in this image
+#define IMAGE_DLLCHARACTERISTICS_NO_BIND 0x0800      // Do not bind this image.
+#define IMAGE_DLLCHARACTERISTICS_APPCONTAINER 0x1000 // Image should execute in an AppContainer
+#define IMAGE_DLLCHARACTERISTICS_WDM_DRIVER 0x2000   // Driver uses WDM model
+#define IMAGE_DLLCHARACTERISTICS_GUARD_CF 0x4000     // Image supports Control Flow Guard.
+#define IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE 0x8000
+
+// Directory Entries
+
+#define IMAGE_DIRECTORY_ENTRY_EXPORT 0    // Export Directory
+#define IMAGE_DIRECTORY_ENTRY_IMPORT 1    // Import Directory
+#define IMAGE_DIRECTORY_ENTRY_RESOURCE 2  // Resource Directory
+#define IMAGE_DIRECTORY_ENTRY_EXCEPTION 3 // Exception Directory
+#define IMAGE_DIRECTORY_ENTRY_SECURITY 4  // Security Directory
+#define IMAGE_DIRECTORY_ENTRY_BASERELOC 5 // Base Relocation Table
+#define IMAGE_DIRECTORY_ENTRY_DEBUG 6     // Debug Directory
+//      IMAGE_DIRECTORY_ENTRY_COPYRIGHT       7   // (X86 usage)
+#define IMAGE_DIRECTORY_ENTRY_ARCHITECTURE 7    // Architecture Specific Data
+#define IMAGE_DIRECTORY_ENTRY_GLOBALPTR 8       // RVA of GP
+#define IMAGE_DIRECTORY_ENTRY_TLS 9             // TLS Directory
+#define IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG 10    // Load Configuration Directory
+#define IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT 11   // Bound Import Directory in headers
+#define IMAGE_DIRECTORY_ENTRY_IAT 12            // Import Address Table
+#define IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT 13   // Delay Load Import Descriptors
+#define IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR 14 // COM Runtime descriptor
+
 #ifdef min
 #undef min
 #undef max
 #endif
+
+// NOLINTEND(cppcoreguidelines-macro-to-enum, modernize-macro-to-enum)
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
@@ -63,18 +173,13 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.optionalHeader.addressOfEntryPoint = entryPoint;
 }
 
-template <typename T = decltype([] {})> struct [[nodiscard]] Defer : T
-{
-     ~Defer(void) noexcept(noexcept(T::operator())) { (*this)(); }
-};
-
-auto AppendBytes(std::vector<std::byte>& destination, const void* data, std::size_t size) -> void
+static auto AppendBytes(std::vector<std::byte>& destination, const void* data, std::size_t size) -> void
 {
      const auto* first = static_cast<const std::byte*>(data);
      destination.insert(destination.end(), first, first + size);
 }
 
-auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view string) -> void
+static auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view string) -> void
 {
      for (const char character : string) destination.push_back(std::byte{static_cast<unsigned char>(character)});
 }
@@ -83,8 +188,8 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
                                                const std::unordered_map<std::string, std::vector<std::string>>& imports)
 {
      const size_t descriptorCount = imports.size() + 1;
-     const size_t descriptorSize = sizeof(IMAGE_IMPORT_DESCRIPTOR);
-     const size_t thunkSize = sizeof(std::uint64_t);
+     constexpr size_t descriptorSize = sizeof(ecpps::linker::win::ImageImportDescriptor);
+     constexpr size_t thunkSize = sizeof(std::uint64_t);
 
      size_t totalThunks = 0;
      for (const auto& kv : imports) totalThunks += kv.second.size() + 1;
@@ -124,7 +229,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
      {
           // Descriptor
           size_t descPos = descIndex * descriptorSize;
-          IMAGE_IMPORT_DESCRIPTOR desc{};
+          ecpps::linker::win::ImageImportDescriptor desc{};
           desc.OriginalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
           desc.FirstThunk = idataVA + static_cast<uint32_t>(iatPtr);
 
@@ -165,7 +270,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           ++descIndex;
      }
 
-     IMAGE_IMPORT_DESCRIPTOR zero{};
+     ecpps::linker::win::ImageImportDescriptor zero{};
      ensureSize((descIndex * descriptorSize) + descriptorSize);
      std::memcpy(buffer.data() + (descIndex * descriptorSize), &zero, descriptorSize);
 
@@ -177,9 +282,9 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
 std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& imageName)
 {
      // Add export directory
-     IMAGE_EXPORT_DIRECTORY exportDirectory{};
+     ImageExportDirectory exportDirectory{};
      exportDirectory.Characteristics = 0;
-     exportDirectory.TimeDateStamp = static_cast<DWORD>(std::time(nullptr));
+     exportDirectory.TimeDateStamp = static_cast<std::uint32_t>(std::time(nullptr));
      exportDirectory.MajorVersion = 1;
      exportDirectory.MinorVersion = 0;
      exportDirectory.Base = 1; // Start ordinals from 1
@@ -282,7 +387,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      size_t descriptorCount = this->imports.size() + 1;
      size_t totalThunkEntries = 0;
      for (auto& kv : this->imports) totalThunkEntries += kv.second.size() + 1;
-     size_t intOffset = AlignUp(descriptorCount * sizeof(IMAGE_IMPORT_DESCRIPTOR), 8uz);
+     size_t intOffset = AlignUp(descriptorCount * sizeof(ImageImportDescriptor), 8uz);
      const uint32_t iatRVA = importRVA + static_cast<uint32_t>(intOffset + (totalThunkEntries * sizeof(std::uint64_t)));
 
      // Add .idata section

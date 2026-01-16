@@ -1,4 +1,7 @@
+#ifdef _WIN32
 #include <Windows.h>
+#endif
+
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -9,22 +12,30 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "CodeGeneration/CodeEmitter.h"
-#include "CodeGeneration/PseudoAssembly.h"
-#include "Debugger/Debugger.h"
-#include "Execution/IR.h"
-#include "Linker/Linker.h"
-#include "Parsing/AST.h"
-#include "Parsing/Preprocessor.h"
-#include "Parsing/SourceMap.h"
-#include "Parsing/Tokeniser.h"
-#include "Shared/Config.h"
-#include "Shared/Diagnostics.h"
+
+#include <CodeGeneration/CodeEmitter.h>
+#include <CodeGeneration/PseudoAssembly.h>
+#include <Debugger/Debugger.h>
+#include <Execution/IR.h>
+#include <Linker/Linker.h>
+#include <Parsing/AST.h>
+#include <Parsing/Preprocessor.h>
+#include <Parsing/SourceMap.h>
+#include <Parsing/Tokeniser.h>
+#include <Shared/Config.h>
+#include <Shared/Diagnostics.h>
 
 #ifdef min
 #undef min
 #undef max
 #endif
+
+#ifdef _WIN32
+
+template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platformlib::DebuggerContext, CONTEXT>
+{
+     constexpr static bool IsValid = true;
+};
 
 LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
 {
@@ -39,14 +50,16 @@ LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
           else
                built = std::format("Access violation reading {}", faultingAddress);
 
-          ecpps::IssueICE(built, ExceptionInfo->ContextRecord);
+          ecpps::IssueICE(built, &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
      }
      break;
-     case EXCEPTION_INT_DIVIDE_BY_ZERO: ecpps::IssueICE("Divide by zero", ExceptionInfo->ContextRecord); break;
+     case EXCEPTION_INT_DIVIDE_BY_ZERO:
+          ecpps::IssueICE("Divide by zero", &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
+          break;
      default:
           ecpps::IssueICE(
               std::format("Unhandled exception has occurred: {}", ExceptionInfo->ExceptionRecord->ExceptionCode),
-              ExceptionInfo->ContextRecord);
+              &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
           break;
      }
 
@@ -61,15 +74,18 @@ static void EnableVirtualProcessing(void)
      consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
      SetConsoleMode(hConsoleOutput, consoleMode);
 }
+#endif
 
 int main(int argc, char* argv[])
 {
+#ifdef _WIN32
      EnableVirtualProcessing();
      SetUnhandledExceptionFilter(WinExceptionHandler);
+#endif
 
      try
      {
-          const auto start = std::chrono::steady_clock::now();
+          const auto startTime = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
           ecpps::SourceMap sources{config};
@@ -296,7 +312,7 @@ int main(int argc, char* argv[])
                const auto end = std::chrono::steady_clock::now();
 
                std::println("Compilation failed. {} elapsed",
-                            std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+                            std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime));
 
                return -1;
           }
@@ -307,6 +323,12 @@ int main(int argc, char* argv[])
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection);
+
+          if (imageBytes.empty())
+          {
+               std::println("No linker selected.");
+               return -1;
+          }
 
           if (isExtraVerbose)
           {
@@ -347,8 +369,8 @@ int main(int argc, char* argv[])
           const auto outputImagePath = absolute(std::filesystem::path(config.outputImage));
           const auto end = std::chrono::steady_clock::now();
           std::println("Fully linked {}", outputImagePath.string());
-          std::println("Compilation successful. {} elapsed",
-                       std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+          std::println("Compilation successful. {}ms elapsed",
+                       (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
           outFile.close();
 
           if (config.useDebugger) return ecpps::debugging::Debugger::SelectAndDebug(config, outputImagePath);

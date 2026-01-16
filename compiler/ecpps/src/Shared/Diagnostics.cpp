@@ -1,94 +1,83 @@
 #include "Diagnostics.h"
+#ifdef _WIN32
 #include <dbghelp.h>
+#endif
+
 #include <print>
+
+#include "Linker/PE.h"
 
 void ecpps::IssueICE(const TracedException& ex)
 {
-     HANDLE process = GetCurrentProcess();
+#ifdef _WIN32
+     HANDLE hProcess = GetCurrentProcess();
      SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
-     SymInitialize(process, nullptr, TRUE);
+     SymInitialize(hProcess, nullptr, TRUE);
 
+     void* storage = operator new(sizeof(SYMBOL_INFO) + MAX_PATH);
      std::println("\x1b[41mInternal Compiler Error:\x1b[0m {}", ex.what());
      for (auto* i : ex.trace)
      {
-          auto address = reinterpret_cast<DWORD64>(i);
-          DWORD64 displacement = 0;
-          void* storage = operator new(sizeof(SYMBOL_INFO) + MAX_PATH);
+          auto address = reinterpret_cast<std::uint64_t>(i);
+          std::uint64_t displacement = 0;
           std::memset(storage, 0, sizeof(SYMBOL_INFO) + MAX_PATH);
           auto* symbol = new (storage) SYMBOL_INFO{};
           symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
           symbol->MaxNameLen = MAX_PATH;
 
-          if (SymFromAddr(process, address, &displacement, symbol) != 0)
+          if (SymFromAddr(hProcess, address, &displacement, symbol) != 0)
           {
                IMAGEHLP_LINE64 line{};
                line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-               DWORD lineDisp = 0;
-               if (SymGetLineFromAddr64(process, address, &lineDisp, &line) != 0)
+               std::uint32_t lineDisp = 0;
+               // honestly, I don't care it's undefined, had enough of Windows bullshit / vvv
+               if (SymGetLineFromAddr64(hProcess, address, reinterpret_cast<DWORD*>(&lineDisp), &line) != 0)
                     std::println("  at \x1b[34m{}:{}\x1b[0m <\x1b[32m{}\x1b[0m>", line.FileName, line.LineNumber,
                                  symbol->Name);
                else
                     std::println("  at \x1b[32m{}\x1b[0m @{:x}", symbol->Name, address);
           }
-
-          operator delete(storage);
      }
 
-     SymCleanup(process);
+     operator delete(storage);
+
+     SymCleanup(hProcess);
      ExitProcess(-1);
+#elifdef __linux__
+     _exit(-1);
+#endif
 }
 
-void ecpps::IssueICE(std::string_view message, CONTEXT* defaultContext)
+void ecpps::IssueICE(std::string_view message, platformlib::DebuggerContext* defaultContext)
 {
-     HANDLE process = GetCurrentProcess();
-     HANDLE thread = GetCurrentThread();
+#ifdef _WIN32
+     HANDLE hProcess = GetCurrentProcess();
+     HANDLE hThread = GetCurrentThread();
 
-     SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
-     SymInitialize(process, nullptr, TRUE);
-
-     CONTEXT context{};
-     if (defaultContext != nullptr) context = *defaultContext;
-     else
-          RtlCaptureContext(&context);
-
-     STACKFRAME64 frame{};
-     frame.AddrPC.Offset = context.Rip;
-     frame.AddrFrame.Offset = context.Rbp;
-     frame.AddrStack.Offset = context.Rsp;
-
-     frame.AddrPC.Mode = AddrModeFlat;
-     frame.AddrFrame.Mode = AddrModeFlat;
-     frame.AddrStack.Mode = AddrModeFlat;
-
-     std::vector<void*> stack;
-     while (StackWalk64(IMAGE_FILE_MACHINE_AMD64, process, thread, &frame, &context, nullptr, SymFunctionTableAccess64,
-                        SymGetModuleBase64, nullptr) != 0)
-     {
-          stack.push_back(reinterpret_cast<void*>(frame.AddrPC.Offset));
-     }
+     const auto stack = platformlib::debugger::WalkTrace(defaultContext);
 
      std::println("\x1b[41mInternal Compiler Error:\x1b[0m {}", message);
-     for (auto& i : stack)
+     for (const auto& i : stack)
      {
-          const auto address = reinterpret_cast<DWORD64>(i);
-          DWORD64 displacement = 0;
+          const auto address = reinterpret_cast<std::uint64_t>(i);
+          std::uint64_t displacement = 0;
           void* symbolInfoStorage = operator new(sizeof(SYMBOL_INFO) + MAX_PATH);
           if (symbolInfoStorage == nullptr) break;
           auto* symbol = new (symbolInfoStorage) SYMBOL_INFO{};
           symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
           symbol->MaxNameLen = MAX_PATH;
 
-          if (SymFromAddr(process, address, &displacement, symbol) != 0)
+          if (SymFromAddr(hProcess, address, &displacement, symbol) != 0)
           {
                IMAGEHLP_LINE64 line{};
-               line.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-               DWORD lineDisplacement = 0;
-               auto* moduleHandle = reinterpret_cast<HMODULE>(SymGetModuleBase64(process, address));
+               line.SizeOfStruct = sizeof(linker::win::ImageHelpLine64);
+               std::uint32_t lineDisplacement = 0;
+               auto* moduleHandle = reinterpret_cast<HMODULE>(SymGetModuleBase64(hProcess, address));
                std::string moduleName{};
                moduleName.resize(MAX_PATH);
                if (moduleHandle != nullptr) GetModuleFileNameA(moduleHandle, moduleName.data(), MAX_PATH);
 
-               if (SymGetLineFromAddr64(process, address, &lineDisplacement, &line) != 0)
+               if (SymGetLineFromAddr64(hProcess, address, reinterpret_cast<DWORD*>(&lineDisplacement), &line) != 0)
                {
                     std::println("\x1b[37m[{:02}] \x1b[34m{}:{}\x1b[0m", i, line.FileName, line.LineNumber);
                     std::println("       [\x1b[35m{}+0x{:X}\x1b[0m <\x1b[32m{}\x1b[0m>] @\x1b[35m{:x}\x1b[0m",
@@ -108,6 +97,9 @@ void ecpps::IssueICE(std::string_view message, CONTEXT* defaultContext)
      }
 
      std::print("\x1b[0m");
-     SymCleanup(process);
+     SymCleanup(hProcess);
      ExitProcess(-1);
+#elifdef __linux__
+     _exit(-1);
+#endif
 }
