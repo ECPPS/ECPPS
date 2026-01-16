@@ -361,8 +361,8 @@ int main(int argc, char* argv[])
           const auto outputImagePath = absolute(std::filesystem::path(config.outputImage));
           const auto end = std::chrono::steady_clock::now();
           std::println("Fully linked {}", outputImagePath.string());
-          std::println("Compilation successful. {} elapsed",
-                       std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+          std::println("Compilation successful. {}ms elapsed",
+                       (std::chrono::duration_cast<std::chrono::microseconds>(end - start) / 1000.0).count());
           outFile.close();
 
           if (config.useDebugger) return ecpps::debugging::Debugger::SelectAndDebug(config, outputImagePath);

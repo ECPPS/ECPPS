@@ -23,6 +23,8 @@ int Two()
 unsigned int Three()
 {
      unsigned char x = 97;
+     unsigned char* p = &x;
+     ++*p;
      return x;
 }
 
