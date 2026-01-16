@@ -18,7 +18,8 @@ namespace ecpps
      {
           Windows64,
           Windows32,
-          Caosys
+          Caosys,
+          Undefined
      };
 
      constexpr LinkerUsed DefaultLinker = LinkerUsed::
@@ -27,7 +28,7 @@ namespace ecpps
 #elif defined(_WIN32)
          Windows32;
 #else
-         Windows64; // fallback to x64 Windows
+         Undefined;
 #endif
 
      enum struct DiagnosticType : std::uint_fast8_t

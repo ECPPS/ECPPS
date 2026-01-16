@@ -75,7 +75,7 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
 
-     this->_built.push_back(std::move(*expression.release()).Value()); // TODO: warn on nodiscard
+     this->_built.push_back(std::move(*expression).Value()); // TODO: warn on nodiscard
 }
 
 void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node)

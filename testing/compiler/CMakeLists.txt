@@ -1,14 +1,32 @@
-add_executable(test_compiler test_compiler.cpp)
+function(add_compiler_test target_name SOURCES_FILES label)
+    add_executable(${target_name} ${SOURCES_FILES})
 
-target_link_libraries(test_compiler PRIVATE libecpps platformlib utilitieslib)
+    target_link_libraries(${target_name} PRIVATE libecpps platformlib utilitieslib)
 
-target_include_directories(test_compiler
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../compiler/ecpps/src"
-        "../../compiler/platformlib/include"
-        "../../compiler/utilitieslib/include/utilitieslib"
+    target_include_directories(${target_name}
+        PRIVATE
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../compiler/ecpps/src"
+            "../../compiler/platformlib/include"
+            "../../compiler/utilitieslib/include/utilitieslib"
+    )
+
+    target_compile_features(${target_name} PUBLIC cxx_std_23)
+
+    add_test(NAME ${target_name} COMMAND $<TARGET_FILE:${target_name}>)
+    set_tests_properties(${target_name} PROPERTIES LABELS ${label})
+endfunction()
+
+set(UNIT_TEST_SOURCES
+    tests/unit/test_tokenise.cpp
 )
+add_compiler_test(test_unit "${UNIT_TEST_SOURCES}" "unit")
 
-target_compile_features(test_compiler PUBLIC cxx_std_23)
+set(INTEGRATION_TEST_SOURCES
+    tests/integration/test_ast.cpp
+)
+add_compiler_test(test_integration "${INTEGRATION_TEST_SOURCES}" "integration")
 
-add_test(NAME UnitTests COMMAND $<TARGET_FILE:test_compiler>)
+set(E2E_TEST_SOURCES
+    tests/e2e/test_int_main.cpp
+)
+add_compiler_test(test_e2e "${E2E_TEST_SOURCES}" "e2e")

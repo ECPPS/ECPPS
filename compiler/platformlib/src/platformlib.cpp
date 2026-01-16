@@ -1,4 +1,6 @@
 #include <platformlib.h>
+
+#include "../../utilitieslib/include/utilitieslib/Assert.h"
 #ifdef _WIN32
 #include <Windows.h>
 
@@ -23,8 +25,8 @@ ecpps::platformlib::DebuggerContext& ecpps::platformlib::debugger::New(void)
 #ifdef _WIN32
      CONTEXT* lpContext = new CONTEXT();
      return reinterpret_cast<DebuggerContext&>(*reinterpret_cast<ContextWrapper*>(lpContext));
-
 #elifdef __linux__
+     throw nullptr;
 #endif
 }
 
@@ -57,7 +59,7 @@ std::size_t ecpps::platformlib::debugger::GetRegisterValue(DebuggerContext& cont
 }
 std::vector<void*> ecpps::platformlib::debugger::WalkTrace(DebuggerContext* defaultContext)
 {
-
+#ifdef _WIN32
      HANDLE hProcess = GetCurrentProcess();
      HANDLE hThread = GetCurrentThread();
 
@@ -68,7 +70,10 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace(DebuggerContext* defa
      CONTEXT* context{};
      if (defaultContext != nullptr) context = &defaultContext->As<CONTEXT>();
      else
+     {
+          context = new CONTEXT();
           RtlCaptureContext(context);
+     }
 
      STACKFRAME64 frame{};
      frame.AddrPC.Offset = context->Rip;
@@ -85,4 +90,7 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace(DebuggerContext* defa
           stack.push_back(reinterpret_cast<void*>(frame.AddrPC.Offset));
      }
      return stack;
+#elifdef __linux__
+     return {};
+#endif
 }

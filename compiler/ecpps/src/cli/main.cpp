@@ -78,8 +78,10 @@ static void EnableVirtualProcessing(void)
 
 int main(int argc, char* argv[])
 {
+#ifdef _WIN32
      EnableVirtualProcessing();
      SetUnhandledExceptionFilter(WinExceptionHandler);
+#endif
 
      try
      {
@@ -321,6 +323,12 @@ int main(int argc, char* argv[])
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection);
+
+          if (imageBytes.empty())
+          {
+               std::println("No linker selected.");
+               return -1;
+          }
 
           if (isExtraVerbose)
           {

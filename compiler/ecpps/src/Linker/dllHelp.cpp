@@ -1,4 +1,5 @@
 #include "dllHelp.h"
+#ifdef _WIN32
 
 #include <Windows.h>
 
@@ -46,3 +47,11 @@ std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(con
 
      return result;
 }
+
+#elifdef __linux__
+std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(const std::vector<std::string>& dlls)
+{
+     return {};
+}
+
+#endif

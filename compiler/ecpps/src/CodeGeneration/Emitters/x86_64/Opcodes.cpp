@@ -706,20 +706,20 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem8ToReg16(
      binary.push_back(std::byte{0x0F});
      binary.push_back(std::byte{0xB6}); // MOVZX r16, r/m8
 
-     const bool needsSib = (sourceRegister & 7ui8) == Rsp;
-     const bool needsDisp = (sourceRegister & 7ui8) == Rbp;
-     const bool disp8 = sourceOffset <= 0x7Fui8;
+     const bool needsSib = (sourceRegister & 7u) == Rsp;
+     const bool needsDisp = (sourceRegister & 7u) == Rbp;
+     const bool disp8 = sourceOffset <= 0x7Fu;
 
      const std::uint8_t mod = needsDisp ? 0b01 : disp8 ? 0b01 : 0b10;
      const std::uint8_t rm = needsSib ? 0b100 : (sourceRegister & 7);
 
-     binary.push_back(static_cast<std::byte>((mod << 6ui8) | ((destinationRegister & 7ui8) << 3ui8) | rm));
+     binary.push_back(static_cast<std::byte>((mod << 6u) | ((destinationRegister & 7u) << 3u) | rm));
 
-     if (needsSib) binary.push_back(static_cast<std::byte>(0b00100100 | (sourceRegister & 7ui8)));
+     if (needsSib) binary.push_back(static_cast<std::byte>(0b00100100 | (sourceRegister & 7u)));
 
      if (needsDisp || disp8) binary.push_back(static_cast<std::byte>(sourceOffset));
      else
-          for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((sourceOffset >> (i * 8ui8)) & 0xFFui8));
+          for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((sourceOffset >> (i * 8u)) & 0xFFu));
 
      return binary;
 }

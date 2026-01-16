@@ -1,4 +1,5 @@
 #include "Win64.h"
+#ifdef _WIN32
 #include <Windows.h>
 
 #include <DbgHelp.h>
@@ -345,3 +346,12 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
 
      return static_cast<int>(processExitCode);
 }
+
+#elifdef __linux__
+int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& configuration,
+                                           std::filesystem::path program) const
+{
+     return -1;
+}
+
+#endif
