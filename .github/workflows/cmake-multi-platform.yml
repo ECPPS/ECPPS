@@ -117,7 +117,7 @@ jobs:
 
       - name: Build (ASan)
         shell: pwsh
-        run: cmake --build build-asan --preset x64-MSVC-Debug-ASan --parallel
+        run: cmake --build build-asan --preset x64-MSVC-Debug-ASan-Parallel --parallel
 
       - name: Run tests (ASan)
         shell: pwsh

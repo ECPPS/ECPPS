@@ -189,6 +189,11 @@
 			"jobs": 8
 		},
 		{
+			"name": "x64-MSVC-Debug-ASan-Parallel",
+			"configurePreset": "x64-MSVC-Debug-ASan",
+			"jobs": 8
+		},
+		{
 			"name": "x64-Clang-Debug-Parallel",
 			"configurePreset": "x64-Clang-Debug",
 			"jobs": 8
