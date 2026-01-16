@@ -58,7 +58,11 @@
 		{
 			"name": "clang-cl",
 			"hidden": true,
-			"inherits": [ "windows" ]
+			"inherits": [ "windows" ],
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang-cl",
+				"CMAKE_CXX_COMPILER": "clang-cl"
+			}
 		},
 		{
 			"name": "clang",
