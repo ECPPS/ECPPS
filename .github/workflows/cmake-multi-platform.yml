@@ -74,7 +74,7 @@ jobs:
       - name: Setup MSVC Developer Environment
         if: matrix.compiler == 'MSVC'
         uses: microsoft/setup-msvc@v1
-					    
+
       - name: Configure
         shell: pwsh
         run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
