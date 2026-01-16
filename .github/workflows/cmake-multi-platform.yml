@@ -9,7 +9,7 @@ on:
 
 jobs:
   setup-llvm:
-    name: Setup LLVM (fast & safe)
+    name: Setup LLVM
     runs-on: windows-latest
     outputs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
