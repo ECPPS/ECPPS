@@ -9,20 +9,12 @@ on:
 
 jobs:
   setup-llvm:
-    name: Setup LLVM (cached)
+    name: Setup LLVM (fast & safe)
     runs-on: windows-latest
     outputs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
     steps:
-      - name: Cache LLVM
-        id: cache-llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-20.1.8-${{ runner.os }}
-
-      - name: Install LLVM (if cache miss)
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
+      - name: Install LLVM
         shell: pwsh
         run: choco install llvm --version=20.1.8 -y
 
@@ -38,13 +30,14 @@ jobs:
         with:
           path: $env:LOCALAPPDATA\ccache
           key: ccache-${{ runner.os }}-${{ github.ref }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
 
       - name: Install ccache
         shell: pwsh
         run: |
           choco install ccache -y
           echo "C:\Program Files\ccache" >> $env:GITHUB_PATH
-
 
   clang-format:
     name: Run clang-format
