@@ -9,25 +9,42 @@ on:
 
 jobs:
   setup-llvm:
-    name: Install LLVM
+    name: Setup LLVM (cached)
     runs-on: windows-latest
-    if: |
-      github.event_name != 'pull_request' || 
-      !contains(github.event.pull_request.labels.*.name, 'blocked')
     outputs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
     steps:
-      - name: Install LLVM
+      - name: Cache LLVM
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-20.1.8-${{ runner.os }}
+
+      - name: Install LLVM (if cache miss)
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
         shell: pwsh
+        run: choco install llvm --version=20.1.8 -y
+
+      - name: Set LLVM path
         id: set-path
+        shell: pwsh
         run: |
-          choco install llvm --version=20.1.8 -y
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
           echo "::set-output name=llvm-path::C:\Program Files\LLVM\bin"
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: $env:LOCALAPPDATA\ccache
+          key: ccache-${{ runner.os }}-${{ github.ref }}
+
       - name: Install ccache
         shell: pwsh
         run: |
           choco install ccache -y
           echo "C:\Program Files\ccache" >> $env:GITHUB_PATH
+
 
   clang-format:
     name: Run clang-format
@@ -64,12 +81,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM
-        if: matrix.compiler != 'MSVC'
+      - name: Add LLVM to PATH
+        if: matrix.compiler == 'Clang'
         shell: pwsh
-        run: |
-          choco install llvm --version=${{ matrix.llvm_version }} -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
       - name: Setup MSVC Developer Environment
         if: matrix.compiler == 'MSVC'
@@ -82,21 +97,45 @@ jobs:
         shell: pwsh
         run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
           
-      - name: Run tests (Clang ASan)
-        if: ${{ matrix.compiler == 'MSVC' && matrix.build_type == 'Debug' }}
-        shell: pwsh
-        run: |
-          $env:ASAN_OPTIONS="abort_on_error=1"
-          $clangPath = (clang -print-resource-dir)
-          $libDir = "$clangPath\\lib\\windows"
-          $env:path += ";$libDir"
-          ctest --test-dir out/build/x64-MSVC-Debug --output-on-failure -C Debug
-          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
           path: out/build
+
+  build-windows-asan:
+    name: Windows / MSVC / ASan
+    runs-on: windows-latest
+    needs: build-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Configure (ASan)
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Debug ^
+            -DCMAKE_C_FLAGS="/fsanitize=address" ^
+            -DCMAKE_CXX_FLAGS="/fsanitize=address" ^
+            -DCMAKE_EXE_LINKER_FLAGS="/fsanitize=address" ^
+            -B build-asan
+
+      - name: Build (ASan)
+        shell: pwsh
+        run: cmake --build build-asan --parallel
+
+      - name: Run tests (ASan)
+        shell: pwsh
+        run: |
+          $env:ASAN_OPTIONS="abort_on_error=1"
+          ctest --test-dir build-asan --output-on-failure
 
   clang-tidy:
     name: Run clang-tidy
