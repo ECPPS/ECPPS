@@ -199,7 +199,6 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
      if (!subobjectComparison.IsValid()) return ConversionSequence{std::nullopt};
      return subobjectComparison.SameAs() ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
                                          : ConversionSequence{std::nullopt};
-     ;
 }
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept

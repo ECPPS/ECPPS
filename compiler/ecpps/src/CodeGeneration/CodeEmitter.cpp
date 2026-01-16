@@ -28,8 +28,6 @@ std::unique_ptr<ecpps::codegen::CodeEmitter> ecpps::codegen::CodeEmitter::New(ab
      case abi::ISA::x86_64: return std::make_unique<emitters::X8664Emitter>();
      default: throw TracedException(std::runtime_error("Emitter for the selected ISA does not exist"));
      }
-
-     return nullptr;
 }
 
 std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitInstruction(const Instruction& instruction)

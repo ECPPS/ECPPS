@@ -130,8 +130,8 @@ namespace ecpps::ast
           case Operator::Increment: return "++";
           case Operator::Decrement: return "--";
           case Operator::Comma: return ",";
+          default: return "";
           }
-          return "";
      }
 
      class AttributeNode : public Node
@@ -158,7 +158,7 @@ namespace ecpps::ast
                     built += ")";
                }
                return built + "]]";
-          };
+          }
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
           [[nodiscard]] const SBOVector<Token>& Arguments(void) const noexcept { return this->_arguments; }
 
@@ -234,10 +234,11 @@ namespace ecpps::ast
                if (this->isExtern) built += "extern " + (m ? ("\""s + this->externOptional.value() + "\" ") : "");
                switch (this->constexprSpecifier)
                {
-               case ConstantExpressionSpecifier::None: break;
                case ConstantExpressionSpecifier::Constexpr: built += "constexpr "; break;
                case ConstantExpressionSpecifier::Consteval: built += "consteval "; break;
                case ConstantExpressionSpecifier::Constinit: built += "constinit "; break;
+               case ConstantExpressionSpecifier::None:
+               default: break;
                }
 
                built += this->type->ToString(0) + " ";

@@ -231,7 +231,7 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
-          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; };
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; }
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
           {

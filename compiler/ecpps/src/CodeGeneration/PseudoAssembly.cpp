@@ -103,7 +103,7 @@ static ecpps::codegen::Operand ParseExpression(
           code.emplace_back(ecpps::codegen::AddInstruction{
               right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
-          return destinationStorage;
+          return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
@@ -354,7 +354,7 @@ static ecpps::codegen::Operand ParseExpression(
           const auto& targetType = convert->TargetType();
 
           std::size_t width = targetType->Size() * ecpps::typeSystem::CharWidth;
-          bool isSigned = false; // NOLINT
+          [[maybe_unused]] bool isSigned = false; // NOLINT
           if (IsIntegral(targetType))
           {
                isSigned = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(targetType)->Sign() ==

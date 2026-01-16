@@ -1,5 +1,8 @@
 #include "Diagnostics.h"
+#ifdef _WIN32
 #include <dbghelp.h>
+#endif
+
 #include <print>
 
 void ecpps::IssueICE(const TracedException& ex)
@@ -50,7 +53,7 @@ void ecpps::IssueICE(std::string_view message, platformlib::DebuggerContext* def
      const auto stack = platformlib::debugger::WalkTrace(defaultContext);
 
      std::println("\x1b[41mInternal Compiler Error:\x1b[0m {}", message);
-     for (auto& i : stack)
+     for (const auto& i : stack)
      {
           const auto address = reinterpret_cast<DWORD64>(i);
           DWORD64 displacement = 0;

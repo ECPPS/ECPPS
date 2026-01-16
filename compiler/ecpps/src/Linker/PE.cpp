@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-to-enum, modernize-macro-to-enum)
+
 #define IMAGE_SIZEOF_FILE_HEADER 20
 
 #define IMAGE_FILE_RELOCS_STRIPPED 0x0001         // Relocation info stripped from file.
@@ -66,6 +68,8 @@
 #undef min
 #undef max
 #endif
+
+// NOLINTEND(cppcoreguidelines-macro-to-enum, modernize-macro-to-enum)
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {

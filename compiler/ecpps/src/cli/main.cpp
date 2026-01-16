@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
      try
      {
-          const auto start = std::chrono::steady_clock::now();
+          const auto startTime = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
           ecpps::SourceMap sources{config};
@@ -310,7 +310,7 @@ int main(int argc, char* argv[])
                const auto end = std::chrono::steady_clock::now();
 
                std::println("Compilation failed. {} elapsed",
-                            std::chrono::duration_cast<std::chrono::milliseconds>(end - start));
+                            std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime));
 
                return -1;
           }
@@ -362,7 +362,7 @@ int main(int argc, char* argv[])
           const auto end = std::chrono::steady_clock::now();
           std::println("Fully linked {}", outputImagePath.string());
           std::println("Compilation successful. {}ms elapsed",
-                       (std::chrono::duration_cast<std::chrono::microseconds>(end - start) / 1000.0).count());
+                       (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
           outFile.close();
 
           if (config.useDebugger) return ecpps::debugging::Debugger::SelectAndDebug(config, outputImagePath);

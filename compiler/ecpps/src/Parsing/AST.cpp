@@ -224,7 +224,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
 bool ecpps::ast::AST::IsDeclarationStart()
 {
      std::size_t i = 0;
-     bool hasQualifier = false; // NOLINT
+     [[maybe_unused]] bool hasQualifier = false; // NOLINT
      bool hasSignedness = false;
      bool hasLong = false;
      bool hasType = false;
@@ -552,7 +552,6 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
                                 [](auto&&) static -> NodePointer { return nullptr; }},
               currentToken.value);
      }
-     break;
      case TokenType::Keyword:
      {
           const auto& keyword = std::get<std::string>(currentToken.value);
@@ -578,7 +577,6 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
      {
           return ParseIdExpression();
      }
-     break;
      default:
           throw TracedException(std::format("Invalid primary expression {}", std::to_underlying(currentToken.type)));
      }

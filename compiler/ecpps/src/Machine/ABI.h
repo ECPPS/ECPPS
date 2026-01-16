@@ -215,7 +215,7 @@ namespace
           switch (callingConvention)
           {
           case ecpps::abi::CallingConventionName::Microsoftx64: return "__mscall";
+          default: return "__undefined";
           }
-          return "__undefined";
      }
 } // namespace

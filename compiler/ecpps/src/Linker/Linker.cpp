@@ -16,9 +16,8 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
           auto peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
           return std::make_unique<win::WindowsLinker>(std::move(peOptions));
      }
+     default: return nullptr;
      }
-
-     return nullptr;
 }
 
 std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(

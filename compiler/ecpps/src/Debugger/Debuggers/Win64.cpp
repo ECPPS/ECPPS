@@ -336,7 +336,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      if (WaitForSingleObject(pi.hProcess, 0) != WAIT_OBJECT_0) WaitForSingleObject(pi.hProcess, INFINITE);
 
      DWORD processExitCode = 0;
-     if (GetExitCodeProcess(pi.hProcess, &processExitCode) != 0) processExitCode = -1;
+     if (GetExitCodeProcess(pi.hProcess, &processExitCode) != 0) processExitCode = exitCode;
 
      CloseHandle(pi.hThread);
      CloseHandle(pi.hProcess);

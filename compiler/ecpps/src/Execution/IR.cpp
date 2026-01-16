@@ -433,8 +433,6 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
                     "Invalid operator for a shift-expression");
 
      throw std::logic_error("Not implemented");
-
-     return {};
 }
 
 // indirection
@@ -519,8 +517,6 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
      }
 
      throw TracedException("Not implemented");
-
-     return nullptr;
 }
 
 Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
@@ -587,8 +583,6 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
-
-     return nullptr;
 }
 
 struct CompareByPriority
@@ -789,12 +783,12 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
                     return nullptr;
           }
 
-          if (auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
+          if (const auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
               unqualified != nullptr)
           {
-               for (const auto& type : currentScope->types)
+               for (const auto& currentType : currentScope->types)
                {
-                    if (type->Name() == unqualified->Value()) result = type;
+                    if (currentType->Name() == unqualified->Value()) result = currentType;
                }
           }
      }
@@ -819,7 +813,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 
      if (isConst || isVolatile) {} // TODO: Implement
 
-     return result;
+     return result; // NOLINT(clang-diagnostic-nrvo)
 }
 
 Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::TypePointer& toType) const
@@ -853,7 +847,6 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
      }
 
      throw std::logic_error("Unsupported conversion");
-     return nullptr;
 }
 
 Expression ecpps::ir::IR::ConvertIntegral(Expression expression, const std::shared_ptr<typeSystem::IntegralType>& type)
@@ -891,7 +884,7 @@ ecpps::ir::MatchingScore ecpps::ir::IR::MatchFunction(const std::shared_ptr<Func
           ecpps::typeSystem::ConversionSequence seq = fromType->CompareTo(toType);
 
           ImplicitConversion::RefBindingKind refKind = ImplicitConversion::RefBindingKind::None;
-          // if (IsReference(toType)) // TODO: Implmenent references
+          // if (IsReference(toType)) // TODO: Implement references
           //{
           //      const auto& referenceType = dynamic_cast<typeSystem::ReferenceType&>(toType);
           //      if (referenceType.IsLValueReference())
