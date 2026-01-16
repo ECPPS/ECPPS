@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup MSVC Developer Environment
         if: matrix.compiler == 'MSVC'
-        uses: microsoft/setup-msvc@v1
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure
         shell: pwsh
