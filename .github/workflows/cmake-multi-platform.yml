@@ -113,17 +113,17 @@ jobs:
       - name: Configure (ASan)
         shell: pwsh
         run: |
-          cmake -S . -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="/fsanitize=address" -DCMAKE_CXX_FLAGS="/fsanitize=address" -DCMAKE_EXE_LINKER_FLAGS="/fsanitize=address" -B build-asan
+          cmake -S . --preset x64-MSVC-Debug-ASan
 
       - name: Build (ASan)
         shell: pwsh
-        run: cmake --build build-asan --parallel
+        run: cmake --build build-asan --preset x64-MSVC-Debug-ASan --parallel
 
       - name: Run tests (ASan)
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS="abort_on_error=1"
-          ctest --test-dir build-asan --output-on-failure
+          ctest --test-dir out/build/x64-Debug-MSVC-ASan --output-on-failure
 
   clang-tidy:
     name: Run clang-tidy
