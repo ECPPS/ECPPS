@@ -90,6 +90,8 @@ if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unused-private-field
         -Wno-unused-variable
         -Wno-unused-function
+        $<$<CONFIG:RelWithDebInfo>:-O3>
+	   $<$<CONFIG:Release>:-O3>
         -std=c++23
     )
 endif()
@@ -104,13 +106,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
         "$<$<CONFIG:Release>:${CLANG_LTO_FLAGS}>"
         "$<$<CONFIG:RelWithDebInfo>:${CLANG_LTO_FLAGS}>"   
-        $<$<CONFIG:Release>:-O3>
         $<$<CONFIG:Release>:-fstrict-aliasing>   
         $<$<CONFIG:Release>:-fvectorize>
         $<$<CONFIG:Release>:-fslp-vectorize>
         $<$<CONFIG:Release>:-fomit-frame-pointer>
         $<$<CONFIG:Release>:-march=x86-64-v3>
-        $<$<CONFIG:RelWithDebInfo>:-O3>
         $<$<CONFIG:RelWithDebInfo>:-fstrict-aliasing>
         $<$<CONFIG:RelWithDebInfo>:-fvectorize>
         $<$<CONFIG:RelWithDebInfo>:-fslp-vectorize>
