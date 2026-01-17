@@ -518,8 +518,6 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
      }
 
      throw TracedException("Not implemented");
-
-     return nullptr;
 }
 
 Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
