@@ -120,6 +120,7 @@ namespace ecpps::typeSystem
           /// <param name="other"></param>
           /// <returns></returns>
           [[nodiscard]] virtual std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) = 0;
+          [[nodiscard]] virtual bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept;
 
      private:
           std::string _name;
@@ -231,7 +232,7 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
-          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; };
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; }
 
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
           {
@@ -241,5 +242,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final override;
      };
 } // namespace ecpps::typeSystem

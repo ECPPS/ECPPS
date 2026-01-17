@@ -2,31 +2,25 @@ name: CI
 
 on:
   push:
-    branches: [ main, development ]
+    branches: [ main, development, 'feature/**' ]
   pull_request:
-    branches: [ main, development ]
+    branches: [ main, development, 'feature/**' ]
+    types: [opened, synchronize, reopened, labeled, unlabeled] 
 
 jobs:
   setup-llvm:
-    name: Install LLVM
+    name: Setup LLVM
     runs-on: windows-latest
     outputs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
     steps:
       - name: Install LLVM
         shell: pwsh
-        id: set-path
         run: |
           choco install llvm --version=20.1.8 -y
-          echo "::set-output name=llvm-path::C:\Program Files\LLVM\bin"
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-  clang-format:
-    name: Run clang-format
-    runs-on: windows-latest
-    needs: setup-llvm
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run clang-format in parallel
+      - name: Run clang-format
         shell: bash
         env:
           PATH: ${{ needs.setup-llvm.outputs.llvm-path }}:$PATH
@@ -38,12 +32,12 @@ jobs:
     runs-on: windows-latest
     needs: clang-format
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        compiler: [msvc, Clang, Clang-cl]
+        compiler: [msvc, clang, clang-cl]
         build_type: [Debug, Release]
         include:
-          - compiler: msvc
+          - compiler: MSVC
             name: msvc
           - compiler: Clang
             name: clang20
@@ -55,35 +49,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM
-        if: matrix.compiler != 'msvc'
+      - name: Add LLVM to PATH
+        if: matrix.compiler == 'Clang'
         shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Tool versions
+        if: matrix.compiler != 'msvc'
         run: |
-          choco install llvm --version=${{ matrix.llvm_version }} -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+          clang --version
+          clang-format --version
+          clang-tidy --version
 
       - name: Configure
         shell: pwsh
         run: |
-          if ("${{ matrix.compiler }}" -eq "msvc") {		
-            cmake -S . -G "Visual Studio 17 2022" --preset "x64-${{ matrix.build_type }} MSVC"
-          } else {
-            cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
+          if ("${{ matrix.compiler }}" -eq "msvc") {
+              cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          } elseif ("${{ matrix.compiler }}" -eq "clang") {
+              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
+              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           }
 
       - name: Build
-        run: |
-          if ("${{ matrix.compiler }}" -eq "msvc") {
-            cmake --build build --preset "x64-${{ matrix.build_type }} MSVC Parallel" --parallel
-          } else { 
-            cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }} Parallel" --parallel
-          }
+        run: cmake --build build --config ${{ matrix.build_type }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: out/build
+          path: build
 
   clang-tidy:
     name: Run clang-tidy
@@ -130,5 +126,9 @@ jobs:
         shell: bash
         run: |
           for cfg in Debug Release; do
-            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir build/$cfg -C "$cfg" || echo "No tests for $cfg"
+            if [ -f "build/$cfg/CTestTestfile.cmake" ]; then
+              ctest --test-dir build/$cfg -C "$cfg"
+            else
+              echo "No tests found for $cfg, skipping"
+            fi
           done

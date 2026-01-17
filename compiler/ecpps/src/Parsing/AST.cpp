@@ -2,7 +2,7 @@
 #include <Assert.h>
 #include <format>
 #include <unordered_set>
-#include "ASTs\Type.h"
+#include "ASTs/Type.h"
 
 using ecpps::ast::NodePointer;
 static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
@@ -221,10 +221,10 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      return std::make_unique<FunctionDefinitionNode>(std::move(signature), std::move(body), source);
 }
 
-bool ecpps::ast::AST::IsDeclarationStart()
+bool ecpps::ast::AST::IsDeclarationStart(void)
 {
      std::size_t i = 0;
-     bool hasQualifier = false; // NOLINT
+     [[maybe_unused]] bool hasQualifier = false; // NOLINT
      bool hasSignedness = false;
      bool hasLong = false;
      bool hasType = false;
@@ -552,7 +552,6 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
                                 [](auto&&) static -> NodePointer { return nullptr; }},
               currentToken.value);
      }
-     break;
      case TokenType::Keyword:
      {
           const auto& keyword = std::get<std::string>(currentToken.value);
@@ -578,7 +577,6 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(void)
      {
           return ParseIdExpression();
      }
-     break;
      default:
           throw TracedException(std::format("Invalid primary expression {}", std::to_underlying(currentToken.type)));
      }

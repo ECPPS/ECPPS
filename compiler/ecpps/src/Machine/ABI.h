@@ -37,6 +37,8 @@ namespace ecpps::abi
      {
           virtual ~ProcedureStackManager(void)
           {
+               if (std::uncaught_exceptions() != 0) return;
+
                runtime_assert(this->_wasFinished, "You did not call Finish() silly");
           }
           void Finish(void)
@@ -215,7 +217,7 @@ namespace
           switch (callingConvention)
           {
           case ecpps::abi::CallingConventionName::Microsoftx64: return "__mscall";
+          default: return "__undefined";
           }
-          return "__undefined";
      }
 } // namespace

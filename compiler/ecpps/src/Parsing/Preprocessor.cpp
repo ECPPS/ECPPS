@@ -637,19 +637,20 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
      {
           for (std::size_t i = 0; i < parameters->size(); i++)
           {
-               std::string name = (*parameters)[i];
-               auto first = name.find_first_not_of(" \t\n\r");
-               auto last = name.find_last_not_of(" \t\n\r");
+               std::string parameterName = (*parameters)[i];
+               auto first = parameterName.find_first_not_of(" \t\n\r");
+               auto last = parameterName.find_last_not_of(" \t\n\r");
 
-               if (first != std::string::npos && last != std::string::npos) name = name.substr(first, last - first + 1);
+               if (first != std::string::npos && last != std::string::npos)
+                    parameterName = parameterName.substr(first, last - first + 1);
                else
-                    name.clear();
+                    parameterName.clear();
 
                if (i < arguments.size())
                {
                     std::string argStr;
                     for (const auto& token : arguments[i]) argStr += token.value;
-                    parameterMap[name] = argStr;
+                    parameterMap[parameterName] = argStr;
                }
                else
                     parameterMap[(*parameters)[i]] = "";
