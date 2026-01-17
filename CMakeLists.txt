@@ -74,8 +74,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
 	   -Wno-nonportable-system-include-path
 	   -Wno-c++20-compat
 	   -Wno-unknown-argument
-        "$<$<CONFIG:Release>:-O3>"	  
-        $<$<CONFIG:RelWithDebInfo>:-O3>
+        "$<$<CONFIG:Release>:/O2>"	  
+        $<$<CONFIG:RelWithDebInfo>:/O2>
     )
 endif()
 
