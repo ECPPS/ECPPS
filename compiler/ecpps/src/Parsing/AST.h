@@ -6,9 +6,9 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include "../Machine/ABI.h"
 #include "../Shared/Diagnostics.h"
 #include "../Shared/Error.h"
-#include "..\Machine\ABI.h"
 #include "Tokeniser.h"
 
 namespace ecpps::ast
@@ -130,8 +130,8 @@ namespace ecpps::ast
           case Operator::Increment: return "++";
           case Operator::Decrement: return "--";
           case Operator::Comma: return ",";
+          default: return "";
           }
-          return "";
      }
 
      class AttributeNode : public Node
@@ -158,7 +158,7 @@ namespace ecpps::ast
                     built += ")";
                }
                return built + "]]";
-          };
+          }
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
           [[nodiscard]] const SBOVector<Token>& Arguments(void) const noexcept { return this->_arguments; }
 
@@ -226,7 +226,8 @@ namespace ecpps::ast
           {
                using std::string_literals::operator""s;
                std::string built{};
-               for (const auto& attr : this->attributes) built += attr->ToString(0) + " ";
+               for (const auto& attr : this->attributes)
+                    built += (attr == nullptr ? attr->ToString(0) : "[[__unknown]]") + " ";
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
@@ -234,10 +235,11 @@ namespace ecpps::ast
                if (this->isExtern) built += "extern " + (m ? ("\""s + this->externOptional.value() + "\" ") : "");
                switch (this->constexprSpecifier)
                {
-               case ConstantExpressionSpecifier::None: break;
                case ConstantExpressionSpecifier::Constexpr: built += "constexpr "; break;
                case ConstantExpressionSpecifier::Consteval: built += "consteval "; break;
                case ConstantExpressionSpecifier::Constinit: built += "constinit "; break;
+               case ConstantExpressionSpecifier::None:
+               default: break;
                }
 
                built += this->type->ToString(0) + " ";

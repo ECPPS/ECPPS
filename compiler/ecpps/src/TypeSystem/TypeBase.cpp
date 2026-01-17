@@ -9,3 +9,13 @@ std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::VoidType::Common
           return IsIncomplete(other) ? ecpps::typeSystem::g_void : nullptr;
      }
 }
+
+bool ecpps::typeSystem::VoidType::operator==(const std::shared_ptr<ecpps::typeSystem::TypeBase>& other) const noexcept
+{
+     return other->RawName() == "void";
+}
+
+bool ecpps::typeSystem::TypeBase::operator==(const std::shared_ptr<TypeBase>& other) const noexcept
+{
+     return this->RawName() == other->RawName();
+}

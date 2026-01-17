@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 #include <utility>
-#include "..\TypeSystem\TypeBase.h"
+#include "../TypeSystem/TypeBase.h"
 #include "NodeBase.h"
 
 namespace ecpps

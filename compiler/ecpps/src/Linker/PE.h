@@ -177,6 +177,46 @@ namespace ecpps::linker::win
           std::uint32_t virtualAddress{};
      };
 
+     struct ImageHelpLine64
+     {
+          std::uint32_t sizeOfStruct; // set to sizeof(IMAGEHLP_LINE64)
+          void* key;                  // internal
+          std::uint32_t lineNumber;   // line number in file
+          char* fileName;             // full filename
+          std::uint64_t address;      // first instruction of line
+     };
+
+     struct ImageExportDirectory
+     {
+          std::uint32_t Characteristics;
+          std::uint32_t TimeDateStamp;
+          std::uint16_t MajorVersion;
+          std::uint16_t MinorVersion;
+          std::uint32_t Name;
+          std::uint32_t Base;
+          std::uint32_t NumberOfFunctions;
+          std::uint32_t NumberOfNames;
+          std::uint32_t AddressOfFunctions;    // RVA from base of image
+          std::uint32_t AddressOfNames;        // RVA from base of image
+          std::uint32_t AddressOfNameOrdinals; // RVA from base of image
+     };
+     struct ImageImportDescriptor
+     {
+          union
+          {
+               std::uint32_t Characteristics;    // 0 for terminating null import descriptor
+               std::uint32_t OriginalFirstThunk; // RVA to original unbound IAT (PIMAGE_THUNK_DATA)
+          };
+          std::uint32_t TimeDateStamp; // 0 if not bound,
+                                       // -1 if bound, and real date\time stamp
+                                       //     in IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT (new BIND)
+                                       // O.W. date/time stamp of DLL bound to (Old BIND)
+
+          std::uint32_t ForwarderChain; // -1 if no forwarders
+          std::uint32_t Name;
+          std::uint32_t FirstThunk; // RVA to IAT (if bound this IAT has actual addresses)
+     };
+
      struct PEImage
      {
           explicit PEImage(std::uintptr_t imageBase, std::uint32_t entryPoint, bool isNxCompatible, bool isRelocatable,

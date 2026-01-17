@@ -4,6 +4,8 @@ project(ECPPS)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
+option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 
 add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
 
@@ -33,6 +35,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
     add_compile_options(
         -Weverything
+	   -Werror
         -Wno-padded
         -Wno-missing-prototypes
         -Wno-unused-parameter
@@ -41,6 +44,39 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
         -Wno-potentially-evaluated-expression
         -Wno-unused-private-field
         -Wno-unused-function
+	   -Wno-c++98-compat
+	   -Wno-c++98-compat-pedantic
+	   -Wno-pre-c++17-compat
+	   -Wno-pre-c++23-compat
+	   -Wno-shadow-field-in-constructor
+	   -Wno-ctad-maybe-unsupported
+	   -Wno-missing-noreturn
+	   -Wno-reserved-macro-identifier
+	   -Wno-reserved-identifier
+	   -Wno-implicit-int-conversion
+	   -Wno-undefined-reinterpret-cast # pretty naive of it to assume every reinterpret_cast is undefined...
+	   -Wno-sign-conversion
+	   -Wno-unique-object-duplication
+	   -Wno-exit-time-destructors
+	   -Wno-switch-enum
+	   -Wno-covered-switch-default
+	   -Wno-unsafe-buffer-usage-in-libc-call
+	   -Wno-unsafe-buffer-usage
+	   -Wno-switch-default
+	   -Wno-global-constructors
+	   -Wno-unused-macros
+	   -Wno-deprecated-copy-with-dtor
+	   -Wno-shadow-uncaptured-local
+	   -Wno-comma
+	   -Wno-nrvo
+	   -Wno-unknown-warning-option
+	   -Wno-undefined-func-template
+	   -Wno-nonportable-system-include-path
+	   -Wno-c++20-compat
+	   -Wno-unknown-argument
+	   -Wno-source-uses-openmp
+        "$<$<CONFIG:Release>:/O2>"	  
+        $<$<CONFIG:RelWithDebInfo>:/O2>
     )
 endif()
 
@@ -55,8 +91,60 @@ if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unused-private-field
         -Wno-unused-variable
         -Wno-unused-function
+        $<$<CONFIG:RelWithDebInfo>:-O3>
+	   $<$<CONFIG:Release>:-O3>
         -std=c++23
-        $<$<CONFIG:Release>:-O3>
+    )
+endif()
+
+set(CLANG_LTO_FLAGS
+    -flto=thin
+    -fwhole-program-vtables
+    -fvisibility=hidden
+    -fvisibility-inlines-hidden
+)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        "$<$<CONFIG:Release>:${CLANG_LTO_FLAGS}>"
+        "$<$<CONFIG:RelWithDebInfo>:${CLANG_LTO_FLAGS}>"   
+        $<$<CONFIG:Release>:-fstrict-aliasing>   
+        $<$<CONFIG:Release>:-fvectorize>
+        $<$<CONFIG:Release>:-fslp-vectorize>
+        $<$<CONFIG:Release>:-fomit-frame-pointer>
+        $<$<CONFIG:Release>:-march=x86-64-v3>
+        $<$<CONFIG:RelWithDebInfo>:-fstrict-aliasing>
+        $<$<CONFIG:RelWithDebInfo>:-fvectorize>
+        $<$<CONFIG:RelWithDebInfo>:-fslp-vectorize>
+        $<$<CONFIG:RelWithDebInfo>:-fomit-frame-pointer>
+        $<$<CONFIG:RelWithDebInfo>:-march=x86-64-v3>
+    )
+    add_link_options(
+        "$<$<CONFIG:Release>:-flto=thin>"
+        "$<$<CONFIG:RelWithDebInfo>:-flto=thin>"
+    )
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ENABLE_PGO AND !PGO_REBUILD)
+    add_compile_options(
+        "$<$<CONFIG:Release>:-fprofile-use>"
+        "$<$<CONFIG:RelWithDebInfo>:-fprofile-use>"
+    )
+    add_link_options(
+        "$<$<CONFIG:Release>:-fprofile-use>"
+        "$<$<CONFIG:Release>:-fprofile-correction>"
+        "$<$<CONFIG:RelWithDebInfo>:-fprofile-use>"
+        "$<$<CONFIG:RelWithDebInfo>:-fprofile-correction>"
+    )
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND ENABLE_PGO AND PGO_REBUILD)
+    add_compile_options(
+        "$<$<CONFIG:Release>:-fprofile-create>"
+        "$<$<CONFIG:RelWithDebInfo>:-fprofile-create>"
+    )
+    add_link_options(
+        "$<$<CONFIG:Release>:-fprofile-create>"
+        "$<$<CONFIG:RelWithDebInfo>:-fprofile-create>"
     )
 endif()
 
@@ -73,7 +161,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
     ERROR_QUIET
 )
 
-
+enable_testing()
 add_subdirectory(compiler)
 add_subdirectory(stdlib)
 add_subdirectory(testing)

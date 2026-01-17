@@ -1,5 +1,6 @@
 #include "Config.h"
 #include <cctype>
+#include <filesystem>
 #include <print>
 #include <ranges>
 #include <string>
@@ -11,6 +12,8 @@
 ecpps::CompilerConfig::CompilerConfig(
     int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {
+     using std::string_literals::operator""s;
+
      if (argc <= 1) PrintVersionAndExit();
 
      ecpps::abi::SimdFeatures simd{};
@@ -87,6 +90,8 @@ ecpps::CompilerConfig::CompilerConfig(
                     this->useDebugger = true;
                else if (flag == "?" || lowerFlag == "help")
                     PrintHelpAndExit();
+               else if (std::filesystem::exists("/"s + flag.data()))
+                    this->sourceFiles.emplace_back(fullArgument);
                else
                {
                     // TODO: Error list of some sort on invalid flag

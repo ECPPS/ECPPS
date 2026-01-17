@@ -195,8 +195,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
      const auto otherPointer = std::dynamic_pointer_cast<PointerType>(other);
      runtime_assert(otherPointer != nullptr, std::format("Pointer type `{}` was not a pointer type", other->RawName()));
 
-     return otherPointer->_baseType->CompareTo(
-         this->_baseType); // TODO: This is not the way it should be done, but I am in a hurry
+     const auto subobjectComparison = otherPointer->_baseType->CompareTo(this->_baseType);
+     if (!subobjectComparison.IsValid()) return ConversionSequence{std::nullopt};
+     return subobjectComparison.SameAs() ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
+                                         : ConversionSequence{std::nullopt};
 }
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept

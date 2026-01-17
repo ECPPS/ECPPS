@@ -42,7 +42,9 @@ Checks: >
   -clang-analyzer-core.NonNullParamChecker,
   -modernize-use-auto,
   -bugprone-macro-parentheses,
-  -readability-suspicious-call-argument
+  -readability-suspicious-call-argument,
+  -bugprone-reserved-identifier,
+  -cppcoreguidelines-macro-usage
 
 CheckOptions:
   # Identifier naming rules

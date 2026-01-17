@@ -14,6 +14,9 @@
 
 using ecpps::abi::ABI;
 
+#ifdef __clang__
+__attribute__((no_sanitize("address")))
+#endif
 ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()};
 
 ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
@@ -284,8 +287,6 @@ ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(
      case abi::ISA::x86_64: return abi::CallingConventionName::Microsoftx64;
      default: throw TracedException("ISA not handled yet");
      }
-
-     return abi::CallingConventionName::Microsoftx64; // fallback
 }
 
 ecpps::abi::CallingConvention& ecpps::abi::ABI::CallingConventionFromName(CallingConventionName name)

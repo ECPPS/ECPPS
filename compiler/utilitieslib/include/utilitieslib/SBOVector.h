@@ -3,10 +3,66 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
+#include <execution>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
+
+#define VECTORISE_SBO_VECTOR
+
+#ifdef VECTORISE_SBO_VECTOR
+#ifdef NO_OMP
+template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
+{
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(from[i]);
+}
+template <typename T> void UMoveN(T* from, T* to, std::size_t size)
+{
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(std::move(from[i]));
+}
+template <typename T> void UFillN(const T& value, T* to, std::size_t size)
+{
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
+}
+template <typename T> void UFillN(T&& value, T* to, std::size_t size)
+{
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
+}
+#else
+template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
+{
+#pragma omp simd
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(from[i]);
+}
+template <typename T> void UMoveN(T* from, T* to, std::size_t size)
+{
+#pragma omp simd
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(std::move(from[i]));
+}
+template <typename T> void UFillN(const T& value, T* to, std::size_t size)
+{
+#pragma omp simd
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
+}
+template <typename T> void UFillN(T&& value, T* to, std::size_t size)
+{
+#pragma omp simd
+     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
+}
+#endif
+#else
+template <typename T> void UCopyN(const T* from, T* to, std::size_t size) { std::uninitialized_copy_n(from, size, to); }
+template <typename T> void UMoveN(T* from, T* to, std::size_t size) { std::uninitialized_move_n(from, size, to); }
+template <typename T> void UFillN(const T& value, T* to, std::size_t size)
+{
+     std::uninitialized_fill_n(to, size, value);
+}
+template <typename T> void UFillN(T&& value, T* to, std::size_t size)
+{
+     std::uninitialized_fill_n(to, size, std::forward<decltype(value)>(value));
+}
+#endif
 
 namespace ecpps
 {
@@ -51,7 +107,7 @@ namespace ecpps
                         std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                              // modernize-avoid-c-arrays)
                             this->_buffer.sbo));
-                    std::uninitialized_fill_n(destination, count, value);
+                    UFillN(value, count, destination);
                }
                else
                {
@@ -59,31 +115,23 @@ namespace ecpps
                     this->_buffer.noSbo.capacity = cap;
                     TAllocator allocator{};
                     this->_buffer.noSbo.begin = allocator.allocate(cap);
-                    std::uninitialized_fill_n(this->_buffer.noSbo.begin, count, value);
+                    UFillN(value, this->_buffer.noSbo.begin, count);
                }
           }
 
           SBOVector(const SBOVector& other) : _size(other._size)
           {
+               static_assert(std::is_copy_constructible_v<TElement>);
+
                const bool sbo = other.UseSBO();
-               if (sbo)
-               {
-                    if constexpr (std::is_trivially_copyable_v<TElement>)
-                         std::memcpy(_buffer.sbo, other._buffer.sbo, sizeof(TElement) * _size);
-                    else
-                    {
-                         auto* dst = reinterpret_cast<TElement*>(_buffer.sbo);
-                         const auto* src = other.begin();
-                         for (std::size_t i = 0; i < _size; ++i) std::construct_at(dst + i, src[i]);
-                    }
-               }
+               if (sbo) UCopyN(other.begin(), reinterpret_cast<TElement*>(_buffer.sbo), _size);
                else
                {
                     const std::size_t cap = other._buffer.noSbo.capacity;
                     _buffer.noSbo.capacity = cap;
                     TAllocator allocator{};
                     _buffer.noSbo.begin = allocator.allocate(cap);
-                    std::uninitialized_copy_n(other.begin(), _size, _buffer.noSbo.begin);
+                    UCopyN(other._buffer.noSbo.begin, this->_buffer.noSbo.begin, _size);
                }
           }
 
@@ -97,7 +145,7 @@ namespace ecpps
           }
           SBOVector(SBOVector&& other) noexcept : _size(std::exchange(other._size, 0))
           {
-               if (other.UseSBO()) { std::memcpy(_buffer.sbo, other._buffer.sbo, sizeof(TElement) * this->_size); }
+               if (UseSBO()) UMoveN(other.begin(), this->begin(), this->_size);
                else
                     this->_buffer.noSbo = std::exchange(other._buffer.noSbo, NoSBO{});
           }
@@ -190,18 +238,10 @@ namespace ecpps
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
 
-                         if constexpr (std::is_trivially_copyable_v<TElement>)
-                         {
-                              std::memcpy(newBuf, _buffer.noSbo.begin, (_size - 1) * sizeof(TElement));
-                         }
-                         else
-                         {
-                              for (std::size_t i = 0; i < (_size - 1); ++i)
-                              {
-                                   new (newBuf + i) TElement(std::move(_buffer.noSbo.begin[i]));
-                                   _buffer.noSbo.begin[i].~TElement();
-                              }
-                         }
+                         UMoveN(_buffer.noSbo.begin, newBuf, _size - 1);
+
+                         for (std::size_t i = 0; i < _size - 1; i++) _buffer.noSbo.begin[i].~TElement();
+
                          allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
                          _buffer.noSbo.capacity = newCap;
                     }
@@ -223,7 +263,7 @@ namespace ecpps
                     {
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
-                         std::memcpy(newBuf, _buffer.sbo, SBOSize * sizeof(TElement));
+                         UMoveN(_buffer.sbo, newBuf, SBOSize);
                          _buffer.noSbo.begin = newBuf;
                          _buffer.noSbo.capacity = cap;
 
@@ -235,7 +275,7 @@ namespace ecpps
                          const std::size_t oldCap = this->_buffer.noSbo.capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo.begin, this->_buffer.noSbo.begin + index, newBuf);
+                         UMoveN(this->_buffer.noSbo.begin, newBuf, index);
                          for (std::size_t i = 0; i < index; ++i) { std::destroy_at(this->_buffer.noSbo.begin + i); }
                          allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
                          this->_buffer.noSbo.capacity = newCap;
@@ -269,7 +309,7 @@ namespace ecpps
 
                          for (std::size_t i = 0; i < index; ++i)
                          {
-                              newBuf[i] = std::move(sboPtr[i]);
+                              new (&newBuf[i]) auto(std::move(sboPtr[i]));
                               sboPtr[i].~TElement();
                          }
 
@@ -284,13 +324,13 @@ namespace ecpps
                          const std::size_t oldCap = this->_buffer.noSbo.capacity;
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
-                         std::uninitialized_move(this->_buffer.noSbo.begin, this->_buffer.noSbo.begin + index, newBuf);
-                         for (std::size_t i = 0; i < index; ++i)
-                         {
-                              this->_buffer.noSbo.begin[i].~TElement();
-                              allocator.deallocate(std::exchange(this->_buffer.noSbo.begin, newBuf), oldCap);
-                         }
+
+                         UMoveN(this->_buffer.noSbo.begin, newBuf, index);
+                         for (std::size_t i = 0; i < index; i++) this->_buffer.noSbo.begin[i].~TElement();
+
+                         allocator.deallocate(std::exchange(this->_buffer.noSbo.begin, newBuf), oldCap);
                          this->_buffer.noSbo.capacity = newCap;
+                         this->_buffer.noSbo.begin = newBuf;
                     }
 
                     return *std::construct_at(_buffer.noSbo.begin + index, std::move(value));

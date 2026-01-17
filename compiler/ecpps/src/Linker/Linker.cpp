@@ -16,9 +16,8 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
           auto peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
           return std::make_unique<win::WindowsLinker>(std::move(peOptions));
      }
+     default: return nullptr;
      }
-
-     return nullptr;
 }
 
 std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
@@ -48,7 +47,10 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
                   ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable, LinkerBitness::x64));
      }
      break;
+     default: return {};
      }
+     if (selectedLinker == nullptr) return {};
+
      const auto availableExports = GetExportsFromDlls(config.importedLibraries);
      for (const auto& import : ecpps::codegen::g_functionImports)
      {

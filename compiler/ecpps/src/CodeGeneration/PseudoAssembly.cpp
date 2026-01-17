@@ -17,6 +17,9 @@
 using ecpps::codegen::Instruction;
 using ecpps::codegen::Routine;
 
+#ifdef __clang__
+[[clang::no_sanitize("address")]]
+#endif
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
 
 static ecpps::codegen::Operand ParseExpression(
@@ -100,7 +103,7 @@ static ecpps::codegen::Operand ParseExpression(
           code.emplace_back(ecpps::codegen::AddInstruction{
               right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
-          return destinationStorage;
+          return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
@@ -293,14 +296,18 @@ static ecpps::codegen::Operand ParseExpression(
      }
      if (auto* const addressOf = dynamic_cast<ecpps::ir::AddressOfNode*>(value.get()); addressOf != nullptr)
      {
-          const auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+          auto& abi = ecpps::abi::ABI::Current();
+
+          auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operand) &&
+              std::get<ecpps::codegen::RegisterOperand>(operand).Size() == abi.PointerSize() * ecpps::abi::byteSize)
+               return operand;
 
           runtime_assert(std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operand),
                          "Invalid operand for the address-of instruction");
 
           const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operand);
-
-          auto& abi = ecpps::abi::ABI::Current();
 
           const auto resultReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
 
@@ -336,7 +343,9 @@ static ecpps::codegen::Operand ParseExpression(
 
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
           {
-               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+               return ecpps::codegen::MemoryLocationOperand{
+                   std::get<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn), 0,
+                   pointerType->Size() * ecpps::typeSystem::CharWidth};
           }
 
           throw TracedException("Invalid operand for the address-of instruction");
@@ -351,7 +360,7 @@ static ecpps::codegen::Operand ParseExpression(
           const auto& targetType = convert->TargetType();
 
           std::size_t width = targetType->Size() * ecpps::typeSystem::CharWidth;
-          bool isSigned = false; // NOLINT
+          [[maybe_unused]] bool isSigned = false; // NOLINT
           if (IsIntegral(targetType))
           {
                isSigned = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(targetType)->Sign() ==
@@ -435,6 +444,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
 
      std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>> symbolTable{};
 
+     symbolTable.reserve(node.Locals().size());
      for (const auto& decl : node.Locals())
      {
           // TODO: static & extern

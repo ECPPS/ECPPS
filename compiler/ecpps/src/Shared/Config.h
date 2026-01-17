@@ -6,11 +6,20 @@
 
 namespace ecpps
 {
+     enum struct CompilerStrategy : std::uint8_t
+     {
+          HighMemory = 0, // the default
+          Multithreaded = 1,
+          LowMemory = 2
+     };
+     inline CompilerStrategy g_compilerStrategy{};
+
      enum struct LinkerUsed : std::uint_fast8_t
      {
           Windows64,
           Windows32,
-          Caosys
+          Caosys,
+          Undefined
      };
 
      constexpr LinkerUsed DefaultLinker = LinkerUsed::
@@ -19,7 +28,7 @@ namespace ecpps
 #elif defined(_WIN32)
          Windows32;
 #else
-         Windows64; // fallback to x64 Windows
+         Undefined;
 #endif
 
      enum struct DiagnosticType : std::uint_fast8_t
