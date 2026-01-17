@@ -72,7 +72,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
 	   -Wno-unknown-warning-option
 	   -Wno-undefined-func-template
 	   -Wno-nonportable-system-include-path
-	   -Wno-c++20-compat  
+	   -Wno-c++20-compat
+	   -Wno-unknown-argument
         "$<$<CONFIG:Release>:-O3>"	  
         $<$<CONFIG:RelWithDebInfo>:-O3>
     )
