@@ -16,11 +16,36 @@ jobs:
     steps:
       - name: Install LLVM
         shell: pwsh
-        run: |
-          choco install llvm --version=20.1.8 -y
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: choco install llvm --version=20.1.8 -y
 
-      - name: Run clang-format
+      - name: Set LLVM path
+        id: set-path
+        shell: pwsh
+        run: |
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+          echo "::set-output name=llvm-path::C:\Program Files\LLVM\bin"
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: $env:LOCALAPPDATA\ccache
+          key: ccache-${{ runner.os }}-${{ github.ref }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Install ccache
+        shell: pwsh
+        run: |
+          choco install ccache -y
+          echo "C:\Program Files\ccache" >> $env:GITHUB_PATH
+
+  clang-format:
+    name: Run clang-format
+    runs-on: windows-latest
+    needs: setup-llvm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run clang-format in parallel
         shell: bash
         env:
           PATH: ${{ needs.setup-llvm.outputs.llvm-path }}:$PATH
@@ -34,7 +59,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        compiler: [msvc, clang, clang-cl]
+        compiler: [MSVC, Clang, Clang-cl]
         build_type: [Debug, Release]
         include:
           - compiler: MSVC
@@ -54,32 +79,51 @@ jobs:
         shell: pwsh
         run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-      - name: Tool versions
-        if: matrix.compiler != 'msvc'
-        run: |
-          clang --version
-          clang-format --version
-          clang-tidy --version
+      - name: Setup MSVC Developer Environment
+        if: matrix.compiler == 'MSVC'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure
         shell: pwsh
-        run: |
-          if ("${{ matrix.compiler }}" -eq "msvc") {
-              cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          } elseif ("${{ matrix.compiler }}" -eq "clang") {
-              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          } elseif ("${{ matrix.compiler }}" -eq "clang-cl") {
-              cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_CXX_STANDARD=23 -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          }
-
+        run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
-
+        shell: pwsh
+        run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
+          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: build
+          path: out/build
+
+  build-windows-asan:
+    name: Windows / MSVC / ASan
+    runs-on: windows-latest
+    needs: build-windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Configure (ASan)
+        shell: pwsh
+        run: |
+          cmake -S . --preset x64-MSVC-Debug-ASan
+
+      - name: Build (ASan)
+        shell: pwsh
+        run: cmake --build build-asan --preset x64-MSVC-Debug-ASan-Parallel --parallel
+
+      - name: Run tests (ASan)
+        shell: pwsh
+        run: |
+          $env:ASAN_OPTIONS="abort_on_error=1"
+          ctest --test-dir out/build/x64-Debug-MSVC-ASan --output-on-failure
 
   clang-tidy:
     name: Run clang-tidy
@@ -126,9 +170,5 @@ jobs:
         shell: bash
         run: |
           for cfg in Debug Release; do
-            if [ -f "build/$cfg/CTestTestfile.cmake" ]; then
-              ctest --test-dir build/$cfg -C "$cfg"
-            else
-              echo "No tests found for $cfg, skipping"
-            fi
+            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir out/build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
           done
