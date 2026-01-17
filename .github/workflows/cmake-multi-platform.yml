@@ -20,6 +20,12 @@ jobs:
           choco install llvm --version=20.1.8 -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
+  clang-format:
+    name: Run clang-format
+    runs-on: windows-latest
+    needs: setup-llvm
+    steps:
+      - uses: actions/checkout@v4
       - name: Run clang-format
         shell: bash
         env:
