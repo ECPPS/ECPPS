@@ -74,7 +74,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
 	   -Wno-nonportable-system-include-path
 	   -Wno-c++20-compat
 	   -Wno-unknown-argument
-	   -Wo-source-uses-openmp
+	   -Wno-source-uses-openmp
         "$<$<CONFIG:Release>:/O2>"	  
         $<$<CONFIG:RelWithDebInfo>:/O2>
     )
