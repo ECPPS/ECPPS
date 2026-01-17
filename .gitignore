@@ -421,3 +421,4 @@ build/
 .vscode/
 
 *.exe
+*.profraw
