@@ -7,6 +7,23 @@ list(FILTER ECPPS_SOURCES EXCLUDE REGEX ".*/cli/.*")
 
 add_library(libecpps STATIC ${ECPPS_SOURCES})
 
+find_package(OpenMP QUIET)
+
+if(OpenMP_CXX_FOUND)
+    if (MSVC)
+        target_compile_options(libecpps PRIVATE -openmp:experimental)
+	   if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")	 
+		  target_compile_options(libecpps PRIVATE -Wno-source-uses-openmp)
+	   endif()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")	 
+        target_compile_options(libecpps PRIVATE -fopenmp=libomp -Wno-source-uses-openmp)
+    endif()
+    target_link_libraries(libecpps PRIVATE OpenMP::OpenMP_CXX)
+    target_compile_definitions(libecpps PRIVATE HAVE_OMP)
+else()
+    target_compile_definitions(libecpps PRIVATE NO_OMP)
+endif()
+
 target_compile_features(libecpps PUBLIC cxx_std_23)
 target_precompile_headers(libecpps PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h")
 

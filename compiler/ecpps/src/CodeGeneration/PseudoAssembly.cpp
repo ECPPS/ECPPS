@@ -296,14 +296,18 @@ static ecpps::codegen::Operand ParseExpression(
      }
      if (auto* const addressOf = dynamic_cast<ecpps::ir::AddressOfNode*>(value.get()); addressOf != nullptr)
      {
-          const auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+          auto& abi = ecpps::abi::ABI::Current();
+
+          auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+
+          if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operand) &&
+              std::get<ecpps::codegen::RegisterOperand>(operand).Size() == abi.PointerSize() * ecpps::abi::byteSize)
+               return operand;
 
           runtime_assert(std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operand),
                          "Invalid operand for the address-of instruction");
 
           const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operand);
-
-          auto& abi = ecpps::abi::ABI::Current();
 
           const auto resultReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
 
@@ -339,7 +343,9 @@ static ecpps::codegen::Operand ParseExpression(
 
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
           {
-               const auto tmpReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
+               return ecpps::codegen::MemoryLocationOperand{
+                   std::get<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn), 0,
+                   pointerType->Size() * ecpps::typeSystem::CharWidth};
           }
 
           throw TracedException("Invalid operand for the address-of instruction");

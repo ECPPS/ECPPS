@@ -30,6 +30,8 @@
 #undef max
 #endif
 
+static std::unordered_map<std::string, ecpps::Diagnostics*> g_diagnosticsReferences{};
+
 #ifdef _WIN32
 
 template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platformlib::DebuggerContext, CONTEXT>
@@ -37,29 +39,41 @@ template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platfor
      constexpr static bool IsValid = true;
 };
 
-LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* ExceptionInfo)
+static void IssueDiagnostics(void)
 {
-     switch (ExceptionInfo->ExceptionRecord->ExceptionCode)
+     for (const auto& [sourceName, lpDiagnostics] : g_diagnosticsReferences)
+     {
+          const auto& diagnostics = *lpDiagnostics;
+
+          for (const auto& diag : diagnostics.diagnosticsList) ecpps::diagnostics::PrintDiagnostic(sourceName, diag);
+     }
+}
+
+static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
+{
+     IssueDiagnostics();
+
+     switch (exceptionInfo->ExceptionRecord->ExceptionCode)
      {
      case EXCEPTION_ACCESS_VIOLATION:
      {
-          void* faultingAddress = reinterpret_cast<void*>(ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
-          bool isWrite = ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1;
+          void* faultingAddress = reinterpret_cast<void*>(exceptionInfo->ExceptionRecord->ExceptionInformation[1]);
+          bool isWrite = exceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1;
           std::string built;
           if (isWrite) built = std::format("Access violation writing to {}", faultingAddress);
           else
                built = std::format("Access violation reading {}", faultingAddress);
 
-          ecpps::IssueICE(built, &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
+          ecpps::IssueICE(built, &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
      }
      break;
      case EXCEPTION_INT_DIVIDE_BY_ZERO:
-          ecpps::IssueICE("Divide by zero", &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
+          ecpps::IssueICE("Divide by zero", &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
           break;
      default:
           ecpps::IssueICE(
-              std::format("Unhandled exception has occurred: {}", ExceptionInfo->ExceptionRecord->ExceptionCode),
-              &ecpps::platformlib::DebuggerContext::From(*ExceptionInfo->ContextRecord));
+              std::format("Unhandled exception has occurred: {}", exceptionInfo->ExceptionRecord->ExceptionCode),
+              &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
           break;
      }
 
@@ -113,8 +127,12 @@ int main(int argc, char* argv[])
                                  config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
           const bool isExtraVerbose = config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
 
+          g_diagnosticsReferences.reserve(sources.files.size());
+
           for (auto& source : sources.files)
           {
+               g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
+
                try
                {
                     std::println("Compiling {}...", source.name);
@@ -305,6 +323,34 @@ int main(int argc, char* argv[])
                     ecpps::IssueICE(e.what(), nullptr);
                     return -1;
                }
+               catch (...)
+               {
+                    hadErrors = true;
+                    try
+                    {
+                         for (const auto& diag : source.diagnostics.diagnosticsList)
+                         {
+                              ecpps::diagnostics::PrintDiagnostic(source.name, diag);
+
+                              if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
+                                  (!config.warningsAreErrors ||
+                                   diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                                   break;
+                              hadErrors = true;
+                         }
+                    }
+                    catch (const ecpps::TracedException& nestedTraceException)
+                    {
+                         ecpps::IssueICE(nestedTraceException);
+                    }
+                    catch (const std::exception& nestedException)
+                    {
+                         ecpps::IssueICE(nestedException.what(), nullptr);
+                    }
+
+                    ecpps::IssueICE("unknown", nullptr);
+                    return -1;
+               }
           }
 
           if (hadErrors)
@@ -380,5 +426,10 @@ int main(int argc, char* argv[])
      catch (const std::exception& e)
      {
           ecpps::IssueICE(e.what(), nullptr);
+     }
+     catch (...)
+     {
+          ecpps::IssueICE("unknown", nullptr);
+          return -1;
      }
 }

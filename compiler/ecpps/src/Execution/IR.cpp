@@ -141,6 +141,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      {
           parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
      }
+     if (parameters.size() == 1 && *parameters.at(0).type == typeSystem::g_void) parameters.clear();
 
      IR ir{this->_context.diagnostics.get()};
      const auto returnType = this->ParseType(node.Signature().type);

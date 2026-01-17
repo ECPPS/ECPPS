@@ -14,7 +14,7 @@ short One()
      return x;
 }
 
-int Two()
+int Two(void)
 {
      char x = 97;
      return x;
@@ -25,7 +25,13 @@ unsigned int Three()
      unsigned char x = 97;
      unsigned char* p = &x;
      ++*p;
-     return x;
+     unsigned char** pp = &p;
+     ++**pp;
+     ++*&x;
+     ++*&x;
+     ++*&x;
+     ++*&x;
+     return *p;
 }
 
 int main() { return One() + Two() + Three(); }

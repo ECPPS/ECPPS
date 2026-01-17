@@ -221,7 +221,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(void)
      return std::make_unique<FunctionDefinitionNode>(std::move(signature), std::move(body), source);
 }
 
-bool ecpps::ast::AST::IsDeclarationStart()
+bool ecpps::ast::AST::IsDeclarationStart(void)
 {
      std::size_t i = 0;
      [[maybe_unused]] bool hasQualifier = false; // NOLINT
