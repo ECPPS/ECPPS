@@ -15,7 +15,8 @@ jobs:
       llvm-path: ${{ steps.set-path.outputs.llvm-path }}
     steps:
       - name: Install LLVM
-        shell: pwsh
+        shell: pwsh	  
+        id: set-path
         run: |
           choco install llvm --version=20.1.8 -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
