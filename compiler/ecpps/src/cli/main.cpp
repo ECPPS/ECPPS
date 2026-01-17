@@ -49,7 +49,7 @@ static void IssueDiagnostics(void)
      }
 }
 
-static LONG WINAPI winExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
+static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
 {
      IssueDiagnostics();
 
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
 {
 #ifdef _WIN32
      EnableVirtualProcessing();
-     SetUnhandledExceptionFilter(winExceptionHandler);
+     SetUnhandledExceptionFilter(WinExceptionHandler);
 #endif
 
      try
