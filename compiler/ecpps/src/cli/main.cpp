@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
                std::println("\x1b[31mUnsupported architecture for the code generation\x1b[0m");
                return -1;
           }
-          std::println("Target: {}", emitter->Name());
+          if (config.verboseStatus != ecpps::VerboseStatus::Default) std::println("Target: {}", emitter->Name());
 
           std::vector<std::byte> generatedMachineCode{};
           std::vector<std::pair<std::string, std::size_t>> functions{};
@@ -135,7 +135,8 @@ int main(int argc, char* argv[])
 
                try
                {
-                    std::println("Compiling {}...", source.name);
+                    if (config.verboseStatus != ecpps::VerboseStatus::Default)
+                         std::println("Compiling {}...", source.name);
                     // ECPPS pushed macros (& standard)
 
                     std::vector<ecpps::MacroReplacement> macros{};
@@ -166,7 +167,8 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Tokens:");
                     if (isExtraVerbose) ecpps::Tokeniser::Print(tokens);
-                    const auto ast = ecpps::ast::AST{tokens, source.diagnostics}.Parse();
+                    ecpps::ast::ASTContext astContext{};
+                    const auto ast = ecpps::ast::AST{tokens, source.diagnostics}.Parse(astContext);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("AST:");
                     if (isExtraVerbose)
@@ -414,9 +416,10 @@ int main(int argc, char* argv[])
 
           const auto outputImagePath = absolute(std::filesystem::path(config.outputImage));
           const auto end = std::chrono::steady_clock::now();
-          std::println("Fully linked {}", outputImagePath.string());
-          std::println("Compilation successful. {}ms elapsed",
-                       (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
+          if (isVerbose) std::println("Fully linked {}", outputImagePath.string());
+          if (isVerbose)
+               std::println("Compilation successful. {}ms elapsed",
+                            (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
           outFile.close();
 
           if (config.useDebugger) return ecpps::debugging::Debugger::SelectAndDebug(config, outputImagePath);

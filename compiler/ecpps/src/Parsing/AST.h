@@ -6,9 +6,11 @@
 #include <memory>
 #include <optional>
 #include <vector>
+
 #include "../Machine/ABI.h"
 #include "../Shared/Diagnostics.h"
 #include "../Shared/Error.h"
+#include "ASTContext.h"
 #include "Tokeniser.h"
 
 namespace ecpps::ast
@@ -28,7 +30,7 @@ namespace ecpps::ast
      private:
           Location _location;
      };
-     using NodePointer = std::unique_ptr<Node>;
+     using NodePointer = std::unique_ptr<Node, ASTContext::Deleter>;
 
      enum struct ConstantExpressionSpecifier : std::uint_fast8_t
      {
@@ -175,7 +177,7 @@ namespace ecpps::ast
 
      struct FunctionParameter
      {
-          SBOVector<std::unique_ptr<AttributeNode>> attributes{};
+          SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes{};
           ExplicitThisSpecifier explicitThis{};
           NodePointer type{};
           NodePointer name{};
@@ -216,7 +218,7 @@ namespace ecpps::ast
           bool isExtern{};
           std::optional<std::string> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
-          SBOVector<std::unique_ptr<AttributeNode>> attributes{};
+          SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes{};
           NodePointer name;
           abi::CallingConventionName callingConvention;
           FunctionParameterList parameters{};
@@ -254,8 +256,8 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     SBOVector<std::unique_ptr<AttributeNode>> attributes, NodePointer name,
-                                     const abi::CallingConventionName callingConvention)
+                                     SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes,
+                                     NodePointer name, const abi::CallingConventionName callingConvention)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
                 attributes(std::move(attributes)), name(std::move(name)), callingConvention(callingConvention)
           {
@@ -570,7 +572,7 @@ namespace ecpps::ast
               : _tokens(std::move(tokens)), _diagnostics(std::ref(diagnostics))
           {
           }
-          [[nodiscard]] std::vector<NodePointer> Parse(void);
+          [[nodiscard]] std::vector<NodePointer> Parse(ASTContext& context);
 
      private:
           std::vector<Token> _tokens;
@@ -593,54 +595,54 @@ namespace ecpps::ast
           }
 
           // General
-          std::unique_ptr<IdentifierNode> ParseIdentifier(void);
-          NodePointer ParseSimpleTypeSpecifier(void);
+          std::unique_ptr<IdentifierNode, ASTContext::Deleter> ParseIdentifier(ASTContext& context);
+          NodePointer ParseSimpleTypeSpecifier(ASTContext& context);
 
           // Declarations
-          NodePointer ParseDeclaration(void);
-          NodePointer ParseBlockDeclaration(void);
-          NodePointer ParseNameDeclaration(void);
-          NodePointer ParseFunctionDefinition(void);
-          bool IsDeclarationStart(void);
+          NodePointer ParseDeclaration(ASTContext& context);
+          NodePointer ParseBlockDeclaration(ASTContext& context);
+          NodePointer ParseNameDeclaration(ASTContext& context);
+          NodePointer ParseFunctionDefinition(ASTContext& context);
+          bool IsDeclarationStart(ASTContext& context);
 
           // simple-declaration
-          NodePointer ParseSimpleDeclaration(void);               // simple-declaration
-          static NodePointer TryParseDeclSpecifier(void);         // decl-specifier
-          static NodePointer TryParseDefiningTypeSpecifier(void); // defining-type-specifier
-          static NodePointer ParseInitDeclarator(void);           // init-declarator
-          static NodePointer TryParseDeclarator(void);            // declarator
-          static NodePointer TryParsePtrDeclarator(void);         // ptr-declarator
-          static NodePointer TryParseNoPtrDeclarator(void);       // no-ptr-declarator
-          static NodePointer ParseInitialiser(void);              // initialiser
+          NodePointer ParseSimpleDeclaration(ASTContext& context);               // simple-declaration
+          static NodePointer TryParseDeclSpecifier(ASTContext& context);         // decl-specifier
+          static NodePointer TryParseDefiningTypeSpecifier(ASTContext& context); // defining-type-specifier
+          static NodePointer ParseInitDeclarator(ASTContext& context);           // init-declarator
+          static NodePointer TryParseDeclarator(ASTContext& context);            // declarator
+          static NodePointer TryParsePtrDeclarator(ASTContext& context);         // ptr-declarator
+          static NodePointer TryParseNoPtrDeclarator(ASTContext& context);       // no-ptr-declarator
+          static NodePointer ParseInitialiser(ASTContext& context);              // initialiser
 
           // Expressions
-          [[nodiscard]] NodePointer ParsePrimaryExpression(void);
-          [[nodiscard]] NodePointer ParseIdExpression(void);
-          [[nodiscard]] NodePointer ParsePostfixExpresssion(void);
-          [[nodiscard]] NodePointer ParseUnaryExpression(void);
-          [[nodiscard]] NodePointer ParseCastExpression(void);
-          [[nodiscard]] NodePointer ParsePmExpression(void);
-          [[nodiscard]] NodePointer ParseMultiplicativeExpression(void);
-          [[nodiscard]] NodePointer ParseAdditiveExpression(void);
-          [[nodiscard]] NodePointer ParseShiftExpression(void);
-          [[nodiscard]] NodePointer ParseCompareExpression(void);
-          [[nodiscard]] NodePointer ParseRelationalExpression(void);
-          [[nodiscard]] NodePointer ParseEqualityExpression(void);
-          [[nodiscard]] NodePointer ParseBinaryAndExpression(void);
-          [[nodiscard]] NodePointer ParseBinaryExclusiveOrExpression(void);
-          [[nodiscard]] NodePointer ParseBinaryInclusiveOrExpression(void);
-          [[nodiscard]] NodePointer ParseLogicalAndExpression(void);
-          [[nodiscard]] NodePointer ParseLogicalOrExpression(void);
-          [[nodiscard]] NodePointer ParseConditionalExpression(void);
-          [[nodiscard]] NodePointer ParseAssignmentExpression(void);
-          [[nodiscard]] NodePointer ParseExpression(void);
+          [[nodiscard]] NodePointer ParsePrimaryExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseIdExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParsePostfixExpresssion(ASTContext& context);
+          [[nodiscard]] NodePointer ParseUnaryExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseCastExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParsePmExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseMultiplicativeExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseAdditiveExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseShiftExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseCompareExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseRelationalExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseEqualityExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseBinaryAndExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseBinaryExclusiveOrExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseBinaryInclusiveOrExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseLogicalAndExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseLogicalOrExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseConditionalExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseAssignmentExpression(ASTContext& context);
+          [[nodiscard]] NodePointer ParseExpression(ASTContext& context);
 
           // Statements
-          NodePointer ParseStatement(void);
-          NodePointer ParseDeclarationStatement(void) { return ParseBlockDeclaration(); }
-          NodePointer ParseExpressionStatement(void);
+          NodePointer ParseStatement(ASTContext& context);
+          NodePointer ParseDeclarationStatement(ASTContext& context) { return ParseBlockDeclaration(context); }
+          NodePointer ParseExpressionStatement(ASTContext& context);
 
           // Helpers (parse sub-components)
-          FunctionParameter ParseFunctionParameter(void);
+          FunctionParameter ParseFunctionParameter(ASTContext& context);
      };
 } // namespace ecpps::ast
