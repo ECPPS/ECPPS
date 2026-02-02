@@ -11,7 +11,6 @@
 #ifdef _WIN32
 #include <corecrt.h> // NOLINT
 #endif
-
 #include <algorithm>     // NOLINT
 #include <chrono>        // NOLINT
 #include <concepts>      // NOLINT

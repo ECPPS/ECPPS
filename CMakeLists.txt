@@ -7,6 +7,21 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 
+include(FetchContent)
+
+FetchContent_Declare(
+    mimalloc
+    GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+    GIT_TAG        v2.1.7 # or whatever version you want pinned
+)
+
+set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(MI_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(mimalloc)
+
+
 add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
 
 if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")

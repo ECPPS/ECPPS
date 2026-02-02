@@ -263,7 +263,7 @@ namespace ecpps
                     {
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
-                         UMoveN(_buffer.sbo, newBuf, SBOSize);
+                         UMoveN(reinterpret_cast<TElement*>(_buffer.sbo), newBuf, SBOSize);
                          _buffer.noSbo.begin = newBuf;
                          _buffer.noSbo.capacity = cap;
 
