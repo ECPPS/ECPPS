@@ -94,7 +94,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
-          path: out/build
+          path: |
+            out/build
+            build/compile_commands.json
 
   build-windows-asan:
     name: Windows / MSVC / ASan
@@ -143,13 +145,9 @@ jobs:
         run: |
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
           | xargs -P $(nproc) -I {} clang-tidy {} \
+              -p build \
               --warnings-as-errors='*' \
-              --extra-arg=-std=c++23 \
-              -- \
-              -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
-              -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
-              -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
-              -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib"
+              --extra-arg=-std=c++23
 
   run-tests:
     name: Run Tests
