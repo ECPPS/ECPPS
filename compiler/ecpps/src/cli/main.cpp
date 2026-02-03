@@ -173,12 +173,15 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose) std::println("AST:");
                     if (isExtraVerbose)
                          for (const auto& node : ast) std::println("{}", node->ToString(0));
-                    const auto ir = ecpps::ir::IR::Parse(source.diagnostics, ast);
+                    ecpps::BumpAllocator irAllocator{};
+                    const auto ir = ecpps::ir::IR::Parse(source.diagnostics, irAllocator, ast);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("IR:");
                     if (isExtraVerbose)
                          for (const auto& node : ir) std::println("{}", node->ToString(0));
+                    astContext.Release();
                     ecpps::codegen::Compile(source, ir);
+
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Assembly:");
 

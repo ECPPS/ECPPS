@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
+#include "Context.h"
 
 namespace ecpps::ir
 {
@@ -34,7 +35,7 @@ namespace ecpps::ir
      class NodeBase
      {
      public:
-          explicit NodeBase(const NodeKind kind, Location source) : _kind(kind), _source(source) {}
+          explicit NodeBase(const NodeKind kind, const Location& source) : _kind(kind), _source(source) {}
           virtual ~NodeBase(void) = default;
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
@@ -47,7 +48,9 @@ namespace ecpps::ir
           Location _source;
      };
 
-     using NodePointer = std::unique_ptr<NodeBase>;
+     using IRDeleter = BumpAllocator::Deleter;
+
+     using NodePointer = std::unique_ptr<NodeBase, IRDeleter>;
 
      class IntegralNode final : public NodeBase
      {

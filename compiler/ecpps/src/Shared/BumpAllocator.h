@@ -8,6 +8,8 @@ namespace ecpps
      {
      public:
           explicit BumpAllocator(std::size_t maxMemory = 0);
+          BumpAllocator(const BumpAllocator&) = delete;
+          BumpAllocator(BumpAllocator&&) = delete;
 
           struct Deleter
           {
@@ -30,6 +32,8 @@ inline void* operator new(const std::size_t count,
 {
      return allocator.Allocate(count);
 }
+
+void* operator new(const std::size_t count, const ecpps::BumpAllocator* allocator) = delete;
 
 inline void operator delete([[maybe_unused]] void* address, [[maybe_unused]] ecpps::BumpAllocator& allocator) noexcept
 {

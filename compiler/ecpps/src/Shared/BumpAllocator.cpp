@@ -1,5 +1,8 @@
 #include "BumpAllocator.h"
 
+#include <print>
+
+#include "Assert.h"
 #include "SBOVector.h"
 
 #ifdef _WIN32
@@ -12,7 +15,8 @@ static void* ReserveMemory(std::size_t count) noexcept
 
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
-     VirtualAlloc(address, count, MEM_COMMIT, PAGE_READWRITE);
+     auto* const committed = VirtualAlloc(address, count, MEM_COMMIT, PAGE_READWRITE);
+     runtime_assert(committed == address, "Commit failed");
 }
 
 static void ReleaseMemory(void* address) noexcept { VirtualFree(address, 0, MEM_RELEASE); }
@@ -33,9 +37,11 @@ ecpps::BumpAllocator::BumpAllocator(std::size_t maxMemory)
 std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
 {
      size = Align(size, sizeof(std::max_align_t));
+     runtime_assert(size <= 1024uz * 8uz, "No type of such size exists in this ecosystem");
 
      auto* address = std::exchange(this->_currentEnd, this->_currentEnd + size);
-     while (this->_currentEnd > this->_commitEnd)
+
+     while (this->_currentEnd >= this->_commitEnd)
      {
           CommitMemory(this->_commitEnd, CommitStep);
           this->_commitEnd += CommitStep;

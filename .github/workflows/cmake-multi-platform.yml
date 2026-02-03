@@ -96,7 +96,7 @@ jobs:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
           path: |
             out/build
-            build/compile_commands.json
+            out/build/compile_commands.json
 
   build-windows-asan:
     name: Windows / MSVC / ASan

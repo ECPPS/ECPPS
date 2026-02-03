@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 include(FetchContent)
 
