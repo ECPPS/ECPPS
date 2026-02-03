@@ -145,7 +145,7 @@ jobs:
         run: |
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
           | xargs -P $(nproc) -I {} clang-tidy {} \
-              -p out/build/x64-Clang-Release \
+              -p build/x64-Clang-Release \
               --warnings-as-errors='*' \
               --extra-arg=-std=c++23
 
