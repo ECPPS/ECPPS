@@ -94,8 +94,8 @@
 			"name": "asan-windows",
 			"hidden": true,
 			"cacheVariables": {
-				"CMAKE_C_FLAGS": "/fsanitize=address",
-				"CMAKE_CXX_FLAGS": "/fsanitize=address"
+				"CMAKE_C_FLAGS": "/fsanitize=address /fsanitize=fuzzer",
+				"CMAKE_CXX_FLAGS": "/fsanitize=address /fsanitize=fuzzer"
 			}
 		},
 		{
