@@ -144,7 +144,7 @@ jobs:
           PATH: C:\Program Files\LLVM\bin:$PATH
         run: |
           echo "JSON in $(find . -name "compile_commands.json" -exec dirname {} \;)"
-          find . -name compile_commands.json -exec cp {} .\;
+          cp $(find . -name compile_commands.json) .
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
           | xargs -P $(nproc) -I {} clang-tidy {} \
               -p . \
