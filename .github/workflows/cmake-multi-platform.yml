@@ -143,9 +143,10 @@ jobs:
         env:
           PATH: C:\Program Files\LLVM\bin:$PATH
         run: |
+          echo "JSON in $(find build -name "compile_commands.json" -exec dirname {} \;)"
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
           | xargs -P $(nproc) -I {} clang-tidy {} \
-              -p build/x64-Clang-Release \
+              -p build \
               --warnings-as-errors='*' \
               --extra-arg=-std=c++23
 
