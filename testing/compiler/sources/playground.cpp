@@ -28,9 +28,6 @@ unsigned int Three()
      unsigned char** pp = &p;
      ++**pp;
      ++*&x;
-     ++*&x;
-     ++*&x;
-     ++*&x;
      return *p;
 }
 

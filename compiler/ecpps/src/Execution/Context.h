@@ -255,10 +255,14 @@ namespace ecpps::ir
      struct Context
      {
           std::reference_wrapper<Diagnostics> diagnostics;
+          BumpAllocator* nodeAllocator;
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           SBOQueue<ContextPointer> contextSequence{};
 
-          explicit Context(Diagnostics& diagnostics) : diagnostics(std::ref(diagnostics)) {}
+          explicit Context(Diagnostics& diagnostics, BumpAllocator& allocator)
+              : diagnostics(std::ref(diagnostics)), nodeAllocator(&allocator)
+          {
+          }
      };
 } // namespace ecpps::ir

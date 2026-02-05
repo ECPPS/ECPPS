@@ -8,14 +8,21 @@ namespace ecpps::ast
      class NamespaceAliasNode final : public Node
      {
      public:
-          explicit NamespaceAliasNode(std::unique_ptr<IdentifierNode> name,
-                                      SBOVector<std::unique_ptr<IdentifierNode>> aliasedNamespace, Location source)
+          explicit NamespaceAliasNode(
+              std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter> name,
+              SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>> aliasedNamespace,
+              Location source)
               : Node(source), _aliasName(std::move(name)), _aliasedNamespace(std::move(aliasedNamespace))
           {
           }
 
-          [[nodiscard]] const std::unique_ptr<IdentifierNode>& Name(void) const noexcept { return this->_aliasName; }
-          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode>>& AliasedNamespace(void) const noexcept
+          [[nodiscard]] const std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>& Name(
+              void) const noexcept
+          {
+               return this->_aliasName;
+          }
+          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>>&
+          AliasedNamespace(void) const noexcept
           {
                return this->_aliasedNamespace;
           }
@@ -35,8 +42,8 @@ namespace ecpps::ast
           }
 
      private:
-          std::unique_ptr<IdentifierNode> _aliasName;
-          SBOVector<std::unique_ptr<IdentifierNode>> _aliasedNamespace;
+          std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter> _aliasName;
+          SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>> _aliasedNamespace;
      };
 
      class BasicType final : public Node

@@ -100,10 +100,11 @@ namespace ecpps::ir
      class IR
      {
      public:
-          static std::vector<NodePointer> Parse(Diagnostics& diagnostics, const std::vector<ast::NodePointer>& ast);
+          static std::vector<NodePointer> Parse(Diagnostics& diagnostics, BumpAllocator& allocator,
+                                                const std::vector<ast::NodePointer>& ast);
 
      private:
-          explicit IR(Diagnostics& diagnostics) : _context(diagnostics) {}
+          explicit IR(Diagnostics& diagnostics, BumpAllocator& allocator) : _context(diagnostics, allocator) {}
           std::vector<NodePointer> _built{};
           Context _context;
 
@@ -113,10 +114,10 @@ namespace ecpps::ir
           void ParseReturn(const ast::ReturnNode& node);
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
 
-          Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
-                                             const Location& source) const;
-          Expression ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right,
-                                                   const Location& source) const;
+          [[nodiscard]] Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
+                                                           const Location& source) const;
+          [[nodiscard]] Expression ParseMultiplicativeExpression(Expression left, ast::Operator operator_,
+                                                                 Expression right, const Location& source) const;
           static Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                  const Location& source);
           [[nodiscard]] Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
@@ -140,11 +141,11 @@ namespace ecpps::ir
           /// <param name="expression"></param>
           /// <param name="type"></param>
           /// <returns></returns>
-          static Expression ConvertIntegral(Expression expression,
-                                            const std::shared_ptr<typeSystem::IntegralType>& type);
+          Expression ConvertIntegral(Expression expression,
+                                     const std::shared_ptr<typeSystem::IntegralType>& type) const;
 
           // matching
-          static MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
-                                             const std::vector<Expression>& arguments);
+          MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
+                                      const std::vector<Expression>& arguments);
      };
 } // namespace ecpps::ir
