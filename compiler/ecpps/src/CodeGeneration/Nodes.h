@@ -69,6 +69,17 @@ namespace ecpps::codegen
           std::size_t _displacement;
      };
 
+     struct IntegerRangeOperand : OperandBase<IntegerRangeOperand>
+     {
+          explicit IntegerRangeOperand(std::vector<unsigned char> values);
+          [[nodiscard]] std::string ToString(void) const { return std::format("{}", this->_values); }
+
+          [[nodiscard]] const std::vector<unsigned char>& Values(void) const noexcept { return this->_values; }
+
+     private:
+          std::vector<unsigned char> _values;
+     };
+
      struct ErrorOperand
      {
           [[nodiscard]] std::size_t Size(void) const noexcept
@@ -81,7 +92,8 @@ namespace ecpps::codegen
           } // NOLINT(readability-convert-member-functions-to-static)
      };
 
-     using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand>;
+     using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand,
+                                  IntegerRangeOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {

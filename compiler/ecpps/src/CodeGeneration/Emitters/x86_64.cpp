@@ -149,7 +149,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const Add
                                         [&add, this](const MemoryLocationOperand&)
                                         { return this->EmitSpecificAdd<OperandCombination::MemoryToRegister>(add); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid add operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
                       add.from);
              },
              [&add, this](const MemoryLocationOperand&)
@@ -160,10 +160,11 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const Add
                                         [&add, this](const IntegerOperand&)
                                         { return this->EmitSpecificAdd<OperandCombination::ImmediateToMemory>(add); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid add operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
                       add.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid add operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
          add.to);
 }
 
@@ -195,7 +196,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         { throw TracedException(std::logic_error("Invalid sub operation")); }},
                       sub.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid sub operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid sub operation")); }},
          sub.to);
 }
 
@@ -242,7 +244,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         [&div, this](const IntegerOperand&)
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
                       div.from);
              },
              [&div, this](const MemoryLocationOperand&)
@@ -253,20 +255,22 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         [&div, this](const IntegerOperand&)
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(div); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
                       div.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
          div.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const TakeAddressInstruction& lea)
 {
-     return std::visit(OverloadedVisitor{[&lea, this](const RegisterOperand&)
-                                         { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
-                                         [](auto&&) -> std::vector<std::byte>
-                                         { throw std::logic_error("Invalid address-of operation"); }},
-                       lea.to);
+     return std::visit(
+         OverloadedVisitor{[&lea, this](const RegisterOperand&)
+                           { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
+                           [](auto&&) -> std::vector<std::byte>
+                           { throw ecpps::TracedException(std::logic_error("Invalid address-of operation")); }},
+         lea.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
@@ -873,7 +877,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
                                                           static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mul operation");
+          throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
      }
 };
 
@@ -984,7 +988,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 #pragma GCC diagnostic pop
 #endif
 
-          throw std::logic_error("Invalid mul operation");
+          throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
      }
 };
 
@@ -1036,7 +1040,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
                break;
           }
-          default: throw std::logic_error("Invalid div width");
+          default: throw ecpps::TracedException(std::logic_error("Invalid div width"));
           }
 
           // emit div instruction with divisor in register (destReg)

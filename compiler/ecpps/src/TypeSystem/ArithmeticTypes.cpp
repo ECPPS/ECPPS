@@ -208,7 +208,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
 
           const auto elementComparison = this->_baseType->CompareTo(otherArray->ElementType());
           if (!elementComparison.SameAs()) return ConversionSequence{std::nullopt};
-          return ConversionSequence{ConversionSequence::ConversionKind::ArrayToPointer};
+          return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::ArrayToPointer}};
      }
      if (!IsPointer(other)) return ConversionSequence{std::nullopt};
 

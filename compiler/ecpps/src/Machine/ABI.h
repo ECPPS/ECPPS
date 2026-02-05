@@ -194,9 +194,51 @@ namespace ecpps::abi
           }
           [[nodiscard]] std::size_t PointerSize(void) const noexcept { return this->_pointerSize; }
 
+          template <std::size_t TTo, std::size_t TFrom>
+          [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
+          template <std::same_as<unsigned char[]> TArray, // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                          // modernize-avoid-c-arrays)
+                    std::size_t TFrom>
+          [[nodiscard]] auto ConvertEndian(std::size_t value) const noexcept
+          {
+               std::array<unsigned char, TFrom> output{};
+
+               for (std::size_t i = 0; i < TFrom; i++)
+               {
+                    unsigned char byte = static_cast<unsigned char>((value >> (i * 8)) & 0xFF);
+                    if (this->_endianness == ecpps::abi::Endianness::Big) output[TFrom - 1 - i] = byte;
+                    else
+                         output[i] = byte;
+               }
+
+               return output;
+          }
+          template <std::size_t TTo, std::same_as<unsigned char[]> TArray> // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                           // modernize-avoid-c-arrays)
+          [[nodiscard]] std::size_t ConvertEndian(auto&& range) const noexcept
+          {
+               std::size_t value = 0;
+
+               if (this->_endianness == ecpps::abi::Endianness::Big)
+               {
+                    for (std::size_t i = 0; i < TTo; i++)
+                    {
+                         value <<= 8;
+                         value |= static_cast<std::size_t>(range[i]);
+                    }
+               }
+               else
+               {
+                    for (std::size_t i = 0; i < TTo; i++) value |= static_cast<std::size_t>(range[i]) << (i * 8);
+               }
+
+               return value;
+          }
+
      private:
           static ABI _current;
 
+          Endianness _endianness;
           ISA _isa;
           std::vector<std::shared_ptr<PhysicalRegister>> _physicalRegisters;
           std::vector<std::shared_ptr<VirtualRegister>> _registers;

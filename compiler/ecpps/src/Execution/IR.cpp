@@ -208,14 +208,25 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      locals.reserve(vFunctionScope->locals.size());
      for (const auto& toCopy : vFunctionScope->locals) locals.emplace_back(toCopy);
 
+     const auto functionName = node.Signature().name->ToString(0);
+
      if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator)
                                                                              ir::ReturnNode(nullptr, node.Source())});
 
+     if (functionName == "main")
+          ir._built.push_back(
+              std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator) ir::ReturnNode(
+                  std::make_unique<PRValue>(typeSystem::g_int,
+                                            std::unique_ptr<IntegralNode, IRDeleter>{
+                                                new (*ir._context.nodeAllocator) ir::IntegralNode(0, node.Source())},
+                                            true),
+                  node.Source())});
+
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
-         new (*this->_context.nodeAllocator) ecpps::ir::ProcedureNode(
-             linkage, node.Signature().callingConvention, returnType, node.Signature().name->ToString(0),
-             std::move(parameters), std::move(locals), std::move(ir._built), node.Source())});
+         new (*this->_context.nodeAllocator)
+             ecpps::ir::ProcedureNode(linkage, node.Signature().callingConvention, returnType, functionName,
+                                      std::move(parameters), std::move(locals), std::move(ir._built), node.Source())});
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
@@ -274,6 +285,29 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
 
           const std::string varName = idExpr->Value();
+          auto variableType = declaredType;
+          bool inferLastArrayFromInitialiser = false;
+          const auto isArray = !decl.arrayLevels.empty();
+
+          for (const auto& arrayLevel : decl.arrayLevels)
+          {
+               if (inferLastArrayFromInitialiser)
+                    this->_context.diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::TypeError>(
+                        std::format("Declaration of '{}' introduces an array of unbounded arrays which is not allowed, "
+                                    "only the top-level array might be unbounded",
+                                    varName),
+                        arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+
+               if (arrayLevel == nullptr)
+               {
+                    inferLastArrayFromInitialiser = true;
+
+                    continue;
+               }
+               throw TracedException(std::logic_error("Constant expression evaluator not implemented yet"));
+
+               // variableType = std::make_shared<typeSystem::ArrayType>()
+          }
 
           bool duplicate = false;
           for (const auto& v : fscope.locals)
@@ -305,14 +339,61 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           FunctionScope::Variable varEntry;
           varEntry.name = varName;
-          varEntry.type = declaredType;
+          varEntry.type = variableType;
           varEntry.isStatic = node.GetFlags().isStatic;
           varEntry.isExtern = node.GetFlags().isExtern;
 
-          fscope.locals.emplace_back(std::move(varEntry));
-          const auto& registeredVar = fscope.locals.back();
+          auto& registeredVar = fscope.locals.emplace_back(std::move(varEntry));
 
-          if (decl.initialiser)
+          if (inferLastArrayFromInitialiser)
+          {
+               if (decl.initialiser == nullptr)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Unbounded array '{}' must have an initialiser", varName),
+                            decl.name->Source()));
+               }
+               if (IsEligibleForStringLiteralInitialisation(variableType))
+               {
+                    if (auto* const stringInitialiser =
+                            dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
+                        stringInitialiser != nullptr)
+                    {
+                         const auto& string = stringInitialiser->Value();
+                         const auto arrayLength = string.length() + 1;
+                         auto elementType = std::dynamic_pointer_cast<ecpps::typeSystem::CharacterType>(variableType);
+                         runtime_assert(elementType != nullptr,
+                                        "Expected a character type for string-literal initialisation");
+                         variableType = std::make_shared<ecpps::typeSystem::ArrayType>(arrayLength, elementType);
+                         inferLastArrayFromInitialiser = false;
+
+                         std::vector<std::uint32_t> arrayValues{};
+                         arrayValues.reserve(arrayLength);
+                         for (const auto character : string) arrayValues.emplace_back(character);
+                         arrayValues.emplace_back(0);
+                         std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
+                             new (*this->_context.nodeAllocator) ecpps::ir::IntegerArrayNode(
+                                 std::move(arrayValues), std::move(elementType), decl.initialiser->Source())};
+                         auto initialiserExpression =
+                             std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
+
+                         this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+                             new (*this->_context.nodeAllocator) ir::StoreNode(
+                                 registeredVar.name, std::move(initialiserExpression), decl.initialiser->Source())});
+                    }
+               }
+               if (inferLastArrayFromInitialiser)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Array '{}' must be initialised with initialiser-lists", varName),
+                            decl.name->Source()));
+               }
+
+               registeredVar.type = variableType;
+          }
+          else if (decl.initialiser)
           {
                auto initExpr = ParseExpression(decl.initialiser);
                if (initExpr == nullptr)
@@ -455,7 +536,7 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
      runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
                     "Invalid operator for a shift-expression");
 
-     throw std::logic_error("Not implemented");
+     throw ecpps::TracedException(std::logic_error("Not implemented"));
 }
 
 // indirection
@@ -688,7 +769,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      return nullptr;
 }
 
-Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expression)
+Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expression) const
 {
      const auto length = expression.Value().length();
      const auto elementType = typeSystem::g_constChar;
@@ -904,9 +985,18 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
                               std::format("Presumed integral type {} turned out not to be one", toType->RawName()));
                return ConvertIntegral(std::move(expression), intType);
           }
+          if (conversion == typeSystem::ConversionSequence::ConversionKind::ArrayToPointer)
+          {
+               throw TracedException(std::logic_error("array-to-pointer is not supported yet"));
+          }
      }
 
-     throw std::logic_error("Unsupported conversion");
+     throw TracedException(std::logic_error("Unsupported conversion"));
+}
+
+bool ecpps::ir::IR::IsEligibleForStringLiteralInitialisation(const typeSystem::TypePointer& type) const
+{
+     return IsCharacter(type);
 }
 
 Expression ecpps::ir::IR::ConvertIntegral(Expression expression,

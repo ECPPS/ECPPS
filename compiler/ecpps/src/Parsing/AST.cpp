@@ -490,6 +490,30 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           NodePointer id = ParseIdExpression(context);
           if (!id) return nullptr;
 
+          std::vector<NodePointer> arrayLevels{};
+          while (Peek().type == TokenType::LeftBracket)
+          {
+               Advance();
+
+               if (Peek().type == TokenType::RightBracket)
+               {
+                    Advance();
+                    arrayLevels.emplace_back(nullptr);
+                    continue;
+               }
+
+               auto value = ParseExpression(context);
+               arrayLevels.emplace_back(std::move(value));
+
+               if (Peek().type != TokenType::RightBracket)
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                        std::make_unique<diagnostics::SyntaxError>("Expected ]", Peek().location));
+                    break;
+               }
+               Advance();
+          }
+
           NodePointer initialiser = nullptr;
           if (Peek().type == TokenType::Operator &&
               std::get<std::string>(Peek().value) == "=") // brace-or-equal-initialiser
@@ -499,7 +523,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                if (!initialiser) return nullptr;
           }
 
-          declarators.emplace_back(std::move(id), std::move(initialiser));
+          declarators.emplace_back(std::move(id), std::move(initialiser), std::move(arrayLevels));
      } while ((Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") && (Advance(), true));
 
      if (!Match(TokenType::SemiColon))

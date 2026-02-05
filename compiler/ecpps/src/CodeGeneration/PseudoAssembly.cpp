@@ -2,6 +2,7 @@
 #include <Assert.h>
 #include <Shared/Diagnostics.h>
 #include <TypeSystem/TypeBase.h>
+#include <iterator>
 #include <ranges>
 #include <stdexcept>
 #include <utility>
@@ -21,6 +22,120 @@ using ecpps::codegen::Routine;
 [[clang::no_sanitize("address")]]
 #endif
 std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
+
+constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
+{
+     return (value & (alignment - 1)) == 0;
+}
+
+static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand& range,
+                                       const ecpps::codegen::MemoryLocationOperand& operand,
+                                       std::vector<Instruction>& code)
+{
+     const auto AppendInteger =
+         [&code]<std::size_t NBytes>(const std::shared_ptr<ecpps::abi::VirtualRegister>& relativeTo,
+                                     std::size_t location, const std::size_t integer)
+     {
+          constexpr auto width = NBytes * ecpps::typeSystem::CharWidth;
+
+          code.emplace_back(ecpps::codegen::MovInstruction{
+              ecpps::codegen::IntegerOperand{integer, width},
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{relativeTo}, location, width},
+              width});
+     };
+
+     auto& abi = ecpps::abi::ABI::Current();
+     if (operand.Register().Index() == abi.StackPointerRegister())
+     {
+          const auto& reg = operand.Register().Index();
+          auto offset = operand.Displacement();
+          auto rangeIterator = range.Values().begin();
+          while (!IsAligned(offset, 2) && std::distance(rangeIterator, range.Values().end()) >= 1)
+          {
+               const auto value =
+                   abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<1>(reg, offset, value);
+               ++rangeIterator;
+               offset++;
+          }
+          while (!IsAligned(offset, 4) && std::distance(rangeIterator, range.Values().end()) >= 2)
+          {
+               const auto value =
+                   abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<2>(reg, offset, value);
+               ++rangeIterator;
+               ++rangeIterator;
+               offset += 2;
+          }
+          while (!IsAligned(offset, 8) && std::distance(rangeIterator, range.Values().end()) >= 4)
+          {
+               const auto value =
+                   abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<4>(reg, offset, value);
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               offset += 4;
+          }
+
+          while (std::distance(rangeIterator, range.Values().end()) >= 8)
+          {
+               const auto value =
+                   abi.ConvertEndian<8, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<8>(reg, offset, value);
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               offset += 8;
+          }
+
+          while (std::distance(rangeIterator, range.Values().end()) >= 4)
+          {
+               const auto value =
+                   abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<4>(reg, offset, value);
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               ++rangeIterator;
+               offset += 4;
+          }
+
+          while (std::distance(rangeIterator, range.Values().end()) >= 2)
+          {
+               const auto value =
+                   abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<2>(reg, offset, value);
+               ++rangeIterator;
+               ++rangeIterator;
+               offset += 2;
+          }
+
+          while (std::distance(rangeIterator, range.Values().end()) >= 1)
+          {
+               const auto value =
+                   abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+               AppendInteger.template operator()<1>(reg, offset, value);
+               ++rangeIterator;
+               offset++;
+          }
+
+          return;
+     }
+}
 
 static ecpps::codegen::Operand ParseExpression(
     std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
@@ -410,8 +525,124 @@ static ecpps::codegen::Operand ParseExpression(
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
+     if (auto* const integerArray = dynamic_cast<ecpps::ir::IntegerArrayNode*>(value.get()); integerArray != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
 
-     throw std::logic_error("Invalid expression");
+          std::vector<unsigned char> bytes{};
+          const auto& type = integerArray->Type();
+          const auto elementSize = type->Size();
+          bytes.reserve(integerArray->Values().size() * elementSize);
+
+          for (const auto value : integerArray->Values())
+          {
+
+               switch (elementSize)
+               {
+               case 1:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 2:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 3:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 4:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 5:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 6:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 7:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 8:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 9:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                               // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 10:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 11:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 12:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 13:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 14:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 15:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               case 16:
+                    bytes.append_range(
+                        abi.ConvertEndian<unsigned char[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                // modernize-avoid-c-arrays)
+                            value));
+                    break;
+               default: throw TracedException("Invalid size");
+               };
+          }
+
+          return ecpps::codegen::IntegerRangeOperand{std::move(bytes)};
+     }
+
+     throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }
 
 static void CompileReturn(
@@ -517,25 +748,33 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
                    ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
                                                          memoryLocation.offset, storageRequest.size * CHAR_BIT}};
 
-               const bool srcIsMem = std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(initValue);
-               const bool dstIsMem = true;
-
-               if (srcIsMem && dstIsMem)
+               if (std::holds_alternative<ecpps::codegen::IntegerRangeOperand>(initValue))
                {
-                    const auto tempReg = currentAbi.AllocateRegister(storageRequest.size * CHAR_BIT);
-
-                    instructions.emplace_back(ecpps::codegen::MovInstruction{
-                        initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
-                        storageRequest.size * CHAR_BIT});
-
-                    instructions.emplace_back(ecpps::codegen::MovInstruction{
-                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
-                        storageRequest.size * CHAR_BIT});
+                    CopyRangeOperandIntoMemory(std::get<ecpps::codegen::IntegerRangeOperand>(initValue),
+                                               std::get<ecpps::codegen::MemoryLocationOperand>(dest), instructions);
                }
                else
                {
-                    instructions.emplace_back(
-                        ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
+                    const bool srcIsMem = std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(initValue);
+                    const bool dstIsMem = true;
+
+                    if (srcIsMem && dstIsMem)
+                    {
+                         const auto tempReg = currentAbi.AllocateRegister(storageRequest.size * CHAR_BIT);
+
+                         instructions.emplace_back(ecpps::codegen::MovInstruction{
+                             initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
+                             storageRequest.size * CHAR_BIT});
+
+                         instructions.emplace_back(ecpps::codegen::MovInstruction{
+                             ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
+                             storageRequest.size * CHAR_BIT});
+                    }
+                    else
+                    {
+                         instructions.emplace_back(
+                             ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
+                    }
                }
           }
           else if (auto* const addition = dynamic_cast<ecpps::ir::AdditionAssignNode*>(line.get()); addition != nullptr)

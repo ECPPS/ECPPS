@@ -86,6 +86,14 @@ namespace ecpps::typeSystem
           [[nodiscard]] std::string RawName(void) const noexcept final;
           [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) final;
 
+          [[nodiscard]] TypeTraits Traits(void) const noexcept override
+          {
+               return TypeTraits{TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
+                                 TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
+                                 TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                                 TypeTraitEnum::Character,        TypeTraitEnum::Object};
+          }
+
      private:
           bool _isUnqualified;
      };
@@ -198,6 +206,6 @@ namespace ecpps::typeSystem
      extern std::shared_ptr<IntegralType> g_longLong;
      extern std::shared_ptr<IntegralType> g_unsignedLongLong;
 
-	// commonly used types
+     // commonly used types
      extern std::shared_ptr<CharacterType> g_constChar;
 } // namespace ecpps::typeSystem

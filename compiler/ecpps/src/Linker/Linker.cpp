@@ -66,7 +66,8 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
                     break;
                }
           }
-          if (dllName.empty()) throw std::logic_error("LINK error: unresolved function " + import);
+          if (dllName.empty())
+               throw ecpps::TracedException(std::logic_error("LINK error: unresolved function " + import));
           selectedLinker->ImportFunction(import, dllName);
      }
 

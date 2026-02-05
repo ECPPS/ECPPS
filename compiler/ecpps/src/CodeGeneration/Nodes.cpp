@@ -1,4 +1,5 @@
 #include "Nodes.h"
+#include <TypeSystem/TypeBase.h>
 #include <format>
 #include <variant>
 #include "../Parsing/Tokeniser.h"
@@ -11,6 +12,10 @@ std::string ecpps::codegen::MemoryLocationOperand::ToString(void) const
 {
      if (this->_displacement == 0) return "[" + this->_register.ToString() + "]";
      return "[" + this->_register.ToString() + " + " + std::to_string(this->_displacement) + "]";
+}
+ecpps::codegen::IntegerRangeOperand::IntegerRangeOperand(std::vector<unsigned char> values)
+    : OperandBase(values.size() * ecpps::typeSystem::CharWidth), _values(std::move(values))
+{
 }
 
 std::string ecpps::codegen::ToString(const Instruction& instruction)

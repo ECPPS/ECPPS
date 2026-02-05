@@ -107,7 +107,7 @@ namespace ecpps
                         std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                              // modernize-avoid-c-arrays)
                             this->_buffer.sbo));
-                    UFillN(value, count, destination);
+                    UFillN(value, destination, count);
                }
                else
                {
