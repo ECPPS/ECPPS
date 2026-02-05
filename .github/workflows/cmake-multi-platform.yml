@@ -151,7 +151,8 @@ jobs:
               -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
               -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
               -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
-              -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib"
+              -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
+              -DCLANG_TIDY
 
   run-tests:
     name: Run Tests
