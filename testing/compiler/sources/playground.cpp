@@ -31,7 +31,11 @@ unsigned int Three()
      return *p;
 }
 
-int main() { return One() + Two() + Three(); }
+int main()
+{
+     char test = 97;
+     const char* p = "aaa";
+}
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }

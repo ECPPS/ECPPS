@@ -26,6 +26,7 @@ namespace ecpps::typeSystem
           Scalar,
           Reference,
           Object,
+		Array,
 
           Count
      };
@@ -145,6 +146,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Boolean);
      TraitCheckerFunction(Pointer);
      TraitCheckerFunction(Scalar);
+     TraitCheckerFunction(Array);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;

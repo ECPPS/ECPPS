@@ -197,4 +197,7 @@ namespace ecpps::typeSystem
      extern std::shared_ptr<IntegralType> g_unsignedLong;
      extern std::shared_ptr<IntegralType> g_longLong;
      extern std::shared_ptr<IntegralType> g_unsignedLongLong;
+
+	// commonly used types
+     extern std::shared_ptr<CharacterType> g_constChar;
 } // namespace ecpps::typeSystem

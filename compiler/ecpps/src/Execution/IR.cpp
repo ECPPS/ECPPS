@@ -12,6 +12,7 @@
 #include "../Machine/ABI.h"
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "../TypeSystem/CompoundTypes.h"
 #include "ControlFlow.h"
 #include "Expressions.h"
 #include "NodeBase.h"
@@ -687,6 +688,21 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      return nullptr;
 }
 
+Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expression)
+{
+     const auto length = expression.Value().length();
+     const auto elementType = typeSystem::g_constChar;
+     std::vector<std::uint32_t> values{};
+     values.reserve(length + 1);
+     for (const auto character : expression.Value()) values.emplace_back(character);
+     values.emplace_back(0);
+     auto arrayType = std::make_shared<typeSystem::ArrayType>(length + 1, elementType);
+     auto node = std::unique_ptr<IntegerArrayNode, ecpps::BumpAllocator::Deleter>(
+         new (*this->_context.nodeAllocator) IntegerArrayNode(
+             std::move(values), std::dynamic_pointer_cast<typeSystem::IntegralType>(elementType), expression.Source()));
+     return std::make_unique<PRValue>(std::move(arrayType), std::move(node), true);
+}
+
 Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expression)
 {
      // TODO: Proper name lookup please. Also CONTEXT MATTERS REALLY! Overload resolution! Hello?
@@ -749,6 +765,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseCallExpression(*functionCall);
      if (auto* const identifier = dynamic_cast<ast::IdentifierNode*>(expression.get()); identifier != nullptr)
           return this->ParseIdExpression(*identifier);
+     if (auto* const stringLiteral = dynamic_cast<ast::StringLiteralNode*>(expression.get()); stringLiteral != nullptr)
+          return this->ParseStringLiteral(*stringLiteral);
 
      this->_context.diagnostics.get().diagnosticsList.push_back(
          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
