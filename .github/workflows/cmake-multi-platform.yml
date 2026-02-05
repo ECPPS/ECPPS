@@ -127,7 +127,7 @@ jobs:
           $env:ASAN_OPTIONS="abort_on_error=1"
           ctest --test-dir out/build/x64-Debug-MSVC-ASan --output-on-failure
 
-    clang-tidy:
+  clang-tidy:
     name: Run clang-tidy
     runs-on: windows-latest
     needs: build-windows
