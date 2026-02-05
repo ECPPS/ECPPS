@@ -1,0 +1,25 @@
+name: Auto-Sync Trunk to Diagnostics
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  sync-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge Trunk into Diagnostics
+        run: |
+          git checkout feature/diagnostics
+          git merge origin/trunk --no-ff -m "Auto-merge trunk into diagnostics"
+          git push origin feature/diagnostics
