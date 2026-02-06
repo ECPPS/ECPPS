@@ -137,11 +137,210 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
      }
 }
 
-static ecpps::codegen::Operand ParseExpression(
-    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
-    std::vector<Instruction>& code, const ecpps::Expression& expression)
+static std::vector<unsigned char> SerialiseByteArray(const std::vector<std::uint32_t>& originalArray,
+                                                     std::size_t elementSize)
+{
+     auto& abi = ecpps::abi::ABI::Current();
+
+     std::vector<unsigned char> bytes{};
+     bytes.reserve(originalArray.size() * elementSize);
+
+     for (const auto value : originalArray)
+     {
+
+          switch (elementSize)
+          {
+          case 1:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 2:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 3:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 4:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 5:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 6:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 7:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 8:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 9:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 10:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 11:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 12:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 13:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 14:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 15:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 16:
+               bytes.append_range(abi.ConvertEndian<unsigned char[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                   value));
+               break;
+          default: throw TracedException("Invalid size");
+          };
+     }
+     return bytes;
+}
+
+static std::vector<char8_t> SerialiseByteArrayChar(const std::vector<std::uint32_t>& originalArray,
+                                                   std::size_t elementSize)
+{
+     auto& abi = ecpps::abi::ABI::Current();
+
+     std::vector<char8_t> bytes{};
+     bytes.reserve(originalArray.size() * elementSize);
+
+     for (const auto value : originalArray)
+     {
+
+          switch (elementSize)
+          {
+          case 1:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 2:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 3:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 4:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 5:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 6:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 7:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 8:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 9:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                   // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 10:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 11:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 12:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 13:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 14:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 15:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          case 16:
+               bytes.append_range(abi.ConvertEndian<char8_t[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                    // modernize-avoid-c-arrays)
+                   value));
+               break;
+          default: throw TracedException("Invalid size");
+          };
+     }
+     return bytes;
+}
+
+static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& context, std::vector<Instruction>& code,
+                                               const ecpps::Expression& expression)
 {
      if (expression == nullptr) return std::monostate{};
+
+     auto& symbolTable = context.symbolTables.top();
 
      const auto& value = expression->Value();
      if (auto* const integer = dynamic_cast<ecpps::ir::IntegralNode*>(value.get()); integer != nullptr)
@@ -154,7 +353,7 @@ static ecpps::codegen::Operand ParseExpression(
      {
           if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(symbolTable, code, addition->Left());
+          const auto left = ParseExpression(context, code, addition->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -175,7 +374,7 @@ static ecpps::codegen::Operand ParseExpression(
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           std::vector<Instruction> codeBuffer{};
-          const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+          const auto right = ParseExpression(context, codeBuffer, addition->Right());
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(right) &&
               *std::get<ecpps::codegen::RegisterOperand>(right).Index()->physical ==
                   *destinationStorage.Ptr()->physical)
@@ -202,12 +401,12 @@ static ecpps::codegen::Operand ParseExpression(
      {
           if (addition->Left() == nullptr || addition->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(symbolTable, code, addition->Left());
+          const auto left = ParseExpression(context, code, addition->Left());
 
           auto destinationStorage = left;
 
           std::vector<Instruction> codeBuffer{};
-          const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+          const auto right = ParseExpression(context, codeBuffer, addition->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -224,7 +423,7 @@ static ecpps::codegen::Operand ParseExpression(
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(symbolTable, code, subtraction->Left());
+          const auto left = ParseExpression(context, code, subtraction->Left());
 
           const auto& type = expression->Type();
           std::size_t sizeInBytes = 0;
@@ -244,7 +443,7 @@ static ecpps::codegen::Operand ParseExpression(
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(symbolTable, code, subtraction->Right());
+          const auto right = ParseExpression(context, code, subtraction->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -279,7 +478,7 @@ static ecpps::codegen::Operand ParseExpression(
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(symbolTable, code, multiplication->Left());
+          const auto left = ParseExpression(context, code, multiplication->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -287,7 +486,7 @@ static ecpps::codegen::Operand ParseExpression(
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(symbolTable, code, multiplication->Right());
+          const auto right = ParseExpression(context, code, multiplication->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -320,7 +519,7 @@ static ecpps::codegen::Operand ParseExpression(
                // TODO: Assert IsFloatingPoint & add float support
           }
 
-          const auto left = ParseExpression(symbolTable, code, div->Left());
+          const auto left = ParseExpression(context, code, div->Left());
 
           auto storage =
               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
@@ -328,7 +527,7 @@ static ecpps::codegen::Operand ParseExpression(
                                                                 ecpps::abi::RegisterAllocation::Priority)
                   : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
-          const auto right = ParseExpression(symbolTable, code, div->Right());
+          const auto right = ParseExpression(context, code, div->Right());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -377,7 +576,7 @@ static ecpps::codegen::Operand ParseExpression(
                const auto& argument = *argumentIterator++;
                const auto& parameter = *parameterIterator++;
 
-               const auto operand = ParseExpression(symbolTable, code, argument);
+               const auto operand = ParseExpression(context, code, argument);
                code.emplace_back(
                    ecpps::codegen::MovInstruction{operand,
                                                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -413,7 +612,7 @@ static ecpps::codegen::Operand ParseExpression(
      {
           auto& abi = ecpps::abi::ABI::Current();
 
-          auto operand = ParseExpression(symbolTable, code, addressOf->Operand());
+          auto operand = ParseExpression(context, code, addressOf->Operand());
 
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operand) &&
               std::get<ecpps::codegen::RegisterOperand>(operand).Size() == abi.PointerSize() * ecpps::abi::byteSize)
@@ -440,7 +639,7 @@ static ecpps::codegen::Operand ParseExpression(
           const auto pointerType =
               std::dynamic_pointer_cast<ecpps::typeSystem::PointerType>(indirection->Operand()->Type());
 
-          auto operandToPerformIndirectionOn = ParseExpression(symbolTable, code, indirection->Operand());
+          auto operandToPerformIndirectionOn = ParseExpression(context, code, indirection->Operand());
 
           if (std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn))
           {
@@ -468,7 +667,7 @@ static ecpps::codegen::Operand ParseExpression(
 
      if (auto* const convert = dynamic_cast<ecpps::ir::ConvertNode*>(value.get()); convert != nullptr)
      {
-          const auto inner = ParseExpression(symbolTable, code, convert->Operand());
+          const auto inner = ParseExpression(context, code, convert->Operand());
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(inner)) return ecpps::codegen::ErrorOperand{};
 
@@ -503,7 +702,7 @@ static ecpps::codegen::Operand ParseExpression(
      {
           if (postIncrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
 
-          const auto left = ParseExpression(symbolTable, code, postIncrement->Operand());
+          const auto left = ParseExpression(context, code, postIncrement->Operand());
 
           auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
               postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
@@ -525,119 +724,37 @@ static ecpps::codegen::Operand ParseExpression(
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
-     if (auto* const integerArray = dynamic_cast<ecpps::ir::IntegerArrayNode*>(value.get()); integerArray != nullptr)
+     if (auto* const intArrayDecay = dynamic_cast<ecpps::ir::TemporaryIntegerArrayDecayNode*>(value.get());
+         intArrayDecay != nullptr)
      {
           auto& abi = ecpps::abi::ABI::Current();
 
-          std::vector<unsigned char> bytes{};
+          const auto& type = intArrayDecay->Type();
+          const auto elementSize = type->Size();
+          auto bytes = SerialiseByteArrayChar(intArrayDecay->Values(), elementSize);
+
+          const auto stringIndex = context.AddString(bytes);
+
+          const auto movWidth = abi.PointerSize() * ecpps::typeSystem::CharWidth;
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(movWidth);
+
+          const auto instructionIndex = code.size();
+
+          // not a stack really, just any placeholder
+          code.emplace_back(ecpps::codegen::TakeAddressInstruction{
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StackPointerRegister()}, 0,
+                                                    movWidth},
+              ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
+          context.AddStringPatch(instructionIndex, ecpps::InstructionPatchType::LeaFrom, stringIndex);
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
+     }
+     if (auto* const integerArray = dynamic_cast<ecpps::ir::IntegerArrayNode*>(value.get()); integerArray != nullptr)
+     {
           const auto& type = integerArray->Type();
           const auto elementSize = type->Size();
-          bytes.reserve(integerArray->Values().size() * elementSize);
 
-          for (const auto value : integerArray->Values())
-          {
-
-               switch (elementSize)
-               {
-               case 1:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 2:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 3:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 4:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 5:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 6:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 7:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 8:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 9:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                               // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 10:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 11:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 12:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 13:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 14:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 15:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               case 16:
-                    bytes.append_range(
-                        abi.ConvertEndian<unsigned char[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            value));
-                    break;
-               default: throw TracedException("Invalid size");
-               };
-          }
+          auto bytes = SerialiseByteArray(integerArray->Values(), elementSize);
 
           return ecpps::codegen::IntegerRangeOperand{std::move(bytes)};
      }
@@ -645,9 +762,8 @@ static ecpps::codegen::Operand ParseExpression(
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }
 
-static void CompileReturn(
-    std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable,
-    std::vector<Instruction>& code, const ecpps::ir::ReturnNode& node)
+static void CompileReturn(ecpps::codegen::AssemblyContext& context, std::vector<Instruction>& code,
+                          const ecpps::ir::ReturnNode& node)
 {
      if (node.HasValue())
      {
@@ -656,7 +772,7 @@ static void CompileReturn(
           const auto returnStorage =
               callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
           code.emplace_back(
-              ecpps::codegen::MovInstruction{ParseExpression(symbolTable, code, node.Value()),
+              ecpps::codegen::MovInstruction{ParseExpression(context, code, node.Value()),
                                              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
                                                  std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
                                              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
@@ -665,7 +781,7 @@ static void CompileReturn(
      code.emplace_back(ecpps::codegen::ReturnInstruction{});
 }
 
-static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
+static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};
      auto& currentAbi = ecpps::abi::ABI::Current();
@@ -673,7 +789,8 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
 
      auto stackManager = parentCallingConvention.BeginStack(instructions);
 
-     std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>> symbolTable{};
+     std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable =
+         context.symbolTables.emplace();
 
      symbolTable.reserve(node.Locals().size());
      for (const auto& decl : node.Locals())
@@ -695,7 +812,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
      for (const auto& line : node.Body())
      {
           if (auto* const returnNode = dynamic_cast<ecpps::ir::ReturnNode*>(line.get()); returnNode != nullptr)
-               CompileReturn(symbolTable, instructions, *returnNode);
+               CompileReturn(context, instructions, *returnNode);
           else if (auto* const call = dynamic_cast<ecpps::ir::FunctionCallNode*>(line.get()); call != nullptr)
           {
                const auto& function = *call->Function();
@@ -724,7 +841,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
                     const auto& argument = *argumentIterator++;
                     const auto& parameter = *parameterIterator++;
 
-                    const auto operand = ParseExpression(symbolTable, instructions, argument);
+                    const auto operand = ParseExpression(context, instructions, argument);
                     instructions.emplace_back(ecpps::codegen::MovInstruction{
                         operand,
                         ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
@@ -742,7 +859,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
                const auto& [location, storageRequest] = symbolTable.at(store->Address());
                const auto& memoryLocation = std::get<ecpps::abi::MemoryLocation>(location.value);
 
-               const auto initValue = ParseExpression(symbolTable, instructions, store->Value());
+               const auto initValue = ParseExpression(context, instructions, store->Value());
 
                const ecpps::codegen::Operand dest{
                    ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
@@ -781,12 +898,12 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
           {
                if (addition->Left() == nullptr || addition->Right() == nullptr) continue;
 
-               const auto left = ParseExpression(symbolTable, instructions, addition->Left());
+               const auto left = ParseExpression(context, instructions, addition->Left());
 
                const auto& destinationStorage = left;
 
                std::vector<Instruction> codeBuffer{};
-               const auto right = ParseExpression(symbolTable, codeBuffer, addition->Right());
+               const auto right = ParseExpression(context, codeBuffer, addition->Right());
 
                if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
                    std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -800,6 +917,7 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
      }
 
      stackManager->Finish();
+     context.symbolTables.pop();
 
      return Routine::Branchless(
          std::move(instructions),
@@ -810,11 +928,19 @@ static Routine CompileRoutine(const ecpps::ir::ProcedureNode& node)
                                          std::ranges::to<std::vector>()));
 }
 
-void ecpps::codegen::Compile(SourceFile& source, const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation)
+void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
+                             const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation)
 {
+     AssemblyContext context{config};
+     auto& patches = context.Patches();
      for (const auto& node : intermediateRepresentation)
      {
+          patches = {};
+
           if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
-               source.compiledRoutines.push_back(CompileRoutine(*procedureNode));
+               source.compiledRoutines.push_back(CompileRoutine(context, *procedureNode));
+
+          source.stringTranslation = patches;
      }
+     config.stringArray = context.GetStringSection();
 }

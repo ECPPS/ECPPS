@@ -180,7 +180,7 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose)
                          for (const auto& node : ir) std::println("{}", node->ToString(0));
                     astContext.Release();
-                    ecpps::codegen::Compile(source, ir);
+                    ecpps::codegen::Compile(config, source, ir);
 
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Assembly:");

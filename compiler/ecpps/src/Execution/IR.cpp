@@ -19,6 +19,7 @@
 #include "Operations.h"
 #include "Parsing/AST.h"
 #include "Procedural.h"
+#include "Shared/Diagnostics.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -987,7 +988,25 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
           }
           if (conversion == typeSystem::ConversionSequence::ConversionKind::ArrayToPointer)
           {
-               throw TracedException(std::logic_error("array-to-pointer is not supported yet"));
+               const auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(toType);
+               runtime_assert(pointerType != nullptr,
+                              std::format("Presumed pointer type {} turned out not to be one", toType->RawName()));
+
+               runtime_assert(expression->IsPRValue(), "Expected a prvalue");
+               const auto wasConstexpr = expression->IsConstantExpression();
+               NodePointer decayNode{};
+
+               if (auto* const intArray = dynamic_cast<IntegerArrayNode*>(expression->Value().get()))
+               {
+                    const auto source = intArray->Source();
+
+                    decayNode = std::unique_ptr<TemporaryIntegerArrayDecayNode, IRDeleter>(new (
+                        *this->_context.nodeAllocator) TemporaryIntegerArrayDecayNode(std::move(expression), source));
+               }
+               else
+                    throw TracedException("array-to-pointer is not supported yet");
+
+               return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
           }
      }
 

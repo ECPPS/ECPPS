@@ -153,6 +153,9 @@ namespace ecpps::abi
           Priority = true
      };
 
+     template <typename T>
+     concept NarrowCharArray = std::same_as<unsigned char[], T> || std::same_as<char8_t[], T>;
+
      class ABI
      {
      public:
@@ -196,16 +199,17 @@ namespace ecpps::abi
 
           template <std::size_t TTo, std::size_t TFrom>
           [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
-          template <std::same_as<unsigned char[]> TArray, // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                          // modernize-avoid-c-arrays)
+          template <NarrowCharArray TArray, // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                            // modernize-avoid-c-arrays)
                     std::size_t TFrom>
           [[nodiscard]] auto ConvertEndian(std::size_t value) const noexcept
           {
-               std::array<unsigned char, TFrom> output{};
+               using T = std::remove_reference_t<decltype(std::declval<TArray>()[0])>;
+               std::array<T, TFrom> output{};
 
                for (std::size_t i = 0; i < TFrom; i++)
                {
-                    unsigned char byte = static_cast<unsigned char>((value >> (i * 8)) & 0xFF);
+                    T byte = static_cast<T>(static_cast<unsigned char>((value >> (i * 8)) & 0xFF));
                     if (this->_endianness == ecpps::abi::Endianness::Big) output[TFrom - 1 - i] = byte;
                     else
                          output[i] = byte;

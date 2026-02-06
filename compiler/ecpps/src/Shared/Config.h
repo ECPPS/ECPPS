@@ -49,6 +49,13 @@ namespace ecpps
           ExtraVerbose
      };
 
+     enum struct StringPooling : std::uint8_t
+     {
+          None,
+          Exact,
+          Substring
+     };
+
      struct CompilerConfig
      {
           explicit CompilerConfig(int argc,
@@ -62,6 +69,8 @@ namespace ecpps
           VerboseStatus verboseStatus = VerboseStatus::Default;
           std::vector<std::string> importedLibraries{};
           bool useDebugger = false;
+          StringPooling stringPooling = StringPooling::Exact;
+          std::vector<char8_t> stringArray{};
 
           [[noreturn]] static void PrintVersionAndExit(void);
           [[noreturn]] static void PrintHelpAndExit(void);
