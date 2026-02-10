@@ -450,6 +450,30 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
+     if (left->Type() != leftIntegral) // got promoted
+     {
+          const auto source = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(
+              leftIntegral,
+              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                          ConvertNode(std::move(left), leftIntegral, source)},
+              wasConstexpr);
+     }
+
+     if (right->Type() != rightIntegral) // got promoted
+     {
+          const auto source = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(
+              rightIntegral,
+              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                          ConvertNode(std::move(right), rightIntegral, source)},
+              wasConstexpr);
+     }
+
      const auto resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
