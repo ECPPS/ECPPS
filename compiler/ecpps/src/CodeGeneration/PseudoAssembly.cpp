@@ -231,7 +231,7 @@ static std::vector<unsigned char> SerialiseByteArray(const std::vector<std::uint
                    value));
                break;
           default: throw TracedException("Invalid size");
-          };
+          }
      }
      return bytes;
 }
@@ -330,7 +330,7 @@ static std::vector<char8_t> SerialiseByteArrayChar(const std::vector<std::uint32
                    value));
                break;
           default: throw TracedException("Invalid size");
-          };
+          }
      }
      return bytes;
 }

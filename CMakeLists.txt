@@ -116,13 +116,12 @@ endif()
 set(CLANG_LTO_FLAGS
     -flto=thin
     -fwhole-program-vtables
-    -fvisibility=hidden
     -fvisibility-inlines-hidden
 )
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
         "$<$<CONFIG:Release>:${CLANG_LTO_FLAGS}>"
-        "$<$<CONFIG:RelWithDebInfo>:${CLANG_LTO_FLAGS}>"   
+        "$<$<CONFIG:RelWithDebInfo>:${CLANG_LTO_FLAGS}>"
         $<$<CONFIG:Release>:-fstrict-aliasing>   
         $<$<CONFIG:Release>:-fvectorize>
         $<$<CONFIG:Release>:-fslp-vectorize>

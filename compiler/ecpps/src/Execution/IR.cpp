@@ -452,25 +452,25 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
      if (left->Type() != leftIntegral) // got promoted
      {
-          const auto source = left->Value()->Source();
+          const auto innerSource = left->Value()->Source();
           const auto wasConstexpr = left->IsConstantExpression();
 
           left = std::make_unique<PRValue>(
               leftIntegral,
               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, source)},
+                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
               wasConstexpr);
      }
 
      if (right->Type() != rightIntegral) // got promoted
      {
-          const auto source = right->Value()->Source();
+          const auto innerSource = right->Value()->Source();
           const auto wasConstexpr = right->IsConstantExpression();
 
           right = std::make_unique<PRValue>(
               rightIntegral,
               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, source)},
+                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
               wasConstexpr);
      }
 
@@ -524,25 +524,25 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
 
      if (left->Type() != leftIntegral) // got promoted
      {
-          const auto source = left->Value()->Source();
+          const auto innerSource = left->Value()->Source();
           const auto wasConstexpr = left->IsConstantExpression();
 
           left = std::make_unique<PRValue>(
               leftIntegral,
               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, source)},
+                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
               wasConstexpr);
      }
 
      if (right->Type() != rightIntegral) // got promoted
      {
-          const auto source = right->Value()->Source();
+          const auto innerSource = right->Value()->Source();
           const auto wasConstexpr = right->IsConstantExpression();
 
           right = std::make_unique<PRValue>(
               rightIntegral,
               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->_context.nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, source)},
+                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
               wasConstexpr);
      }
 
