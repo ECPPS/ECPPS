@@ -279,7 +279,8 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
      return buffer;
 }
 
-std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& imageName)
+std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& imageName,
+                                                            const std::vector<std::byte>& stringData)
 {
      // Add export directory
      ImageExportDirectory exportDirectory{};
@@ -393,6 +394,10 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      // Add .idata section
      this->sections.emplace_back(".idata", idataBuffer, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
 
+     const std::vector<std::byte>& rdata = stringData;
+
+     this->sections.emplace_back(".rdata", rdata, PESectionFlags::Read | PESectionFlags::InitialisedData, 0, 0);
+
      // Update directories
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
          DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
@@ -427,6 +432,9 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      for (auto& section : this->sections)
      {
           section.virtualAddress = currentVirtualAddress;
+
+          if (section.name == ".rdata") this->rdataRVA = currentVirtualAddress;
+
           currentVirtualAddress =
               AlignUp(currentVirtualAddress + AlignUp(static_cast<std::uint32_t>(section.data.size()),
                                                       this->ntHeaders.optionalHeader.sectionAlignment),

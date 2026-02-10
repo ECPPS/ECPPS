@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include "../../CodeGeneration/PseudoAssembly.h"
 #include "../../Parsing/Tokeniser.h"
+#include "CodeGeneration/Nodes.h"
+#include "Machine/ABI.h"
 #include "x86_64/Opcodes.h"
 
 void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& source,
@@ -149,7 +151,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const Add
                                         [&add, this](const MemoryLocationOperand&)
                                         { return this->EmitSpecificAdd<OperandCombination::MemoryToRegister>(add); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid add operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
                       add.from);
              },
              [&add, this](const MemoryLocationOperand&)
@@ -160,10 +162,11 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const Add
                                         [&add, this](const IntegerOperand&)
                                         { return this->EmitSpecificAdd<OperandCombination::ImmediateToMemory>(add); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid add operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
                       add.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid add operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid add operation")); }},
          add.to);
 }
 
@@ -195,7 +198,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const Sub
                                         { throw TracedException(std::logic_error("Invalid sub operation")); }},
                       sub.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid sub operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid sub operation")); }},
          sub.to);
 }
 
@@ -210,6 +214,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const Mul
                                         { return this->EmitSpecificMul<OperandCombination::RegisterToRegister>(mul); },
                                         [&mul, this](const IntegerOperand&)
                                         { return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul); },
+                                        [&mul, this](const MemoryLocationOperand&)
+                                        { return this->EmitSpecificMul<OperandCombination::MemoryToRegister>(mul); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw TracedException(std::logic_error("Invalid mul operation")); }},
                       mul.from);
@@ -242,7 +248,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         [&div, this](const IntegerOperand&)
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
                       div.from);
              },
              [&div, this](const MemoryLocationOperand&)
@@ -253,20 +259,22 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const Div
                                         [&div, this](const IntegerOperand&)
                                         { return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(div); },
                                         [](auto&&) -> std::vector<std::byte>
-                                        { throw std::logic_error("Invalid mul operation"); }},
+                                        { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
                       div.from);
              },
-             [](auto&&) -> std::vector<std::byte> { throw std::logic_error("Invalid mul operation"); }},
+             [](auto&&) -> std::vector<std::byte>
+             { throw ecpps::TracedException(std::logic_error("Invalid mul operation")); }},
          div.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const TakeAddressInstruction& lea)
 {
-     return std::visit(OverloadedVisitor{[&lea, this](const RegisterOperand&)
-                                         { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
-                                         [](auto&&) -> std::vector<std::byte>
-                                         { throw std::logic_error("Invalid address-of operation"); }},
-                       lea.to);
+     return std::visit(
+         OverloadedVisitor{[&lea, this](const RegisterOperand&)
+                           { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
+                           [](auto&&) -> std::vector<std::byte>
+                           { throw ecpps::TracedException(std::logic_error("Invalid address-of operation")); }},
+         lea.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
@@ -873,7 +881,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
                                                           static_cast<std::uint64_t>(sourceImmediate));
           }
 
-          throw std::logic_error("Invalid mul operation");
+          throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
      }
 };
 
@@ -938,6 +946,34 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 };
 
 template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MulInstruction& mul)
+     {
+          const auto& source = std::get<MemoryLocationOperand>(mul.from);
+          const auto& destination = std::get<RegisterOperand>(mul.to);
+
+          const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
+          const auto sourceDisplacement = source.Displacement();
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSignedMulMemToReg8(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSignedMulMemToReg16(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSignedMulMemToReg32(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSignedMulMemToReg64(destinationRegister, sourceDisplacement, sourceRegister);
+          }
+
+          throw TracedException(std::logic_error("Invalid mov operation"));
+     }
+};
+
+template <>
 struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MulInstruction& mul)
@@ -984,7 +1020,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 #pragma GCC diagnostic pop
 #endif
 
-          throw std::logic_error("Invalid mul operation");
+          throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
      }
 };
 
@@ -1036,7 +1072,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
                break;
           }
-          default: throw std::logic_error("Invalid div width");
+          default: throw ecpps::TracedException(std::logic_error("Invalid div width"));
           }
 
           // emit div instruction with divisor in register (destReg)
@@ -1106,12 +1142,22 @@ struct ecpps::codegen::emitters::EmitSpecificLeaImpl<ecpps::codegen::emitters::O
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
                                               [[maybe_unused]] const TakeAddressInstruction& lea)
      {
+
+          constexpr static auto ApplyStringRelocationLambda = [](std::uint8_t register_, std::size_t stringTableOffset)
+          { return x86_64::GenerateLeaToReg(x86_64::Rip, stringTableOffset, register_); };
+
           const auto& source = lea.from;
           const auto& destination = std::get<RegisterOperand>(lea.to);
 
-          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
           const auto sourceRegisterOffset = source.Displacement();
           const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+          if (source.Register().Index() == abi::ABI::Current().StringRegister())
+          {
+               self->_stringRelocation.push_back(self->_currentInstructionBase + 3); // instruction length: 3 + DWORD
+               return x86_64::GenerateLeaToReg(x86_64::Rip, sourceRegisterOffset - self->_currentInstructionBase - 7,
+                                               destinationRegister);
+          }
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
 
           return x86_64::GenerateLeaToReg(sourceRegister, sourceRegisterOffset, destinationRegister);
      }

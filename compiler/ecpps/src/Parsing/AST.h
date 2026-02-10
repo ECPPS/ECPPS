@@ -2,6 +2,7 @@
 
 #include <SBOVector.h>
 #include <cstdint>
+#include <format>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -229,7 +230,7 @@ namespace ecpps::ast
                using std::string_literals::operator""s;
                std::string built{};
                for (const auto& attr : this->attributes)
-                    built += (attr == nullptr ? attr->ToString(0) : "[[__unknown]]") + " ";
+                    built += (attr == nullptr ? "[[__unknown]]" : attr->ToString(0)) + " ";
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
@@ -434,8 +435,10 @@ namespace ecpps::ast
           {
                NodePointer name;
                NodePointer initialiser;
-               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr)
-                   : name(std::move(name)), initialiser(std::move(initialiser))
+               std::vector<NodePointer> arrayLevels;
+               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr,
+                                   std::vector<NodePointer> arrayLevels = {})
+                   : name(std::move(name)), initialiser(std::move(initialiser)), arrayLevels(std::move(arrayLevels))
                {
                }
           };
@@ -495,6 +498,8 @@ namespace ecpps::ast
                {
                     const auto& declarator = this->_declarators[i];
                     built += declarator.name->ToString(0);
+                    for (const auto& level : declarator.arrayLevels)
+                         built += std::format("[{}]", level == nullptr ? "" : level->ToString(0));
                     if (declarator.initialiser) built += " = " + declarator.initialiser->ToString(0);
                     if (i + 1 < this->_declarators.size()) built += ", ";
                }

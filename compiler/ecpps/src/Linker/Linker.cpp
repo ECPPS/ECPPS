@@ -23,7 +23,9 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
 std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
     const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
     const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
-    const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection)
+    const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
+    const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
+    const std::vector<std::byte>& stringData)
 {
      std::unique_ptr<LinkerBase> selectedLinker = nullptr;
 
@@ -66,7 +68,8 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
                     break;
                }
           }
-          if (dllName.empty()) throw std::logic_error("LINK error: unresolved function " + import);
+          if (dllName.empty())
+               throw ecpps::TracedException(std::logic_error("LINK error: unresolved function " + import));
           selectedLinker->ImportFunction(import, dllName);
      }
 
@@ -77,5 +80,5 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
 
      // TODO: Imports
 
-     return selectedLinker->ToBytes(config.outputImage, mainOffset);
+     return selectedLinker->ToBytes(config.outputImage, mainOffset, stringData);
 }

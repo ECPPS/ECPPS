@@ -26,6 +26,7 @@ namespace ecpps::typeSystem
           Scalar,
           Reference,
           Object,
+          Array,
 
           Count
      };
@@ -145,6 +146,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Boolean);
      TraitCheckerFunction(Pointer);
      TraitCheckerFunction(Scalar);
+     TraitCheckerFunction(Array);
 
 #undef TraitCheckerFunction
      using TypePointer = std::shared_ptr<TypeBase>;
@@ -242,6 +244,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) override;
-          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final override;
+          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final;
      };
 } // namespace ecpps::typeSystem

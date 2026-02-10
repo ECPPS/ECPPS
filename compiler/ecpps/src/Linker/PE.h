@@ -226,10 +226,13 @@ namespace ecpps::linker::win
           std::unordered_map<std::string, std::uint32_t> exports{};
           std::unordered_map<std::string, std::vector<std::string>> imports;
 
-          [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName);
+          [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName,
+                                                       const std::vector<std::byte>& stringData);
 
           // private:
           DosHeader dosHeader{};
           NtHeaders ntHeaders{};
+
+          std::uint32_t rdataRVA{};
      };
 } // namespace ecpps::linker::win

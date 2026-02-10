@@ -18,6 +18,12 @@ namespace ecpps::abi
           ARM64,
      };
 
+     enum struct Endianness : bool
+     {
+          Little,
+          Big
+     };
+
      enum struct SimdFeatures : std::uint_fast32_t
      {
           None = 0,

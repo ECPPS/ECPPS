@@ -24,6 +24,12 @@ namespace ecpps::codegen
               apply;
           std::size_t applyOutputSize;
      };
+     struct StringRelocation
+     {
+          std::size_t offset;
+          std::uint8_t register_;
+          std::function<std::vector<std::byte>(std::uint8_t register_, std::size_t stringTableOffset)> apply;
+     };
      using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
 
      /// <summary>
@@ -48,6 +54,9 @@ namespace ecpps::codegen
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
+          std::size_t _stringRelocationSize{};              // in bytes
+          std::vector<std::size_t> _stringRelocation{};
+
      protected:
           explicit CodeEmitter(std::string name) : _name(std::move(name)) {}
 

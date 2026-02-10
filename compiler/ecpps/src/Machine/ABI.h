@@ -153,6 +153,9 @@ namespace ecpps::abi
           Priority = true
      };
 
+     template <typename T>
+     concept NarrowCharArray = std::same_as<unsigned char[], T> || std::same_as<char8_t[], T>;
+
      class ABI
      {
      public:
@@ -177,26 +180,73 @@ namespace ecpps::abi
                                                       const typeSystem::TypePointer& returnType,
                                                       const std::vector<typeSystem::TypePointer>& parameters);
 
-          CallingConventionName DefaultCallingConventionName(void) const;
+          [[nodiscard]] CallingConventionName DefaultCallingConventionName(void) const;
           [[nodiscard]] CallingConvention& CallingConventionFromName(CallingConventionName name);
           [[nodiscard]] const std::shared_ptr<VirtualRegister>& StackPointerRegister(void) const noexcept
           {
                return this->_stackPointerRegister;
           }
+          [[nodiscard]] const std::shared_ptr<VirtualRegister>& StringRegister(void) const noexcept
+          {
+               return this->_specialStringRegister;
+          }
 
-          const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
+          [[nodiscard]] const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
           {
                return this->_physicalRegisters;
           }
-          const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
+          [[nodiscard]] const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
           {
                return this->_registers;
           }
           [[nodiscard]] std::size_t PointerSize(void) const noexcept { return this->_pointerSize; }
 
+          template <std::size_t TTo, std::size_t TFrom>
+          [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
+          template <NarrowCharArray TArray, // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                            // modernize-avoid-c-arrays)
+                    std::size_t TFrom>
+          [[nodiscard]] auto ConvertEndian(std::size_t value) const noexcept
+          {
+               using T = std::remove_reference_t<decltype(std::declval<TArray>()[0])>;
+               std::array<T, TFrom> output{};
+
+               for (std::size_t i = 0; i < TFrom; i++)
+               {
+                    T byte = static_cast<T>(static_cast<unsigned char>((value >> (i * 8)) & 0xFF));
+                    if (this->_endianness == ecpps::abi::Endianness::Big) output[TFrom - 1 - i] = byte;
+                    else
+                         output[i] = byte;
+               }
+
+               return output;
+          }
+          template <std::size_t TTo, std::same_as<unsigned char[]> TArray> // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                           // modernize-avoid-c-arrays)
+          [[nodiscard]] std::size_t ConvertEndian(auto&& range) const noexcept
+          {
+               std::size_t value = 0;
+
+               if (this->_endianness == ecpps::abi::Endianness::Big)
+               {
+                    for (std::size_t i = 0; i < TTo; i++)
+                    {
+                         value <<= 8;
+                         value |= static_cast<std::size_t>(range[i]);
+                    }
+               }
+               else
+               {
+                    for (std::size_t i = 0; i < TTo; i++) value |= static_cast<std::size_t>(range[i]) << (i * 8);
+               }
+
+               return value;
+          }
+
      private:
           static ABI _current;
 
+          Endianness _endianness;
           ISA _isa;
           std::vector<std::shared_ptr<PhysicalRegister>> _physicalRegisters;
           std::vector<std::shared_ptr<VirtualRegister>> _registers;
@@ -204,6 +254,7 @@ namespace ecpps::abi
           std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
           std::unordered_map<std::size_t, std::size_t> _allocatedRegisters{};
           std::shared_ptr<VirtualRegister> _stackPointerRegister{};
+          std::shared_ptr<VirtualRegister> _specialStringRegister{};
           std::size_t _pointerSize{};
 
           friend AllocatedRegister;

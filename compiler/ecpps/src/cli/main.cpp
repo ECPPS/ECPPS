@@ -99,7 +99,9 @@ int main(int argc, char* argv[])
 
      try
      {
-          const auto startTime = std::chrono::steady_clock::now();
+          std::vector<std::byte> strings{};
+
+          auto startTime = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
           ecpps::SourceMap sources{config};
@@ -180,7 +182,7 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose)
                          for (const auto& node : ir) std::println("{}", node->ToString(0));
                     astContext.Release();
-                    ecpps::codegen::Compile(source, ir);
+                    ecpps::codegen::Compile(config, source, ir);
 
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Assembly:");
@@ -207,6 +209,14 @@ int main(int argc, char* argv[])
                     }
 
                     emitter->PatchCalls(generatedMachineCode, routines);
+                    for (const auto placemenent : emitter->_stringRelocation)
+                    {
+                         auto bytes =
+                             std::span{generatedMachineCode.data() + placemenent, emitter->_stringRelocationSize};
+                         auto* dword = std::bit_cast<std::uint32_t*>(bytes.data());
+                         *dword += 0x4000 - 0x1000;
+                         std::memcpy(bytes.data(), dword, sizeof(*dword));
+                    }
 
                     for (const auto& [procedureName, procedurOffset] : routines)
                     {
@@ -371,9 +381,14 @@ int main(int argc, char* argv[])
           if (isVerbose) std::println("Linking objects...");
 
           std::vector<std::byte> codeSection{};
+          config.stringArray.emplace_back(0);
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
-              config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection);
+              config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection, {},
+              4,
+              config.stringArray |
+                  std::views::transform([](const char8_t character) { return static_cast<std::byte>(character); }) |
+                  std::ranges::to<std::vector>());
 
           if (imageBytes.empty())
           {

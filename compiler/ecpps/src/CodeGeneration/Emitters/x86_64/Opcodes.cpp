@@ -688,7 +688,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem8ToReg32(
      else
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((sourceOffset >> (i * 8)) & 0xFF));
 
-     binary.append_range(GenerateMovZeroExtendReg8ToReg32(destinationRegister, destinationRegister));
+     // binary.append_range(GenerateMovZeroExtendReg8ToReg32(destinationRegister, destinationRegister));
 
      return binary;
 }
@@ -2271,13 +2271,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg64(std::
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg32(std::size_t destination, std::size_t source)
 {
      std::vector<std::byte> binary{};
-     if (source >= 8 || destination >= 8)
-          binary.push_back(
-              static_cast<std::byte>(0x40 | (static_cast<int>(source >= 8) << 2) | static_cast<int>(destination >= 8)));
+     if (destination >= 8 || destination >= 8)
+          binary.push_back(static_cast<std::byte>(0x40 | (static_cast<int>(destination >= 8) << 2) |
+                                                  static_cast<int>(destination >= 8)));
 
      binary.push_back(static_cast<std::byte>(0x0F));
      binary.push_back(static_cast<std::byte>(0xAF));
-     binary.push_back(static_cast<std::byte>(0xC0 | ((source & 7) << 3) | (destination & 7)));
+     binary.push_back(static_cast<std::byte>(0xC0 | ((destination & 7) << 3) | (destination & 7)));
      return binary;
 }
 
@@ -2390,6 +2390,257 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem8(
     [[maybe_unused]] std::size_t sourceRegister)
 {
      return {};
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg64(std::size_t destination,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister)
+{
+     std::vector<std::byte> result;
+
+     if (sourceRegister > 7) { result.push_back(std::byte{0x48}); }
+
+     result.push_back(std::byte{0x69});
+
+     if (sourceRegister > 7)
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+     else
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+
+     if (sourceOffset == 0 && sourceRegister == 4)
+     {
+          result.push_back(std::byte{0x24});
+          result.push_back(std::byte{0x00});
+     }
+     else if (sourceOffset <= 127)
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+     }
+     else
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+     }
+
+     return result;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg32(std::size_t destination,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister)
+{
+     std::vector<std::byte> result{};
+
+     const auto dst = static_cast<std::uint8_t>(destination);
+     const auto base = static_cast<std::uint8_t>(sourceRegister);
+
+     const std::uint8_t rex = 0x40 | ((dst & 0x8) ? 0x04 : 0x00) | // REX.R
+                              ((base & 0x8) ? 0x01 : 0x00);        // REX.B
+
+     if (rex != 0x40) result.push_back(static_cast<std::byte>(rex));
+
+     // opcode
+     result.push_back(std::byte{0x0F});
+     result.push_back(std::byte{0xAF});
+
+     const bool needsSib = (base & 0x7) == 4;
+     const bool noDisp = sourceOffset == 0 && (base & 0x7) != 5;
+     const bool disp8 = !noDisp && sourceOffset <= 0x7F;
+
+     std::uint8_t mod{};
+     if (noDisp) mod = 0b00;
+     else if (disp8)
+          mod = 0b01;
+     else
+          mod = 0b10;
+
+     const std::uint8_t modrm =
+         static_cast<std::uint8_t>((mod << 6) | ((dst & 0x7) << 3) | (needsSib ? 0b100 : (base & 0x7)));
+
+     result.push_back(static_cast<std::byte>(modrm));
+
+     if (needsSib)
+     {
+          // scale=0, index=none(100), base=base
+          const std::uint8_t sib = static_cast<std::uint8_t>((0b00 << 6) | (0b100 << 3) | (base & 0x7));
+
+          result.push_back(static_cast<std::byte>(sib));
+     }
+
+     if (!noDisp)
+     {
+          if (disp8) { result.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(sourceOffset))); }
+          else
+          {
+               result.push_back(static_cast<std::byte>(sourceOffset & 0xFF));
+               result.push_back(static_cast<std::byte>((sourceOffset >> 8) & 0xFF));
+               result.push_back(static_cast<std::byte>((sourceOffset >> 16) & 0xFF));
+               result.push_back(static_cast<std::byte>((sourceOffset >> 24) & 0xFF));
+          }
+     }
+
+     return result;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg16(std::size_t destination,
+                                                                           std::size_t sourceOffset,
+                                                                           std::size_t sourceRegister)
+{
+     std::vector<std::byte> result;
+
+     if (sourceRegister > 7)
+     {
+          result.push_back(std::byte{0x66});
+          result.push_back(std::byte{0x48});
+     }
+
+     result.push_back(std::byte{0x69});
+
+     if (sourceRegister > 7)
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+     else
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+
+     if (sourceOffset == 0 && sourceRegister == 4)
+     {
+          result.push_back(std::byte{0x24});
+          result.push_back(std::byte{0x00});
+     }
+     else if (sourceOffset <= 127)
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+     }
+     else
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+     }
+
+     return result;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg8(std::size_t destination,
+                                                                          std::size_t sourceOffset,
+                                                                          std::size_t sourceRegister)
+{
+     std::vector<std::byte> result;
+
+     if (sourceRegister > 7) { result.push_back(std::byte{0x48}); }
+
+     result.push_back(std::byte{0x69});
+
+     if (sourceRegister > 7)
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+     else
+     {
+          result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                  ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+     }
+
+     if (sourceOffset == 0 && sourceRegister == 4)
+     {
+          result.push_back(std::byte{0x24});
+          result.push_back(std::byte{0x00});
+     }
+     else if (sourceOffset <= 127)
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset)});
+          }
+     }
+     else
+     {
+          if (sourceRegister == 4)
+          {
+               result.push_back(std::byte{0x24});
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+          else
+          {
+               result.push_back(static_cast<std::byte>(0x00 | (static_cast<std::uint8_t>(sourceRegister) & 0x7) |
+                                                       ((static_cast<std::uint8_t>(sourceRegister) & 0x8) << 2)));
+               result.push_back(std::byte{static_cast<std::uint8_t>(sourceOffset & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 8) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 16) & 0xFF)});
+               result.push_back(std::byte{static_cast<std::uint8_t>((sourceOffset >> 24) & 0xFF)});
+          }
+     }
+
+     return result;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv64(std::size_t reg)
@@ -2748,6 +2999,24 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateLeaToReg(std::size_t sour
      std::uint8_t rex = 0x40;
      if (rexW) rex |= 0x08;
      if (rexR) rex |= 0x04;
+
+     if (sourceRegister == Rip)
+     {
+          code.push_back(std::byte{rex});
+
+          code.push_back(std::byte{0x8D});
+
+          const std::uint8_t dst = static_cast<std::uint8_t>(destinationRegister & 7);
+
+          const std::uint8_t modrm = static_cast<std::uint8_t>((0b00 << 6) | (dst << 3) | 0b101);
+          code.push_back(std::byte{modrm});
+
+          const std::int32_t d32 = static_cast<std::int32_t>(sourceDisplacement);
+          for (int i = 0; i < 4; ++i) code.push_back(std::byte{static_cast<std::uint8_t>((d32 >> (i * 8)) & 0xFF)});
+
+          return code;
+     }
+
      if (rexB) rex |= 0x01;
      code.push_back(std::byte{rex});
 

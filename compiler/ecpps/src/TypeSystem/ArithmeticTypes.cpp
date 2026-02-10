@@ -3,6 +3,7 @@
 #ifndef NDEBUG
 #include <format>
 #endif
+#include <TypeSystem/CompoundTypes.h>
 #include <string>
 #include <utility>
 #include "../Machine/ABI.h"
@@ -36,6 +37,7 @@ std::string ecpps::typeSystem::IntegralType::RawName(void) const
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo(const std::shared_ptr<TypeBase>& other)
 {
+     if (other == nullptr) return ConversionSequence{std::nullopt};
      SBOVector<ConversionSequence::ConversionKind> sequence{};
 
      if (IsIntegral(other))
@@ -95,8 +97,13 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareT
 
 std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
 {
-     if (this->_isUnqualified) return "char";
-     return this->Sign() == Signedness::Signed ? "signed char" : "unsigned char";
+     std::string built{};
+     if (this->IsConst()) built += "const ";
+     if (this->IsVolatile()) built += "volatile ";
+     if (this->_isUnqualified) built += "char";
+     else
+          built += this->Sign() == Signedness::Signed ? "signed char" : "unsigned char";
+     return built;
 }
 
 // predefined builtin types
@@ -145,6 +152,11 @@ std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLo
     std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
                                                "unsigned long long", typeSystem::Qualifiers::None);
 
+// commonly used types
+std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
+    std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
+                                                ecpps::typeSystem::Qualifiers::Const);
+
 ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const std::shared_ptr<IntegralType>& integer)
 {
      switch (integer->Kind())
@@ -190,6 +202,15 @@ std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept { ret
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(const std::shared_ptr<TypeBase>& other)
 {
+     if (IsArray(other))
+     {
+          const auto otherArray = std::dynamic_pointer_cast<ArrayType>(other);
+          runtime_assert(otherArray != nullptr, "Invalid array type");
+
+          const auto elementComparison = this->_baseType->CompareTo(otherArray->ElementType());
+          if (!elementComparison.SameAs()) return ConversionSequence{std::nullopt};
+          return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::ArrayToPointer}};
+     }
      if (!IsPointer(other)) return ConversionSequence{std::nullopt};
 
      const auto otherPointer = std::dynamic_pointer_cast<PointerType>(other);

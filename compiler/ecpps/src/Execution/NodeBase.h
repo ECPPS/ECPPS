@@ -1,4 +1,5 @@
 #pragma once
+#include <TypeSystem/ArithmeticTypes.h>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -29,7 +30,10 @@ namespace ecpps::ir
           Dereference,
           Store,
           Convert,
-          Load
+          Load,
+          IntegerArray,
+          IntegerArrayDecay,
+          LoadArrayDecay
      };
 
      class NodeBase
@@ -73,5 +77,30 @@ namespace ecpps::ir
 
      private:
           std::uint64_t _value; // TODO: Support huge integers for vectorisation
+     };
+
+     class IntegerArrayNode final : public NodeBase
+     {
+     public:
+          explicit IntegerArrayNode(std::vector<std::uint32_t> values, std::shared_ptr<typeSystem::IntegralType> type,
+                                    Location source)
+              : NodeBase(NodeKind::IntegerArray, source), _values(std::move(values)), _type(std::move(type))
+          {
+          }
+
+          [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept { return this->_values; }
+          [[nodiscard]] const std::shared_ptr<typeSystem::IntegralType>& Type(void) const noexcept
+          {
+               return this->_type;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + std::format("{}", this->_values);
+          }
+
+     private:
+          std::vector<std::uint32_t> _values;
+          std::shared_ptr<typeSystem::IntegralType> _type;
      };
 } // namespace ecpps::ir

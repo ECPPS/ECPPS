@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Parsing/AST.h"
+#include "Assert.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 
@@ -299,6 +300,60 @@ namespace ecpps::ir
           Expression _operand;
      };
 
+     class TemporaryIntegerArrayDecayNode final : public NodeBase
+     {
+     public:
+          explicit TemporaryIntegerArrayDecayNode(Expression operand, Location source)
+              : NodeBase(NodeKind::IntegerArrayDecay, source), _operand(std::move(operand)),
+                _referencedArray(dynamic_cast<IntegerArrayNode*>(this->_operand->Value().get()))
+          {
+               runtime_assert(this->_referencedArray != nullptr,
+                              "array decay conversion was not supplied with an array");
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__decay({})", this->_referencedArray->ToString(0));
+          }
+
+          [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept
+          {
+               return this->_referencedArray->Values();
+          }
+          [[nodiscard]] const std::shared_ptr<typeSystem::IntegralType>& Type(void) const noexcept
+          {
+               return this->_referencedArray->Type();
+          }
+
+     private:
+          Expression _operand;
+          IntegerArrayNode* _referencedArray;
+     };
+
+     class LoadArrayDecayNode final : public NodeBase
+     {
+     public:
+          explicit LoadArrayDecayNode(Expression operand, Location source)
+              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand)),
+                _loadNode(dynamic_cast<LoadNode*>(this->_operand->Value().get()))
+          {
+               runtime_assert(this->_loadNode != nullptr, "load array decay supplied with a non-load operand");
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__decay({})", this->_loadNode->ToString(0));
+          }
+
+          [[nodiscard]] const LoadNode* GetLoadNode(void) const noexcept { return this->_loadNode; }
+          [[nodiscard]] const Expression& GetOperand(void) const noexcept { return this->_operand; }
+
+     private:
+          Expression _operand;
+          LoadNode* _loadNode;
+     };
+
      class ConvertNode final : public NodeBase
      {
      public:
@@ -315,7 +370,7 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "convert<" + _targetType->RawName() + ">(" +
+               return std::string(indent * ast::PrettyIndent, ' ') + "__convert<" + _targetType->RawName() + ">(" +
                       _operand->Value()->ToString(0) + ")";
           }
 

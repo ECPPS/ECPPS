@@ -57,9 +57,10 @@ void ecpps::linker::win::WindowsLinker::ExportAt(const std::string& name, std::u
 }
 
 std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::string& imageName,
-                                                                  const std::size_t entryPointAddress) const
+                                                                  const std::size_t entryPointAddress,
+                                                                  const std::vector<std::byte>& stringData) const
 {
-     return this->Link(entryPointAddress + ExportDisplacement).ToBytes(imageName);
+     return this->Link(entryPointAddress + ExportDisplacement).ToBytes(imageName, stringData);
 }
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
