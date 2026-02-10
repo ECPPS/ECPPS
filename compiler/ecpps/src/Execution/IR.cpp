@@ -215,7 +215,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator)
                                                                              ir::ReturnNode(nullptr, node.Source())});
 
-     if (functionName == "main")
+     if (functionName == "main" && (!ir._built.empty() && ir._built.back()->Kind() != NodeKind::Return))
           ir._built.push_back(
               std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator) ir::ReturnNode(
                   std::make_unique<PRValue>(typeSystem::g_int,
@@ -545,6 +545,16 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
 {
      runtime_assert(operand != nullptr, "Operand was null");
 
+     if (IsArray(operand->Type()))
+     {
+          const auto arrayType = std::dynamic_pointer_cast<typeSystem::ArrayType>(operand->Type());
+
+          runtime_assert(arrayType != nullptr, "Expected an array type");
+          operand = ConvertTo(std::move(operand),
+                              std::make_shared<typeSystem::PointerType>(
+                                  arrayType->ElementType(), std::format("{}*", arrayType->ElementType()->Name()),
+                                  typeSystem::Qualifiers::None));
+     }
      auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(operand->Type());
 
      if (pointerType == nullptr)
@@ -861,6 +871,10 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
 {
      auto ResolveBasicType = [this](const std::string& name) -> typeSystem::TypePointer
      {
+          if (name == "int" || name == "signed" || name == "signed int" || name == "int signed")
+               return typeSystem::g_int;
+          if (name == "unsigned" || name == "unsigned int" || name == "int unsigned") return typeSystem::g_unsignedInt;
+
           for (const auto& scope : this->_context.contextSequence)
           {
                for (const auto& type : scope->GetScope().types)
@@ -992,21 +1006,47 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
                runtime_assert(pointerType != nullptr,
                               std::format("Presumed pointer type {} turned out not to be one", toType->RawName()));
 
-               runtime_assert(expression->IsPRValue(), "Expected a prvalue");
+               runtime_assert(expression->IsRValue() || expression->IsLValue(), "Expected an rvalue or an lvalue for "
+                                                                                "the array-to-pointer conversion. See "
+                                                                                "[conv.array]"); // [conv.array]
+
                const auto wasConstexpr = expression->IsConstantExpression();
-               NodePointer decayNode{};
-
-               if (auto* const intArray = dynamic_cast<IntegerArrayNode*>(expression->Value().get()))
+               if (expression->IsPRValue())
                {
-                    const auto source = intArray->Source();
+                    NodePointer decayNode{};
 
-                    decayNode = std::unique_ptr<TemporaryIntegerArrayDecayNode, IRDeleter>(new (
-                        *this->_context.nodeAllocator) TemporaryIntegerArrayDecayNode(std::move(expression), source));
+                    if (auto* const intArray = dynamic_cast<IntegerArrayNode*>(expression->Value().get()))
+                    {
+                         const auto source = intArray->Source();
+
+                         decayNode = std::unique_ptr<TemporaryIntegerArrayDecayNode, IRDeleter>(
+                             new (*this->_context.nodeAllocator)
+                                 TemporaryIntegerArrayDecayNode(std::move(expression), source));
+                    }
+                    else
+                         throw TracedException("array-to-pointer is not supported yet");
+
+                    return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
                }
-               else
-                    throw TracedException("array-to-pointer is not supported yet");
 
-               return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
+               if (expression->IsLValue())
+               {
+                    NodePointer decayNode{};
+
+                    if (auto* const loadNode = dynamic_cast<LoadNode*>(expression->Value().get()); loadNode != nullptr)
+                    {
+                         const auto source = loadNode->Source();
+
+                         decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(
+                             new (*this->_context.nodeAllocator) LoadArrayDecayNode(std::move(expression), source));
+                    }
+                    else
+                         throw TracedException("array-to-pointer is not supported yet");
+
+                    return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
+               }
+
+               throw TracedException(std::logic_error("Unsupported conversion"));
           }
      }
 

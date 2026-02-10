@@ -37,6 +37,7 @@ std::string ecpps::typeSystem::IntegralType::RawName(void) const
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo(const std::shared_ptr<TypeBase>& other)
 {
+     if (other == nullptr) return ConversionSequence{std::nullopt};
      SBOVector<ConversionSequence::ConversionKind> sequence{};
 
      if (IsIntegral(other))

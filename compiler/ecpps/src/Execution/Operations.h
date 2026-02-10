@@ -330,6 +330,30 @@ namespace ecpps::ir
           IntegerArrayNode* _referencedArray;
      };
 
+     class LoadArrayDecayNode final : public NodeBase
+     {
+     public:
+          explicit LoadArrayDecayNode(Expression operand, Location source)
+              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand)),
+                _loadNode(dynamic_cast<LoadNode*>(this->_operand->Value().get()))
+          {
+               runtime_assert(this->_loadNode != nullptr, "load array decay supplied with a non-load operand");
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__decay({})", this->_loadNode->ToString(0));
+          }
+
+          [[nodiscard]] const LoadNode* GetLoadNode(void) const noexcept { return this->_loadNode; }
+          [[nodiscard]] const Expression& GetOperand(void) const noexcept { return this->_operand; }
+
+     private:
+          Expression _operand;
+          LoadNode* _loadNode;
+     };
+
      class ConvertNode final : public NodeBase
      {
      public:

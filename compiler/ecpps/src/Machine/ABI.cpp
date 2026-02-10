@@ -1,6 +1,8 @@
 #include "ABI.h"
 #include <Assert.h>
+#include <cstdint>
 #include "Machine.h"
+#include "Machine/Storage.h"
 #ifndef NDEBUG
 #include <format>
 #endif
@@ -23,6 +25,9 @@ ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()};
 ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 {
      this->_callingConventions.emplace(std::make_unique<MicrosoftX64CallingConvention>());
+     auto& specialStringRegister =
+         this->_physicalRegisters.emplace_back(std::make_shared<PhysicalRegister>("__string", qwordSize, SIZE_MAX));
+     this->_specialStringRegister = std::make_shared<VirtualRegister>("__string", specialStringRegister, 0, 0);
 
      switch (isa)
      {

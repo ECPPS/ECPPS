@@ -78,7 +78,8 @@ namespace ecpps::linker
           virtual ~LinkerBase(void) = default;
 
           [[nodiscard]] virtual std::vector<std::byte> ToBytes(const std::string& imageName,
-                                                               std::size_t entryPointAddress) const = 0;
+                                                               std::size_t entryPointAddress,
+                                                               const std::vector<std::byte>& stringData) const = 0;
 
           virtual std::vector<std::byte> CodeSection(std::vector<std::byte> data,
                                                      const codegen::LinkerRelocationMap& relocationMap) = 0;
@@ -95,11 +96,11 @@ namespace ecpps::linker
                                                                         std::unique_ptr<LinkerOptionsBase> options);
           explicit Linker(void) = delete;
 
-          static std::vector<std::byte> SelectAndLink(const ecpps::CompilerConfig& config,
-                                                      std::vector<std::byte> generatedMachineCode,
-                                                      const std::vector<std::pair<std::string, std::size_t>>& functions,
-                                                      std::size_t mainOffset,
-                                                      const codegen::LinkerRelocationMap& relocationMap,
-                                                      std::vector<std::byte>& diagnosticsCodeSection);
+          static std::vector<std::byte> SelectAndLink(
+              const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
+              const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
+              const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
+              const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
+              const std::vector<std::byte>& stringData);
      };
 } // namespace ecpps::linker

@@ -652,14 +652,15 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                    ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}},
                    abi.PointerSize() * ecpps::typeSystem::CharWidth});
                return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}, 0,
-                                                            pointerType->Size() * ecpps::typeSystem::CharWidth};
+                                                            pointerType->BaseType()->Size() *
+                                                                ecpps::typeSystem::CharWidth};
           }
 
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
           {
                return ecpps::codegen::MemoryLocationOperand{
                    std::get<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn), 0,
-                   pointerType->Size() * ecpps::typeSystem::CharWidth};
+                   pointerType->BaseType()->Size() * ecpps::typeSystem::CharWidth};
           }
 
           throw TracedException("Invalid operand for the address-of instruction");
@@ -740,10 +741,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           const auto instructionIndex = code.size();
 
-          // not a stack really, just any placeholder
           code.emplace_back(ecpps::codegen::TakeAddressInstruction{
-              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StackPointerRegister()}, 0,
-                                                    movWidth},
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()}, 0, movWidth},
               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
           context.AddStringPatch(instructionIndex, ecpps::InstructionPatchType::LeaFrom, stringIndex);
 
@@ -757,6 +756,26 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           auto bytes = SerialiseByteArray(integerArray->Values(), elementSize);
 
           return ecpps::codegen::IntegerRangeOperand{std::move(bytes)};
+     }
+     if (auto* const arrayDecay = dynamic_cast<ecpps::ir::LoadArrayDecayNode*>(value.get()); arrayDecay != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
+
+          const auto& operand = arrayDecay->GetOperand();
+          const auto loaded = ParseExpression(context, code, operand);
+
+          const auto movWidth = abi.PointerSize() * ecpps::typeSystem::CharWidth;
+
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(movWidth);
+
+          runtime_assert(std::holds_alternative<ecpps::codegen::MemoryLocationOperand>(loaded),
+                         "Invalid operand for lea");
+
+          code.emplace_back(
+              ecpps::codegen::TakeAddressInstruction{std::get<ecpps::codegen::MemoryLocationOperand>(loaded),
+                                                     ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));

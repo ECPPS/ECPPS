@@ -474,7 +474,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           else if (IsOperatorOrPunctuatorBeginning(character))
           {
                std::string operatorOrPunctuator{character};
-               while (sourceIterator != source.end() &&
+               while (sourceIterator != source.end() && std::next(sourceIterator) != source.end() &&
                       IsOperatorOrPunctuator(operatorOrPunctuator + *std::next(sourceIterator)))
                {
                     ++sourceIterator;

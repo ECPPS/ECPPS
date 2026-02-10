@@ -32,7 +32,8 @@ namespace ecpps::ir
           Convert,
           Load,
           IntegerArray,
-          IntegerArrayDecay
+          IntegerArrayDecay,
+          LoadArrayDecay
      };
 
      class NodeBase

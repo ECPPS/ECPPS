@@ -27,8 +27,8 @@ namespace ecpps::linker::win
           void AddSection(const PESection& value);
           void ExportAt(const std::string& name, std::uint32_t address);
 
-          [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName,
-                                                       std::size_t entryPointAddress) const override;
+          [[nodiscard]] std::vector<std::byte> ToBytes(const std::string& imageName, std::size_t entryPointAddress,
+                                                       const std::vector<std::byte>& stringData) const override;
 
           [[nodiscard]] std::uint32_t LookupSymbol(const std::string& symbolName, std::uint32_t codeSize) const;
 

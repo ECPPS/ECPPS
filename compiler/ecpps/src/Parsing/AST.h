@@ -230,7 +230,7 @@ namespace ecpps::ast
                using std::string_literals::operator""s;
                std::string built{};
                for (const auto& attr : this->attributes)
-                    built += (attr == nullptr ? attr->ToString(0) : "[[__unknown]]") + " ";
+                    built += (attr == nullptr ? "[[__unknown]]" : attr->ToString(0)) + " ";
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";

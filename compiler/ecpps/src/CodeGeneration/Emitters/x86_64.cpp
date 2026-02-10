@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include "../../CodeGeneration/PseudoAssembly.h"
 #include "../../Parsing/Tokeniser.h"
+#include "CodeGeneration/Nodes.h"
+#include "Machine/ABI.h"
 #include "x86_64/Opcodes.h"
 
 void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& source,
@@ -212,6 +214,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const Mul
                                         { return this->EmitSpecificMul<OperandCombination::RegisterToRegister>(mul); },
                                         [&mul, this](const IntegerOperand&)
                                         { return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul); },
+                                        [&mul, this](const MemoryLocationOperand&)
+                                        { return this->EmitSpecificMul<OperandCombination::MemoryToRegister>(mul); },
                                         [](auto&&) -> std::vector<std::byte>
                                         { throw TracedException(std::logic_error("Invalid mul operation")); }},
                       mul.from);
@@ -942,6 +946,34 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 };
 
 template <>
+struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+{
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MulInstruction& mul)
+     {
+          const auto& source = std::get<MemoryLocationOperand>(mul.from);
+          const auto& destination = std::get<RegisterOperand>(mul.to);
+
+          const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
+          const auto sourceDisplacement = source.Displacement();
+
+          switch (mul.width)
+          {
+          case ecpps::abi::byteSize:
+               return x86_64::GenerateSignedMulMemToReg8(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::wordSize:
+               return x86_64::GenerateSignedMulMemToReg16(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::dwordSize:
+               return x86_64::GenerateSignedMulMemToReg32(destinationRegister, sourceDisplacement, sourceRegister);
+          case ecpps::abi::qwordSize:
+               return x86_64::GenerateSignedMulMemToReg64(destinationRegister, sourceDisplacement, sourceRegister);
+          }
+
+          throw TracedException(std::logic_error("Invalid mov operation"));
+     }
+};
+
+template <>
 struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MulInstruction& mul)
@@ -1110,12 +1142,22 @@ struct ecpps::codegen::emitters::EmitSpecificLeaImpl<ecpps::codegen::emitters::O
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
                                               [[maybe_unused]] const TakeAddressInstruction& lea)
      {
+
+          constexpr static auto ApplyStringRelocationLambda = [](std::uint8_t register_, std::size_t stringTableOffset)
+          { return x86_64::GenerateLeaToReg(x86_64::Rip, stringTableOffset, register_); };
+
           const auto& source = lea.from;
           const auto& destination = std::get<RegisterOperand>(lea.to);
 
-          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
           const auto sourceRegisterOffset = source.Displacement();
           const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+          if (source.Register().Index() == abi::ABI::Current().StringRegister())
+          {
+               self->_stringRelocation.push_back(self->_currentInstructionBase + 3); // instruction length: 3 + DWORD
+               return x86_64::GenerateLeaToReg(x86_64::Rip, sourceRegisterOffset - self->_currentInstructionBase - 7,
+                                               destinationRegister);
+          }
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source.Register());
 
           return x86_64::GenerateLeaToReg(sourceRegister, sourceRegisterOffset, destinationRegister);
      }

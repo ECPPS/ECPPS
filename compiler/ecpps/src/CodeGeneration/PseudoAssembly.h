@@ -76,7 +76,13 @@ namespace ecpps::codegen
           [[nodiscard]] ByteView GetString(StringIndex index) const noexcept
           {
                const auto& entry = _stringTable[index.indexInTable];
-               return {this->_arena.data() + entry.offset, entry.length};
+               return {this->_arena.data() + entry.offset + index.offset, entry.length};
+          }
+
+          [[nodiscard]] std::size_t GetStringOffset(StringIndex index) const noexcept
+          {
+               const auto& entry = _stringTable[index.indexInTable];
+               return entry.offset + index.offset;
           }
           [[nodiscard]] const auto& GetStringSection(void) const noexcept { return this->_arena; }
 

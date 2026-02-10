@@ -23,6 +23,8 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      constexpr std::size_t R14 = 14;
      constexpr std::size_t R15 = 15;
 
+     constexpr std::size_t Rip = 16;
+
      constexpr std::vector<std::byte> GenerateRet(void) { return {std::byte{0xC3}}; }
      constexpr std::vector<std::byte> GenerateNop(void) { return {std::byte{0x90}}; }
      std::vector<std::byte> GenerateUD2(void);
@@ -228,6 +230,15 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
                                                                       std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateSignedMulRegToMem8(std::size_t destination,
                                                                      std::size_t destinationOffset,
+                                                                     std::size_t sourceRegister);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulMemToReg64(std::size_t destination, std::size_t sourceOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulMemToReg32(std::size_t destination, std::size_t sourceOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulMemToReg16(std::size_t destination, std::size_t sourceOffset,
+                                                                      std::size_t sourceRegister);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedMulMemToReg8(std::size_t destination, std::size_t sourceOffset,
                                                                      std::size_t sourceRegister);
 
      // div

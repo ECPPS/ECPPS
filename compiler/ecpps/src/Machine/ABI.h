@@ -180,18 +180,22 @@ namespace ecpps::abi
                                                       const typeSystem::TypePointer& returnType,
                                                       const std::vector<typeSystem::TypePointer>& parameters);
 
-          CallingConventionName DefaultCallingConventionName(void) const;
+          [[nodiscard]] CallingConventionName DefaultCallingConventionName(void) const;
           [[nodiscard]] CallingConvention& CallingConventionFromName(CallingConventionName name);
           [[nodiscard]] const std::shared_ptr<VirtualRegister>& StackPointerRegister(void) const noexcept
           {
                return this->_stackPointerRegister;
           }
+          [[nodiscard]] const std::shared_ptr<VirtualRegister>& StringRegister(void) const noexcept
+          {
+               return this->_specialStringRegister;
+          }
 
-          const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
+          [[nodiscard]] const std::vector<std::shared_ptr<PhysicalRegister>>& PhysicalRegisters(void) const noexcept
           {
                return this->_physicalRegisters;
           }
-          const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
+          [[nodiscard]] const std::vector<std::shared_ptr<VirtualRegister>>& VirtualRegisters(void) const noexcept
           {
                return this->_registers;
           }
@@ -250,6 +254,7 @@ namespace ecpps::abi
           std::unordered_set<std::unique_ptr<CallingConvention>> _callingConventions{};
           std::unordered_map<std::size_t, std::size_t> _allocatedRegisters{};
           std::shared_ptr<VirtualRegister> _stackPointerRegister{};
+          std::shared_ptr<VirtualRegister> _specialStringRegister{};
           std::size_t _pointerSize{};
 
           friend AllocatedRegister;
