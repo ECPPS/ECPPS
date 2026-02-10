@@ -2271,13 +2271,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg64(std::
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg32(std::size_t destination, std::size_t source)
 {
      std::vector<std::byte> binary{};
-     if (source >= 8 || destination >= 8)
-          binary.push_back(
-              static_cast<std::byte>(0x40 | (static_cast<int>(source >= 8) << 2) | static_cast<int>(destination >= 8)));
+     if (destination >= 8 || destination >= 8)
+          binary.push_back(static_cast<std::byte>(0x40 | (static_cast<int>(destination >= 8) << 2) |
+                                                  static_cast<int>(destination >= 8)));
 
      binary.push_back(static_cast<std::byte>(0x0F));
      binary.push_back(static_cast<std::byte>(0xAF));
-     binary.push_back(static_cast<std::byte>(0xC0 | ((source & 7) << 3) | (destination & 7)));
+     binary.push_back(static_cast<std::byte>(0xC0 | ((destination & 7) << 3) | (destination & 7)));
      return binary;
 }
 
