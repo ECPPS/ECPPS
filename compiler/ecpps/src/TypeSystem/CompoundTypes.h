@@ -7,7 +7,8 @@ namespace ecpps::typeSystem
      class ArrayType final : public TypeBase
      {
      public:
-          explicit ArrayType(const std::size_t nElements, TypePointer elementType, std::size_t alignmentRequirements = 0)
+          explicit ArrayType(const std::size_t nElements, TypePointer elementType,
+                             std::size_t alignmentRequirements = 0)
               : TypeBase(std::format("{}[{}]", elementType->Name(), nElements)), _nElements(nElements),
                 _elementType(std::move(elementType)),
                 _alignmentRequirements(std::max(alignmentRequirements, _elementType->Alignment()))

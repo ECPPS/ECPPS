@@ -17,7 +17,8 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ArrayType::Traits(void) const n
      return TypeTraits{TypeTraitEnum::Array, TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime};
 }
 
-std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::ArrayType::CommonWith(const std::shared_ptr<TypeBase>& other)
+std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::ArrayType::CommonWith(
+    const std::shared_ptr<TypeBase>& other)
 {
      return nullptr;
 }

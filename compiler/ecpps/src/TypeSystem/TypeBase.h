@@ -26,7 +26,7 @@ namespace ecpps::typeSystem
           Scalar,
           Reference,
           Object,
-		Array,
+          Array,
 
           Count
      };
@@ -244,6 +244,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) override;
-          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final override;
+          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final;
      };
 } // namespace ecpps::typeSystem
