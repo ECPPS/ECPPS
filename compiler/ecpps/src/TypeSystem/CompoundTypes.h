@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <format>
 #include "TypeBase.h"
 
 namespace ecpps::typeSystem

@@ -1,5 +1,7 @@
 #include <CodeGeneration/Emitters/x86_64/Opcodes.h>
+#include <algorithm>
 #include <cassert>
+#include <ranges>
 
 bool AreEqual(const std::vector<std::byte>& a, const std::vector<std::byte>& b) noexcept
 {

@@ -1,10 +1,10 @@
 #include "ABI.h"
 #include <Assert.h>
 #include <cstdint>
+#include <format>
 #include "Machine.h"
 #include "Machine/Storage.h"
 #ifndef NDEBUG
-#include <format>
 #endif
 #include <ranges>
 #include <stdexcept>

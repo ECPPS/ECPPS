@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <span>
 #include <stack>
 #include <string>
 #include <unordered_set>

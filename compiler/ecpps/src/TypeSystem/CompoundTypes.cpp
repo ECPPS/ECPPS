@@ -1,4 +1,5 @@
 #include "CompoundTypes.h"
+#include <format>
 
 std::size_t ecpps::typeSystem::ArrayType::Size(void) const noexcept
 {
