@@ -309,8 +309,8 @@ bool ecpps::abi::ABI::CheckRegisterAllocation(std::size_t width, const std::stri
 
 std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name,
                                         const CallingConventionName callingConvention,
-                                        const typeSystem::TypePointer& returnType,
-                                        const std::vector<typeSystem::TypePointer>& parameters)
+                                        typeSystem::NonowningTypePointer returnType,
+                                        const std::vector<typeSystem::NonowningTypePointer>& parameters)
 {
      if (name == "main") return "main";
 
@@ -428,11 +428,11 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
 }
 
 ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetRequirementsForType(
-    const typeSystem::TypePointer& type) const
+    typeSystem::NonowningTypePointer type) const
 {
      if (IsIntegral(type))
      {
-          const auto integralType = std::dynamic_pointer_cast<typeSystem::IntegralType>(type);
+          const auto* const integralType = type->CastTo<typeSystem::IntegralType>();
           runtime_assert(integralType != nullptr, std::format("Integral type `{}` was not integral", type->RawName()));
           return StorageRequirement{integralType->Size(), integralType->Alignment(), RequiredStorageKind::Integer};
      }

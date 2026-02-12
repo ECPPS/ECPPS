@@ -12,7 +12,7 @@ namespace ecpps::ir
 {
      struct Parameter
      {
-          ecpps::typeSystem::TypePointer type;
+          ecpps::typeSystem::NonowningTypePointer type;
           std::string name;
      };
 
@@ -20,12 +20,12 @@ namespace ecpps::ir
      {
      public:
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
-                                 typeSystem::TypePointer returnType, std::string name,
+                                 typeSystem::NonowningTypePointer returnType, std::string name,
                                  std::vector<FunctionScope::Parameter> parameterList,
                                  std::vector<FunctionScope::Variable> locals, std::vector<NodePointer> body,
                                  Location source)
               : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
-                _returnType(std::move(returnType)), _name(std::move(name)), _parameterList(std::move(parameterList)),
+                _returnType(returnType), _name(std::move(name)), _parameterList(std::move(parameterList)),
                 _locals(std::move(locals)), _body(std::move(body))
           {
           }
@@ -55,12 +55,12 @@ namespace ecpps::ir
                return this->_callingConvention;
           }
           [[nodiscard]] abi::Linkage Linkage(void) const noexcept { return this->_linkage; }
-          [[nodiscard]] const typeSystem::TypePointer& ReturnType(void) const noexcept { return this->_returnType; }
+          [[nodiscard]] typeSystem::NonowningTypePointer ReturnType(void) const noexcept { return this->_returnType; }
 
      private:
           abi::Linkage _linkage;
           abi::CallingConventionName _callingConvention;
-          typeSystem::TypePointer _returnType;
+          typeSystem::NonowningTypePointer _returnType;
           std::string _name;
           std::vector<FunctionScope::Parameter> _parameterList;
           std::vector<FunctionScope::Variable> _locals;

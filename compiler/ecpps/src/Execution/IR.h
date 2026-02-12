@@ -68,7 +68,7 @@ namespace ecpps::ir
      /// </summary>
      /// <returns></returns>
      [[nodiscard]] ImplicitConversion MatchImplicitConversion(const Expression& expression,
-                                                              const typeSystem::TypePointer& type);
+                                                              typeSystem::NonowningTypePointer type);
 
      constexpr bool operator!(const MatchingScore score) { return score == MatchingScore::NotMatching; }
      constexpr auto operator<=>(const MatchingScore left, const MatchingScore right)
@@ -132,9 +132,9 @@ namespace ecpps::ir
           Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
-          typeSystem::TypePointer ParseType(const ast::NodePointer& type);
-          [[nodiscard]] Expression ConvertTo(Expression expression, const typeSystem::TypePointer& toType) const;
-          [[nodiscard]] bool IsEligibleForStringLiteralInitialisation(const typeSystem::TypePointer& type) const;
+          typeSystem::NonowningTypePointer ParseType(const ast::NodePointer& type);
+          [[nodiscard]] Expression ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const;
+          [[nodiscard]] bool IsEligibleForStringLiteralInitialisation(typeSystem::NonowningTypePointer type) const;
 
           /// <summary>
           /// Only for integral conversions that are known to be integral conversions. If the conversion is not

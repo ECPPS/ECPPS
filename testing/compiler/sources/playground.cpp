@@ -11,7 +11,7 @@ DLLIMPORT extern "C" void ExitProcess(unsigned);
 int main()
 {
      const char p[] = "aaa";
-     const char* ptr = p;
+     char* ptr = p;
      return *p * *"2";
 }
 

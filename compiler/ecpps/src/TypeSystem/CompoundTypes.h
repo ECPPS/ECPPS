@@ -9,15 +9,15 @@ namespace ecpps::typeSystem
      class ArrayType final : public TypeBase
      {
      public:
-          explicit ArrayType(const std::size_t nElements, TypePointer elementType,
+          explicit ArrayType(const std::size_t nElements, typeSystem::NonowningTypePointer elementType,
                              std::size_t alignmentRequirements = 0)
               : TypeBase(std::format("{}[{}]", elementType->Name(), nElements)), _nElements(nElements),
-                _elementType(std::move(elementType)),
+                _elementType(elementType),
                 _alignmentRequirements(std::max(alignmentRequirements, _elementType->Alignment()))
           {
           }
           [[nodiscard]] std::size_t ElementCount(void) const noexcept { return this->_nElements; }
-          [[nodiscard]] const std::shared_ptr<TypeBase>& ElementType(void) const noexcept { return this->_elementType; }
+          [[nodiscard]] NonowningTypePointer ElementType(void) const noexcept { return this->_elementType; }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
 
@@ -28,14 +28,14 @@ namespace ecpps::typeSystem
                return std::format("{}[{}]", this->_elementType->RawName(), this->_nElements);
           }
 
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override;
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept final;
-          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+          [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const final;
 
      private:
           std::size_t _nElements;
-          TypePointer _elementType;
+          typeSystem::NonowningTypePointer _elementType;
           std::size_t _alignmentRequirements;
      };
 } // namespace ecpps::typeSystem

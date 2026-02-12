@@ -32,11 +32,11 @@ constexpr std::string_view UnsignedZmmWord = "z";
 constexpr std::string_view Float32 = "f";
 constexpr std::string_view Float64 = "F";
 
-std::string ecpps::abi::Mangling::MangleType(const typeSystem::TypePointer& type)
+std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer type)
 {
      if (typeSystem::IsArithmetic(type))
      {
-          if (const auto integralType = std::dynamic_pointer_cast<typeSystem::IntegralType>(type))
+          if (const auto integralType = type->CastTo<typeSystem::IntegralType>())
           {
                switch (integralType->Size())
                {
@@ -64,7 +64,7 @@ std::string ecpps::abi::Mangling::MangleType(const typeSystem::TypePointer& type
                }
                return "_";
           }
-          if (const auto floatingType = std::dynamic_pointer_cast<typeSystem::IntegralType>(type))
+          if (const auto floatingType = type->CastTo<typeSystem::IntegralType>()) // TODO: ???
           {
                switch (floatingType->Size())
                {
@@ -81,8 +81,8 @@ std::string ecpps::abi::Mangling::MangleType(const typeSystem::TypePointer& type
 
 std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::string& name,
                                              const CallingConventionName callingConvention,
-                                             const typeSystem::TypePointer& returnType,
-                                             const std::vector<typeSystem::TypePointer>& parameters)
+                                             const typeSystem::NonowningTypePointer returnType,
+                                             const std::vector<typeSystem::NonowningTypePointer>& parameters)
 {
      std::string built = "?";
      switch (linkage)

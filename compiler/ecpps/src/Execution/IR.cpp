@@ -29,18 +29,18 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAl
                                                 const std::vector<ASTNodePointer>& ast)
 {
      IR ir{diagnostics, allocator};
-     ir._context.globalScope->types.insert(typeSystem::g_void);
-     ir._context.globalScope->types.insert(typeSystem::g_char);
-     ir._context.globalScope->types.insert(typeSystem::g_signedChar);
-     ir._context.globalScope->types.insert(typeSystem::g_unsignedChar);
-     ir._context.globalScope->types.insert(typeSystem::g_short);
-     ir._context.globalScope->types.insert(typeSystem::g_int);
-     ir._context.globalScope->types.insert(typeSystem::g_long);
-     ir._context.globalScope->types.insert(typeSystem::g_longLong);
-     ir._context.globalScope->types.insert(typeSystem::g_unsignedShort);
-     ir._context.globalScope->types.insert(typeSystem::g_unsignedInt);
-     ir._context.globalScope->types.insert(typeSystem::g_unsignedLong);
-     ir._context.globalScope->types.insert(typeSystem::g_unsignedLongLong);
+     ir._context.globalScope->types.insert(typeSystem::g_void.get());
+     ir._context.globalScope->types.insert(typeSystem::g_char.get());
+     ir._context.globalScope->types.insert(typeSystem::g_signedChar.get());
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedChar.get());
+     ir._context.globalScope->types.insert(typeSystem::g_short.get());
+     ir._context.globalScope->types.insert(typeSystem::g_int.get());
+     ir._context.globalScope->types.insert(typeSystem::g_long.get());
+     ir._context.globalScope->types.insert(typeSystem::g_longLong.get());
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedShort.get());
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedInt.get());
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedLong.get());
+     ir._context.globalScope->types.insert(typeSystem::g_unsignedLongLong.get());
      ir._context.contextSequence.Push(std::make_unique<NamespaceContext>(ir._context.globalScope.get()));
      for (const auto& node : ast) ir.ParseNode(node);
      auto built = std::move(ir._built);
@@ -144,7 +144,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      {
           parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
      }
-     if (parameters.size() == 1 && *parameters.at(0).type == typeSystem::g_void) parameters.clear();
+     if (parameters.size() == 1 && *parameters.at(0).type == typeSystem::g_void.get()) parameters.clear();
 
      IR ir{this->_context.diagnostics.get(), *this->_context.nodeAllocator};
      const auto returnType = this->ParseType(node.Signature().type);
@@ -218,7 +218,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      if (functionName == "main" && (!ir._built.empty() && ir._built.back()->Kind() != NodeKind::Return))
           ir._built.push_back(
               std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator) ir::ReturnNode(
-                  std::make_unique<PRValue>(typeSystem::g_int,
+                  std::make_unique<PRValue>(typeSystem::g_int.get(),
                                             std::unique_ptr<IntegralNode, IRDeleter>{
                                                 new (*ir._context.nodeAllocator) ir::IntegralNode(0, node.Source())},
                                             true),
@@ -363,7 +363,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     {
                          const auto& string = stringInitialiser->Value();
                          const auto arrayLength = string.length() + 1;
-                         auto elementType = std::dynamic_pointer_cast<ecpps::typeSystem::CharacterType>(variableType);
+                         const auto* elementType = variableType->CastTo<ecpps::typeSystem::CharacterType>();
                          runtime_assert(elementType != nullptr,
                                         "Expected a character type for string-literal initialisation");
                          variableType = std::make_shared<ecpps::typeSystem::ArrayType>(arrayLength, elementType);
@@ -433,8 +433,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 {
      runtime_assert(operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus, "Invalid additive operator");
 
-     auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
-     auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
+     auto leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     auto rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
@@ -505,8 +505,8 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
                         operator_ == ast::Operator::Percent,
                     "Operator was not multiplicative in a multiplicative-expression");
 
-     auto leftIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(left->Type());
-     auto rightIntegral = std::dynamic_pointer_cast<typeSystem::IntegralType>(right->Type());
+     auto leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     auto rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
@@ -595,7 +595,7 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
 
      if (IsArray(operand->Type()))
      {
-          const auto arrayType = std::dynamic_pointer_cast<typeSystem::ArrayType>(operand->Type());
+          const auto arrayType = operand->Type()->CastTo<typeSystem::ArrayType>();
 
           runtime_assert(arrayType != nullptr, "Expected an array type");
           operand = ConvertTo(std::move(operand),
@@ -603,7 +603,7 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
                                   arrayType->ElementType(), std::format("{}*", arrayType->ElementType()->Name()),
                                   typeSystem::Qualifiers::None));
      }
-     auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(operand->Type());
+     auto pointerType = operand->Type()->CastTo<typeSystem::PointerType>();
 
      if (pointerType == nullptr)
      {
@@ -838,8 +838,8 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      values.emplace_back(0);
      auto arrayType = std::make_shared<typeSystem::ArrayType>(length + 1, elementType);
      auto node = std::unique_ptr<IntegerArrayNode, ecpps::BumpAllocator::Deleter>(
-         new (*this->_context.nodeAllocator) IntegerArrayNode(
-             std::move(values), std::dynamic_pointer_cast<typeSystem::IntegralType>(elementType), expression.Source()));
+         new (*this->_context.nodeAllocator)
+             IntegerArrayNode(std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
      return std::make_unique<PRValue>(std::move(arrayType), std::move(node), true);
 }
 
@@ -915,9 +915,9 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
      return nullptr;
 }
 
-ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& type)
+ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& type)
 {
-     auto ResolveBasicType = [this](const std::string& name) -> typeSystem::TypePointer
+     auto ResolveBasicType = [this](const std::string& name) -> typeSystem::NonowningTypePointer
      {
           if (name == "int" || name == "signed" || name == "signed int" || name == "int signed")
                return typeSystem::g_int;
@@ -944,7 +944,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
      //      base = cvQualified->UnqualifiedType().get();
      // }
 
-     typeSystem::TypePointer result = nullptr;
+     typeSystem::NonowningTypePointer result = nullptr;
 
      if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
      {
@@ -1020,7 +1020,7 @@ ecpps::typeSystem::TypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& 
      return result; // NOLINT(clang-diagnostic-nrvo)
 }
 
-Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::TypePointer& toType) const
+Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
 
@@ -1043,14 +1043,14 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
           const auto& conversion = *comparison.Sequence().begin();
           if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion)
           {
-               const auto intType = std::dynamic_pointer_cast<typeSystem::IntegralType>(toType);
+               const auto intType = toType->CastTo<typeSystem::IntegralType>();
                runtime_assert(intType != nullptr,
                               std::format("Presumed integral type {} turned out not to be one", toType->RawName()));
                return ConvertIntegral(std::move(expression), intType);
           }
           if (conversion == typeSystem::ConversionSequence::ConversionKind::ArrayToPointer)
           {
-               const auto pointerType = std::dynamic_pointer_cast<typeSystem::PointerType>(toType);
+               const auto pointerType = toType->CastTo<typeSystem::PointerType>();
                runtime_assert(pointerType != nullptr,
                               std::format("Presumed pointer type {} turned out not to be one", toType->RawName()));
 
@@ -1101,7 +1101,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, const typeSystem::Typ
      throw TracedException(std::logic_error("Unsupported conversion"));
 }
 
-bool ecpps::ir::IR::IsEligibleForStringLiteralInitialisation(const typeSystem::TypePointer& type) const
+bool ecpps::ir::IR::IsEligibleForStringLiteralInitialisation(typeSystem::NonowningTypePointer type) const
 {
      return IsCharacter(type);
 }
@@ -1196,7 +1196,7 @@ ecpps::ir::MatchingScore ecpps::ir::ImplicitConversion::Rank(void) const noexcep
 }
 
 ecpps::ir::ImplicitConversion ecpps::ir::MatchImplicitConversion(const Expression& expression,
-                                                                 const typeSystem::TypePointer& type)
+                                                                 typeSystem::NonowningTypePointer type)
 {
      ImplicitConversion::RefBindingKind referenceKind{};
      // if not a reference

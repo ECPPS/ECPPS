@@ -9,17 +9,38 @@
 #include "../Machine/ABI.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
+#include "Shared/BumpAllocator.h"
 
 namespace ecpps::ir
 {
      struct FunctionScope;
+
+     struct TypeContext
+     {
+          explicit TypeContext(void) = default;
+          typeSystem::TypeId PushType(typeSystem::OwningTypePointer type)
+          {
+               typeSystem::TypeId id{static_cast<std::uint32_t>(this->_typeDatabase.size())};
+               this->_typeDatabase.push_back(std::move(type));
+               return id;
+          }
+
+          [[nodiscard]] const typeSystem::TypeBase* Get(typeSystem::TypeId id) const noexcept
+          {
+               return this->_typeDatabase[id.value].get();
+          }
+
+     private:
+          std::vector<typeSystem::OwningTypePointer> _typeDatabase{};
+     };
 
      struct Scope
      {
           virtual ~Scope(void) = default;
 
           Scope* parentScope = nullptr;
-          std::unordered_set<typeSystem::TypePointer, typeSystem::TypePointerHash, typeSystem::TypePointerEqual>
+          std::unordered_set<typeSystem::NonowningTypePointer, typeSystem::TypePointerHash,
+                             typeSystem::TypePointerEqual>
               types{};
           std::vector<std::shared_ptr<FunctionScope>> functions{};
      };
@@ -43,19 +64,19 @@ namespace ecpps::ir
 
      struct FunctionContext final : ContextBase
      {
-          explicit FunctionContext(Scope* vScope, typeSystem::TypePointer returnType)
-              : ContextBase(vScope), returnType(std::move(returnType))
+          explicit FunctionContext(Scope* vScope, typeSystem::NonowningTypePointer returnType)
+              : ContextBase(vScope), returnType(returnType)
           {
           }
           abi::CallingConventionName callingConvention{};
-          typeSystem::TypePointer returnType;
+          typeSystem::NonowningTypePointer returnType;
           std::string name;
-          std::vector<typeSystem::TypePointer> parameters;
+          std::vector<typeSystem::NonowningTypePointer> parameters;
 
           explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention,
-                                   [[maybe_unused]] typeSystem::TypePointer returnType, std::string name,
-                                   std::vector<typeSystem::TypePointer> parameters)
-              : ContextBase(vScope), callingConvention(callingConvention), returnType(std::move(returnType)),
+                                   [[maybe_unused]] typeSystem::NonowningTypePointer returnType, std::string name,
+                                   std::vector<typeSystem::NonowningTypePointer> parameters)
+              : ContextBase(vScope), callingConvention(callingConvention), returnType(returnType),
                 name(std::move(name)), parameters(std::move(parameters))
           {
           }
@@ -84,13 +105,13 @@ namespace ecpps::ir
      };
      struct TemplateNonTypeParameter final : TemplateParameter
      {
-          typeSystem::TypePointer type;
-          explicit TemplateNonTypeParameter(typeSystem::TypePointer type) : type(std::move(type)) {}
+          typeSystem::NonowningTypePointer type;
+          explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type) {}
      };
      struct FunctionScope final : Scope
      {
           std::string name{};
-          typeSystem::TypePointer returnType{};
+          typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
           bool isInline = false;
           bool isFriend = false;
@@ -103,14 +124,14 @@ namespace ecpps::ir
           struct Parameter
           {
                std::string name{};
-               typeSystem::TypePointer type{};
+               typeSystem::NonowningTypePointer type{};
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
           struct Variable
           {
                std::string name{};
-               typeSystem::TypePointer type{};
+               typeSystem::NonowningTypePointer type{};
                bool isStatic = false;
                bool isExtern = false;
           };
@@ -162,7 +183,7 @@ namespace ecpps::ir
           }
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
-              typeSystem::TypePointer value) && noexcept
+              typeSystem::NonowningTypePointer value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::returnType>(std::move(value));
           }

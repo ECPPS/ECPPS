@@ -115,7 +115,7 @@ namespace ecpps::abi
           [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(
               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const = 0;
           [[nodiscard]] virtual StorageRequirement GetRequirementsForType(
-              const typeSystem::TypePointer& type) const = 0;
+              typeSystem::NonowningTypePointer type) const = 0;
 
           [[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
           [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
@@ -140,7 +140,7 @@ namespace ecpps::abi
           [[nodiscard]] StorageRef ReturnValueStorage(StorageRequirement storageSize) const override;
           [[nodiscard]] std::vector<StorageRef> LocateParameters(
               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
-          [[nodiscard]] StorageRequirement GetRequirementsForType(const typeSystem::TypePointer& type) const override;
+          [[nodiscard]] StorageRequirement GetRequirementsForType(typeSystem::NonowningTypePointer type) const override;
           [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(
               std::vector<ecpps::codegen::Instruction>& instructions) const final override;
           [[nodiscard]] std::unique_ptr<CallTemporaryProxy> PrepareForCall(
@@ -177,8 +177,8 @@ namespace ecpps::abi
 
           [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
                                                       CallingConventionName callingConvention,
-                                                      const typeSystem::TypePointer& returnType,
-                                                      const std::vector<typeSystem::TypePointer>& parameters);
+                                                      typeSystem::NonowningTypePointer returnType,
+                                                      const std::vector<typeSystem::NonowningTypePointer>& parameters);
 
           [[nodiscard]] CallingConventionName DefaultCallingConventionName(void) const;
           [[nodiscard]] CallingConvention& CallingConventionFromName(CallingConventionName name);
