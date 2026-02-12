@@ -143,8 +143,7 @@ namespace ecpps::ir
           /// <param name="expression"></param>
           /// <param name="type"></param>
           /// <returns></returns>
-          Expression ConvertIntegral(Expression expression,
-                                     const std::shared_ptr<typeSystem::IntegralType>& type) const;
+          Expression ConvertIntegral(Expression expression, const typeSystem::IntegralType* type) const;
 
           // matching
           MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,

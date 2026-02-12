@@ -2,10 +2,10 @@
 #include <memory>
 #include "ArithmeticTypes.h"
 
-typeSystem::NonowningTypePointer ecpps::typeSystem::VoidType::CommonWith(typeSystem::NonowningTypePointer other)
+ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::VoidType::CommonWith(typeSystem::NonowningTypePointer other) const
 {
      {
-          return IsIncomplete(other) ? ecpps::typeSystem::g_void : nullptr;
+          return IsIncomplete(other) ? ecpps::typeSystem::g_void.get() : nullptr;
      }
 }
 

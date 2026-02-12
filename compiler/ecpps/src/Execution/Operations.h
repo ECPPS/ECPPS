@@ -320,7 +320,7 @@ namespace ecpps::ir
           {
                return this->_referencedArray->Values();
           }
-          [[nodiscard]] const std::shared_ptr<typeSystem::IntegralType>& Type(void) const noexcept
+          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept
           {
                return this->_referencedArray->Type();
           }

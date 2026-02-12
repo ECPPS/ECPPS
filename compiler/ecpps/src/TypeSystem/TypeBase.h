@@ -179,6 +179,11 @@ namespace ecpps::typeSystem
           {
                return std::hash<std::string>{}(ptr->_name);
           }
+
+          std::size_t operator()(const NonowningTypePointer& ptr) const noexcept
+          {
+               return std::hash<std::string>{}(ptr->_name);
+          }
           std::size_t operator()(const std::string& str) const noexcept { return std::hash<std::string>{}(str); }
      };
      struct TypePointerEqual
@@ -193,7 +198,20 @@ namespace ecpps::typeSystem
                return lhs->_name == rhs->_name;
           }
 
+          bool operator()(const NonowningTypePointer& lhs, const NonowningTypePointer& rhs) const noexcept
+          {
+               if (lhs == rhs) return true;
+               if (!lhs || !rhs) return false;
+
+               return lhs->_name == rhs->_name;
+          }
+
           bool operator()(const OwningTypePointer& lhs, const std::string& rhs) const noexcept
+          {
+               return lhs && lhs->_name == rhs;
+          }
+
+          bool operator()(const NonowningTypePointer& lhs, const std::string& rhs) const noexcept
           {
                return lhs && lhs->_name == rhs;
           }

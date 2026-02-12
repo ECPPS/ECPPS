@@ -18,7 +18,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ArrayType::Traits(void) const n
      return TypeTraits{TypeTraitEnum::Array, TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime};
 }
 
-ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ArrayType::CommonWith(NonowningTypePointer other)
+ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ArrayType::CommonWith(NonowningTypePointer other) const
 {
      return nullptr;
 }

@@ -34,6 +34,12 @@ namespace ecpps::ir
           std::vector<typeSystem::OwningTypePointer> _typeDatabase{};
      };
 
+     inline TypeContext& GetContext(void)
+     {
+          static TypeContext typeContext{};
+          return typeContext;
+     }
+
      struct Scope
      {
           virtual ~Scope(void) = default;

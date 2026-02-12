@@ -9,6 +9,8 @@
 #include <utility>
 #include "../Machine/ABI.h"
 
+#include <Execution/Context.h>
+
 std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 {
      switch (this->_kind)
@@ -55,7 +57,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonWith(
-    const ecpps::typeSystem::NonowningTypePointer other)
+    const ecpps::typeSystem::NonowningTypePointer other) const
 {
      if (other == nullptr) return nullptr;
 
@@ -71,15 +73,17 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
           if (RankInteger(unsignedType) >= RankInteger(signedType)) return unsignedType;
           if (signedType->Size() >= unsignedType->Size()) return signedType;
 
-          return std::make_shared<IntegralType>(Signedness::Unsigned, signedType->Kind(),
-                                                "unsigned " + signedType->RawName(), signedType->qualifiers());
+          return ecpps::ir::GetContext().Get(ecpps::ir::GetContext().PushType(
+              std::make_unique<IntegralType>(Signedness::Unsigned, signedType->Kind(),
+                                             "unsigned " + signedType->RawName(), signedType->qualifiers())));
      }
 
      if (RankInteger(otherIntegral) > RankInteger(*this)) return otherIntegral;
      return this;
 }
 
-ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(const NonowningTypePointer other)
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(
+    const NonowningTypePointer other) const
 {
      if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
@@ -183,7 +187,7 @@ ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const In
      return IntegerConversionRank::Unknown;
 }
 
-const IntegralType* ecpps::typeSystem::PromoteInteger(const IntegralType* integer)
+const ecpps::typeSystem::IntegralType* ecpps::typeSystem::PromoteInteger(const IntegralType* integer)
 {
      if (IsBoolean(integer)) return g_int.get();
 
@@ -227,7 +231,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWith(
-    [[maybe_unused]] NonowningTypePointer other)
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;
@@ -241,7 +245,7 @@ std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
-    [[maybe_unused]] NonowningTypePointer other)
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      throw nullptr;
@@ -253,7 +257,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) con
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ReferenceType::CommonWith(
-    [[maybe_unused]] NonowningTypePointer other)
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;
