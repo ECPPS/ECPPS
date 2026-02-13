@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.20)
-project(ECPPS)
+project(ECPPS LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
@@ -13,7 +14,7 @@ include(FetchContent)
 FetchContent_Declare(
     mimalloc
     GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
-    GIT_TAG        v2.1.7 # or whatever version you want pinned
+    GIT_TAG        v2.2.7
 )
 
 set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -50,12 +51,12 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND MSVC)
     add_compile_options(
-        -Weverything
-	   -Werror
-        -Wno-padded
-        -Wno-missing-prototypes
-        -Wno-unused-parameter
-        -Wno-unused-variable
+        $<$<COMPILE_LANGUAGE:CXX>:-Weverything>
+	   $<$<COMPILE_LANGUAGE:CXX>:-Werror>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-padded>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-prototypes>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-parameter>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-variable>
         -fms-compatibility-version=19.36
         -Wno-potentially-evaluated-expression
         -Wno-unused-private-field
@@ -98,9 +99,9 @@ endif()
 
 if(NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
-        -Wall
-        -Wextra
-        -Werror
+        $<$<COMPILE_LANGUAGE:CXX>:-Wall>
+        $<$<COMPILE_LANGUAGE:CXX>:-Wextra>
+        $<$<COMPILE_LANGUAGE:CXX>:-Werror>
         -Wno-unused-parameter
         -Wno-unused-but-set-variable
         -Wno-potentially-evaluated-expression
@@ -175,6 +176,12 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
     RESULT_VARIABLE _symlink_result
     ERROR_QUIET
 )
+
+if(TARGET mimalloc-static)
+    target_compile_options(mimalloc-static PRIVATE
+        -w
+    )
+endif()
 
 enable_testing()
 add_subdirectory(compiler)
