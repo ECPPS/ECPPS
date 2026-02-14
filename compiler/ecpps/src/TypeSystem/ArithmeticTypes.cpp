@@ -45,7 +45,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 
      if (IsIntegral(other))
      {
-          const auto otherIntegral = other->CastTo<IntegralType>();
+          const auto* const otherIntegral = other->CastTo<IntegralType>();
           runtime_assert(otherIntegral != nullptr,
                          std::format("Integral type `{}` was not an integral type", other->RawName()));
           if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
@@ -63,19 +63,26 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
 
      if (CompareTo(other).SameAs()) return other;
      if (!IsIntegral(other)) return nullptr;
-     const auto otherIntegral = other->CastTo<IntegralType>();
+     const auto* const otherIntegral = other->CastTo<IntegralType>();
 
      if (otherIntegral->_sign != this->_sign)
      {
-          const auto unsignedType = this->_sign == Signedness::Signed ? otherIntegral : this;
-          const auto signedType = this->_sign == Signedness::Signed ? this : otherIntegral;
+          const auto* const unsignedType = this->_sign == Signedness::Signed ? otherIntegral : this;
+          const auto* const signedType = this->_sign == Signedness::Signed ? this : otherIntegral;
 
           if (RankInteger(unsignedType) >= RankInteger(signedType)) return unsignedType;
           if (signedType->Size() >= unsignedType->Size()) return signedType;
 
-          return ecpps::ir::GetContext().Get(ecpps::ir::GetContext().PushType(
-              std::make_unique<IntegralType>(Signedness::Unsigned, signedType->Kind(),
-                                             "unsigned " + signedType->RawName(), signedType->qualifiers())));
+          ir::TypeRequest request{};
+          request.kind = ir::TypeKind::Fundamental;
+          request.qualifiers = signedType->qualifiers();
+          request.data =
+              ir::StandardSignedIntegerRequest{.size = signedType->Kind(), .signedness = Signedness::Unsigned};
+
+          return ir::GetContext().Get(request);
+          // return ecpps::ir::GetContext().Get(ecpps::ir::GetContext().PushType(
+          //     std::make_unique<IntegralType>(Signedness::Unsigned, signedType->Kind(),
+          //                                    "unsigned " + signedType->RawName(), signedType->qualifiers())));
      }
 
      if (RankInteger(otherIntegral) > RankInteger(*this)) return otherIntegral;
@@ -87,7 +94,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareT
 {
      if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
-     const auto otherCharacter = other->CastTo<CharacterType>();
+     const auto* const otherCharacter = other->CastTo<CharacterType>();
      runtime_assert(otherCharacter != nullptr,
                     std::format("Character type `{}` was not a character type", other->RawName()));
 
@@ -207,9 +214,28 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
      if (IsArray(other))
      {
           const auto* const otherArray = other->CastTo<ArrayType>();
+          const auto* elementType = otherArray->ElementType();
           runtime_assert(otherArray != nullptr, "Invalid array type");
 
-          const auto elementComparison = this->_baseType->CompareTo(otherArray->ElementType());
+          if (IsObject(elementType))
+          {
+               bool castedAwayQualifiers = false;
+               const auto* const qualifiedType = elementType->CastTo<QualifiedType>();
+               const auto* const thisType = this->BaseType()->CastTo<QualifiedType>();
+
+               runtime_assert(qualifiedType != nullptr, "unqualifiable object type!");
+               runtime_assert(thisType != nullptr, "unqualifiable object type!");
+
+               if (qualifiedType->IsConst() && !thisType->IsConst()) castedAwayQualifiers = true;
+               if (qualifiedType->IsVolatile() && !thisType->IsVolatile()) castedAwayQualifiers = true;
+               if (castedAwayQualifiers)
+               {
+                    return ConversionSequence{std::nullopt,
+                                              "converting arrays to pointers cannot cast away qualifiers"};
+               }
+          }
+
+          const auto elementComparison = this->BaseType()->CompareTo(elementType);
           if (!elementComparison.SameAs()) return ConversionSequence{std::nullopt};
           return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::ArrayToPointer}};
      }
@@ -217,6 +243,20 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
 
      const auto* const otherPointer = other->CastTo<PointerType>();
      runtime_assert(otherPointer != nullptr, std::format("Pointer type `{}` was not a pointer type", other->RawName()));
+
+     bool castedAwayQualifiers = false;
+     const auto* const qualifiedType = otherPointer->BaseType()->CastTo<QualifiedType>();
+     const auto* const thisType = this->BaseType()->CastTo<QualifiedType>();
+
+     runtime_assert(qualifiedType != nullptr, "unqualifiable object type!");
+     runtime_assert(thisType != nullptr, "unqualifiable object type!");
+
+     if (qualifiedType->IsConst() && !thisType->IsConst()) castedAwayQualifiers = true;
+     if (qualifiedType->IsVolatile() && !thisType->IsVolatile()) castedAwayQualifiers = true;
+     if (castedAwayQualifiers)
+     {
+          return ConversionSequence{std::nullopt, "converting arrays to pointers cannot cast away qualifiers"};
+     }
 
      const auto subobjectComparison = otherPointer->_baseType->CompareTo(this->_baseType);
      if (!subobjectComparison.IsValid()) return ConversionSequence{std::nullopt};

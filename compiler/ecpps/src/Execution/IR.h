@@ -132,7 +132,8 @@ namespace ecpps::ir
           Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
-          typeSystem::NonowningTypePointer ParseType(const ast::NodePointer& type);
+          [[nodiscard]] TypeRequest TypeASTToRequest(const ast::NodePointer& type);
+          [[nodiscard]] typeSystem::NonowningTypePointer ParseType(const ast::NodePointer& type);
           [[nodiscard]] Expression ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const;
           [[nodiscard]] bool IsEligibleForStringLiteralInitialisation(typeSystem::NonowningTypePointer type) const;
 

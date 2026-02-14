@@ -1,19 +1,32 @@
 // NOLINTBEGIN
 
 #ifdef __ecpps_version
-#define DLLIMPORT [[dllimport]]
+[[dllimport]] extern "C" void ExitProcess(unsigned);
+[[dllimport]] extern "C" void DebugBreak();
 #else
-#define DLLIMPORT __declspec(dllimport)
+extern "C" void ExitProcess(unsigned);
+extern "C" void DebugBreak();
 #endif
 
-DLLIMPORT extern "C" void DebugBreak();
-DLLIMPORT extern "C" void ExitProcess(unsigned);
-int main()
+short One()
 {
-     const char p[] = "aaa";
-     char* ptr = p;
-     return *p * *"2";
+     char x = 97;
+     return x;
 }
+
+int Two()
+{
+     char x = 97;
+     return x;
+}
+
+unsigned int Three()
+{
+     signed char one = 123;
+     return one + 2;
+}
+
+int main() { return One() + Two() + Three(); }
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }

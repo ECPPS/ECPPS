@@ -13,6 +13,7 @@
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "../TypeSystem/CompoundTypes.h"
+#include "Context.h"
 #include "ControlFlow.h"
 #include "Expressions.h"
 #include "NodeBase.h"
@@ -91,7 +92,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           parameters.emplace_back(param.name ? param.name->ToString(0) : "", ParseType(param.type), false);
      }
 
-     const auto returnType = this->ParseType(node.Signature().type);
+     const auto* returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
@@ -147,7 +148,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      if (parameters.size() == 1 && *parameters.at(0).type == typeSystem::g_void.get()) parameters.clear();
 
      IR ir{this->_context.diagnostics.get(), *this->_context.nodeAllocator};
-     const auto returnType = this->ParseType(node.Signature().type);
+     const auto* returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
@@ -215,7 +216,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator)
                                                                              ir::ReturnNode(nullptr, node.Source())});
 
-     if (functionName == "main" && (!ir._built.empty() && ir._built.back()->Kind() != NodeKind::Return))
+     if (functionName == "main" && (ir._built.empty() || ir._built.back()->Kind() != NodeKind::Return))
           ir._built.push_back(
               std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator) ir::ReturnNode(
                   std::make_unique<PRValue>(typeSystem::g_int.get(),
@@ -238,7 +239,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 
      if (node.Value() == nullptr)
      {
-          if (!typeSystem::g_void->CommonWith(function->returnType))
+          if (!typeSystem::g_void->CommonWith(function->returnType)) // NOLINT(clang-analyzer-core.NullDereference)
           {
                this->_context.diagnostics.get().diagnosticsList.push_back(
                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -264,7 +265,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
      auto& fscope = functionContext->GetScope<FunctionScope>(); // NOLINT(clang-analyzer-core.CallAndMessage)
 
-     auto declaredType = ParseType(node.Type());
+     const auto* declaredType = ParseType(node.Type());
      if (declaredType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
@@ -286,7 +287,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
 
           const std::string varName = idExpr->Value();
-          auto variableType = declaredType;
+          const auto* variableType = declaredType;
           bool inferLastArrayFromInitialiser = false;
           const auto isArray = !decl.arrayLevels.empty();
 
@@ -366,8 +367,11 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          const auto* elementType = variableType->CastTo<ecpps::typeSystem::CharacterType>();
                          runtime_assert(elementType != nullptr,
                                         "Expected a character type for string-literal initialisation");
-                         variableType = GetContext().Get(GetContext().PushType(
-                             std::make_unique<ecpps::typeSystem::ArrayType>(arrayLength, elementType)));
+                         TypeRequest arrayRequest{};
+                         arrayRequest.kind = TypeKind::Compound;
+                         arrayRequest.data = BoundedArrayRequest{.elementType = elementType, .size = arrayLength};
+
+                         variableType = GetContext().Get(arrayRequest);
                          inferLastArrayFromInitialiser = false;
 
                          std::vector<std::uint32_t> arrayValues{};
@@ -376,7 +380,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          arrayValues.emplace_back(0);
                          std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
                              new (*this->_context.nodeAllocator) ecpps::ir::IntegerArrayNode(
-                                 std::move(arrayValues), std::move(elementType), decl.initialiser->Source())};
+                                 std::move(arrayValues), elementType, decl.initialiser->Source())};
                          auto initialiserExpression =
                              std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
@@ -434,8 +438,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 {
      runtime_assert(operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus, "Invalid additive operator");
 
-     auto leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
-     auto rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
@@ -475,7 +479,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
               wasConstexpr);
      }
 
-     const auto resultType = leftIntegral->CommonWith(rightIntegral);
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
@@ -506,8 +510,8 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
                         operator_ == ast::Operator::Percent,
                     "Operator was not multiplicative in a multiplicative-expression");
 
-     auto leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
-     auto rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
@@ -547,7 +551,7 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
               wasConstexpr);
      }
 
-     const auto resultType = leftIntegral->CommonWith(rightIntegral);
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->_context.diagnostics.get().diagnosticsList.push_back(
@@ -593,18 +597,24 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
 Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+     if (operand->Type() == nullptr) return nullptr;
 
      if (IsArray(operand->Type()))
      {
-          const auto arrayType = operand->Type()->CastTo<typeSystem::ArrayType>();
+          const auto* arrayType = operand->Type()->CastTo<typeSystem::ArrayType>();
 
           runtime_assert(arrayType != nullptr, "Expected an array type");
-          operand = ConvertTo(std::move(operand),
-                              GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::PointerType>(
-                                  arrayType->ElementType(), std::format("{}*", arrayType->ElementType()->Name()),
-                                  typeSystem::Qualifiers::None))));
+
+          TypeRequest pointerRequest{};
+          pointerRequest.kind = TypeKind::Compound;
+          pointerRequest.data = PointerRequest{.elementType = arrayType->ElementType()};
+
+          const auto* variableType = GetContext().Get(pointerRequest);
+          operand = ConvertTo(std::move(operand), variableType);
+
+          if (operand == nullptr) return nullptr;
      }
-     auto pointerType = operand->Type()->CastTo<typeSystem::PointerType>();
+     const auto* pointerType = operand->Type()->CastTo<typeSystem::PointerType>();
 
      if (pointerType == nullptr)
      {
@@ -652,8 +662,10 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
      // 1. pointer-to-member
      // 2. function pointer
 
-     auto pointerType = GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::PointerType>(
-         operand->Type(), operand->Type()->Name() + "*", typeSystem::Qualifiers::None)));
+     TypeRequest pointerRequest{};
+     pointerRequest.kind = TypeKind::Compound;
+     pointerRequest.data = PointerRequest{.elementType = operand->Type()};
+     const auto* pointerType = GetContext().Get(pointerRequest);
 
      return std::make_unique<PRValue>(pointerType,
                                       std::unique_ptr<AddressOfNode, IRDeleter>{new (
@@ -832,13 +844,18 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expression) const
 {
      const auto length = expression.Value().length();
-     const auto elementType = typeSystem::g_constChar.get();
+     const auto* elementType = typeSystem::g_constChar.get();
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
      values.emplace_back(0);
-     auto arrayType =
-         GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::ArrayType>(length + 1, elementType)));
+
+     TypeRequest arrayRequest{};
+     arrayRequest.kind = TypeKind::Compound;
+     arrayRequest.data = BoundedArrayRequest{.elementType = elementType, .size = length + 1};
+
+     const auto* arrayType = GetContext().Get(arrayRequest);
+
      auto node = std::unique_ptr<IntegerArrayNode, ecpps::BumpAllocator::Deleter>(
          new (*this->_context.nodeAllocator)
              IntegerArrayNode(std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
@@ -916,112 +933,198 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      return nullptr;
 }
+[[nodiscard]] ecpps::ir::TypeRequest ecpps::ir::IR::TypeASTToRequest(const ast::NodePointer& type)
+{
+     auto& typeContext = GetContext();
+
+     const ast::Node* base = type.get();
+     ecpps::ir::TypeRequest request{};
+
+     if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType != nullptr)
+     {
+          request.kind = TypeKind::Fundamental;
+
+          if (basicType->IsConst() && basicType->IsVolatile())
+               request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
+          else if (basicType->IsConst())
+               request.qualifiers = typeSystem::Qualifiers::Const;
+          else if (basicType->IsVolatile())
+               request.qualifiers = typeSystem::Qualifiers::Volatile;
+
+          if (basicType->Value() == "void")
+          {
+               request.data = VoidRequest{};
+               return request;
+          }
+
+          StandardSignedIntegerRequest signedRequest{};
+
+          const auto& value = basicType->Value();
+
+          std::vector<std::string_view> tokens;
+          {
+               std::string_view sv{value};
+               while (!sv.empty())
+               {
+                    const auto pos = sv.find(' ');
+                    tokens.emplace_back(sv.substr(0, pos));
+                    if (pos == std::string_view::npos) break;
+                    sv.remove_prefix(pos + 1);
+               }
+          }
+
+          const auto has = [&](std::string_view t) { return std::ranges::contains(tokens, t); };
+
+          const auto longCount = std::ranges::count(tokens, "long");
+
+          if (has("char") && !has("signed") && !has("unsigned")) { signedRequest.isCharWithoutSign = true; }
+          else
+          {
+               signedRequest.signedness =
+                   has("unsigned") ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
+
+               if (has("char")) signedRequest.size = typeSystem::TypeKind::Char;
+               else if (has("short"))
+                    signedRequest.size = typeSystem::TypeKind::Short;
+               else if (longCount == 1)
+                    signedRequest.size = typeSystem::TypeKind::Long;
+               else if (longCount >= 2)
+                    signedRequest.size = typeSystem::TypeKind::LongLong;
+               else
+                    signedRequest.size = typeSystem::TypeKind::Int;
+          }
+          request.data = signedRequest;
+          return request;
+     }
+     if (const auto* pointerType = dynamic_cast<const ast::PointerType*>(base); pointerType != nullptr)
+     {
+          const auto baseTypeRequest = TypeASTToRequest(pointerType->BaseType());
+          const auto* baseType = typeContext.Get(baseTypeRequest);
+          request.kind = TypeKind::Compound;
+          // TODO: Qualifiers
+
+          request.data = PointerRequest{.elementType = baseType};
+          return request;
+     }
+
+     throw TracedException("not implemented");
+}
 
 ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::NodePointer& type)
 {
-     auto ResolveBasicType = [this](const std::string& name) -> typeSystem::NonowningTypePointer
-     {
-          if (name == "int" || name == "signed" || name == "signed int" || name == "int signed")
-               return typeSystem::g_int.get();
-          if (name == "unsigned" || name == "unsigned int" || name == "int unsigned")
-               return typeSystem::g_unsignedInt.get();
+     auto& typeContext = GetContext();
+     const auto request = TypeASTToRequest(type);
 
-          for (const auto& scope : this->_context.contextSequence)
-          {
-               for (const auto& type : scope->GetScope().types)
-               {
-                    if (type->Name() == name) return type;
-               }
-          }
+     return typeContext.Get(request);
 
-          return nullptr;
-     };
+     // auto ResolveBasicType = [this](const std::string& name) -> TypeRequest
+     // {
+     //      if (name == "int" || name == "signed" || name == "signed int" || name == "int signed")
+     //           return typeSystem::g_int.get();
+     //      if (name == "unsigned" || name == "unsigned int" || name == "int unsigned")
+     //           return typeSystem::g_unsignedInt.get();
 
-     bool isConst = false;
-     bool isVolatile = false;
-     const ast::Node* base = type.get();
-     // if (auto cvQualified = dynamic_cast<const ast::CVQualifiedType*>(base); cvQualified)
-     //{
-     //      isConst = cvQualified->IsConst();
-     //      isVolatile = cvQualified->IsVolatile();
-     //      base = cvQualified->UnqualifiedType().get();
+     //      for (const auto& scope : this->_context.contextSequence)
+     //      {
+     //           for (const auto& type : scope->GetScope().types)
+     //           {
+     //                if (type->Name() == name) return type;
+     //           }
+     //      }
+
+     //      return nullptr;
+     // };
+
+     // bool isConst = false;
+     // bool isVolatile = false;
+     // const ast::Node* base = type.get();
+     // // if (auto cvQualified = dynamic_cast<const ast::CVQualifiedType*>(base); cvQualified)
+     // //{
+     // //      isConst = cvQualified->IsConst();
+     // //      isVolatile = cvQualified->IsVolatile();
+     // //      base = cvQualified->UnqualifiedType().get();
+     // // }
+
+     // typeSystem::NonowningTypePointer result = nullptr;
+
+     // if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
+     // {
+     //      result = ResolveBasicType(basicType->Value());
+     //      if (basicType->IsConst())
+     //      {
+
+     //      }
+     // }
+     // else if (auto* const qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
+     // {
+     //      Scope* currentScope = &this->_context.contextSequence.Back()->GetScope();
+     //      for (const auto& section : qualifiedType->Sections())
+     //      {
+     //           if (auto* nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
+     //           {
+     //                bool found = false;
+     //                for (auto& sub : nsScope->subNamespaces)
+     //                {
+     //                     if (sub->name == section.node->ToString(0))
+     //                     {
+     //                          currentScope = sub.get();
+     //                          found = true;
+     //                          break;
+     //                     }
+     //                }
+     //                if (!found) return nullptr;
+     //           }
+     //           else if (auto* classScope = dynamic_cast<ir::ClassScope*>(currentScope))
+     //           {
+     //                bool found = false;
+     //                for (auto& nested : classScope->nestedClasses)
+     //                {
+     //                     if (nested->name == section.node->ToString(0))
+     //                     {
+     //                          currentScope = nested.get();
+     //                          found = true;
+     //                          break;
+     //                     }
+     //                }
+     //                if (!found) return nullptr;
+     //           }
+     //           else
+     //                return nullptr;
+     //      }
+
+     //      if (const auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
+     //          unqualified != nullptr)
+     //      {
+     //           for (const auto& currentType : currentScope->types)
+     //           {
+     //                if (currentType->Name() == unqualified->Value()) result = currentType;
+     //           }
+     //      }
+     // }
+     // else if (const auto* ptr = dynamic_cast<const ast::PointerType*>(base); ptr)
+     // {
+     //      const auto *inner = ParseType(ptr->BaseType());
+     //      typeSystem::Qualifiers qualifiers{};
+     //      // TOOD: Implement qualifiers
+     //      result = GetContext().Get(
+     //          GetContext().PushType(std::make_unique<typeSystem::PointerType>(inner, base->ToString(0),
+     //          qualifiers)));
+     // }
+     // else if (const auto* ref = dynamic_cast<const ast::ReferenceType*>(base); ref)
+     // {
+     //      const auto *inner = ParseType(ref->BaseType());
+     //      result = GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::ReferenceType>(
+     //          inner,
+     //          ref->GetKind() == ast::ReferenceType::Kind::RValue ? typeSystem::ReferenceType::Kind::RValue
+     //                                                             : typeSystem::ReferenceType::Kind::RValue,
+     //          base->ToString(0))));
      // }
 
-     typeSystem::NonowningTypePointer result = nullptr;
+     // if (!result) return nullptr;
 
-     if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
-     {
-          result = ResolveBasicType(basicType->Value());
-     }
-     else if (auto* const qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
-     {
-          Scope* currentScope = &this->_context.contextSequence.Back()->GetScope();
-          for (const auto& section : qualifiedType->Sections())
-          {
-               if (auto* nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
-               {
-                    bool found = false;
-                    for (auto& sub : nsScope->subNamespaces)
-                    {
-                         if (sub->name == section.node->ToString(0))
-                         {
-                              currentScope = sub.get();
-                              found = true;
-                              break;
-                         }
-                    }
-                    if (!found) return nullptr;
-               }
-               else if (auto* classScope = dynamic_cast<ir::ClassScope*>(currentScope))
-               {
-                    bool found = false;
-                    for (auto& nested : classScope->nestedClasses)
-                    {
-                         if (nested->name == section.node->ToString(0))
-                         {
-                              currentScope = nested.get();
-                              found = true;
-                              break;
-                         }
-                    }
-                    if (!found) return nullptr;
-               }
-               else
-                    return nullptr;
-          }
+     // if (isConst || isVolatile) {} // TODO: Implement
 
-          if (const auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
-              unqualified != nullptr)
-          {
-               for (const auto& currentType : currentScope->types)
-               {
-                    if (currentType->Name() == unqualified->Value()) result = currentType;
-               }
-          }
-     }
-     else if (const auto* ptr = dynamic_cast<const ast::PointerType*>(base); ptr)
-     {
-          auto inner = ParseType(ptr->BaseType());
-          typeSystem::Qualifiers qualifiers{};
-          // TOOD: Implement qualifiers
-          result = GetContext().Get(
-              GetContext().PushType(std::make_unique<typeSystem::PointerType>(inner, base->ToString(0), qualifiers)));
-     }
-     else if (const auto* ref = dynamic_cast<const ast::ReferenceType*>(base); ref)
-     {
-          auto inner = ParseType(ref->BaseType());
-          result = GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::ReferenceType>(
-              inner,
-              ref->GetKind() == ast::ReferenceType::Kind::RValue ? typeSystem::ReferenceType::Kind::RValue
-                                                                 : typeSystem::ReferenceType::Kind::RValue,
-              base->ToString(0))));
-     }
-
-     if (!result) return nullptr;
-
-     if (isConst || isVolatile) {} // TODO: Implement
-
-     return result; // NOLINT(clang-diagnostic-nrvo)
+     // return result; // NOLINT(clang-diagnostic-nrvo)
 }
 
 Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
@@ -1047,14 +1150,14 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
           const auto& conversion = *comparison.Sequence().begin();
           if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion)
           {
-               const auto intType = toType->CastTo<typeSystem::IntegralType>();
+               const auto* intType = toType->CastTo<typeSystem::IntegralType>();
                runtime_assert(intType != nullptr,
                               std::format("Presumed integral type {} turned out not to be one", toType->RawName()));
                return ConvertIntegral(std::move(expression), intType);
           }
           if (conversion == typeSystem::ConversionSequence::ConversionKind::ArrayToPointer)
           {
-               const auto pointerType = toType->CastTo<typeSystem::PointerType>();
+               const auto* pointerType = toType->CastTo<typeSystem::PointerType>();
                runtime_assert(pointerType != nullptr,
                               std::format("Presumed pointer type {} turned out not to be one", toType->RawName()));
 

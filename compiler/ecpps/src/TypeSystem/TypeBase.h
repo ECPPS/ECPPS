@@ -53,9 +53,11 @@ namespace ecpps::typeSystem
                Ellipsis = 1 // Variadic function (worst match)
           };
 
-          explicit ConversionSequence(std::optional<SBOVector<ConversionKind>> sequence)
+          explicit ConversionSequence(const std::optional<SBOVector<ConversionKind>>& sequence,
+                                      std::optional<std::string> rejectionReason = std::nullopt)
               : _isValid(sequence.has_value()),
-                _sequence(this->_isValid ? sequence.value() : SBOVector<ConversionKind>{})
+                _sequence(this->_isValid ? sequence.value() : SBOVector<ConversionKind>{}),
+                _rejectionReason(std::move(rejectionReason))
           {
           }
           [[nodiscard]] bool IsValid(void) const noexcept { return this->_isValid; }
@@ -65,6 +67,7 @@ namespace ecpps::typeSystem
      private:
           bool _isValid;
           SBOVector<ConversionKind> _sequence{};
+          std::optional<std::string> _rejectionReason{};
      };
 
      struct TypeTraits
@@ -168,6 +171,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Pointer);
      TraitCheckerFunction(Scalar);
      TraitCheckerFunction(Array);
+     TraitCheckerFunction(Object);
 
 #undef TraitCheckerFunction
 
@@ -285,6 +289,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const override;
-          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final;
+          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final override;
      };
 } // namespace ecpps::typeSystem

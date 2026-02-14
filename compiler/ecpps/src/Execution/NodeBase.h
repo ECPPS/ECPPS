@@ -5,7 +5,6 @@
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
-#include "Context.h"
 
 namespace ecpps::ir
 {

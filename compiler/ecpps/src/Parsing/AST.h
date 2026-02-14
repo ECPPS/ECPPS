@@ -455,8 +455,6 @@ namespace ecpps::ast
                bool isThreadLocal = false;
                bool isExtern = false;
                bool isMutable = false;
-               bool isConst = false;
-               bool isVolatile = false;
           };
 
           VariableDeclarationNode(NodePointer type, std::vector<Declarator> declarators, Flags flags,
@@ -487,8 +485,6 @@ namespace ecpps::ast
                if (this->_flags.isThreadLocal) built += "thread_local ";
                if (this->_flags.isExtern) built += "extern ";
                if (this->_flags.isMutable) built += "mutable ";
-               if (this->_flags.isConst) built += "const ";
-               if (this->_flags.isVolatile) built += "volatile ";
                if (this->_flags.isFriend) built += "friend ";
                if (this->_explicitSpecifier) built += "explicit ";
 
