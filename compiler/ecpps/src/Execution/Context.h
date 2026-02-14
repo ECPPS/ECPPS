@@ -214,26 +214,35 @@ namespace ecpps::ir
                     if (std::holds_alternative<StandardSignedIntegerRequest>(request.data))
                     {
                          const auto& data = std::get<StandardSignedIntegerRequest>(request.data);
+                         std::string cv{};
+                         switch (request.qualifiers)
+                         {
+                         case typeSystem::Qualifiers::ConstVolatile: cv = "const volatile "; break;
+                         case typeSystem::Qualifiers::Const: cv = "const "; break;
+                         case typeSystem::Qualifiers::Volatile: cv = "volatile "; break;
+                         case typeSystem::Qualifiers::None: break;
+                         }
                          if (data.isCharWithoutSign)
                               return std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char,
-                                                                                 "char", request.qualifiers);
+                                                                                 std::format("{}char", cv),
+                                                                                 request.qualifiers);
                          switch (data.size)
                          {
                          case typeSystem::TypeKind::Char:
                               return data.signedness == typeSystem::Signedness::Signed
                                          ? std::make_unique<typeSystem::CharacterType>(
-                                               ecpps::typeSystem::CharacterSign::SignedChar, "signed char",
-                                               request.qualifiers)
+                                               ecpps::typeSystem::CharacterSign::SignedChar,
+                                               std::format("{}signed char", cv), request.qualifiers)
                                          : std::make_unique<typeSystem::CharacterType>(
-                                               ecpps::typeSystem::CharacterSign::UnsignedChar, "unsigned char",
-                                               request.qualifiers);
+                                               ecpps::typeSystem::CharacterSign::UnsignedChar,
+                                               std::format("{}unsigned char", cv), request.qualifiers);
                          case typeSystem::TypeKind::Short:
                          case typeSystem::TypeKind::Int:
                          case typeSystem::TypeKind::Long:
                          case typeSystem::TypeKind::LongLong:
                               return std::make_unique<typeSystem::IntegralType>(
                                   data.signedness, data.size,
-                                  std::format("{}{}",
+                                  std::format("{}{}{}", cv,
                                               data.signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
                                               (
                                                   [size = data.size] -> std::string

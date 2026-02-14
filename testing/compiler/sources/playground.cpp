@@ -16,14 +16,14 @@ short One()
 
 int Two()
 {
-     char x = 97;
-     return x;
+     signed char one = 123;
+     return one + 2;
 }
 
 unsigned int Three()
 {
-     signed char one = 123;
-     return one + 2;
+     const char meower[] = "meoww";
+     return 50 * *"2";
 }
 
 int main() { return One() + Two() + Three(); }

@@ -844,7 +844,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expression) const
 {
      const auto length = expression.Value().length();
-     const auto* elementType = typeSystem::g_constChar.get();
+     const auto* elementType =
+         GetContext().Get(TypeRequest{.kind = TypeKind::Fundamental,
+                                      .qualifiers = typeSystem::Qualifiers::Const,
+                                      .data = StandardSignedIntegerRequest{.isCharWithoutSign = true}});
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
