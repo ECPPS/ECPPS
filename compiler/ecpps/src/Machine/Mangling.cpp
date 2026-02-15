@@ -36,7 +36,7 @@ std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer ty
 {
      if (typeSystem::IsArithmetic(type))
      {
-          if (const auto integralType = type->CastTo<typeSystem::IntegralType>())
+          if (const auto* integralType = type->CastTo<typeSystem::IntegralType>())
           {
                switch (integralType->Size())
                {
@@ -64,7 +64,7 @@ std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer ty
                }
                return "_";
           }
-          if (const auto floatingType = type->CastTo<typeSystem::IntegralType>()) // TODO: ???
+          if (const auto* floatingType = type->CastTo<typeSystem::IntegralType>()) // TODO: ???
           {
                switch (floatingType->Size())
                {

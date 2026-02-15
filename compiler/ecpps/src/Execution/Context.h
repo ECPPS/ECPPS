@@ -1,9 +1,10 @@
 #pragma once
 #include <Queue.h>
 #include <SBOVector.h>
+#include <algorithm>
 #include <functional>
 #include <memory>
-#include <print>
+#include <ranges>
 #include <string>
 #include <unordered_set>
 #include <variant>
