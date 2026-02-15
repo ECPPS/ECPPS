@@ -57,10 +57,10 @@ namespace ecpps::typeSystem
                                  TypeTraitEnum::Object};
           }
 
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] ConversionSequence CompareTo(ecpps::typeSystem::NonowningTypePointer other) const override;
           [[nodiscard]] TypeKind Kind(void) const noexcept { return this->_kind; }
 
-          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+          [[nodiscard]] NonowningTypePointer CommonWith(ecpps::typeSystem::NonowningTypePointer other) const final;
 
      private:
           Signedness _sign;
@@ -84,7 +84,7 @@ namespace ecpps::typeSystem
           {
           }
           [[nodiscard]] std::string RawName(void) const noexcept final;
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) final;
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const final;
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
@@ -101,12 +101,12 @@ namespace ecpps::typeSystem
      class PointerType final : public QualifiedType
      {
      public:
-          explicit PointerType(std::shared_ptr<TypeBase> baseType, std::string name, const Qualifiers qualifiers)
-              : QualifiedType(std::move(name), qualifiers), _baseType(std::move(baseType))
+          explicit PointerType(NonowningTypePointer baseType, std::string name, const Qualifiers qualifiers)
+              : QualifiedType(std::move(name), qualifiers), _baseType(baseType)
           {
           }
 
-          [[nodiscard]] std::shared_ptr<TypeBase> BaseType(void) const noexcept { return this->_baseType; }
+          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept { return this->_baseType; }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
 
@@ -114,13 +114,13 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] std::string RawName(void) const override { return this->_baseType->RawName() + "*"; }
 
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override;
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept final;
-          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+          [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const final;
 
      private:
-          std::shared_ptr<TypeBase> _baseType;
+          NonowningTypePointer _baseType;
      };
 
      class ReferenceType final : public TypeBase
@@ -132,12 +132,12 @@ namespace ecpps::typeSystem
                RValue
           };
 
-          explicit ReferenceType(std::shared_ptr<TypeBase> baseType, Kind kind, std::string name)
-              : TypeBase(std::move(name)), _baseType(std::move(baseType)), _kind(kind)
+          explicit ReferenceType(NonowningTypePointer baseType, Kind kind, std::string name)
+              : TypeBase(std::move(name)), _baseType(baseType), _kind(kind)
           {
           }
 
-          [[nodiscard]] std::shared_ptr<TypeBase> BaseType(void) const noexcept { return this->_baseType; }
+          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept { return this->_baseType; }
           [[nodiscard]] Kind GetKind(void) const noexcept { return this->_kind; }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
@@ -148,12 +148,12 @@ namespace ecpps::typeSystem
                return this->_baseType->RawName() + (_kind == Kind::LValue ? "&" : "&&");
           }
 
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override;
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override;
           [[nodiscard]] TypeTraits Traits(void) const noexcept final;
-          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) final;
+          [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const final;
 
      private:
-          std::shared_ptr<TypeBase> _baseType;
+          NonowningTypePointer _baseType;
           Kind _kind;
      };
 
@@ -188,24 +188,24 @@ namespace ecpps::typeSystem
           return std::to_underlying(left) <=> std::to_underlying(right);
      }
 
-     IntegerConversionRank RankInteger(const std::shared_ptr<IntegralType>& integer);
+     IntegerConversionRank RankInteger(const IntegralType* integer);
      IntegerConversionRank RankInteger(const IntegralType& integer);
-     std::shared_ptr<IntegralType> PromoteInteger(const std::shared_ptr<IntegralType>& integer);
+     const IntegralType* PromoteInteger(const IntegralType* integer);
 
      // predefined builtin types
-     extern std::shared_ptr<VoidType> g_void;
-     extern std::shared_ptr<CharacterType> g_char;
-     extern std::shared_ptr<CharacterType> g_signedChar;
-     extern std::shared_ptr<CharacterType> g_unsignedChar;
-     extern std::shared_ptr<IntegralType> g_short;
-     extern std::shared_ptr<IntegralType> g_unsignedShort;
-     extern std::shared_ptr<IntegralType> g_int;
-     extern std::shared_ptr<IntegralType> g_unsignedInt;
-     extern std::shared_ptr<IntegralType> g_long;
-     extern std::shared_ptr<IntegralType> g_unsignedLong;
-     extern std::shared_ptr<IntegralType> g_longLong;
-     extern std::shared_ptr<IntegralType> g_unsignedLongLong;
+     extern std::unique_ptr<VoidType> g_void;
+     extern std::unique_ptr<CharacterType> g_char;
+     extern std::unique_ptr<CharacterType> g_signedChar;
+     extern std::unique_ptr<CharacterType> g_unsignedChar;
+     extern std::unique_ptr<IntegralType> g_short;
+     extern std::unique_ptr<IntegralType> g_unsignedShort;
+     extern std::unique_ptr<IntegralType> g_int;
+     extern std::unique_ptr<IntegralType> g_unsignedInt;
+     extern std::unique_ptr<IntegralType> g_long;
+     extern std::unique_ptr<IntegralType> g_unsignedLong;
+     extern std::unique_ptr<IntegralType> g_longLong;
+     extern std::unique_ptr<IntegralType> g_unsignedLongLong;
 
      // commonly used types
-     extern std::shared_ptr<CharacterType> g_constChar;
+     extern std::unique_ptr<CharacterType> g_constChar;
 } // namespace ecpps::typeSystem

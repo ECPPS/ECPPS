@@ -53,9 +53,11 @@ namespace ecpps::typeSystem
                Ellipsis = 1 // Variadic function (worst match)
           };
 
-          explicit ConversionSequence(std::optional<SBOVector<ConversionKind>> sequence)
+          explicit ConversionSequence(const std::optional<SBOVector<ConversionKind>>& sequence,
+                                      std::optional<std::string> rejectionReason = std::nullopt)
               : _isValid(sequence.has_value()),
-                _sequence(this->_isValid ? sequence.value() : SBOVector<ConversionKind>{})
+                _sequence(this->_isValid ? sequence.value() : SBOVector<ConversionKind>{}),
+                _rejectionReason(std::move(rejectionReason))
           {
           }
           [[nodiscard]] bool IsValid(void) const noexcept { return this->_isValid; }
@@ -65,6 +67,7 @@ namespace ecpps::typeSystem
      private:
           bool _isValid;
           SBOVector<ConversionKind> _sequence{};
+          std::optional<std::string> _rejectionReason{};
      };
 
      struct TypeTraits
@@ -114,14 +117,27 @@ namespace ecpps::typeSystem
           /// </summary>
           [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;
 
-          [[nodiscard]] virtual ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) = 0;
+          [[nodiscard]] virtual ConversionSequence CompareTo(const TypeBase* other) const = 0;
           /// <summary>
           /// Get the common type between 2 types. Returns nullptr if no common type is found.
           /// </summary>
           /// <param name="other"></param>
           /// <returns></returns>
-          [[nodiscard]] virtual std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) = 0;
-          [[nodiscard]] virtual bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept;
+          [[nodiscard]] virtual const TypeBase* CommonWith(const TypeBase* other) const = 0;
+          [[nodiscard]] virtual bool operator==(const TypeBase* other) const noexcept;
+
+          template <typename T>
+               requires std::is_base_of_v<TypeBase, T>
+          [[nodiscard]] const T* CastTo(void) const noexcept
+          {
+               return dynamic_cast<const T*>(this);
+          }
+          template <typename T>
+               requires std::is_base_of_v<TypeBase, T>
+          [[nodiscard]] T* CastTo(void) noexcept
+          {
+               return dynamic_cast<T*>(this);
+          }
 
      private:
           std::string _name;
@@ -129,8 +145,16 @@ namespace ecpps::typeSystem
           friend struct TypePointerEqual;
      };
 
+     struct TypeId
+     {
+          std::uint32_t value{};
+          auto operator<=>(const TypeId&) const = default;
+     };
+     using OwningTypePointer = std::unique_ptr<TypeBase>;
+     using NonowningTypePointer = const TypeBase*;
+
 #define TraitCheckerFunction(traitName)                                                                                \
-     [[nodiscard]] constexpr bool Is##traitName(const std::shared_ptr<TypeBase>& type)                                 \
+     [[nodiscard]] constexpr bool Is##traitName(const ::ecpps::typeSystem::NonowningTypePointer type)                  \
      {                                                                                                                 \
           return type->Traits().Has(TypeTraitEnum::traitName);                                                         \
      }
@@ -147,22 +171,30 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Pointer);
      TraitCheckerFunction(Scalar);
      TraitCheckerFunction(Array);
+     TraitCheckerFunction(Object);
 
 #undef TraitCheckerFunction
-     using TypePointer = std::shared_ptr<TypeBase>;
 
      struct TypePointerHash
      {
           using is_transparent = void;
 
-          std::size_t operator()(const TypePointer& ptr) const noexcept { return std::hash<std::string>{}(ptr->_name); }
+          std::size_t operator()(const OwningTypePointer& ptr) const noexcept
+          {
+               return std::hash<std::string>{}(ptr->_name);
+          }
+
+          std::size_t operator()(const NonowningTypePointer& ptr) const noexcept
+          {
+               return std::hash<std::string>{}(ptr->_name);
+          }
           std::size_t operator()(const std::string& str) const noexcept { return std::hash<std::string>{}(str); }
      };
      struct TypePointerEqual
      {
           using is_transparent = void;
 
-          bool operator()(const TypePointer& lhs, const TypePointer& rhs) const noexcept
+          bool operator()(const OwningTypePointer& lhs, const OwningTypePointer& rhs) const noexcept
           {
                if (lhs == rhs) return true;
                if (!lhs || !rhs) return false;
@@ -170,12 +202,25 @@ namespace ecpps::typeSystem
                return lhs->_name == rhs->_name;
           }
 
-          bool operator()(const TypePointer& lhs, const std::string& rhs) const noexcept
+          bool operator()(const NonowningTypePointer& lhs, const NonowningTypePointer& rhs) const noexcept
+          {
+               if (lhs == rhs) return true;
+               if (!lhs || !rhs) return false;
+
+               return lhs->_name == rhs->_name;
+          }
+
+          bool operator()(const OwningTypePointer& lhs, const std::string& rhs) const noexcept
           {
                return lhs && lhs->_name == rhs;
           }
 
-          bool operator()(const std::string& lhs, const TypePointer& rhs) const noexcept
+          bool operator()(const NonowningTypePointer& lhs, const std::string& rhs) const noexcept
+          {
+               return lhs && lhs->_name == rhs;
+          }
+
+          bool operator()(const std::string& lhs, const OwningTypePointer& rhs) const noexcept
           {
                return rhs && lhs == rhs->_name;
           }
@@ -236,14 +281,14 @@ namespace ecpps::typeSystem
           [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
           [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; }
 
-          [[nodiscard]] ConversionSequence CompareTo(const std::shared_ptr<TypeBase>& other) override
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override
           {
                return typeid(*other) == typeid(VoidType) // NOLINT
                           ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
                           : ConversionSequence{std::nullopt};
           }
 
-          [[nodiscard]] std::shared_ptr<TypeBase> CommonWith(const std::shared_ptr<TypeBase>& other) override;
-          [[nodiscard]] bool operator==(const std::shared_ptr<TypeBase>& other) const noexcept final;
+          [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const override;
+          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final override;
      };
 } // namespace ecpps::typeSystem

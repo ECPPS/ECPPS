@@ -1,5 +1,6 @@
 #include "ArithmeticTypes.h"
 #include <Assert.h>
+#include "TypeBase.h"
 #ifndef NDEBUG
 #include <format>
 #endif
@@ -7,6 +8,8 @@
 #include <string>
 #include <utility>
 #include "../Machine/ABI.h"
+
+#include <Execution/Context.h>
 
 std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 {
@@ -35,14 +38,14 @@ std::string ecpps::typeSystem::IntegralType::RawName(void) const
      return "__integer";
 }
 
-ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo(const std::shared_ptr<TypeBase>& other)
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo(NonowningTypePointer other) const
 {
      if (other == nullptr) return ConversionSequence{std::nullopt};
      SBOVector<ConversionSequence::ConversionKind> sequence{};
 
      if (IsIntegral(other))
      {
-          const auto otherIntegral = std::dynamic_pointer_cast<IntegralType>(other);
+          const auto* const otherIntegral = other->CastTo<IntegralType>();
           runtime_assert(otherIntegral != nullptr,
                          std::format("Integral type `{}` was not an integral type", other->RawName()));
           if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
@@ -53,39 +56,45 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
      return ConversionSequence{std::nullopt};
 }
 
-std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::IntegralType::CommonWith(
-    const std::shared_ptr<TypeBase>& other)
+ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonWith(
+    const ecpps::typeSystem::NonowningTypePointer other) const
 {
      if (other == nullptr) return nullptr;
 
      if (CompareTo(other).SameAs()) return other;
      if (!IsIntegral(other)) return nullptr;
-     const auto otherIntegral = std::dynamic_pointer_cast<IntegralType>(other);
+     const auto* const otherIntegral = other->CastTo<IntegralType>();
 
      if (otherIntegral->_sign != this->_sign)
      {
-          const auto unsignedType =
-              this->_sign == Signedness::Signed ? otherIntegral : std::make_shared<IntegralType>(*this);
-          const auto signedType =
-              this->_sign == Signedness::Signed ? std::make_shared<IntegralType>(*this) : otherIntegral;
+          const auto* const unsignedType = this->_sign == Signedness::Signed ? otherIntegral : this;
+          const auto* const signedType = this->_sign == Signedness::Signed ? this : otherIntegral;
 
           if (RankInteger(unsignedType) >= RankInteger(signedType)) return unsignedType;
           if (signedType->Size() >= unsignedType->Size()) return signedType;
 
-          return std::make_shared<IntegralType>(Signedness::Unsigned, signedType->Kind(),
-                                                "unsigned " + signedType->RawName(), signedType->qualifiers());
+          ir::TypeRequest request{};
+          request.kind = ir::TypeKind::Fundamental;
+          request.qualifiers = signedType->qualifiers();
+          request.data =
+              ir::StandardSignedIntegerRequest{.size = signedType->Kind(), .signedness = Signedness::Unsigned};
+
+          return ir::GetContext().Get(request);
+          // return ecpps::ir::GetContext().Get(ecpps::ir::GetContext().PushType(
+          //     std::make_unique<IntegralType>(Signedness::Unsigned, signedType->Kind(),
+          //                                    "unsigned " + signedType->RawName(), signedType->qualifiers())));
      }
 
      if (RankInteger(otherIntegral) > RankInteger(*this)) return otherIntegral;
-     return std::make_shared<IntegralType>(*this);
+     return this;
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(
-    const std::shared_ptr<TypeBase>& other)
+    const NonowningTypePointer other) const
 {
      if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
-     const auto otherCharacter = std::dynamic_pointer_cast<CharacterType>(other);
+     const auto* const otherCharacter = other->CastTo<CharacterType>();
      runtime_assert(otherCharacter != nullptr,
                     std::format("Character type `{}` was not a character type", other->RawName()));
 
@@ -108,56 +117,56 @@ std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
 
 // predefined builtin types
 // void
-std::shared_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
-    std::make_shared<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
+std::unique_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
+    std::make_unique<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
 
 // char
-std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_char =
-    std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "char",
+std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_char =
+    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "char",
                                                 ecpps::typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_signedChar =
-    std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::SignedChar, "signed char",
+std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_signedChar =
+    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::SignedChar, "signed char",
                                                 ecpps::typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_unsignedChar =
-    std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::UnsignedChar, "unsigned char",
+std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_unsignedChar =
+    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::UnsignedChar, "unsigned char",
                                                 ecpps::typeSystem::Qualifiers::None);
 
 // short
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_short =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::Short, "short",
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_short =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::Short, "short",
                                                typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedShort =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Short,
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedShort =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Short,
                                                "unsigned short", typeSystem::Qualifiers::None);
 
 // int
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_int = std::make_shared<typeSystem::IntegralType>(
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_int = std::make_unique<typeSystem::IntegralType>(
     typeSystem::Signedness::Signed, typeSystem::TypeKind::Int, "int", typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedInt =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Int,
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedInt =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Int,
                                                "unsigned int", typeSystem::Qualifiers::None);
 
 // long
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_long = std::make_shared<typeSystem::IntegralType>(
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_long = std::make_unique<typeSystem::IntegralType>(
     typeSystem::Signedness::Signed, typeSystem::TypeKind::Long, "long", typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLong =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Long,
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLong =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Long,
                                                "unsigned long", typeSystem::Qualifiers::None);
 
 // long long
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_longLong =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::LongLong,
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_longLong =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::LongLong,
                                                "long long", typeSystem::Qualifiers::None);
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLongLong =
-    std::make_shared<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
+std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLongLong =
+    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
                                                "unsigned long long", typeSystem::Qualifiers::None);
 
 // commonly used types
-std::shared_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
-    std::make_shared<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
+std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
+    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
                                                 ecpps::typeSystem::Qualifiers::Const);
 
-ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const std::shared_ptr<IntegralType>& integer)
+ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const IntegralType* integer)
 {
      switch (integer->Kind())
      {
@@ -185,13 +194,13 @@ ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const In
      return IntegerConversionRank::Unknown;
 }
 
-std::shared_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::PromoteInteger(
-    const std::shared_ptr<IntegralType>& integer)
+const ecpps::typeSystem::IntegralType* ecpps::typeSystem::PromoteInteger(const IntegralType* integer)
 {
-     if (IsBoolean(integer)) return g_int;
+     if (IsBoolean(integer)) return g_int.get();
 
      const auto rank = RankInteger(integer);
-     if (rank < IntegerConversionRank::Int) return integer->Sign() == Signedness::Signed ? g_int : g_unsignedInt;
+     if (rank < IntegerConversionRank::Int)
+          return integer->Sign() == Signedness::Signed ? g_int.get() : g_unsignedInt.get();
 
      return integer;
 }
@@ -200,21 +209,54 @@ std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept { return a
 
 std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept { return abi::ABI::Current().PointerSize(); }
 
-ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(const std::shared_ptr<TypeBase>& other)
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(NonowningTypePointer other) const
 {
      if (IsArray(other))
      {
-          const auto otherArray = std::dynamic_pointer_cast<ArrayType>(other);
+          const auto* const otherArray = other->CastTo<ArrayType>();
+          const auto* elementType = otherArray->ElementType();
           runtime_assert(otherArray != nullptr, "Invalid array type");
 
-          const auto elementComparison = this->_baseType->CompareTo(otherArray->ElementType());
+          if (IsObject(elementType))
+          {
+               bool castedAwayQualifiers = false;
+               const auto* const qualifiedType = elementType->CastTo<QualifiedType>();
+               const auto* const thisType = this->BaseType()->CastTo<QualifiedType>();
+
+               runtime_assert(qualifiedType != nullptr, "unqualifiable object type!");
+               runtime_assert(thisType != nullptr, "unqualifiable object type!");
+
+               if (qualifiedType->IsConst() && !thisType->IsConst()) castedAwayQualifiers = true;
+               if (qualifiedType->IsVolatile() && !thisType->IsVolatile()) castedAwayQualifiers = true;
+               if (castedAwayQualifiers)
+               {
+                    return ConversionSequence{std::nullopt,
+                                              "converting arrays to pointers cannot cast away qualifiers"};
+               }
+          }
+
+          const auto elementComparison = this->BaseType()->CompareTo(elementType);
           if (!elementComparison.SameAs()) return ConversionSequence{std::nullopt};
           return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::ArrayToPointer}};
      }
      if (!IsPointer(other)) return ConversionSequence{std::nullopt};
 
-     const auto otherPointer = std::dynamic_pointer_cast<PointerType>(other);
+     const auto* const otherPointer = other->CastTo<PointerType>();
      runtime_assert(otherPointer != nullptr, std::format("Pointer type `{}` was not a pointer type", other->RawName()));
+
+     bool castedAwayQualifiers = false;
+     const auto* const qualifiedType = otherPointer->BaseType()->CastTo<QualifiedType>();
+     const auto* const thisType = this->BaseType()->CastTo<QualifiedType>();
+
+     runtime_assert(qualifiedType != nullptr, "unqualifiable object type!");
+     runtime_assert(thisType != nullptr, "unqualifiable object type!");
+
+     if (qualifiedType->IsConst() && !thisType->IsConst()) castedAwayQualifiers = true;
+     if (qualifiedType->IsVolatile() && !thisType->IsVolatile()) castedAwayQualifiers = true;
+     if (castedAwayQualifiers)
+     {
+          return ConversionSequence{std::nullopt, "converting arrays to pointers cannot cast away qualifiers"};
+     }
 
      const auto subobjectComparison = otherPointer->_baseType->CompareTo(this->_baseType);
      if (!subobjectComparison.IsValid()) return ConversionSequence{std::nullopt};
@@ -228,8 +270,8 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const
                        TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object};
 }
 
-std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::PointerType::CommonWith(
-    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWith(
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;
@@ -243,7 +285,7 @@ std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
-    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      throw nullptr;
@@ -254,8 +296,8 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) con
      return TypeTraits{TypeTraitEnum::Reference, TypeTraitEnum::Literal};
 }
 
-std::shared_ptr<ecpps::typeSystem::TypeBase> ecpps::typeSystem::ReferenceType::CommonWith(
-    [[maybe_unused]] const std::shared_ptr<TypeBase>& other)
+ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ReferenceType::CommonWith(
+    [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;

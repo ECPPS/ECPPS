@@ -1,3 +1,4 @@
+#include "Execution/Context.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -5,6 +6,7 @@
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <memory>
 #include <print>
@@ -438,6 +440,16 @@ int main(int argc, char* argv[])
           if (isVerbose)
                std::println("Compilation successful. {}ms elapsed",
                             (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
+          if (isExtraVerbose)
+          {
+               std::println("Instantiated \x1b[92m{}\x1b[0m types:", ecpps::ir::GetContext().Count());
+               const auto list = ecpps::ir::GetContext().List();
+               for (const auto& type : list)
+               {
+                    std::println("     \x1b[35m{}\x1b[0m \x1b[94m=> \x1b[92m{} \x1b[33mreference{}\x1b[0m",
+                                 type.typePointer->RawName(), type.hitCount, type.hitCount == 1 ? "" : "s");
+               }
+          }
           outFile.close();
 
           if (config.useDebugger) return ecpps::debugging::Debugger::SelectAndDebug(config, outputImagePath);

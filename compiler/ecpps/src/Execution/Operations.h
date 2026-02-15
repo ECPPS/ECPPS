@@ -320,7 +320,7 @@ namespace ecpps::ir
           {
                return this->_referencedArray->Values();
           }
-          [[nodiscard]] const std::shared_ptr<typeSystem::IntegralType>& Type(void) const noexcept
+          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept
           {
                return this->_referencedArray->Type();
           }
@@ -357,13 +357,13 @@ namespace ecpps::ir
      class ConvertNode final : public NodeBase
      {
      public:
-          ConvertNode(Expression operand, ecpps::typeSystem::TypePointer targetType, Location source)
+          ConvertNode(Expression operand, ecpps::typeSystem::NonowningTypePointer targetType, Location source)
               : NodeBase(NodeKind::Convert, source), _operand(std::move(operand)), _targetType(std::move(targetType))
           {
           }
 
           [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
-          [[nodiscard]] const ecpps::typeSystem::TypePointer& TargetType(void) const noexcept
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
           {
                return this->_targetType;
           }
@@ -376,7 +376,7 @@ namespace ecpps::ir
 
      private:
           Expression _operand;
-          ecpps::typeSystem::TypePointer _targetType;
+          ecpps::typeSystem::NonowningTypePointer _targetType;
      };
 
 } // namespace ecpps::ir

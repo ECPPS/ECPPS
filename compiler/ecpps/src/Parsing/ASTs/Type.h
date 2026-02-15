@@ -49,16 +49,23 @@ namespace ecpps::ast
      class BasicType final : public Node
      {
      public:
-          explicit BasicType(std::string name, Location source) : Node(source), _name(std::move(name)) {}
+          explicit BasicType(std::string name, Location source, const bool isConst, const bool isVolatile)
+              : Node(source), _name(std::move(name)), _isConst(isConst), _isVolatile(isVolatile)
+          {
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + this->_name;
           }
           [[nodiscard]] const std::string& Value(void) const noexcept { return this->_name; }
+          [[nodiscard]] bool IsConst(void) const noexcept { return this->_isConst; }
+          [[nodiscard]] bool IsVolatile(void) const noexcept { return this->_isVolatile; }
 
      private:
           std::string _name;
+          bool _isConst;
+          bool _isVolatile;
      };
 
      class PointerType final : public Node

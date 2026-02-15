@@ -5,7 +5,6 @@
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
-#include "Context.h"
 
 namespace ecpps::ir
 {
@@ -82,17 +81,14 @@ namespace ecpps::ir
      class IntegerArrayNode final : public NodeBase
      {
      public:
-          explicit IntegerArrayNode(std::vector<std::uint32_t> values, std::shared_ptr<typeSystem::IntegralType> type,
+          explicit IntegerArrayNode(std::vector<std::uint32_t> values, const typeSystem::IntegralType* type,
                                     Location source)
-              : NodeBase(NodeKind::IntegerArray, source), _values(std::move(values)), _type(std::move(type))
+              : NodeBase(NodeKind::IntegerArray, source), _values(std::move(values)), _type(type)
           {
           }
 
           [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept { return this->_values; }
-          [[nodiscard]] const std::shared_ptr<typeSystem::IntegralType>& Type(void) const noexcept
-          {
-               return this->_type;
-          }
+          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept { return this->_type; }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -101,6 +97,6 @@ namespace ecpps::ir
 
      private:
           std::vector<std::uint32_t> _values;
-          std::shared_ptr<typeSystem::IntegralType> _type;
+          const typeSystem::IntegralType* _type;
      };
 } // namespace ecpps::ir

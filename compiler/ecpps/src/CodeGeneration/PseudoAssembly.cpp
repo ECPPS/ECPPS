@@ -359,7 +359,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           std::size_t sizeInBytes = 0;
           if (ecpps::typeSystem::IsIntegral(type))
           {
-               const auto integralType = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(type);
+               const auto* const integralType = dynamic_cast<const ecpps::typeSystem::IntegralType*>(type);
                sizeInBytes = integralType->Size();
           }
           else
@@ -429,7 +429,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           std::size_t sizeInBytes = 0;
           if (ecpps::typeSystem::IsIntegral(type))
           {
-               const auto integralType = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(type);
+               const auto* integralType = type->CastTo<ecpps::typeSystem::IntegralType>();
                sizeInBytes = integralType->Size();
           }
           else
@@ -469,7 +469,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           bool isSigned = false;
           if (ecpps::typeSystem::IsIntegral(type))
           {
-               const auto integralType = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(type);
+               const auto* integralType = type->CastTo<ecpps::typeSystem::IntegralType>();
                sizeInBytes = integralType->Size();
                isSigned = integralType->Sign() == ecpps::typeSystem::Signedness::Signed;
           }
@@ -510,7 +510,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           bool isSigned = false;
           if (ecpps::typeSystem::IsIntegral(type))
           {
-               const auto integralType = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(type);
+               const auto* integralType = type->CastTo<ecpps::typeSystem::IntegralType>();
                sizeInBytes = integralType->Size();
                isSigned = integralType->Sign() == ecpps::typeSystem::Signedness::Signed;
           }
@@ -636,8 +636,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
      if (auto* const indirection = dynamic_cast<ecpps::ir::DereferenceNode*>(value.get()); indirection != nullptr)
      {
           auto& abi = ecpps::abi::ABI::Current();
-          const auto pointerType =
-              std::dynamic_pointer_cast<ecpps::typeSystem::PointerType>(indirection->Operand()->Type());
+          const auto* pointerType = indirection->Operand()->Type()->CastTo<ecpps::typeSystem::PointerType>();
 
           auto operandToPerformIndirectionOn = ParseExpression(context, code, indirection->Operand());
 
@@ -678,7 +677,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           [[maybe_unused]] bool isSigned = false; // NOLINT
           if (IsIntegral(targetType))
           {
-               isSigned = std::dynamic_pointer_cast<ecpps::typeSystem::IntegralType>(targetType)->Sign() ==
+               isSigned = targetType->CastTo<ecpps::typeSystem::IntegralType>()->Sign() ==
                           ecpps::typeSystem::Signedness::Signed;
           }
 

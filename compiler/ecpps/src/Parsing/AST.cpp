@@ -42,7 +42,7 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context)
           source.endPosition = Peek().location.endPosition;
           Advance();
           return std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-              new (context) BasicType(std::get<std::string>(Peek(-1).value), source));
+              new (context) BasicType(std::get<std::string>(Peek(-1).value), source, false, false));
      }
      const auto& peek = Peek();
      this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
@@ -306,9 +306,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
 
      NodePointer typeSpecifier = nullptr;
      SBOVector<QualifiedType::Section> sections;
-
-     bool isConst = false;
-     bool isVolatile = false;
+     bool nextConst = false;
+     bool nextVolatile = false;
 
      while (true)
      {
@@ -383,15 +382,15 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                }
                else if (keyword == "const") // cv-qualifier
                {
-                    if (isConst)
+                    if (nextConst)
                          ; // TODO: error: duplicate 'const'
-                    isConst = true;
+                    nextConst = true;
                }
                else if (keyword == "volatile") // cv-qualifier
                {
-                    if (isVolatile)
+                    if (nextVolatile)
                          ; // TODO: error: duplicate 'volatile'
-                    isVolatile = true;
+                    nextVolatile = true;
                }
                else if (keyword == "struct" || keyword == "class" || keyword == "union") // elaborated-type-specifier
                {
@@ -420,8 +419,9 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     }
 
                     // Build the base type
-                    NodePointer base = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BasicType(combinedType, source));
+                    NodePointer base =
+                        std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(new (context) BasicType(
+                            combinedType, source, std::exchange(nextConst, false), std::exchange(nextVolatile, false)));
 
                     // Wrap it in PointerType layers
                     for (std::size_t i = 0; i < pointerLevel; ++i)
@@ -443,8 +443,11 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                while (true)
                {
                     NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BasicType(std::get<std::string>(Peek().value), Peek().location));
+                        new (context)
+                            BasicType(std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
                     Advance();
+                    nextConst = false;
+                    nextVolatile = false;
 
                     bool isTemplate = false;
                     if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
@@ -544,9 +547,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                                                                               .isStatic = isStatic,
                                                                               .isThreadLocal = isThreadLocal,
                                                                               .isExtern = isExtern,
-                                                                              .isMutable = isMutable,
-                                                                              .isConst = isConst,
-                                                                              .isVolatile = isVolatile},
+                                                                              .isMutable = isMutable},
                                                std::move(optExplicitSpecifier), source));
 }
 

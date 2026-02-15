@@ -10,12 +10,12 @@ namespace ecpps::abi
      {
           explicit Mangling(void) = delete;
 
-          [[nodiscard]] static std::string MangleType(const typeSystem::TypePointer& type);
+          [[nodiscard]] static std::string MangleType(typeSystem::NonowningTypePointer type);
 
           // TODO: namespaces and classes
           [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
                                                       CallingConventionName callingConvention,
-                                                      const typeSystem::TypePointer& returnType,
-                                                      const std::vector<typeSystem::TypePointer>& parameters);
+                                                      typeSystem::NonowningTypePointer returnType,
+                                                      const std::vector<typeSystem::NonowningTypePointer>& parameters);
      };
 } // namespace ecpps::abi

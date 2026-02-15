@@ -9,8 +9,8 @@ namespace ecpps
      class ExpressionBase
      {
      public:
-          explicit ExpressionBase(typeSystem::TypePointer type, ir::NodePointer value, const bool isConstexpr)
-              : _type(std::move(type)), _value(std::move(value)), _isConstantExpression(isConstexpr)
+          explicit ExpressionBase(typeSystem::NonowningTypePointer type, ir::NodePointer value, const bool isConstexpr)
+              : _type(type), _value(std::move(value)), _isConstantExpression(isConstexpr)
           {
           }
 
@@ -28,10 +28,10 @@ namespace ecpps
           [[nodiscard]] bool IsConstantExpression(void) const noexcept { return this->_isConstantExpression; }
           [[nodiscard]] const ir::NodePointer& Value(void) const& noexcept { return this->_value; }
           [[nodiscard]] ir::NodePointer&& Value(void) && noexcept { return std::move(this->_value); }
-          [[nodiscard]] const typeSystem::TypePointer& Type(void) const noexcept { return this->_type; }
+          [[nodiscard]] typeSystem::NonowningTypePointer Type(void) const noexcept { return this->_type; }
 
      private:
-          typeSystem::TypePointer _type;
+          typeSystem::NonowningTypePointer _type;
           ir::NodePointer _value;
           bool _isConstantExpression;
      };
