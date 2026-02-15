@@ -91,8 +91,8 @@ ecpps::CompilerConfig::CompilerConfig(
                     this->useDebugger = true;
                else if (lowerFlag == "oconst-depth")
                {
-                    const auto [ptr, ec] =
-                        std::from_chars(value.data(), value.data() + value.size(), this->maxConstantEvaluationDepth);
+                    const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(),
+                                                           this->optimisations.maxConstantEvaluationDepth);
                     // TODO: Check ec
                }
                else if (flag == "?" || lowerFlag == "help")

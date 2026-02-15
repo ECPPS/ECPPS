@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
                return -1;
           }
 
-          ecpps::ir::GetContext().maxConstantEvaluationDepth = config.maxConstantEvaluationDepth;
+          ecpps::ir::GetContext().optimisations = config.optimisations;
 
           auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
           if (emitter == nullptr)

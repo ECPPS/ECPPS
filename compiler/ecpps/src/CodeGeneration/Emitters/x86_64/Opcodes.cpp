@@ -3,8 +3,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "Shared/Config.h"
-
 // NOLINTBEGIN(readability-identifier-length)
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUD2(void) { return {std::byte{0x0f}, std::byte{0x0b}}; }

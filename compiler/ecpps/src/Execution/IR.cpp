@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "../Machine/ABI.h"
 #include "../Parsing/ASTs/Type.h"
@@ -315,9 +316,43 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
                     continue;
                }
-               throw TracedException(std::logic_error("Constant expression evaluator not implemented yet"));
+               const auto arrayLevelExpression = ParseExpression(arrayLevel);
+               if (arrayLevelExpression == nullptr) break; // assume the caller issued diagnostics
 
-               // variableType = std::make_shared<typeSystem::ArrayType>()
+               auto constexprArraySize =
+                   arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+               if (!constexprArraySize.has_value())
+               {
+                    inferLastArrayFromInitialiser = true; // at least try to be useful...
+                    this->_context.diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::TypeError>(
+                        std::format("Arrays bounds must be defined by a constant expression", varName),
+                        arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+
+                    auto& nestedDiagnostics = constexprArraySize.error();
+
+                    while (!nestedDiagnostics.empty())
+                    {
+                         this->_context.diagnostics.get().diagnosticsList.push_back(std::move(nestedDiagnostics.top()));
+                         nestedDiagnostics.pop();
+                    }
+                    break;
+               }
+               const auto& arraySize = *constexprArraySize;
+               if (!std::holds_alternative<std::uint64_t>(arraySize.variant))
+               {
+                    inferLastArrayFromInitialiser = true; // at least try to be useful...
+                    this->_context.diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::TypeError>(
+                        std::format("Arrays bounds must be defined by an integer", varName),
+                        arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                    break;
+               }
+               const auto length = std::get<std::uint64_t>(arraySize.variant);
+
+               TypeRequest arrayRequest{};
+               arrayRequest.kind = TypeKind::Compound;
+               arrayRequest.data = BoundedArrayRequest{.elementType = variableType, .size = length};
+
+               variableType = GetContext().Get(arrayRequest);
           }
 
           bool duplicate = false;
@@ -414,9 +449,60 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (initExpr == nullptr)
                {
                     this->_context.diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                             "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
                     continue;
+               }
+               if (isArray)
+               {
+                    const auto* arrayType = variableType->CastTo<ecpps::typeSystem::ArrayType>();
+                    runtime_assert(arrayType != nullptr, "Expected an array type for array initialiers");
+
+                    if (IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
+                    {
+                         if (auto* const stringInitialiser =
+                                 dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
+                             stringInitialiser != nullptr)
+                         {
+                              const auto& string = stringInitialiser->Value();
+                              const auto arrayLength = string.length() + 1;
+                              const auto* elementType =
+                                  arrayType->ElementType()->CastTo<ecpps::typeSystem::CharacterType>();
+                              runtime_assert(elementType != nullptr,
+                                             "Expected a character type for string-literal initialisation");
+
+                              if (arrayLength > arrayType->ElementCount())
+                              {
+                                   this->_context.diagnostics.get().diagnosticsList.push_back(
+                                       diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           std::format("Cannot initialise an array with more elements than it can "
+                                                       "hold. Provided {} elements for an array of `{}` `{}`s",
+                                                       arrayLength, arrayType->ElementCount(),
+                                                       arrayType->ElementType()->RawName()),
+                                           decl.initialiser->Source()));
+                              }
+
+                              std::vector<std::uint32_t> arrayValues{};
+                              arrayValues.reserve(arrayLength);
+                              for (const auto character : string) arrayValues.emplace_back(character);
+                              arrayValues.emplace_back(0);
+
+                              if (arrayLength < arrayType->ElementCount())
+                                   arrayValues.resize(arrayType->ElementCount());
+
+                              std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
+                                  new (*this->_context.nodeAllocator) ecpps::ir::IntegerArrayNode(
+                                      std::move(arrayValues), elementType, decl.initialiser->Source())};
+                              auto initialiserExpression =
+                                  std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
+
+                              this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+                                  new (*this->_context.nodeAllocator)
+                                      ir::StoreNode(registeredVar.name, std::move(initialiserExpression),
+                                                    decl.initialiser->Source())});
+                         }
+                         continue;
+                    }
                }
 
                auto converted = ConvertTo(std::move(initExpr), declaredType);
