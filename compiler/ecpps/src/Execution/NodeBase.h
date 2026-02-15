@@ -1,10 +1,17 @@
 #pragma once
 #include <TypeSystem/ArithmeticTypes.h>
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <expected>
 #include <memory>
+#include <ranges>
+#include <stack>
 #include <string>
 #include <utility>
 #include "../Parsing/AST.h"
+#include "Shared/BumpAllocator.h"
+#include "Shared/Error.h"
 
 namespace ecpps::ir
 {
@@ -35,6 +42,36 @@ namespace ecpps::ir
           LoadArrayDecay
      };
 
+     struct ConstantAggregateMap;
+     struct ConstantAggregateArray;
+
+     using ConstantEvaluatedVariant =
+         std::variant<std::monostate, std::uint64_t, std::double_t, ConstantAggregateMap, ConstantAggregateArray>;
+
+     struct ConstantAggregateMap
+     {
+          std::unordered_map<std::string, ConstantEvaluatedVariant> members{};
+     };
+
+     struct ConstantAggregateArray
+     {
+          std::vector<ConstantEvaluatedVariant> members{};
+     };
+     struct EvaluationContext
+     {
+          std::optional<std::vector<ConstantEvaluatedVariant>> functionArguments{};
+     };
+     struct ConstantEvaluatedResult
+     {
+          ConstantEvaluatedVariant variant;
+          Location source;
+
+          explicit ConstantEvaluatedResult(ConstantEvaluatedVariant variant, const Location& source)
+              : variant(std::move(variant)), source(source)
+          {
+          }
+     };
+
      class NodeBase
      {
      public:
@@ -45,6 +82,11 @@ namespace ecpps::ir
 
           [[nodiscard]] NodeKind Kind(void) const noexcept { return this->_kind; }
           [[nodiscard]] const Location& Source(void) const noexcept { return this->_source; }
+          [[nodiscard]] virtual std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const
+          {
+               return std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
+          };
 
      private:
           NodeKind _kind;
@@ -73,6 +115,11 @@ namespace ecpps::ir
           {
                return std::string(indent * ast::PrettyIndent, ' ') + std::to_string(this->_value);
           }
+          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
+          {
+               return ConstantEvaluatedResult{this->_value, this->Source()};
+          };
 
      private:
           std::uint64_t _value; // TODO: Support huge integers for vectorisation
@@ -94,6 +141,17 @@ namespace ecpps::ir
           {
                return std::string(indent * ast::PrettyIndent, ' ') + std::format("{}", this->_values);
           }
+          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
+          {
+               return ConstantEvaluatedResult{
+                   ConstantAggregateArray{
+                       this->_values |
+                       std::views::transform([](const std::uint32_t value)
+                                             { return ConstantEvaluatedVariant{static_cast<std::uint64_t>(value)}; }) |
+                       std::ranges::to<std::vector>()},
+                   this->Source()};
+          };
 
      private:
           std::vector<std::uint32_t> _values;

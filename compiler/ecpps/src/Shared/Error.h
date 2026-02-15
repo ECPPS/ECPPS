@@ -132,6 +132,26 @@ namespace ecpps::diagnostics
           [[nodiscard]] std::string Message(void) const noexcept override;
      };
 
+     class ConstantEvaluationError final : public Error
+     {
+     public:
+          explicit ConstantEvaluationError(std::string message, Location source)
+              : DiagnosticsBase("constexpr-error", std::move(message), source)
+          {
+          }
+          [[nodiscard]] std::string Message(void) const noexcept override;
+     };
+
+     class ConstantEvaluationWarning final : public Warning
+     {
+     public:
+          explicit ConstantEvaluationWarning(std::string message, Location source)
+              : DiagnosticsBase("constexpr-error", std::move(message), source)
+          {
+          }
+          [[nodiscard]] std::string Message(void) const noexcept override;
+     };
+
      template <typename TDiagnostics>
           requires std::is_base_of_v<IDiagnosticsBase, TDiagnostics>
      class DiagnosticsBuilder

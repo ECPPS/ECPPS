@@ -13,6 +13,7 @@
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "../TypeSystem/CompoundTypes.h"
+#include "Constexpr.h"
 #include "Context.h"
 #include "ControlFlow.h"
 #include "Expressions.h"
@@ -21,6 +22,7 @@
 #include "Parsing/AST.h"
 #include "Procedural.h"
 #include "Shared/Diagnostics.h"
+#include "Shared/Error.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -252,6 +254,13 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      }
 
      auto returnExpression = ParseExpression(node.Value());
+     auto optionalConstexpr = returnExpression->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+     if (optionalConstexpr.has_value())
+     {
+          auto& value = *optionalConstexpr;
+          returnExpression =
+              ConstantEvaluationResultToExpression(value, returnExpression->Type(), *this->_context.nodeAllocator);
+     }
 
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      this->_built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{
@@ -1133,6 +1142,23 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::Node
 Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
+
+     const auto constexprResult = expression->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+     if (constexprResult.has_value())
+     {
+          const auto& value = *constexprResult;
+          try
+          {
+               expression =
+                   ConstantEvaluationResultToExpression(value, expression->Type(), *this->_context.nodeAllocator);
+          }
+          catch (...)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   std::make_unique<diagnostics::ConstantEvaluationWarning>(
+                       "Failed to use the constant expression evaluation result", expression->Value()->Source()));
+          }
+     }
 
      const auto comparison = toType->CompareTo(expression->Type());
 

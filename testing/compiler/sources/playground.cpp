@@ -8,25 +8,7 @@ extern "C" void ExitProcess(unsigned);
 extern "C" void DebugBreak();
 #endif
 
-short One()
-{
-     char x = 97;
-     return x;
-}
-
-int Two()
-{
-     signed char one = 123;
-     return one + 2;
-}
-
-unsigned int Three()
-{
-     const char meower[] = "meoww";
-     return 50 * *"2";
-}
-
-int main() { return One() + Two() + Three(); }
+int main() { return 50 * *"2"; }
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }
