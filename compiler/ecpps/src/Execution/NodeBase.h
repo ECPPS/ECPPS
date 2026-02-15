@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <memory>
 #include <ranges>
 #include <stack>
@@ -59,7 +60,8 @@ namespace ecpps::ir
      };
      struct EvaluationContext
      {
-          std::optional<std::vector<ConstantEvaluatedVariant>> functionArguments{};
+          std::uint32_t currentDepth{};
+          std::optional<std::vector<ConstantEvaluatedVariant>> functionArguments = std::nullopt;
      };
      struct ConstantEvaluatedResult
      {
@@ -83,10 +85,7 @@ namespace ecpps::ir
           [[nodiscard]] NodeKind Kind(void) const noexcept { return this->_kind; }
           [[nodiscard]] const Location& Source(void) const noexcept { return this->_source; }
           [[nodiscard]] virtual std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const
-          {
-               return std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-          };
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const;
 
      private:
           NodeKind _kind;
@@ -142,16 +141,7 @@ namespace ecpps::ir
                return std::string(indent * ast::PrettyIndent, ' ') + std::format("{}", this->_values);
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               return ConstantEvaluatedResult{
-                   ConstantAggregateArray{
-                       this->_values |
-                       std::views::transform([](const std::uint32_t value)
-                                             { return ConstantEvaluatedVariant{static_cast<std::uint64_t>(value)}; }) |
-                       std::ranges::to<std::vector>()},
-                   this->Source()};
-          };
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override;
 
      private:
           std::vector<std::uint32_t> _values;

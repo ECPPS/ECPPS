@@ -1,5 +1,6 @@
 #include "Config.h"
 #include <cctype>
+#include <charconv>
 #include <filesystem>
 #include <print>
 #include <ranges>
@@ -88,6 +89,12 @@ ecpps::CompilerConfig::CompilerConfig(
                }
                else if (flag == "D")
                     this->useDebugger = true;
+               else if (lowerFlag == "oconst-depth")
+               {
+                    const auto [ptr, ec] =
+                        std::from_chars(value.data(), value.data() + value.size(), this->maxConstantEvaluationDepth);
+                    // TODO: Check ec
+               }
                else if (flag == "?" || lowerFlag == "help")
                     PrintHelpAndExit();
                else if (std::filesystem::exists("/"s + flag.data()))

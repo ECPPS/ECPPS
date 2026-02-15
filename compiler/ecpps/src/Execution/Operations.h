@@ -3,6 +3,7 @@
 #include <variant>
 #include "../Parsing/AST.h"
 #include "Assert.h"
+#include "Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 
@@ -60,7 +61,11 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -68,7 +73,8 @@ namespace ecpps::ir
                         this->Source()));
                     return leftConstexpr;
                }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -165,7 +171,11 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -173,7 +183,8 @@ namespace ecpps::ir
                         this->Source()));
                     return leftConstexpr;
                }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -229,7 +240,11 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -237,7 +252,8 @@ namespace ecpps::ir
                         this->Source()));
                     return leftConstexpr;
                }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -293,7 +309,11 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -301,7 +321,8 @@ namespace ecpps::ir
                         this->Source()));
                     return leftConstexpr;
                }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -364,14 +385,19 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
                         "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
                     return leftConstexpr;
                }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -521,7 +547,11 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
+               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!operandConstexpr.has_value())
                {
                     operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
@@ -571,6 +601,9 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+
                return ConstantEvaluatedResult{
                    ConstantAggregateArray{
                        this->_referencedArray->Values() |
@@ -631,7 +664,10 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(EvaluationContext{});
+               if (ecpps::ir::GetContext().maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!operandConstexpr.has_value())
                {
                     operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(

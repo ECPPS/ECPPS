@@ -203,6 +203,8 @@ namespace ecpps::ir
           //      return this->_typeDatabase[id.value].get();
           // }
 
+          std::uint32_t maxConstantEvaluationDepth{};
+
      private:
           typeSystem::OwningTypePointer CreateType(const TypeRequest& request)
           {

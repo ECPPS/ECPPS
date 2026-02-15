@@ -254,7 +254,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      }
 
      auto returnExpression = ParseExpression(node.Value());
-     auto optionalConstexpr = returnExpression->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+     auto optionalConstexpr = returnExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
      if (optionalConstexpr.has_value())
      {
           auto& value = *optionalConstexpr;
@@ -1143,7 +1143,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
 
-     const auto constexprResult = expression->Value()->TryConstantEvaluate(EvaluationContext{std::nullopt});
+     const auto constexprResult = expression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
      if (constexprResult.has_value())
      {
           const auto& value = *constexprResult;

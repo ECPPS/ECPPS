@@ -71,6 +71,7 @@ namespace ecpps
           bool useDebugger = false;
           StringPooling stringPooling = StringPooling::Exact;
           std::vector<char8_t> stringArray{};
+          std::uint32_t maxConstantEvaluationDepth = 8;
 
           [[noreturn]] static void PrintVersionAndExit(void);
           [[noreturn]] static void PrintHelpAndExit(void);
