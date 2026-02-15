@@ -9,9 +9,9 @@
 DLLIMPORT extern "C" void ExitProcess(unsigned);
 DLLIMPORT extern "C" void DebugBreak();
 
-int one() { return 2; }
+int one(int param) { return param; }
 
-int main() { const char meow[*"2"] = "a"; }
+int main() { return one(2); }
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }

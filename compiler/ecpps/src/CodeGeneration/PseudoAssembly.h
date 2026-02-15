@@ -7,6 +7,8 @@
 #include <vector>
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
+#include "Machine/ABI.h"
+#include "Machine/Storage.h"
 #include "Shared/Config.h"
 
 namespace ecpps::codegen
@@ -94,6 +96,7 @@ namespace ecpps::codegen
 
           std::stack<std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>>
               symbolTables;
+          std::vector<ecpps::abi::StorageRef> functionParameters{};
 
           [[nodiscard]] auto& Patches(void) noexcept { return this->_patches; }
 

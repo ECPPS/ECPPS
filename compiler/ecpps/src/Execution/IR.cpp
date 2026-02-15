@@ -207,6 +207,21 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      ir._context.contextSequence.Push(std::move(functionContext));
 
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
+     std::uint64_t paramIndex{};
+     for (const auto& param : parameters)
+     {
+          vFunctionScope->locals.push_back(
+              FunctionScope::Variable{.name = param.name, .type = param.type, .isStatic = false, .isExtern = false});
+
+          auto paramNode =
+              std::make_unique<PRValue>(param.type,
+                                        std::unique_ptr<ParameterNode, IRDeleter>(new (
+                                            *this->_context.nodeAllocator) ParameterNode(paramIndex++, node.Source())),
+                                        false);
+
+          ir._built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+              new (*this->_context.nodeAllocator) ir::StoreNode(param.name, std::move(paramNode), node.Source())});
+     }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
      std::vector<FunctionScope::Variable> locals{};

@@ -40,7 +40,8 @@ namespace ecpps::ir
           Load,
           IntegerArray,
           IntegerArrayDecay,
-          LoadArrayDecay
+          LoadArrayDecay,
+          IncomingParameter
      };
 
      struct ConstantAggregateMap;

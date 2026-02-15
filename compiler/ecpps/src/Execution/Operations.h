@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <variant>
 #include "../Parsing/AST.h"
 #include "Assert.h"
@@ -489,6 +490,25 @@ namespace ecpps::ir
           std::string _address;
      };
 
+     class ParameterNode final : public NodeBase
+     {
+     public:
+          explicit ParameterNode(std::uint64_t index, Location source)
+              : NodeBase(NodeKind::IncomingParameter, source), _index(index)
+          {
+          }
+
+          [[nodiscard]] std::uint64_t Index(void) const noexcept { return this->_index; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + std::format("__param#{}", this->_index);
+          }
+
+     private:
+          std::uint64_t _index;
+     };
+
      class StoreNode final : public NodeBase
      {
      public:
@@ -523,7 +543,8 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "&" + this->_operand->Value()->ToString(0);
+               return std::string(indent * ast::PrettyIndent, ' ') + "__address_of(" +
+                      this->_operand->Value()->ToString(0) + ")";
           }
 
      private:
@@ -542,7 +563,8 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "*" + this->_operand->Value()->ToString(0);
+               return std::string(indent * ast::PrettyIndent, ' ') + "__dereference(" +
+                      this->_operand->Value()->ToString(0) + ")";
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override

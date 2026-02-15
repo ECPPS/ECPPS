@@ -13,6 +13,8 @@
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Execution/Context.h"
+#include "Machine/Storage.h"
 #include "Nodes.h"
 
 using ecpps::codegen::Instruction;
@@ -776,6 +778,18 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
+     if (auto* const paramNode = dynamic_cast<ecpps::ir::ParameterNode*>(value.get()); paramNode != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
+          // TODO: FIX AS SOON AS POSSIBLE
+          runtime_assert(context.functionParameters.size() > paramNode->Index(), "Invalid parameter specified");
+
+          auto& varParam = context.functionParameters[paramNode->Index()];
+          if (std::holds_alternative<ecpps::abi::AllocatedRegister>(varParam.value))
+               return ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(varParam.value).Ptr()};
+          // if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
+          throw TracedException("not implemented");
+     }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }
@@ -826,6 +840,17 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
                                              std::move(storage), request});
      }
+     context.functionParameters = parentCallingConvention.LocateParameters(
+         ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
+                                        ecpps::abi::RequiredStorageKind::Integer},
+         node.ParameterList() |
+             std::views::transform(
+                 [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                 {
+                      return ecpps::abi::StorageRequirement{parameter.type->Size(), parameter.type->Alignment(),
+                                                            ecpps::abi::RequiredStorageKind::Integer};
+                 }) |
+             std::ranges::to<std::vector>());
 
      for (const auto& line : node.Body())
      {
