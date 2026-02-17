@@ -683,13 +683,17 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                           ecpps::typeSystem::Signedness::Signed;
           }
 
-          const auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(inner)
-                                   ? ecpps::abi::ABI::Current().AllocateRegister(
-                                         std::get<ecpps::codegen::RegisterOperand>(inner).Index(),
-                                         ecpps::abi::RegisterAllocation::Priority)
-                                   : ecpps::abi::ABI::Current().AllocateRegister(width);
+          const auto storage = ecpps::abi::ABI::Current().AllocateRegister(width);
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(inner))
+          {
+               ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                             convert->Operand()->Type()->Size() *
+                                                                 ecpps::typeSystem::CharWidth};
+               movInstruction.isConversion = true;
+               code.emplace_back(std::move(movInstruction));
+          }
+          else
           {
                ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
                                                              convert->Operand()->Type()->Size() *

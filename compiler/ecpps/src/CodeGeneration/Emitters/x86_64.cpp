@@ -457,7 +457,72 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
                                               [[maybe_unused]] const MovInstruction& mov)
      {
-          throw TracedException(std::logic_error("not implemented"));
+          const auto& source = std::get<RegisterOperand>(mov.source);
+          const auto& destination = std::get<RegisterOperand>(mov.destination);
+
+          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
+          const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
+
+          using ecpps::abi::byteSize;
+          using ecpps::abi::dwordSize;
+          using ecpps::abi::qwordSize;
+          using ecpps::abi::wordSize;
+
+          const auto fromSize = source.Size();
+          const auto toSize = destination.Size();
+
+          runtime_assert(fromSize <= ecpps::abi::qwordSize && toSize <= ecpps::abi::qwordSize, "Invalid conversion");
+
+          if (fromSize == toSize) [[unlikely]]
+          {
+               MovInstruction newMov{mov};
+               newMov.isConversion = false;
+               return self->EmitMov(newMov);
+          }
+
+          switch (static_cast<int>(toSize < fromSize))
+          {
+          case 1:
+          {
+               switch (toSize)
+               {
+               case byteSize: return x86_64::GenerateMovRegToReg8(destinationRegister, sourceRegister);
+               case wordSize: return x86_64::GenerateMovRegToReg16(destinationRegister, sourceRegister);
+               case dwordSize: return x86_64::GenerateMovRegToReg32(destinationRegister, sourceRegister);
+               }
+          }
+          break;
+          case 0:
+          {
+               switch (toSize)
+               {
+               case wordSize:
+                    return fromSize == byteSize
+                               ? x86_64::GenerateMovZeroExtendReg8ToReg16(destinationRegister, sourceRegister)
+                               : throw TracedException(std::logic_error(
+                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+               case dwordSize:
+                    return fromSize == byteSize
+                               ? x86_64::GenerateMovZeroExtendReg8ToReg32(destinationRegister, sourceRegister)
+                           : fromSize == wordSize
+                               ? x86_64::GenerateMovZeroExtendReg16ToReg32(destinationRegister, sourceRegister)
+                               : throw TracedException(std::logic_error(
+                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+               case qwordSize:
+                    return fromSize == byteSize
+                               ? x86_64::GenerateMovZeroExtendReg8ToReg64(destinationRegister, sourceRegister)
+                           : fromSize == wordSize
+                               ? x86_64::GenerateMovZeroExtendReg16ToReg64(destinationRegister, sourceRegister)
+                           : fromSize == dwordSize
+                               ? x86_64::GenerateMovZeroExtendReg32ToReg64(destinationRegister, sourceRegister)
+                               : throw TracedException(std::logic_error(
+                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+               }
+          }
+          break;
+          }
+
+          throw TracedException("Not implemented");
      }
 };
 

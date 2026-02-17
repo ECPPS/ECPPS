@@ -9,7 +9,7 @@
 DLLIMPORT extern "C" void ExitProcess(unsigned);
 DLLIMPORT extern "C" void DebugBreak();
 
-int one(int param) { return param; }
+int one(char param) { return param++; }
 
 int main() { return one(2); }
 
