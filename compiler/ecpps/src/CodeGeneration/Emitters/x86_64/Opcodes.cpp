@@ -826,7 +826,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg8ToReg64(
      binary.push_back(rex);
      binary.push_back(std::byte{0x0f});
      binary.push_back(std::byte{0xb8});
-     binary.push_back(static_cast<std::byte>(0xc0 | sourceRegister | (destinationRegister + 8)));
+     binary.push_back(static_cast<std::byte>(0xc0 | sourceRegister | (destinationRegister << 3)));
      return binary;
 }
 
