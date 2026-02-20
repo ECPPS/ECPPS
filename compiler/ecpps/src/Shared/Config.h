@@ -72,7 +72,7 @@ namespace ecpps
      };
      struct OptimisationFeatureSets
      {
-          std::uint32_t maxConstantEvaluationDepth = 8;
+          std::uint32_t maxConstantEvaluationDepth = 0x1000;
 
           template <Optimisation TOptimisation> [[nodiscard]] constexpr bool IsEnabled(void) const noexcept
           {
