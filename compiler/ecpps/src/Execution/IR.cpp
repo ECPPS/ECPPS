@@ -270,6 +270,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      }
 
      auto returnExpression = ParseExpression(node.Value());
+     if (returnExpression == nullptr) return;
      auto optionalConstexpr = returnExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
      if (optionalConstexpr.has_value())
      {
