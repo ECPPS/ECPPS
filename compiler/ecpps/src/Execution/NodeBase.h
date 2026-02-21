@@ -1,12 +1,9 @@
 #pragma once
 #include <TypeSystem/ArithmeticTypes.h>
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <expected>
-#include <functional>
 #include <memory>
-#include <ranges>
 #include <stack>
 #include <string>
 #include <utility>

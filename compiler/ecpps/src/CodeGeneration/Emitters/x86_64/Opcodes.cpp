@@ -1819,9 +1819,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem8(std::size_t 
      if (offset == 0 && baseLow != 5) mod = 0b00;
      if (offset <= 0x7F) mod = 0b01;
      else
-     {
           mod = 0b10;
-     }
 
      if (baseLow == 5 && mod == 0b00)
      {
