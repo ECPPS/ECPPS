@@ -26,13 +26,17 @@ std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
 }
 std::string ecpps::typeSystem::IntegralType::RawName(void) const
 {
+     std::string built{};
+     if (this->IsConst()) built += "const ";
+     if (this->IsVolatile()) built += "volatile ";
+
      switch (this->_kind)
      {
-     case TypeKind::Char: return this->_sign == Signedness::Signed ? "signed char" : "unsigned char";
-     case TypeKind::Short: return this->_sign == Signedness::Signed ? "short" : "unsigned short";
-     case TypeKind::Int: return this->_sign == Signedness::Signed ? "int" : "unsigned int";
-     case TypeKind::Long: return this->_sign == Signedness::Signed ? "long" : "unsigned long";
-     case TypeKind::LongLong: return this->_sign == Signedness::Signed ? "long long" : "unsigned long long";
+     case TypeKind::Char: return built + (this->_sign == Signedness::Signed ? "signed char" : "unsigned char");
+     case TypeKind::Short: return built + (this->_sign == Signedness::Signed ? "short" : "unsigned short");
+     case TypeKind::Int: return built + (this->_sign == Signedness::Signed ? "int" : "unsigned int");
+     case TypeKind::Long: return built + (this->_sign == Signedness::Signed ? "long" : "unsigned long");
+     case TypeKind::LongLong: return built + (this->_sign == Signedness::Signed ? "long long" : "unsigned long long");
      }
 
      return "__integer";

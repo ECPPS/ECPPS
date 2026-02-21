@@ -111,7 +111,7 @@ namespace ecpps::ir
           Expression _left;
           Expression _right;
      };
-     /// </summary>
+
      class AdditionAssignNode final : public NodeBase
      {
      public:
@@ -126,6 +126,26 @@ namespace ecpps::ir
           {
                return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) +
                       " += " + this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+     class SubtractionAssignNode final : public NodeBase
+     {
+     public:
+          explicit SubtractionAssignNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) +
+                      " -= " + this->_right->Value()->ToString(0);
           }
 
      private:
@@ -152,10 +172,29 @@ namespace ecpps::ir
           Expression _operand;
           std::size_t _increment;
      };
+     class PostDecrementNode final : public NodeBase
+     {
+     public:
+          explicit PostDecrementNode(Expression operand, std::size_t decrement, Location source)
+              : NodeBase(NodeKind::Subtraction, source), _operand(std::move(operand)), _increment(decrement)
+          {
+          }
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_operand->Value()->ToString(0) + " -- " +
+                      std::to_string(this->_increment);
+          }
+
+     private:
+          Expression _operand;
+          std::size_t _increment;
+     };
 
      class SubtractionNode final : public NodeBase
      {
-
      public:
           explicit SubtractionNode(Expression left, Expression right, Location source)
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
@@ -224,7 +263,6 @@ namespace ecpps::ir
 
      class MultiplicationNode final : public NodeBase
      {
-
      public:
           explicit MultiplicationNode(Expression left, Expression right, Location source)
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))

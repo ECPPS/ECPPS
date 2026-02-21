@@ -558,7 +558,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
                   left->Value()->Source()));
 
           return nullptr;
@@ -839,6 +839,63 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
 
      throw TracedException("Not implemented");
 }
+Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin pre-decrement operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<LValue>(
+              operandType,
+              std::unique_ptr<SubtractionAssignNode, IRDeleter>{
+                  new (*this->_context.nodeAllocator) SubtractionAssignNode(
+                      std::move(operand),
+                      std::make_unique<PRValue>(operandType,
+                                                std::unique_ptr<IntegralNode, IRDeleter>{
+                                                    new (*this->_context.nodeAllocator) IntegralNode(1, source)},
+                                                true),
+                      source)},
+              false);
+     }
+
+     throw TracedException("Not implemented");
+}
+
+Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin post-decrement operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<PRValue>(
+              operandType,
+              std::unique_ptr<PostDecrementNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                                PostDecrementNode(std::move(operand), 1, source)},
+              false);
+     }
+
+     throw TracedException("Not implemented");
+}
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
 {
@@ -856,6 +913,10 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
                      ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
                      : this->ParsePostIncrementExpression(std::move(operand), node.Source());
+     case ast::Operator::Decrement:
+          return node.UnaryType() == ast::UnaryOperatorType::Prefix
+                     ? this->ParsePreDecrementExpression(std::move(operand), node.Source())
+                     : this->ParsePostDecrementExpression(std::move(operand), node.Source());
      default: throw TracedException(std::logic_error("Invalid unary operator"));
      }
 }

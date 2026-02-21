@@ -421,6 +421,28 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
+     if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionAssignNode*>(value.get()); subtraction != nullptr)
+     {
+          if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(context, code, subtraction->Left());
+
+          auto destinationStorage = left;
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ParseExpression(context, codeBuffer, subtraction->Right());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+              std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+               return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(ecpps::codegen::SubInstruction{
+              right, destinationStorage, subtraction->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
+     }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
@@ -727,6 +749,32 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           code.emplace_back(ecpps::codegen::AddInstruction{
               right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
+     }
+     if (auto* const postDecrement = dynamic_cast<ecpps::ir::PostDecrementNode*>(value.get()); postDecrement != nullptr)
+     {
+          if (postDecrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(context, code, postDecrement->Operand());
+
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
+              postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ecpps::codegen::IntegerOperand{
+              postDecrement->IncrementValue(), postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(
+              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                             postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          code.emplace_back(ecpps::codegen::SubInstruction{
+              right, left, postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
