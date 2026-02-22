@@ -1,7 +1,9 @@
+#include <string_view>
 #include <variant>
 #include "Assert.h"
 #include "Expressions.h"
 #include "NodeBase.h"
+#include "Shared/Diagnostics.h"
 #include "TypeSystem/CompoundTypes.h"
 
 namespace ecpps::ir
@@ -40,7 +42,7 @@ namespace ecpps::ir
                                {
                                     using std::string_view_literals::operator""sv;
                                     if (!std::holds_alternative<std::uint64_t>(element))
-                                         throw "Invalid int array sequence"sv;
+                                         throw ecpps::TracedException("Invalid int array sequence");
                                     return static_cast<std::uint32_t>(std::get<std::uint64_t>(element));
                                }) |
                            std::ranges::to<std::vector>();
