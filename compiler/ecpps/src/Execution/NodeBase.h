@@ -116,7 +116,7 @@ namespace ecpps::ir
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
                return ConstantEvaluatedResult{this->_value, this->Source()};
-          };
+          }
 
      private:
           std::uint64_t _value; // TODO: Support huge integers for vectorisation

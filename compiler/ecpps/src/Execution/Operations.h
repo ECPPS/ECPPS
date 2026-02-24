@@ -105,7 +105,7 @@ namespace ecpps::ir
                const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
 
                return ConstantEvaluatedResult{leftValue + rightValue, this->Source()};
-          };
+          }
 
      private:
           Expression _left;
@@ -254,7 +254,7 @@ namespace ecpps::ir
                const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
 
                return ConstantEvaluatedResult{leftValue - rightValue, this->Source()};
-          };
+          }
 
      private:
           Expression _left;
@@ -322,7 +322,7 @@ namespace ecpps::ir
                const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
 
                return ConstantEvaluatedResult{leftValue * rightValue, this->Source()};
-          };
+          }
 
      private:
           Expression _left;
@@ -398,7 +398,7 @@ namespace ecpps::ir
                }
 
                return ConstantEvaluatedResult{leftValue / rightValue, this->Source()};
-          };
+          }
 
      private:
           Expression _left;
@@ -472,7 +472,7 @@ namespace ecpps::ir
                }
 
                return ConstantEvaluatedResult{leftValue / rightValue, this->Source()};
-          };
+          }
 
      private:
           Expression _left;
@@ -671,7 +671,7 @@ namespace ecpps::ir
                                              { return ConstantEvaluatedVariant{static_cast<std::uint64_t>(value)}; }) |
                        std::ranges::to<std::vector>()},
                    this->Source()};
-          };
+          }
 
      private:
           Expression _operand;
@@ -737,7 +737,7 @@ namespace ecpps::ir
                const auto& operand = *operandConstexpr;
 
                return operand;
-          };
+          }
 
      private:
           Expression _operand;
