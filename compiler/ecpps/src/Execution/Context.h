@@ -13,6 +13,7 @@
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Shared/BumpAllocator.h"
+#include "Shared/Config.h"
 #include "TypeSystem/ArithmeticTypes.h"
 #include "TypeSystem/CompoundTypes.h"
 
@@ -202,6 +203,8 @@ namespace ecpps::ir
           // {
           //      return this->_typeDatabase[id.value].get();
           // }
+
+          OptimisationFeatureSets optimisations{};
 
      private:
           typeSystem::OwningTypePointer CreateType(const TypeRequest& request)

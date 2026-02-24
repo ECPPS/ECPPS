@@ -13,6 +13,8 @@
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Execution/Context.h"
+#include "Machine/Storage.h"
 #include "Nodes.h"
 
 using ecpps::codegen::Instruction;
@@ -419,6 +421,28 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
+     if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionAssignNode*>(value.get()); subtraction != nullptr)
+     {
+          if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(context, code, subtraction->Left());
+
+          auto destinationStorage = left;
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ParseExpression(context, codeBuffer, subtraction->Right());
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
+              std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
+               return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(ecpps::codegen::SubInstruction{
+              right, destinationStorage, subtraction->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
+     }
      if (auto* const subtraction = dynamic_cast<ecpps::ir::SubtractionNode*>(value.get()); subtraction != nullptr)
      {
           if (subtraction->Left() == nullptr || subtraction->Right() == nullptr) return ecpps::codegen::ErrorOperand{};
@@ -681,13 +705,17 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                           ecpps::typeSystem::Signedness::Signed;
           }
 
-          const auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(inner)
-                                   ? ecpps::abi::ABI::Current().AllocateRegister(
-                                         std::get<ecpps::codegen::RegisterOperand>(inner).Index(),
-                                         ecpps::abi::RegisterAllocation::Priority)
-                                   : ecpps::abi::ABI::Current().AllocateRegister(width);
+          const auto storage = ecpps::abi::ABI::Current().AllocateRegister(width);
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(inner))
+          {
+               ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
+                                                             convert->Operand()->Type()->Size() *
+                                                                 ecpps::typeSystem::CharWidth};
+               movInstruction.isConversion = true;
+               code.emplace_back(std::move(movInstruction));
+          }
+          else
           {
                ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
                                                              convert->Operand()->Type()->Size() *
@@ -721,6 +749,32 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           code.emplace_back(ecpps::codegen::AddInstruction{
               right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
+     }
+     if (auto* const postDecrement = dynamic_cast<ecpps::ir::PostDecrementNode*>(value.get()); postDecrement != nullptr)
+     {
+          if (postDecrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
+
+          const auto left = ParseExpression(context, code, postDecrement->Operand());
+
+          auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
+              postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+
+          std::vector<Instruction> codeBuffer{};
+          const auto right = ecpps::codegen::IntegerOperand{
+              postDecrement->IncrementValue(), postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
+
+          code.append_range(codeBuffer);
+
+          code.emplace_back(
+              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                             postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+
+          code.emplace_back(ecpps::codegen::SubInstruction{
+              right, left, postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -776,6 +830,18 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
+     if (auto* const paramNode = dynamic_cast<ecpps::ir::ParameterNode*>(value.get()); paramNode != nullptr)
+     {
+          auto& abi = ecpps::abi::ABI::Current();
+          // TODO: FIX AS SOON AS POSSIBLE
+          runtime_assert(context.functionParameters.size() > paramNode->Index(), "Invalid parameter specified");
+
+          auto& varParam = context.functionParameters[paramNode->Index()];
+          if (std::holds_alternative<ecpps::abi::AllocatedRegister>(varParam.value))
+               return ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(varParam.value).Ptr()};
+          // if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
+          throw TracedException("not implemented");
+     }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }
@@ -826,6 +892,17 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
                                              std::move(storage), request});
      }
+     context.functionParameters = parentCallingConvention.LocateParameters(
+         ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
+                                        ecpps::abi::RequiredStorageKind::Integer},
+         node.ParameterList() |
+             std::views::transform(
+                 [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                 {
+                      return ecpps::abi::StorageRequirement{parameter.type->Size(), parameter.type->Alignment(),
+                                                            ecpps::abi::RequiredStorageKind::Integer};
+                 }) |
+             std::ranges::to<std::vector>());
 
      for (const auto& line : node.Body())
      {

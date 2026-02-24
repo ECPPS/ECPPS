@@ -1,4 +1,5 @@
 #pragma once
+#include <bitset>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -56,6 +57,35 @@ namespace ecpps
           Substring
      };
 
+     enum struct Optimisation : std::uint8_t
+     {
+          ConstantFoldArithmetic,
+          ConstantFoldArrayIndirections,
+          InlineRegularFunctions,
+          UseDecInc,
+          RemoveRedundantMovs,
+          OmitCallingFrame,
+          TailJmp,
+          XorToZero,
+
+          Count
+     };
+     struct OptimisationFeatureSets
+     {
+          std::uint32_t maxConstantEvaluationDepth = 0x1000;
+
+          template <Optimisation TOptimisation> [[nodiscard]] constexpr bool IsEnabled(void) const noexcept
+          {
+               return this->features.test(std::to_underlying(TOptimisation));
+          }
+
+          template <Optimisation TOptimisation> constexpr void Enable(void) noexcept
+          {
+               this->features.set(std::to_underlying(TOptimisation));
+          }
+          std::bitset<std::to_underlying(Optimisation::Count)> features{};
+     };
+
      struct CompilerConfig
      {
           explicit CompilerConfig(int argc,
@@ -71,6 +101,7 @@ namespace ecpps
           bool useDebugger = false;
           StringPooling stringPooling = StringPooling::Exact;
           std::vector<char8_t> stringArray{};
+          OptimisationFeatureSets optimisations{};
 
           [[noreturn]] static void PrintVersionAndExit(void);
           [[noreturn]] static void PrintHelpAndExit(void);

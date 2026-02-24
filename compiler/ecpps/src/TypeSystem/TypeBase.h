@@ -271,7 +271,13 @@ namespace ecpps::typeSystem
           explicit VoidType(std::string name, const Qualifiers qualifiers) : QualifiedType(std::move(name), qualifiers)
           {
           }
-          [[nodiscard]] std::string RawName(void) const noexcept override { return "void"; }
+          [[nodiscard]] std::string RawName(void) const noexcept override
+          {
+               std::string built{};
+               if (this->IsConst()) built += "const ";
+               if (this->IsVolatile()) built += "volatile ";
+               return built + "void";
+          }
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {

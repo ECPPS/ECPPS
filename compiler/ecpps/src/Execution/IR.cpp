@@ -8,11 +8,13 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "../Machine/ABI.h"
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "../TypeSystem/CompoundTypes.h"
+#include "Constexpr.h"
 #include "Context.h"
 #include "ControlFlow.h"
 #include "Expressions.h"
@@ -21,6 +23,7 @@
 #include "Parsing/AST.h"
 #include "Procedural.h"
 #include "Shared/Diagnostics.h"
+#include "Shared/Error.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -204,6 +207,21 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      ir._context.contextSequence.Push(std::move(functionContext));
 
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
+     std::uint64_t paramIndex{};
+     for (const auto& param : parameters)
+     {
+          vFunctionScope->locals.push_back(
+              FunctionScope::Variable{.name = param.name, .type = param.type, .isStatic = false, .isExtern = false});
+
+          auto paramNode =
+              std::make_unique<PRValue>(param.type,
+                                        std::unique_ptr<ParameterNode, IRDeleter>(new (
+                                            *this->_context.nodeAllocator) ParameterNode(paramIndex++, node.Source())),
+                                        false);
+
+          ir._built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+              new (*this->_context.nodeAllocator) ir::StoreNode(param.name, std::move(paramNode), node.Source())});
+     }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
      std::vector<FunctionScope::Variable> locals{};
@@ -252,6 +270,14 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      }
 
      auto returnExpression = ParseExpression(node.Value());
+     if (returnExpression == nullptr) return;
+     auto optionalConstexpr = returnExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+     if (optionalConstexpr.has_value())
+     {
+          auto& value = *optionalConstexpr;
+          returnExpression =
+              ConstantEvaluationResultToExpression(value, returnExpression->Type(), *this->_context.nodeAllocator);
+     }
 
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      this->_built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{
@@ -306,9 +332,43 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
                     continue;
                }
-               throw TracedException(std::logic_error("Constant expression evaluator not implemented yet"));
+               const auto arrayLevelExpression = ParseExpression(arrayLevel);
+               if (arrayLevelExpression == nullptr) break; // assume the caller issued diagnostics
 
-               // variableType = std::make_shared<typeSystem::ArrayType>()
+               auto constexprArraySize =
+                   arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+               if (!constexprArraySize.has_value())
+               {
+                    inferLastArrayFromInitialiser = true; // at least try to be useful...
+                    this->_context.diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::TypeError>(
+                        std::format("Arrays bounds must be defined by a constant expression", varName),
+                        arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+
+                    auto& nestedDiagnostics = constexprArraySize.error();
+
+                    while (!nestedDiagnostics.empty())
+                    {
+                         this->_context.diagnostics.get().diagnosticsList.push_back(std::move(nestedDiagnostics.top()));
+                         nestedDiagnostics.pop();
+                    }
+                    break;
+               }
+               const auto& arraySize = *constexprArraySize;
+               if (!std::holds_alternative<std::uint64_t>(arraySize.variant))
+               {
+                    inferLastArrayFromInitialiser = true; // at least try to be useful...
+                    this->_context.diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::TypeError>(
+                        std::format("Arrays bounds must be defined by an integer", varName),
+                        arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                    break;
+               }
+               const auto length = std::get<std::uint64_t>(arraySize.variant);
+
+               TypeRequest arrayRequest{};
+               arrayRequest.kind = TypeKind::Compound;
+               arrayRequest.data = BoundedArrayRequest{.elementType = variableType, .size = length};
+
+               variableType = GetContext().Get(arrayRequest);
           }
 
           bool duplicate = false;
@@ -405,9 +465,60 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (initExpr == nullptr)
                {
                     this->_context.diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                             "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
                     continue;
+               }
+               if (isArray)
+               {
+                    const auto* arrayType = variableType->CastTo<ecpps::typeSystem::ArrayType>();
+                    runtime_assert(arrayType != nullptr, "Expected an array type for array initialiers");
+
+                    if (IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
+                    {
+                         if (auto* const stringInitialiser =
+                                 dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
+                             stringInitialiser != nullptr)
+                         {
+                              const auto& string = stringInitialiser->Value();
+                              const auto arrayLength = string.length() + 1;
+                              const auto* elementType =
+                                  arrayType->ElementType()->CastTo<ecpps::typeSystem::CharacterType>();
+                              runtime_assert(elementType != nullptr,
+                                             "Expected a character type for string-literal initialisation");
+
+                              if (arrayLength > arrayType->ElementCount())
+                              {
+                                   this->_context.diagnostics.get().diagnosticsList.push_back(
+                                       diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           std::format("Cannot initialise an array with more elements than it can "
+                                                       "hold. Provided {} elements for an array of `{}` `{}`s",
+                                                       arrayLength, arrayType->ElementCount(),
+                                                       arrayType->ElementType()->RawName()),
+                                           decl.initialiser->Source()));
+                              }
+
+                              std::vector<std::uint32_t> arrayValues{};
+                              arrayValues.reserve(arrayLength);
+                              for (const auto character : string) arrayValues.emplace_back(character);
+                              arrayValues.emplace_back(0);
+
+                              if (arrayLength < arrayType->ElementCount())
+                                   arrayValues.resize(arrayType->ElementCount());
+
+                              std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
+                                  new (*this->_context.nodeAllocator) ecpps::ir::IntegerArrayNode(
+                                      std::move(arrayValues), elementType, decl.initialiser->Source())};
+                              auto initialiserExpression =
+                                  std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
+
+                              this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+                                  new (*this->_context.nodeAllocator)
+                                      ir::StoreNode(registeredVar.name, std::move(initialiserExpression),
+                                                    decl.initialiser->Source())});
+                         }
+                         continue;
+                    }
                }
 
                auto converted = ConvertTo(std::move(initExpr), declaredType);
@@ -447,7 +558,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
                   left->Value()->Source()));
 
           return nullptr;
@@ -728,6 +839,63 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
 
      throw TracedException("Not implemented");
 }
+Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin pre-decrement operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<LValue>(
+              operandType,
+              std::unique_ptr<SubtractionAssignNode, IRDeleter>{
+                  new (*this->_context.nodeAllocator) SubtractionAssignNode(
+                      std::move(operand),
+                      std::make_unique<PRValue>(operandType,
+                                                std::unique_ptr<IntegralNode, IRDeleter>{
+                                                    new (*this->_context.nodeAllocator) IntegralNode(1, source)},
+                                                true),
+                      source)},
+              false);
+     }
+
+     throw TracedException("Not implemented");
+}
+
+Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          if (!operand->IsLValue())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "A modifiable lvalue is required for a the builtin post-decrement operator",
+                       operand->Value()->Source()));
+               return nullptr;
+          }
+
+          return std::make_unique<PRValue>(
+              operandType,
+              std::unique_ptr<PostDecrementNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                                PostDecrementNode(std::move(operand), 1, source)},
+              false);
+     }
+
+     throw TracedException("Not implemented");
+}
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
 {
@@ -745,6 +913,10 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
                      ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
                      : this->ParsePostIncrementExpression(std::move(operand), node.Source());
+     case ast::Operator::Decrement:
+          return node.UnaryType() == ast::UnaryOperatorType::Prefix
+                     ? this->ParsePreDecrementExpression(std::move(operand), node.Source())
+                     : this->ParsePostDecrementExpression(std::move(operand), node.Source());
      default: throw TracedException(std::logic_error("Invalid unary operator"));
      }
 }
@@ -1133,6 +1305,23 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::Node
 Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
+
+     const auto constexprResult = expression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+     if (constexprResult.has_value())
+     {
+          const auto& value = *constexprResult;
+          try
+          {
+               expression =
+                   ConstantEvaluationResultToExpression(value, expression->Type(), *this->_context.nodeAllocator);
+          }
+          catch (...)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   std::make_unique<diagnostics::ConstantEvaluationWarning>(
+                       "Failed to use the constant expression evaluation result", expression->Value()->Source()));
+          }
+     }
 
      const auto comparison = toType->CompareTo(expression->Type());
 

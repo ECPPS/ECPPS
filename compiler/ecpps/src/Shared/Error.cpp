@@ -11,6 +11,8 @@ std::string ecpps::diagnostics::InternalCompilerError::Message(void) const noexc
 }
 
 std::string ecpps::diagnostics::TypeError::Message(void) const noexcept { return this->_message; }
+std::string ecpps::diagnostics::ConstantEvaluationError::Message(void) const noexcept { return this->_message; }
+std::string ecpps::diagnostics::ConstantEvaluationWarning::Message(void) const noexcept { return this->_message; }
 
 std::string ecpps::diagnostics::UnresolvedSymbolError::Message(void) const noexcept
 {
