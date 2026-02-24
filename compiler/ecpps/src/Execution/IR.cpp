@@ -630,7 +630,7 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
                   left->Value()->Source()));
 
           return nullptr;
