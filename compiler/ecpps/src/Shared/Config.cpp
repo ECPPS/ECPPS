@@ -76,7 +76,12 @@ ecpps::CompilerConfig::CompilerConfig(
                else if (lowerFlag == "image")
                {
                     if (lowerValue == "win64" || lowerValue == "pe64" || lowerValue == "pe32p")
+                    {
                          this->linker = LinkerUsed::Windows64;
+                         this->sizeSize = Size::LongLong;
+                         this->intptrSize = Size::LongLong;
+                         this->ptrdiffSize = Size::LongLong;
+                    }
                     else if (lowerValue == "win32" || lowerValue == "pe32")
                          this->linker = LinkerUsed::Windows32;
                     else if (lowerValue == "cao" || lowerValue == "caosys" || lowerValue == "cao64")

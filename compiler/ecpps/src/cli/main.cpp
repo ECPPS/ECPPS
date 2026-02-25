@@ -1,4 +1,6 @@
 #include "Execution/Context.h"
+#include "Machine/ABI.h"
+#include "TypeSystem/TypeBase.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -114,7 +116,21 @@ int main(int argc, char* argv[])
                return -1;
           }
 
+          constexpr auto translateSizes = [](ecpps::Size size)
+          {
+               using enum ecpps::Size;
+               using ecpps::typeSystem::TypeKind;
+
+               return size == Short  ? TypeKind::Short
+                      : size == Int  ? TypeKind::Int
+                      : size == Long ? TypeKind::Long
+                                     : TypeKind::LongLong;
+          };
+
           ecpps::ir::GetContext().optimisations = config.optimisations;
+          ecpps::abi::ABI::Current().sizeSize = translateSizes(config.sizeSize);
+          ecpps::abi::ABI::Current().ptrdiffSize = translateSizes(config.ptrdiffSize);
+          ecpps::abi::ABI::Current().intptrSize = translateSizes(config.intptrSize);
 
           auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
           if (emitter == nullptr)

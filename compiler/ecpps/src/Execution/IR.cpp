@@ -552,6 +552,92 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
      const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
+
+     // E1 = E2 where one is a pointer and one is an integer
+     if ((leftPointer != nullptr && rightIntegral != nullptr) || (leftIntegral != nullptr && rightPointer != nullptr))
+     {
+          const bool isPlus = operator_ == ast::Operator::Plus;
+          if (leftIntegral != nullptr)
+          {
+               if (!isPlus)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Cannot subtract a pointer of type `{}` from an integer of type `{}`",
+                                        rightPointer->RawName(), leftIntegral->RawName()),
+                            source));
+                    return nullptr;
+               }
+
+               std::swap(left, right);
+               std::swap(leftIntegral, rightIntegral);
+               std::swap(leftPointer, rightPointer);
+          }
+
+          rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+          if (right->Type() != rightIntegral)
+          {
+               const auto innerSource = right->Value()->Source();
+               const auto wasConstexpr = right->IsConstantExpression();
+
+               right = std::make_unique<PRValue>(rightIntegral,
+                                                 std::unique_ptr<ConvertNode, IRDeleter>{
+                                                     new (*this->_context.nodeAllocator)
+                                                         ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                                 wasConstexpr);
+          }
+
+          if (!isPlus) // ptr - int
+          {
+               return std::make_unique<PRValue>(leftPointer,
+                                                std::unique_ptr<SubtractionNode, IRDeleter>{
+                                                    new (*this->_context.nodeAllocator)
+                                                        SubtractionNode(std::move(left), std::move(right), source)},
+                                                false);
+          }
+
+          // ptr + int
+          return std::make_unique<PRValue>(
+              leftPointer,
+              std::unique_ptr<AdditionNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                           AdditionNode(std::move(left), std::move(right), source)},
+              false);
+     }
+
+     if (leftPointer != nullptr && rightPointer != nullptr)
+     {
+          if (operator_ != ast::Operator::Minus)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
+               return nullptr;
+          }
+
+          if (leftPointer->BaseType() != rightPointer->BaseType())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "Cannot subtract pointers to different types (" + left->Type()->Name() + " and " +
+                           right->Type()->Name() + ")",
+                       source));
+               return nullptr;
+          }
+
+          TypeRequest typeRequest{};
+          typeRequest.kind = TypeKind::Fundamental;
+          typeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::PtrDiff};
+          const auto* resultType = GetContext().Get(typeRequest);
+
+          return std::make_unique<PRValue>(resultType,
+                                           std::unique_ptr<SubtractionNode, IRDeleter>{
+                                               new (*this->_context.nodeAllocator)
+                                                   SubtractionNode(std::move(left), std::move(right), source)},
+                                           false);
+     }
+
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes

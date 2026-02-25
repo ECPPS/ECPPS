@@ -26,7 +26,17 @@ namespace ecpps::ir
           Compound,
           Fundamental
      };
-
+     enum struct PlatformIntegerKind : std::uint_fast8_t
+     {
+          Size,    // size_t
+          PtrDiff, // ptrdiff_t
+          UIntPtr, // uintptr_t
+          IntPtr   // intptr_t
+     };
+     struct PlatformIntegerRequest
+     {
+          PlatformIntegerKind kind{};
+     };
      struct StandardSignedIntegerRequest
      {
           typeSystem::TypeKind size{};
@@ -46,8 +56,8 @@ namespace ecpps::ir
 
      struct TypeRequest
      {
-          using VarRequest =
-              std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest, PointerRequest>;
+          using VarRequest = std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest,
+                                          PointerRequest, PlatformIntegerRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -96,6 +106,16 @@ namespace ecpps::ir
                     return std::holds_alternative<VoidRequest>(other.data);
                }
 
+               if (std::holds_alternative<PlatformIntegerRequest>(this->data))
+               {
+                    if (!std::holds_alternative<PlatformIntegerRequest>(other.data)) return false;
+
+                    const auto& thisData = std::get<PlatformIntegerRequest>(this->data);
+                    const auto& otherData = std::get<PlatformIntegerRequest>(other.data);
+
+                    return thisData.kind == otherData.kind;
+               }
+
                throw TracedException("Not implemented");
           }
      };
@@ -134,6 +154,10 @@ namespace ecpps::ir
                         {
                              seed = HashCombine(seed, data.elementType);
                              seed = HashCombine(seed, data.size);
+                        }
+                        else if constexpr (std::is_same_v<T, PlatformIntegerRequest>)
+                        {
+                             seed = HashCombine(seed, data.kind);
                         }
                         else if constexpr (std::is_same_v<T, PointerRequest>)
                         {
@@ -263,6 +287,63 @@ namespace ecpps::ir
                                                   })()),
                                   request.qualifiers);
                          }
+                    }
+                    if (std::holds_alternative<PlatformIntegerRequest>(request.data))
+                    {
+                         const auto& data = std::get<PlatformIntegerRequest>(request.data);
+
+                         std::string cv{};
+                         switch (request.qualifiers)
+                         {
+                         case typeSystem::Qualifiers::ConstVolatile: cv = "const volatile "; break;
+                         case typeSystem::Qualifiers::Const: cv = "const "; break;
+                         case typeSystem::Qualifiers::Volatile: cv = "volatile "; break;
+                         case typeSystem::Qualifiers::None: break;
+                         }
+
+                         typeSystem::Signedness signedness{};
+                         typeSystem::TypeKind size{};
+
+                         switch (data.kind)
+                         {
+                         case PlatformIntegerKind::Size:
+                              signedness = typeSystem::Signedness::Unsigned;
+                              size = abi::ABI::Current().SizeSize();
+                              break;
+
+                         case PlatformIntegerKind::PtrDiff:
+                              signedness = typeSystem::Signedness::Signed;
+                              size = abi::ABI::Current().PtrDiffSize();
+                              break;
+
+                         case PlatformIntegerKind::UIntPtr:
+                              signedness = typeSystem::Signedness::Unsigned;
+                              size = abi::ABI::Current().IntPtrSize();
+                              break;
+
+                         case PlatformIntegerKind::IntPtr:
+                              signedness = typeSystem::Signedness::Signed;
+                              size = abi::ABI::Current().IntPtrSize();
+                              break;
+                         }
+
+                         return std::make_unique<typeSystem::IntegralType>(
+                             signedness, size,
+                             std::format("{}{}{}", cv, signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
+                                         (
+                                             [size] -> std::string
+                                             {
+                                                  switch (size)
+                                                  {
+                                                  case typeSystem::TypeKind::Char: return "char";
+                                                  case typeSystem::TypeKind::Short: return "short";
+                                                  case typeSystem::TypeKind::Int: return "int";
+                                                  case typeSystem::TypeKind::Long: return "long";
+                                                  case typeSystem::TypeKind::LongLong: return "long long";
+                                                  }
+                                                  return "?";
+                                             })()),
+                             request.qualifiers);
                     }
                }
                else // compound

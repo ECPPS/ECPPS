@@ -364,6 +364,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto* const integralType = dynamic_cast<const ecpps::typeSystem::IntegralType*>(type);
                sizeInBytes = integralType->Size();
           }
+          else if (ecpps::typeSystem::IsPointer(type))
+               sizeInBytes = ecpps::abi::ABI::Current().PointerSize();
           else
           {
                // TODO: Assert IsFloatingPoint & add float support
@@ -456,6 +458,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto* integralType = type->CastTo<ecpps::typeSystem::IntegralType>();
                sizeInBytes = integralType->Size();
           }
+          else if (ecpps::typeSystem::IsPointer(type))
+               sizeInBytes = ecpps::abi::ABI::Current().PointerSize();
           else
           {
                // TODO: Assert IsFloatingPoint & add float support

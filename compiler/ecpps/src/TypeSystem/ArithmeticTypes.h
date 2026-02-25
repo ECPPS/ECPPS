@@ -12,15 +12,6 @@ namespace ecpps::typeSystem
 
      constexpr Signedness DefaultCharacterSign = Signedness::Signed; // implementation-defined property
 
-     enum struct TypeKind : std::uint_fast8_t
-     {
-          Char,
-          Short,
-          Int,
-          Long,
-          LongLong,
-     };
-
      enum struct TypeSizes : std::uint_fast8_t // implementation-defined property; also constitutes alignment in this
                                                // case
      {

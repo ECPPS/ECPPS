@@ -11,6 +11,15 @@ namespace ecpps::typeSystem
 {
      constexpr std::size_t CharWidth = 8; // implementation-defined property
 
+     enum struct TypeKind : std::uint_fast8_t
+     {
+          Char,
+          Short,
+          Int,
+          Long,
+          LongLong
+     };
+
      enum struct TypeTraitEnum : std::uint_fast8_t
      {
           ImplicitLifetime,
