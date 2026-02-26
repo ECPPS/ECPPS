@@ -120,6 +120,8 @@ namespace ecpps::ir
                                                                  Expression right, const Location& source) const;
           static Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                  const Location& source);
+          [[nodiscard]] Expression ParseSubscriptExpression(Expression left, Expression right,
+                                                            const Location& source) const;
           [[nodiscard]] Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParseAddressOfExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParsePreIncrementExpression(Expression operand, const Location& source) const;

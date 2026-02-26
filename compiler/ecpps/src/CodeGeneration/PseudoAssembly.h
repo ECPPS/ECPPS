@@ -34,7 +34,6 @@ namespace ecpps::codegen
 
           [[nodiscard]] StringIndex AddString(std::span<const Byte> value)
           {
-
                switch (_config.get().stringPooling)
                {
                case StringPooling::None: return AppendNew(value);
@@ -45,8 +44,7 @@ namespace ecpps::codegen
 
                     if (const auto iterator = _exactLookup.find(probe); iterator != _exactLookup.end())
                     {
-                         const auto& entry = _stringTable[iterator->second];
-                         return {.indexInTable = iterator->second, .offset = entry.offset};
+                         return {.indexInTable = iterator->second, .offset = 0};
                     }
 
                     return AppendNew(value);
@@ -62,9 +60,7 @@ namespace ecpps::codegen
                          {
                               if (const auto position = view.find(probe); position != ByteView::npos)
                               {
-                                   const auto& entry = _stringTable[index];
-                                   return {.indexInTable = index,
-                                           .offset = entry.offset + static_cast<std::uint32_t>(position)};
+                                   return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
                               }
                          }
                     }
@@ -116,12 +112,12 @@ namespace ecpps::codegen
 
                const std::uint32_t index = static_cast<std::uint32_t>(_stringTable.size());
 
-               _stringTable.emplace_back(offset, static_cast<std::uint32_t>(value.size()));
+               _stringTable.emplace_back(static_cast<std::uint32_t>(value.size()), offset);
 
                ByteView view{_arena.data() + offset, value.size()};
                _exactLookup.emplace(view, index);
 
-               return {.indexInTable = index, .offset = offset};
+               return {.indexInTable = index, .offset = 0};
           }
 
           std::vector<Byte> _arena;

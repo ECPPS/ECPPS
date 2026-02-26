@@ -869,6 +869,77 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
                                           *this->_context.nodeAllocator) AddressOfNode(std::move(operand), source)},
                                       false);
 }
+
+Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression right, const Location& source) const
+{
+     runtime_assert(left != nullptr && right != nullptr, "Operands were null");
+
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const bool leftIsArray = IsArray(left->Type());
+     const bool rightIsArray = IsArray(right->Type());
+
+     if (((leftPointer == nullptr && !leftIsArray) || rightIntegral == nullptr) &&
+         ((rightPointer == nullptr && !rightIsArray) || leftIntegral == nullptr))
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  std::format("Cannot subscript types `{}` and `{}`", left->Type()->Name(), right->Type()->Name()),
+                  source));
+          return nullptr;
+     }
+
+     bool arrayOperandIsLValue = false;
+     if (leftIsArray && left->IsLValue()) arrayOperandIsLValue = true;
+     else if (rightIsArray && right->IsLValue())
+          arrayOperandIsLValue = true;
+
+     // Decay array operands to pointers
+     if (leftIsArray)
+     {
+          const auto* arrayType = left->Type()->CastTo<typeSystem::ArrayType>();
+          runtime_assert(arrayType != nullptr, "Expected an array type");
+
+          TypeRequest pointerRequest{};
+          pointerRequest.kind = TypeKind::Compound;
+          pointerRequest.data = PointerRequest{.elementType = arrayType->ElementType()};
+          const auto* pointerType = GetContext().Get(pointerRequest);
+
+          left = ConvertTo(std::move(left), pointerType);
+          if (left == nullptr) return nullptr;
+     }
+
+     if (rightIsArray)
+     {
+          const auto* arrayType = right->Type()->CastTo<typeSystem::ArrayType>();
+          runtime_assert(arrayType != nullptr, "Expected an array type");
+
+          TypeRequest pointerRequest{};
+          pointerRequest.kind = TypeKind::Compound;
+          pointerRequest.data = PointerRequest{.elementType = arrayType->ElementType()};
+          const auto* pointerType = GetContext().Get(pointerRequest);
+
+          right = ConvertTo(std::move(right), pointerType);
+          if (right == nullptr) return nullptr;
+     }
+
+     auto additionResult = ParseAdditiveExpression(std::move(left), ast::Operator::Plus, std::move(right), source);
+     if (additionResult == nullptr) return nullptr;
+
+     auto dereferenceResult = ParseDereferenceExpression(std::move(additionResult), source);
+     if (dereferenceResult == nullptr) return nullptr;
+
+     if (!arrayOperandIsLValue && dereferenceResult->IsLValue())
+     {
+          return std::make_unique<XValue>(dereferenceResult->Type(), std::move(*dereferenceResult).Value(),
+                                          dereferenceResult->IsConstantExpression());
+     }
+
+     return dereferenceResult;
+}
+
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
@@ -1026,6 +1097,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
      case ast::Operator::LeftShift:
      case ast::Operator::RightShift:
           return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
+     case ast::Operator::Subscript:
+          return this->ParseSubscriptExpression(std::move(left), std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }

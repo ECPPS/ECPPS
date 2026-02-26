@@ -822,8 +822,18 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion(ASTContext& context)
           if (currentToken.type == TokenType::LeftBracket)
           {
                Advance();
-               // TODO: Implement
-
+               auto subscriptExpression = ParseExpression(context);
+               if (!Match(TokenType::RightBracket))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                            "Expected a closing bracket in subscript expression", currentToken.location));
+                    return nullptr;
+               }
+               source.endPosition = currentToken.location.endPosition;
+               expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
+                   new (context) BinaryOperatorNode(std::move(expression), Operator::Subscript,
+                                                    std::move(subscriptExpression), source));
                continue;
           }
           if (currentToken.type == TokenType::LeftParenthesis)

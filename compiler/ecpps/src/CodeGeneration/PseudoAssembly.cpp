@@ -799,7 +799,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto instructionIndex = code.size();
 
           code.emplace_back(ecpps::codegen::TakeAddressInstruction{
-              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()}, 0, movWidth},
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
+                                                    context.GetStringOffset(stringIndex), movWidth},
               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
           context.AddStringPatch(instructionIndex, ecpps::InstructionPatchType::LeaFrom, stringIndex);
 
