@@ -398,6 +398,52 @@ int main(int argc, char* argv[])
                return -1;
           }
 
+          if (isExtraVerbose)
+          {
+               std::println();
+               std::println("String Table Dump:");
+               std::println("Size: {} bytes", config.stringArray.size());
+
+               if (!config.stringArray.empty())
+               {
+                    constexpr std::size_t RowSize = 16;
+                    const auto rows = (config.stringArray.size() + RowSize - 1) / RowSize;
+
+                    for (std::size_t row = 0; row < rows; row++)
+                    {
+                         const auto offset = row * RowSize;
+
+                         std::print("{:08x}: ", offset);
+
+                         for (std::size_t column = 0; column < RowSize; column++)
+                         {
+                              const auto byteOffset = offset + column;
+                              if (byteOffset >= config.stringArray.size()) std::print("   ");
+                              else
+                                   std::print("{:02x} ", static_cast<std::uint8_t>(config.stringArray[byteOffset]));
+
+                              if (column == 7) std::print(" ");
+                         }
+
+                         std::print(" |");
+                         for (std::size_t column = 0; column < RowSize; column++)
+                         {
+                              const auto byteOffset = offset + column;
+                              if (byteOffset >= config.stringArray.size()) std::print(" ");
+                              else
+                              {
+                                   const auto byte = static_cast<std::uint8_t>(config.stringArray[byteOffset]);
+                                   if (byte >= 32 && byte < 127) std::print("{}", static_cast<char>(byte));
+                                   else
+                                        std::print(".");
+                              }
+                         }
+                         std::println("|");
+                    }
+                    std::println();
+               }
+          }
+
           if (isVerbose) std::println("Linking objects...");
 
           std::vector<std::byte> codeSection{};
