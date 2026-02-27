@@ -1,5 +1,5 @@
 #include "AST.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <format>
 #include <unordered_set>
 #include "ASTs/Type.h"
@@ -627,10 +627,14 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
           return ParseIdExpression(context);
      }
      default:
-          throw TracedException(std::format("Invalid primary expression {}", std::to_underlying(currentToken.type)));
+          this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+              std::format("Expected a primary expression (literal, identifier, 'this', or parenthesized expression), "
+                          "but found an unexpected token"),
+              currentToken.location));
+          Advance();
+          return nullptr;
      }
 
-     // TODO: Error
      return nullptr;
 }
 
@@ -696,8 +700,11 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
                     return nullptr;
                }
 
-               // TODO: Implement
-               throw nullptr;
+               // TODO: Implement template-id nodes
+               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                   std::format("Template syntax is not yet supported: '{}<...>'", identifierName),
+                   currentToken.location));
+               return nullptr;
                // parts.push_back(std::make_unique<TemplateIdNode>(identifierName, std::move(templateArguments),
                //                                                  sawTemplateKeyword, currentToken.location));
           }
@@ -707,8 +714,11 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
 
           if (sawTemplateKeyword)
           {
-               // TODO: Implement
-               throw nullptr;
+               // TODO: Implement template keyword disambiguation
+               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                   std::format("The 'template' keyword for dependent name disambiguation is not yet supported"),
+                   currentToken.location));
+               return nullptr;
           }
 
           sawTemplateKeyword = false;

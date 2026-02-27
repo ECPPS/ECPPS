@@ -1,8 +1,9 @@
 #include "BumpAllocator.h"
 
+#include <algorithm>
 #include <print>
 
-#include "Assert.h"
+#include <RuntimeAssert.h>
 #include "SBOVector.h"
 
 #ifdef _WIN32
@@ -16,7 +17,7 @@ static void* ReserveMemory(std::size_t count) noexcept
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
      auto* const committed = VirtualAlloc(address, count, MEM_COMMIT, PAGE_READWRITE);
-     runtime_assert(committed == address, "Commit failed");
+     runtime_assert(committed == address, std::format("Commit failed: {}", GetLastError()));
 }
 
 static void ReleaseMemory(void* address) noexcept { VirtualFree(address, 0, MEM_RELEASE); }
@@ -29,6 +30,8 @@ constexpr std::size_t CommitStep = 16uz * PageSize; // 64kiB
 ecpps::BumpAllocator::BumpAllocator(std::size_t maxMemory)
 {
      if (maxMemory == 0) maxMemory = 2uz * 1024uz * 1024uz * 1024uz * 1024uz; // 2TiB
+     maxMemory = std::max(maxMemory, CommitStep);
+
      this->_begin = static_cast<std::byte*>(ReserveMemory(maxMemory));
      this->_capacity = this->_begin + maxMemory;
      this->_currentEnd = this->_begin;
@@ -37,9 +40,9 @@ ecpps::BumpAllocator::BumpAllocator(std::size_t maxMemory)
 std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
 {
      size = Align(size, sizeof(std::max_align_t));
-     runtime_assert(size <= 1024uz * 8uz, "No type of such size exists in this ecosystem");
 
      auto* address = std::exchange(this->_currentEnd, this->_currentEnd + size);
+     if (this->_currentEnd >= this->_capacity) return nullptr;
 
      while (this->_currentEnd >= this->_commitEnd)
      {

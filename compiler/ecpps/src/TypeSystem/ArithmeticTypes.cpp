@@ -1,5 +1,5 @@
 #include "ArithmeticTypes.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include "TypeBase.h"
 #ifndef NDEBUG
 #include <format>

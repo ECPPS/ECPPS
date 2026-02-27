@@ -1,6 +1,6 @@
 #include <platformlib.h>
 
-#include "../../utilitieslib/include/utilitieslib/Assert.h"
+#include <RuntimeAssert.h>
 #ifdef _WIN32
 #include <Windows.h>
 

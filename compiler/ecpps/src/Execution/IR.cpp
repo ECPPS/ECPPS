@@ -1,5 +1,5 @@
 #include "IR.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <TypeSystem/TypeBase.h>
 #include <format>
 #include <memory>

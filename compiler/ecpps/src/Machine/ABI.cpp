@@ -1,5 +1,5 @@
 #include "ABI.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <cstdint>
 #include <format>
 #include "Machine.h"

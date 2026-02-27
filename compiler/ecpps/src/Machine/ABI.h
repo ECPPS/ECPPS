@@ -1,5 +1,5 @@
 #pragma once
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <cstddef>
 #include <memory>
 #include <string>

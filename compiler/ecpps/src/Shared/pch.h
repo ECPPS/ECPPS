@@ -12,6 +12,7 @@
 #include <corecrt.h> // NOLINT
 #endif
 #include <algorithm>     // NOLINT
+#include <cassert>       // NOLINT
 #include <chrono>        // NOLINT
 #include <concepts>      // NOLINT
 #include <cstdarg>       // NOLINT

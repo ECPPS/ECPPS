@@ -1,5 +1,5 @@
 #include "PseudoAssembly.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <Shared/Diagnostics.h>
 #include <TypeSystem/TypeBase.h>
 #include <iterator>
