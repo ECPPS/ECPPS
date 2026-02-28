@@ -58,8 +58,10 @@ target_precompile_headers(backendlib PRIVATE
 
 ## Core/shared library that aggregates common code and links subsystems
 add_library(libecpps STATIC ${SHARED_SOURCES})
-target_link_libraries(libecpps PUBLIC mimalloc-static)
-target_compile_definitions(libecpps PRIVATE MI_OVERRIDE=1)
+if(USE_MIMALLOC)
+    target_link_libraries(libecpps PUBLIC mimalloc-static)
+    target_compile_definitions(libecpps PRIVATE MI_OVERRIDE=1)
+endif()
 
 find_package(OpenMP QUIET)
 if(OpenMP_CXX_FOUND)
@@ -78,7 +80,7 @@ else()
 endif()
 
 target_compile_features(libecpps PUBLIC cxx_std_23)
-if(DEFINED mimalloc_SOURCE_DIR)
+if(USE_MIMALLOC AND DEFINED mimalloc_SOURCE_DIR)
     # Ensure the mimalloc headers are visible when building the PCH
     target_include_directories(libecpps SYSTEM PRIVATE "${mimalloc_SOURCE_DIR}/include")
     target_precompile_headers(libecpps PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h" <mimalloc.h>)

@@ -9,19 +9,35 @@ option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
+# Detect if Address Sanitizer is enabled
+set(ASAN_ENABLED OFF)
+string(REGEX MATCH "fsanitize=address" ASAN_IN_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REGEX MATCH "fsanitize=address" ASAN_IN_C_FLAGS "${CMAKE_C_FLAGS}")
+if(ASAN_IN_CXX_FLAGS OR ASAN_IN_C_FLAGS)
+    set(ASAN_ENABLED ON)
+    message(STATUS "Address Sanitizer detected - mimalloc will be disabled")
+    set(USE_MIMALLOC OFF)
+else()
+    message(STATUS "Address Sanitizer not detected - mimalloc will be enabled")
+    set(USE_MIMALLOC ON)
+endif()
+
 include(FetchContent)
 
-FetchContent_Declare(
-    mimalloc
-    GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
-    GIT_TAG        v2.2.7
-)
+# Only fetch mimalloc if not using ASan
+if(USE_MIMALLOC)
+    FetchContent_Declare(
+        mimalloc
+        GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
+        GIT_TAG        v2.2.7
+    )
 
-set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(MI_BUILD_BENCH OFF CACHE BOOL "" FORCE)
-set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 
-FetchContent_MakeAvailable(mimalloc)
+    FetchContent_MakeAvailable(mimalloc)
+endif()
 
 
 add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
@@ -177,7 +193,7 @@ execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
     ERROR_QUIET
 )
 
-if(TARGET mimalloc-static)
+if(USE_MIMALLOC AND TARGET mimalloc-static)
     target_compile_options(mimalloc-static PRIVATE
         -w
     )
