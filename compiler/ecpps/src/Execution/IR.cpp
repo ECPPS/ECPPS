@@ -1,5 +1,5 @@
 #include "IR.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <TypeSystem/TypeBase.h>
 #include <format>
 #include <memory>
@@ -552,6 +552,92 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
      const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
+
+     // E1 = E2 where one is a pointer and one is an integer
+     if ((leftPointer != nullptr && rightIntegral != nullptr) || (leftIntegral != nullptr && rightPointer != nullptr))
+     {
+          const bool isPlus = operator_ == ast::Operator::Plus;
+          if (leftIntegral != nullptr)
+          {
+               if (!isPlus)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Cannot subtract a pointer of type `{}` from an integer of type `{}`",
+                                        rightPointer->RawName(), leftIntegral->RawName()),
+                            source));
+                    return nullptr;
+               }
+
+               std::swap(left, right);
+               std::swap(leftIntegral, rightIntegral);
+               std::swap(leftPointer, rightPointer);
+          }
+
+          rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+          if (right->Type() != rightIntegral)
+          {
+               const auto innerSource = right->Value()->Source();
+               const auto wasConstexpr = right->IsConstantExpression();
+
+               right = std::make_unique<PRValue>(rightIntegral,
+                                                 std::unique_ptr<ConvertNode, IRDeleter>{
+                                                     new (*this->_context.nodeAllocator)
+                                                         ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                                 wasConstexpr);
+          }
+
+          if (!isPlus) // ptr - int
+          {
+               return std::make_unique<PRValue>(leftPointer,
+                                                std::unique_ptr<SubtractionNode, IRDeleter>{
+                                                    new (*this->_context.nodeAllocator)
+                                                        SubtractionNode(std::move(left), std::move(right), source)},
+                                                false);
+          }
+
+          // ptr + int
+          return std::make_unique<PRValue>(
+              leftPointer,
+              std::unique_ptr<AdditionNode, IRDeleter>{new (*this->_context.nodeAllocator)
+                                                           AdditionNode(std::move(left), std::move(right), source)},
+              false);
+     }
+
+     if (leftPointer != nullptr && rightPointer != nullptr)
+     {
+          if (operator_ != ast::Operator::Minus)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
+               return nullptr;
+          }
+
+          if (leftPointer->BaseType() != rightPointer->BaseType())
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "Cannot subtract pointers to different types (" + left->Type()->Name() + " and " +
+                           right->Type()->Name() + ")",
+                       source));
+               return nullptr;
+          }
+
+          TypeRequest typeRequest{};
+          typeRequest.kind = TypeKind::Fundamental;
+          typeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::PtrDiff};
+          const auto* resultType = GetContext().Get(typeRequest);
+
+          return std::make_unique<PRValue>(resultType,
+                                           std::unique_ptr<SubtractionNode, IRDeleter>{
+                                               new (*this->_context.nodeAllocator)
+                                                   SubtractionNode(std::move(left), std::move(right), source)},
+                                           false);
+     }
+
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
@@ -630,7 +716,7 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
 
           this->_context.diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + left->Type()->Name(),
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
                   left->Value()->Source()));
 
           return nullptr;
@@ -783,6 +869,77 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
                                           *this->_context.nodeAllocator) AddressOfNode(std::move(operand), source)},
                                       false);
 }
+
+Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression right, const Location& source) const
+{
+     runtime_assert(left != nullptr && right != nullptr, "Operands were null");
+
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const bool leftIsArray = IsArray(left->Type());
+     const bool rightIsArray = IsArray(right->Type());
+
+     if (((leftPointer == nullptr && !leftIsArray) || rightIntegral == nullptr) &&
+         ((rightPointer == nullptr && !rightIsArray) || leftIntegral == nullptr))
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  std::format("Cannot subscript types `{}` and `{}`", left->Type()->Name(), right->Type()->Name()),
+                  source));
+          return nullptr;
+     }
+
+     bool arrayOperandIsLValue = false;
+     if (leftIsArray && left->IsLValue()) arrayOperandIsLValue = true;
+     else if (rightIsArray && right->IsLValue())
+          arrayOperandIsLValue = true;
+
+     // Decay array operands to pointers
+     if (leftIsArray)
+     {
+          const auto* arrayType = left->Type()->CastTo<typeSystem::ArrayType>();
+          runtime_assert(arrayType != nullptr, "Expected an array type");
+
+          TypeRequest pointerRequest{};
+          pointerRequest.kind = TypeKind::Compound;
+          pointerRequest.data = PointerRequest{.elementType = arrayType->ElementType()};
+          const auto* pointerType = GetContext().Get(pointerRequest);
+
+          left = ConvertTo(std::move(left), pointerType);
+          if (left == nullptr) return nullptr;
+     }
+
+     if (rightIsArray)
+     {
+          const auto* arrayType = right->Type()->CastTo<typeSystem::ArrayType>();
+          runtime_assert(arrayType != nullptr, "Expected an array type");
+
+          TypeRequest pointerRequest{};
+          pointerRequest.kind = TypeKind::Compound;
+          pointerRequest.data = PointerRequest{.elementType = arrayType->ElementType()};
+          const auto* pointerType = GetContext().Get(pointerRequest);
+
+          right = ConvertTo(std::move(right), pointerType);
+          if (right == nullptr) return nullptr;
+     }
+
+     auto additionResult = ParseAdditiveExpression(std::move(left), ast::Operator::Plus, std::move(right), source);
+     if (additionResult == nullptr) return nullptr;
+
+     auto dereferenceResult = ParseDereferenceExpression(std::move(additionResult), source);
+     if (dereferenceResult == nullptr) return nullptr;
+
+     if (!arrayOperandIsLValue && dereferenceResult->IsLValue())
+     {
+          return std::make_unique<XValue>(dereferenceResult->Type(), std::move(*dereferenceResult).Value(),
+                                          dereferenceResult->IsConstantExpression());
+     }
+
+     return dereferenceResult;
+}
+
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
@@ -940,6 +1097,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
      case ast::Operator::LeftShift:
      case ast::Operator::RightShift:
           return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
+     case ast::Operator::Subscript:
+          return this->ParseSubscriptExpression(std::move(left), std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }

@@ -43,6 +43,7 @@ namespace ecpps::ast
      enum struct Operator : std::uint_fast8_t
      {
           Function,              // ()
+          Subscript,             // []
           Ellipsis,              // ...
           QuestionMark,          // ?
           FullStop,              // .
@@ -92,6 +93,7 @@ namespace ecpps::ast
           switch (op)
           {
           case Operator::Function: return "()";
+          case Operator::Subscript: return "[]";
           case Operator::Ellipsis: return "...";
           case Operator::QuestionMark: return "?";
           case Operator::FullStop: return ".";

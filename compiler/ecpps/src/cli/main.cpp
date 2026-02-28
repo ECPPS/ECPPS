@@ -1,4 +1,6 @@
 #include "Execution/Context.h"
+#include "Machine/ABI.h"
+#include "TypeSystem/TypeBase.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -114,7 +116,21 @@ int main(int argc, char* argv[])
                return -1;
           }
 
+          constexpr auto translateSizes = [](ecpps::Size size)
+          {
+               using enum ecpps::Size;
+               using ecpps::typeSystem::TypeKind;
+
+               return size == Short  ? TypeKind::Short
+                      : size == Int  ? TypeKind::Int
+                      : size == Long ? TypeKind::Long
+                                     : TypeKind::LongLong;
+          };
+
           ecpps::ir::GetContext().optimisations = config.optimisations;
+          ecpps::abi::ABI::Current().sizeSize = translateSizes(config.sizeSize);
+          ecpps::abi::ABI::Current().ptrdiffSize = translateSizes(config.ptrdiffSize);
+          ecpps::abi::ABI::Current().intptrSize = translateSizes(config.intptrSize);
 
           auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
           if (emitter == nullptr)
@@ -380,6 +396,52 @@ int main(int argc, char* argv[])
                             std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime));
 
                return -1;
+          }
+
+          if (isExtraVerbose)
+          {
+               std::println();
+               std::println("String Table Dump:");
+               std::println("Size: {} bytes", config.stringArray.size());
+
+               if (!config.stringArray.empty())
+               {
+                    constexpr std::size_t RowSize = 16;
+                    const auto rows = (config.stringArray.size() + RowSize - 1) / RowSize;
+
+                    for (std::size_t row = 0; row < rows; row++)
+                    {
+                         const auto offset = row * RowSize;
+
+                         std::print("{:08x}: ", offset);
+
+                         for (std::size_t column = 0; column < RowSize; column++)
+                         {
+                              const auto byteOffset = offset + column;
+                              if (byteOffset >= config.stringArray.size()) std::print("   ");
+                              else
+                                   std::print("{:02x} ", static_cast<std::uint8_t>(config.stringArray[byteOffset]));
+
+                              if (column == 7) std::print(" ");
+                         }
+
+                         std::print(" |");
+                         for (std::size_t column = 0; column < RowSize; column++)
+                         {
+                              const auto byteOffset = offset + column;
+                              if (byteOffset >= config.stringArray.size()) std::print(" ");
+                              else
+                              {
+                                   const auto byte = static_cast<std::uint8_t>(config.stringArray[byteOffset]);
+                                   if (byte >= 32 && byte < 127) std::print("{}", static_cast<char>(byte));
+                                   else
+                                        std::print(".");
+                              }
+                         }
+                         std::println("|");
+                    }
+                    std::println();
+               }
           }
 
           if (isVerbose) std::println("Linking objects...");

@@ -161,7 +161,7 @@ namespace ecpps::diagnostics
                requires std::is_constructible_v<TDiagnostics, TArgs...>
           [[nodiscard]] std::unique_ptr<TDiagnostics> Build(TArgs&&... args) const noexcept
           {
-               return std::make_unique<TDiagnostics>(std::forward<TArgs>(args)...);
+               return std::make_unique<TDiagnostics>(std::forward<decltype(args)>(args)...);
           }
      };
 

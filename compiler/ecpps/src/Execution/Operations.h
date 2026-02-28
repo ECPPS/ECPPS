@@ -1,9 +1,9 @@
 #pragma once
 
+#include <RuntimeAssert.h>
 #include <cstdint>
 #include <variant>
 #include "../Parsing/AST.h"
-#include "Assert.h"
 #include "Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"

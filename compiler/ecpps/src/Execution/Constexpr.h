@@ -1,6 +1,6 @@
+#include <RuntimeAssert.h>
 #include <string_view>
 #include <variant>
-#include "Assert.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Shared/Diagnostics.h"

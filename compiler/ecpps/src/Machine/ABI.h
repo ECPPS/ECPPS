@@ -1,5 +1,5 @@
 #pragma once
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -200,6 +200,10 @@ namespace ecpps::abi
                return this->_registers;
           }
           [[nodiscard]] std::size_t PointerSize(void) const noexcept { return this->_pointerSize; }
+          [[nodiscard]] typeSystem::TypeKind SizeSize(void) const noexcept { return this->sizeSize; }
+          [[nodiscard]] typeSystem::TypeKind PtrDiffSize(void) const noexcept { return this->ptrdiffSize; }
+          [[nodiscard]] typeSystem::TypeKind IntPtrSize(void) const noexcept { return this->intptrSize; }
+          [[nodiscard]] typeSystem::TypeKind BoolSize(void) const noexcept { return this->boolSize; }
 
           template <std::size_t TTo, std::size_t TFrom>
           [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
@@ -242,6 +246,11 @@ namespace ecpps::abi
 
                return value;
           }
+
+          typeSystem::TypeKind sizeSize{};
+          typeSystem::TypeKind ptrdiffSize{};
+          typeSystem::TypeKind boolSize{};
+          typeSystem::TypeKind intptrSize{};
 
      private:
           static ABI _current;

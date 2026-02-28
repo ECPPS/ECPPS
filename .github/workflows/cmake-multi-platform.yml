@@ -138,6 +138,11 @@ jobs:
         with:
           name: build-clang20-Release
           path: build
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure to download Catch2
+        shell: pwsh
+        run: cmake -S . -G Ninja --preset x64-Clang-Release
       - name: Run clang-tidy in parallel
         shell: bash
         env:
@@ -151,7 +156,9 @@ jobs:
               -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
               -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
               -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
+              -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
               -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
+              -I"${GITHUB_WORKSPACE}/out/build/x64-Clang-Release/testing/compiler/_deps/catch2" \
               -DCLANG_TIDY -DNOMINMAX
 
   run-tests:
@@ -160,18 +167,19 @@ jobs:
     needs: build-windows
     steps:
       - uses: actions/checkout@v4
-      - name: Download all build artifacts
+      - name: Download Debug build artifact
         uses: actions/download-artifact@v4
         with:
           name: build-msvc-Debug
-          path: build/Debug
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-msvc-Release
-          path: build/Release
+          path: out/build
+      - name: Debug - List downloaded files
+        shell: bash
+        run: |
+          echo "Contents of out/build:"
+          ls -la out/build/
+          echo "Looking for CTest files:"
+          find out/build -name CTestTestfile.cmake
       - name: Run tests
         shell: bash
         run: |
-          for cfg in Debug Release; do
-            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir out/build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
-          done
+          ctest --test-dir out/build/x64-Debug-MSVC --output-on-failure

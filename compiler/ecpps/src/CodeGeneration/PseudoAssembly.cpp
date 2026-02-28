@@ -1,5 +1,5 @@
 #include "PseudoAssembly.h"
-#include <Assert.h>
+#include <RuntimeAssert.h>
 #include <Shared/Diagnostics.h>
 #include <TypeSystem/TypeBase.h>
 #include <iterator>
@@ -364,6 +364,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto* const integralType = dynamic_cast<const ecpps::typeSystem::IntegralType*>(type);
                sizeInBytes = integralType->Size();
           }
+          else if (ecpps::typeSystem::IsPointer(type))
+               sizeInBytes = ecpps::abi::ABI::Current().PointerSize();
           else
           {
                // TODO: Assert IsFloatingPoint & add float support
@@ -456,6 +458,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto* integralType = type->CastTo<ecpps::typeSystem::IntegralType>();
                sizeInBytes = integralType->Size();
           }
+          else if (ecpps::typeSystem::IsPointer(type))
+               sizeInBytes = ecpps::abi::ABI::Current().PointerSize();
           else
           {
                // TODO: Assert IsFloatingPoint & add float support
@@ -795,7 +799,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto instructionIndex = code.size();
 
           code.emplace_back(ecpps::codegen::TakeAddressInstruction{
-              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()}, 0, movWidth},
+              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
+                                                    context.GetStringOffset(stringIndex), movWidth},
               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
           context.AddStringPatch(instructionIndex, ecpps::InstructionPatchType::LeaFrom, stringIndex);
 

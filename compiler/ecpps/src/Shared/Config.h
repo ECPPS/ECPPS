@@ -86,6 +86,14 @@ namespace ecpps
           std::bitset<std::to_underlying(Optimisation::Count)> features{};
      };
 
+     enum struct Size : std::uint_fast8_t
+     {
+          Short,
+          Int,
+          Long,
+          LongLong
+     };
+
      struct CompilerConfig
      {
           explicit CompilerConfig(int argc,
@@ -102,6 +110,11 @@ namespace ecpps
           StringPooling stringPooling = StringPooling::Exact;
           std::vector<char8_t> stringArray{};
           OptimisationFeatureSets optimisations{};
+
+          Size sizeSize{};
+          Size ptrdiffSize{};
+          Size boolSize{};
+          Size intptrSize{};
 
           [[noreturn]] static void PrintVersionAndExit(void);
           [[noreturn]] static void PrintHelpAndExit(void);
