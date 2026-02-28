@@ -192,11 +192,12 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
      SECTION("Type error in IR generation")
      {
           const char* type_error_code = R"(
-            int main() {
-                int* p = 42; // Type error: can't assign int to int*
-                return 0;
-            }
-        )";
+          int main()
+          {
+               int* p = 42; // Type error: can't assign int to int*
+               return 0;
+          }
+          )";
 
           auto tokens = TokeniseSource(type_error_code);
           Diagnostics diagnostics;
@@ -209,6 +210,7 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
                // IR generation should detect type error
                auto ir = IR::Parse(diagnostics, irAllocator, ast);
                INFO("Type error should be caught");
+               REQUIRE(!diagnostics.diagnosticsList.empty());
           }
      }
 }

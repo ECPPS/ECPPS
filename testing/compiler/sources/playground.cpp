@@ -9,11 +9,7 @@
 DLLIMPORT extern "C" void ExitProcess(unsigned);
 DLLIMPORT extern "C" void DebugBreak();
 
-int main()
-{
-     const char* meow1 = "0";
-     return "0"[0];
-}
+int main() { decltype(auto) x = 0 [auto("0")]; }
 
 #ifdef __ecpps_version
 extern "C" void _EntryPoint() { ExitProcess(main()); }

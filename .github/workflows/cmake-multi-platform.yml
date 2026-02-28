@@ -173,6 +173,4 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          for cfg in Debug Release; do
-            [ -f "build/$cfg/CTestTestfile.cmake" ] && ctest --test-dir out/build/testing/compiler --output-on-failure -C "$cfg" || echo "No tests for $cfg"
-          done
+          ctest --test-dir out/build/x64-Debug-MSVC --output-on-failure

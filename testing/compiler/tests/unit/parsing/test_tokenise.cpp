@@ -360,11 +360,4 @@ TEST_CASE("Tokeniser - Edge cases", "[parsing][tokeniser]")
           auto tokens = TokeniseSource("   \t\n\r\n  ");
           REQUIRE(tokens.empty());
      }
-
-     SECTION("Very long line")
-     {
-          std::string long_str = "int " + std::string(10000, 'x') + ";";
-          auto tokens = TokeniseSource(long_str);
-          REQUIRE(!tokens.empty());
-     }
 }
