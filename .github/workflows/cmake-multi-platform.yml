@@ -171,7 +171,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-msvc-Debug
-          path: .
+          path: out/build
+      - name: Debug - List downloaded files
+        shell: bash
+        run: |
+          echo "Contents of out/build:"
+          ls -la out/build/
+          echo "Looking for CTest files:"
+          find out/build -name CTestTestfile.cmake
       - name: Run tests
         shell: bash
         run: |
