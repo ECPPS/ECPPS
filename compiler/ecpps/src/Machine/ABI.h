@@ -65,6 +65,7 @@ namespace ecpps::abi
           }
 
           [[nodiscard]] virtual StorageRef ReserveStorage(const StorageRequirement& request) = 0;
+          [[nodiscard]] virtual std::size_t GetParameterAdjustment(void) const = 0;
 
      protected:
           virtual std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const = 0;

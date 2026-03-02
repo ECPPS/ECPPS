@@ -23,7 +23,7 @@ using ecpps::codegen::Routine;
 #ifdef __clang__
 [[clang::no_sanitize("address")]]
 #endif
-std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
+std::unordered_map<std::string, std::string> ecpps::codegen::g_functionImports{};
 
 constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
 {
@@ -605,14 +605,30 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto& parameter = *parameterIterator++;
 
                const auto operand = ParseExpression(context, code, argument);
+
+               ecpps::codegen::Operand destination;
+               if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
+               {
+                    destination =
+                        ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+               }
+               else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
+               {
+                    const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
+                    destination = ecpps::codegen::MemoryLocationOperand{
+                        ecpps::codegen::RegisterOperand{memLoc.reg}, memLoc.offset, parameter.type->Size() * CHAR_BIT};
+               }
+               else
+               {
+                    throw TracedException("Invalid parameter storage type in function call");
+               }
+
                code.emplace_back(
-                   ecpps::codegen::MovInstruction{operand,
-                                                  ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                                                      std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
-                                                  parameter.type->Size() * CHAR_BIT});
+                   ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
           }
 
-          if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+          if (function.isDllImportExport)
+               ecpps::codegen::g_functionImports.emplace(functionName, function.dllImportName);
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
           callAbi->Finish(code);
 
@@ -730,6 +746,10 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           return ecpps::codegen::RegisterOperand{storage.Ptr()};
      }
+     if (auto* const ptrConvert = dynamic_cast<ecpps::ir::PointerConversionNode*>(value.get()); ptrConvert != nullptr)
+     {
+          return ParseExpression(context, code, ptrConvert->Operand());
+     }
      if (auto* const postIncrement = dynamic_cast<ecpps::ir::PostIncrementNode*>(value.get()); postIncrement != nullptr)
      {
           if (postIncrement->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
@@ -844,8 +864,14 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           auto& varParam = context.functionParameters[paramNode->Index()];
           if (std::holds_alternative<ecpps::abi::AllocatedRegister>(varParam.value))
                return ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(varParam.value).Ptr()};
-          // if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
-          throw TracedException("not implemented");
+          if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
+          {
+               const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(varParam.value);
+               const std::size_t adjustedOffset = memLoc.offset + context.stackFrameAdjustment;
+               return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg}, adjustedOffset,
+                                                            abi.PointerSize() * ecpps::typeSystem::CharWidth};
+          }
+          throw TracedException("Invalid parameter storage type");
      }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
@@ -897,6 +923,9 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
                                              std::move(storage), request});
      }
+
+     context.stackFrameAdjustment = stackManager->GetParameterAdjustment();
+
      context.functionParameters = parentCallingConvention.LocateParameters(
          ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
                                         ecpps::abi::RequiredStorageKind::Integer},
@@ -942,14 +971,31 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                     const auto& parameter = *parameterIterator++;
 
                     const auto operand = ParseExpression(context, instructions, argument);
-                    instructions.emplace_back(ecpps::codegen::MovInstruction{
-                        operand,
-                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                            std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
-                        parameter.type->Size() * CHAR_BIT});
+
+                    ecpps::codegen::Operand destination;
+                    if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
+                    {
+                         destination = ecpps::codegen::RegisterOperand{
+                             std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+                    }
+                    else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
+                    {
+                         const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
+                         destination =
+                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg},
+                                                                   memLoc.offset, parameter.type->Size() * CHAR_BIT};
+                    }
+                    else
+                    {
+                         throw TracedException("Invalid parameter storage type in function call");
+                    }
+
+                    instructions.emplace_back(
+                        ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
                }
 
-               if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+               if (function.isDllImportExport)
+                    ecpps::codegen::g_functionImports.emplace(functionName, function.dllImportName);
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)

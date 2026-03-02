@@ -6,7 +6,6 @@
 #include "Machine/Storage.h"
 #ifndef NDEBUG
 #endif
-#include <ranges>
 #include <stdexcept>
 #include <vector>
 #include "../CodeGeneration/Nodes.h"
@@ -389,38 +388,69 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
 {
      std::vector<ecpps::abi::StorageRef> result{};
      result.reserve(parameters.size());
-     // TODO: Caller saved return storage
-     std::size_t currentIndex = parameters.size();
      std::size_t stackIndex = this->_shadowSpace; // NOLINT
+     std::size_t shadowOffset = 8;
 
-     for (const auto& parameter : parameters | std::views::reverse)
+     for (std::size_t parameterIndex = 0; parameterIndex < parameters.size(); ++parameterIndex)
      {
-          const auto parameterIndex = --currentIndex;
+          const auto& parameter = parameters[parameterIndex];
           StorageRef storage = nullptr;
-          switch (parameterIndex)
+
+          if (parameterIndex < 4)
           {
-          case 0:
-               storage =
-                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "rcx", abi::RegisterAllocation::Priority);
+               const std::size_t widthInBits = parameter.size * CHAR_BIT;
+               std::string registerName;
+
+               switch (widthInBits)
+               {
+               case 64:
+               {
+                    const auto regs = std::to_array<std::string_view>({"rcx", "rdx", "r8", "r9"});
+                    registerName = regs[parameterIndex];
+               }
                break;
-          case 1:
-               storage =
-                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "rdx", abi::RegisterAllocation::Priority);
+               case 32:
+               {
+                    const auto regs = std::to_array<std::string_view>({"ecx", "edx", "r8d", "r9d"});
+                    registerName = regs[parameterIndex];
+               }
                break;
-          case 2:
-               storage =
-                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "r8", abi::RegisterAllocation::Priority);
+               case 16:
+               {
+                    const auto regs = std::to_array<std::string_view>({"cx", "dx", "r8w", "r9w"});
+                    registerName = regs[parameterIndex];
+               }
                break;
-          case 3:
-               storage =
-                   ABI::Current().AllocateRegister(parameter.size * CHAR_BIT, "r9", abi::RegisterAllocation::Priority);
+               case 8:
+               {
+                    const auto regs = std::to_array<std::string_view>({"cx", "dx", "r8w", "r9w"});
+                    registerName = regs[parameterIndex];
+               }
                break;
-          default:
+               default: registerName = ""; break;
+               }
+
+               if (!registerName.empty())
+               {
+                    auto allocatedReg =
+                        ABI::Current().AllocateRegister(widthInBits, registerName, abi::RegisterAllocation::Priority);
+
+                    if (allocatedReg.Ptr() != nullptr) { storage = StorageRef{std::move(allocatedReg)}; }
+               }
+
+               if (std::holds_alternative<std::monostate>(storage.value))
+               {
+                    storage = StorageRef{
+                        MemoryLocation{.offset = shadowOffset, .reg = ABI::Current().StackPointerRegister()}};
+               }
+               shadowOffset += 8;
+          }
+          else
           {
-               // TODO: Stack
+               storage = StorageRef{MemoryLocation{.offset = stackIndex, .reg = ABI::Current().StackPointerRegister()}};
+               stackIndex += std::max<std::size_t>(parameter.size, 8);
           }
-          break;
-          }
+
           result.push_back(std::move(storage));
      }
 
@@ -436,6 +466,8 @@ ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetReq
           runtime_assert(integralType != nullptr, std::format("Integral type `{}` was not integral", type->RawName()));
           return StorageRequirement{integralType->Size(), integralType->Alignment(), RequiredStorageKind::Integer};
      }
+
+     if (IsPointer(type)) { return StorageRequirement{8, 8, RequiredStorageKind::Integer}; }
      if (IsFloatingPoint(type))
      {
           // TODO: Implement floating-point types
@@ -449,9 +481,7 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
 {
      explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
                                        const ecpps::abi::CallingConvention& callingConvention)
-         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
-           //_currentStackSize(0)
-           _currentStackSize(this->_currentCallingConvention.get().ShadowSpaceSize())
+         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention))
      {
      }
      [[nodiscard]] ecpps::abi::StorageRef ReserveStorage(const ecpps::abi::StorageRequirement& request) final
@@ -469,13 +499,18 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
               ecpps::abi::MemoryLocation{.offset = variableOffset, .reg = ABI::Current().StackPointerRegister()}};
      }
 
+     [[nodiscard]] std::size_t GetParameterAdjustment(void) const final
+     {
+          return ((this->_currentStackSize + 15) & ~15) + 8;
+     }
+
 protected:
      [[nodiscard]] std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const final;
      [[nodiscard]] std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const final;
 
 private:
      std::reference_wrapper<const ecpps::abi::CallingConvention> _currentCallingConvention;
-     std::size_t _currentStackSize;
+     std::size_t _currentStackSize{};
 };
 
 std::unique_ptr<ecpps::abi::ProcedureStackManager> ecpps::abi::MicrosoftX64CallingConvention::BeginStack(
