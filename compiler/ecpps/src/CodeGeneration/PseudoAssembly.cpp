@@ -954,7 +954,8 @@ static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
           if (additionAssign->Right() != nullptr)
                ScanNodeForFunctionCalls(additionAssign->Right()->Value().get(), foundCalls);
      }
-     else throw TracedException("not implemented");
+     else
+          throw TracedException("not implemented");
 }
 
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)
