@@ -619,9 +619,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                         ecpps::codegen::RegisterOperand{memLoc.reg}, memLoc.offset, parameter.type->Size() * CHAR_BIT};
                }
                else
-               {
                     throw TracedException("Invalid parameter storage type in function call");
-               }
 
                code.emplace_back(
                    ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
@@ -1069,9 +1067,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                                                                    memLoc.offset, parameter.type->Size() * CHAR_BIT};
                     }
                     else
-                    {
                          throw TracedException("Invalid parameter storage type in function call");
-                    }
 
                     instructions.emplace_back(
                         ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
