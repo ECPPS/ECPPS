@@ -388,7 +388,7 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
 {
      std::vector<ecpps::abi::StorageRef> result{};
      result.reserve(parameters.size());
-     std::size_t stackIndex = this->_shadowSpace; // NOLINT
+     std::size_t stackIndex = this->_shadowSpace;
      std::size_t shadowOffset = 8;
 
      for (std::size_t parameterIndex = 0; parameterIndex < parameters.size(); ++parameterIndex)
@@ -477,11 +477,23 @@ ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetReq
      throw nullptr; // FIXME: Obvious
 }
 
+std::size_t ecpps::abi::MicrosoftX64CallingConvention::CalculateArgumentStackSpace(
+    [[maybe_unused]] StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const
+{
+     if (parameters.size() <= 4) return 0;
+
+     std::size_t stackSpace = 0;
+     for (std::size_t i = 4; i < parameters.size(); ++i) { stackSpace += std::max<std::size_t>(parameters[i].size, 8); }
+
+     return stackSpace;
+}
+
 struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
 {
      explicit Microsoftx64StackManager(std::vector<ecpps::codegen::Instruction>& instructions,
                                        const ecpps::abi::CallingConvention& callingConvention)
-         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention))
+         : ProcedureStackManager(instructions), _currentCallingConvention(std::ref(callingConvention)),
+           _currentStackSize(callingConvention.ShadowSpaceSize())
      {
      }
      [[nodiscard]] ecpps::abi::StorageRef ReserveStorage(const ecpps::abi::StorageRequirement& request) final
@@ -501,7 +513,13 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
 
      [[nodiscard]] std::size_t GetParameterAdjustment(void) const final
      {
-          return ((this->_currentStackSize + 15) & ~15) + 8;
+          return (((this->_currentStackSize) + 15) & ~15) + 16;
+     }
+     void AfterParameters(void) const override {}
+     void ReserveCallArgumentSpace(std::size_t argumentStackSpace) final
+     {
+          this->_maxCallArgumentSpace = std::max(this->_maxCallArgumentSpace, argumentStackSpace);
+          this->_currentStackSize += argumentStackSpace;
      }
 
 protected:
@@ -511,6 +529,7 @@ protected:
 private:
      std::reference_wrapper<const ecpps::abi::CallingConvention> _currentCallingConvention;
      std::size_t _currentStackSize{};
+     std::size_t _maxCallArgumentSpace{};
 };
 
 std::unique_ptr<ecpps::abi::ProcedureStackManager> ecpps::abi::MicrosoftX64CallingConvention::BeginStack(
