@@ -168,7 +168,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
       - name: Configure to download Catch2
         shell: pwsh
-        run: cmake -S . -G Ninja --preset x64-Clang-Release -DBUILD_TESTING=OFF
+        run: cmake -S . -G Ninja --preset x64-Clang-Release -DBUILD_TESTING=ON
       - name: Run clang-tidy in parallel
         shell: bash
         env:
