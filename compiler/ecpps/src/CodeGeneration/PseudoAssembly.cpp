@@ -605,14 +605,27 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto& parameter = *parameterIterator++;
 
                const auto operand = ParseExpression(context, code, argument);
+
+               ecpps::codegen::Operand destination;
+               if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
+               {
+                    destination =
+                        ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+               }
+               else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
+               {
+                    const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
+                    destination = ecpps::codegen::MemoryLocationOperand{
+                        ecpps::codegen::RegisterOperand{memLoc.reg}, memLoc.offset, parameter.type->Size() * CHAR_BIT};
+               }
+               else
+                    throw TracedException("Invalid parameter storage type in function call");
+
                code.emplace_back(
-                   ecpps::codegen::MovInstruction{operand,
-                                                  ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                                                      std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
-                                                  parameter.type->Size() * CHAR_BIT});
+                   ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
           }
 
-          if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+          if (function.isDllImportExport) ecpps::codegen::g_functionImports.insert(functionName);
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
           callAbi->Finish(code);
 
@@ -844,8 +857,14 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           auto& varParam = context.functionParameters[paramNode->Index()];
           if (std::holds_alternative<ecpps::abi::AllocatedRegister>(varParam.value))
                return ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(varParam.value).Ptr()};
-          // if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
-          throw TracedException("not implemented");
+          if (std::holds_alternative<ecpps::abi::MemoryLocation>(varParam.value))
+          {
+               const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(varParam.value);
+               const std::size_t adjustedOffset = memLoc.offset + context.stackFrameAdjustment;
+               return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg}, adjustedOffset,
+                                                            abi.PointerSize() * ecpps::typeSystem::CharWidth};
+          }
+          throw TracedException("Invalid parameter storage type");
      }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
@@ -870,6 +889,73 @@ static void CompileReturn(ecpps::codegen::AssemblyContext& context, std::vector<
      code.emplace_back(ecpps::codegen::ReturnInstruction{});
 }
 
+static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
+                                     std::vector<const ecpps::ir::FunctionCallNode*>& foundCalls)
+{
+     if (node == nullptr) return;
+
+     if (const auto* call = dynamic_cast<const ecpps::ir::FunctionCallNode*>(node); call != nullptr)
+     {
+          foundCalls.push_back(call);
+
+          for (const auto& arg : call->Arguments())
+          {
+               if (arg != nullptr) ScanNodeForFunctionCalls(arg->Value().get(), foundCalls);
+          }
+     }
+     else if (const auto* returnNode = dynamic_cast<const ecpps::ir::ReturnNode*>(node); returnNode != nullptr)
+     {
+          if (returnNode->HasValue()) ScanNodeForFunctionCalls(returnNode->Value()->Value().get(), foundCalls);
+     }
+     else if (const auto* store = dynamic_cast<const ecpps::ir::StoreNode*>(node); store != nullptr)
+     {
+          ScanNodeForFunctionCalls(store->Value()->Value().get(), foundCalls);
+     }
+     else if (const auto* addition = dynamic_cast<const ecpps::ir::AdditionNode*>(node); addition != nullptr)
+     {
+          ScanNodeForFunctionCalls(addition->Left()->Value().get(), foundCalls);
+          ScanNodeForFunctionCalls(addition->Right()->Value().get(), foundCalls);
+     }
+     else if (const auto* subtraction = dynamic_cast<const ecpps::ir::SubtractionNode*>(node); subtraction != nullptr)
+     {
+          ScanNodeForFunctionCalls(subtraction->Left()->Value().get(), foundCalls);
+          ScanNodeForFunctionCalls(subtraction->Right()->Value().get(), foundCalls);
+     }
+     else if (const auto* multiplication = dynamic_cast<const ecpps::ir::MultiplicationNode*>(node);
+              multiplication != nullptr)
+     {
+          ScanNodeForFunctionCalls(multiplication->Left()->Value().get(), foundCalls);
+          ScanNodeForFunctionCalls(multiplication->Right()->Value().get(), foundCalls);
+     }
+     else if (const auto* division = dynamic_cast<const ecpps::ir::DivideNode*>(node); division != nullptr)
+     {
+          ScanNodeForFunctionCalls(division->Left()->Value().get(), foundCalls);
+          ScanNodeForFunctionCalls(division->Right()->Value().get(), foundCalls);
+     }
+     else if (const auto* addressOf = dynamic_cast<const ecpps::ir::AddressOfNode*>(node); addressOf != nullptr)
+     {
+          ScanNodeForFunctionCalls(addressOf->Operand()->Value().get(), foundCalls);
+     }
+     else if (const auto* dereference = dynamic_cast<const ecpps::ir::DereferenceNode*>(node); dereference != nullptr)
+     {
+          ScanNodeForFunctionCalls(dereference->Operand()->Value().get(), foundCalls);
+     }
+     else if (const auto* convert = dynamic_cast<const ecpps::ir::ConvertNode*>(node); convert != nullptr)
+     {
+          ScanNodeForFunctionCalls(convert->Operand()->Value().get(), foundCalls);
+     }
+     else if (const auto* additionAssign = dynamic_cast<const ecpps::ir::AdditionAssignNode*>(node);
+              additionAssign != nullptr)
+     {
+          if (additionAssign->Left() != nullptr)
+               ScanNodeForFunctionCalls(additionAssign->Left()->Value().get(), foundCalls);
+          if (additionAssign->Right() != nullptr)
+               ScanNodeForFunctionCalls(additionAssign->Right()->Value().get(), foundCalls);
+     }
+     else
+          throw TracedException("not implemented");
+}
+
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};
@@ -877,6 +963,27 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      const auto& parentCallingConvention = currentAbi.CallingConventionFromName(node.CallingConvention());
 
      auto stackManager = parentCallingConvention.BeginStack(instructions);
+
+     std::vector<const ecpps::ir::FunctionCallNode*> allFunctionCalls;
+     for (const auto& line : node.Body()) { ScanNodeForFunctionCalls(line.get(), allFunctionCalls); }
+
+     std::size_t maxArgumentStackSpace = 0;
+     for (const auto* call : allFunctionCalls)
+     {
+          const auto& function = *call->Function();
+          const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
+          const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
+          const auto parameterSizes =
+              function.parameters |
+              std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                    { return callingConvention.GetRequirementsForType(parameter.type); }) |
+              std::ranges::to<std::vector>();
+
+          const std::size_t callStackSpace =
+              callingConvention.CalculateArgumentStackSpace(returnTypeSize, parameterSizes);
+          maxArgumentStackSpace = std::max(maxArgumentStackSpace, callStackSpace);
+     }
+     stackManager->ReserveCallArgumentSpace(maxArgumentStackSpace);
 
      std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable =
          context.symbolTables.emplace();
@@ -897,6 +1004,9 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
                                              std::move(storage), request});
      }
+
+     context.stackFrameAdjustment = stackManager->GetParameterAdjustment();
+
      context.functionParameters = parentCallingConvention.LocateParameters(
          ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
                                         ecpps::abi::RequiredStorageKind::Integer},
@@ -942,14 +1052,28 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                     const auto& parameter = *parameterIterator++;
 
                     const auto operand = ParseExpression(context, instructions, argument);
-                    instructions.emplace_back(ecpps::codegen::MovInstruction{
-                        operand,
-                        ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                            std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()}},
-                        parameter.type->Size() * CHAR_BIT});
+
+                    ecpps::codegen::Operand destination;
+                    if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
+                    {
+                         destination = ecpps::codegen::RegisterOperand{
+                             std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+                    }
+                    else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
+                    {
+                         const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
+                         destination =
+                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg},
+                                                                   memLoc.offset, parameter.type->Size() * CHAR_BIT};
+                    }
+                    else
+                         throw TracedException("Invalid parameter storage type in function call");
+
+                    instructions.emplace_back(
+                        ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
                }
 
-               if (function.isDllImportExport) ecpps::codegen::g_functionImports.emplace(functionName);
+               if (function.isDllImportExport) ecpps::codegen::g_functionImports.insert(functionName);
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)

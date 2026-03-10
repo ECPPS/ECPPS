@@ -85,7 +85,7 @@ jobs:
 
       - name: Configure
         shell: pwsh
-        run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }}
+        run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }} -DBUILD_TESTING=OFF
       - name: Build
         shell: pwsh
         run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
@@ -94,6 +94,32 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}-${{ matrix.build_type }}
+          path: |
+            out/build
+            out/build/compile_commands.json
+
+  build-tests:
+    name: Build Tests
+    runs-on: windows-latest
+    needs: clang-format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure with BUILD_TESTING=ON
+        shell: pwsh
+        run: cmake -S . -G Ninja --preset x64-MSVC-Debug -DBUILD_TESTING=ON
+
+      - name: Build tests
+        shell: pwsh
+        run: cmake --build build --preset x64-MSVC-Debug-Parallel --parallel
+
+      - name: Upload test build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-tests
           path: |
             out/build
             out/build/compile_commands.json
@@ -115,7 +141,7 @@ jobs:
       - name: Configure (ASan)
         shell: pwsh
         run: |
-          cmake -S . --preset x64-MSVC-Debug-ASan
+          cmake -S . --preset x64-MSVC-Debug-ASan -DBUILD_TESTING=ON
 
       - name: Build (ASan)
         shell: pwsh
@@ -142,7 +168,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
       - name: Configure to download Catch2
         shell: pwsh
-        run: cmake -S . -G Ninja --preset x64-Clang-Release
+        run: cmake -S . -G Ninja --preset x64-Clang-Release -DBUILD_TESTING=ON
       - name: Run clang-tidy in parallel
         shell: bash
         env:
@@ -164,13 +190,13 @@ jobs:
   run-tests:
     name: Run Tests
     runs-on: windows-latest
-    needs: build-windows
+    needs: build-tests
     steps:
       - uses: actions/checkout@v4
-      - name: Download Debug build artifact
+      - name: Download test build artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-msvc-Debug
+          name: build-tests
           path: out/build
       - name: Debug - List downloaded files
         shell: bash

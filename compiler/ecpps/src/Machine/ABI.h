@@ -65,10 +65,13 @@ namespace ecpps::abi
           }
 
           [[nodiscard]] virtual StorageRef ReserveStorage(const StorageRequirement& request) = 0;
+          [[nodiscard]] virtual std::size_t GetParameterAdjustment(void) const = 0;
+          virtual void AfterParameters(void) const = 0;
+          virtual void ReserveCallArgumentSpace(std::size_t argumentStackSpace) = 0;
 
      protected:
-          virtual std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const = 0;
-          virtual std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const = 0;
+          [[nodiscard]] virtual std::vector<ecpps::codegen::Instruction> GeneratePrologue(void) const = 0;
+          [[nodiscard]] virtual std::vector<ecpps::codegen::Instruction> GenerateEpilogue(void) const = 0;
 
      private:
           DebugOnly<bool> _wasFinished = false;
@@ -124,6 +127,8 @@ namespace ecpps::abi
               std::vector<ecpps::codegen::Instruction>&) const = 0;
           [[nodiscard]] virtual std::unique_ptr<CallTemporaryProxy> PrepareForCall(
               std::vector<ecpps::codegen::Instruction>& instructions) = 0;
+          [[nodiscard]] virtual std::size_t CalculateArgumentStackSpace(
+              StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const = 0;
 
      protected:
           CallingConventionName _name;
@@ -145,6 +150,8 @@ namespace ecpps::abi
               std::vector<ecpps::codegen::Instruction>& instructions) const final override;
           [[nodiscard]] std::unique_ptr<CallTemporaryProxy> PrepareForCall(
               std::vector<ecpps::codegen::Instruction>& instructions) final override;
+          [[nodiscard]] std::size_t CalculateArgumentStackSpace(
+              StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const final;
      };
 
      enum struct RegisterAllocation : bool
@@ -154,7 +161,7 @@ namespace ecpps::abi
      };
 
      template <typename T>
-     concept NarrowCharArray = std::same_as<unsigned char[], T> || std::same_as<char8_t[], T>;
+     concept NarrowCharArray = std::same_as<unsigned char[], T> || std::same_as<char8_t[], T>; // NOLINT
 
      class ABI
      {
