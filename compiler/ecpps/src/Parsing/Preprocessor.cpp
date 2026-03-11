@@ -2,12 +2,14 @@
 #include <RuntimeAssert.h>
 #include <algorithm>
 #include <cctype>
+#include <fstream>
+#include <iterator>
 #include <print>
 #include <unordered_map>
 #include <unordered_set>
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
-                                                                  std::vector<MacroReplacement>& macros)
+                                                                  std::vector<MacroReplacement>& macros, const std::string& fileName)
 {
      std::vector<ecpps::PreprocessingToken> tokens{};
      Location location{1, 0, 0};
@@ -93,8 +95,38 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (delimiter == '<' && sourceIterator != source.end()) ++sourceIterator; // skip closing '>'
                     }
 
-                    // Here: handle include (load file tokens recursively)
-                    // Example: tokens = Preprocessor::ParseFile(header);
+                    std::filesystem::path resolvedPath;
+                    bool found = false;
+
+                    auto tryFile = [&](const std::filesystem::path& base)
+                    {
+                         std::filesystem::path candidate = base / header;
+                         if (std::filesystem::exists(candidate))
+                         {
+                              resolvedPath = std::filesystem::canonical(candidate);
+                              found = true;
+                         }
+                    };
+
+                    if (delimiter == '"') tryFile(std::filesystem::path(fileName).parent_path());
+
+                    // if (!found)
+                    // {
+                    //      for (const auto& dir : includeDirectories)
+                    //      {
+                    //           tryFile(dir);
+                    //           if (found) break;
+                    //      }
+                    // }
+
+                    if (!found) { throw std::runtime_error("include file not found: " + header); }
+
+                    std::ifstream file(resolvedPath, std::ios::binary);
+                    if (!file) { throw std::runtime_error("failed to open include: " + resolvedPath.string()); }
+
+                    std::string includedSource{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+
+                    tokens.append_range(Parse(includedSource, macros, resolvedPath.string()));
                }
                else if (directive == "define")
                {
@@ -208,7 +240,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                          Advance(sourceIterator);
                     }
-                    auto parsed = Parse(builtSource, macros);
+                    auto parsed = Parse(builtSource, macros, fileName);
                     for (auto& token : parsed) token.source.line += previousLine - 1;
                     location.line++;
 
@@ -615,7 +647,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
                                                                     const ecpps::Location& location)
 {
      std::vector<ecpps::MacroReplacement> macros{};
-     auto tokens = ecpps::Preprocessor::Parse(expanded, macros);
+     auto tokens = ecpps::Preprocessor::Parse(expanded, macros, "");
      runtime_assert(macros.empty(), "Expansion cannot introduce new macros");
      for (auto& token : tokens) token.source = location;
      return tokens;

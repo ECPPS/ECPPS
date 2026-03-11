@@ -164,8 +164,8 @@ int main(int argc, char* argv[])
                     std::vector<ecpps::MacroReplacement> macros{};
                     macros.emplace_back("__cplusplus", std::nullopt, "202302", false); // TODO: 202302L
                     // TODO: __DATE__
-                    // TODO: __FILE__
                     macros.emplace_back("__LINE__", std::nullopt, "1", false);
+                    macros.emplace_back("__FILE__", std::nullopt, "\"" + source.name + "\"", false);
                     // TODO: __STDC_HOSTED__
                     // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
                     // TODO: __STDCPP_FLOAT16_T__
@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
 
-                    const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros);
+                    const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros, source.name);
                     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Tokens:");

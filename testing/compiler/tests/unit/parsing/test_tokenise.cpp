@@ -13,7 +13,7 @@ using namespace ecpps;
 static std::vector<Token> TokeniseSource(const std::string& source)
 {
      std::vector<MacroReplacement> macros;
-     auto ppTokens = Preprocessor::Parse(source, macros);
+     auto ppTokens = Preprocessor::Parse(source, macros, "");
      return Tokeniser::Tokenise(ppTokens);
 }
 

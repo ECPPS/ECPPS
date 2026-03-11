@@ -1680,6 +1680,12 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
      {
           const auto& value = basicType->Value();
 
+          const auto qualifiers = basicType->IsConst() && basicType->IsVolatile()
+                                      ? typeSystem::Qualifiers::ConstVolatile
+                                  : basicType->IsConst()    ? typeSystem::Qualifiers::Const
+                                  : basicType->IsVolatile() ? typeSystem::Qualifiers::Volatile
+                                                            : typeSystem::Qualifiers::None;
+
           const auto scopeCount = this->_context.contextSequence.Size();
           for (std::size_t i = scopeCount; i > 0; --i)
           {
@@ -1708,6 +1714,10 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
                     {
                          request.kind = TypeKind::Fundamental;
                          request.data = VoidRequest{};
+                    }
+                    else
+                    {
+                         throw TracedException("Type aliases for this kind of type not yet implemented");
                     }
 
                     if (basicType->IsConst() && basicType->IsVolatile())
@@ -1753,6 +1763,18 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           const auto has = [&](std::string_view t) { return std::ranges::contains(tokens, t); };
 
           const auto longCount = std::ranges::count(tokens, "long");
+
+          const bool isChar = has("char");
+          const bool isShort = has("short");
+          const bool isInt = has("int");
+          const bool isLong = longCount > 0;
+
+          if (!(isChar || isShort || isInt || isLong))
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Invalid type specifier: " + value,
+                                                                                   basicType->Source()));
+          }
 
           if (has("char") && !has("signed") && !has("unsigned")) { signedRequest.isCharWithoutSign = true; }
           else
