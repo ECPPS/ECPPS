@@ -88,7 +88,7 @@ jobs:
         run: cmake -S . -G Ninja --preset x64-${{ matrix.compiler }}-${{ matrix.build_type }} -DBUILD_TESTING=OFF
       - name: Build
         shell: pwsh
-        run: cmake --build build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
+        run: cmake --build --preset "x64-${{ matrix.compiler }}-${{ matrix.build_type }}-Parallel" --parallel
           
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -145,7 +145,7 @@ jobs:
 
       - name: Build (ASan)
         shell: pwsh
-        run: cmake --build build-asan --preset x64-MSVC-Debug-ASan-Parallel --parallel
+        run: cmake --build --preset x64-MSVC-Debug-ASan-Parallel --parallel
 
       - name: Run tests (ASan)
         shell: pwsh
