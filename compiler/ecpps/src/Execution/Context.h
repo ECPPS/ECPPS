@@ -383,6 +383,7 @@ namespace ecpps::ir
                              typeSystem::TypePointerEqual>
               types{};
           std::vector<std::shared_ptr<FunctionScope>> functions{};
+          std::unordered_map<std::string, typeSystem::NonowningTypePointer> typeAliases{};
      };
      using ScopePtr = std::shared_ptr<Scope>;
 
@@ -460,6 +461,8 @@ namespace ecpps::ir
           abi::CallingConventionName callingConvention{};
           abi::Linkage linkage{};
           bool isDllImportExport = false;
+          std::string dllImportName{};
+          Location source{0, 0, 0};
 
           struct Parameter
           {
@@ -571,6 +574,14 @@ namespace ecpps::ir
               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isDllImportExport>(value);
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState> DllImportName(std::string value) && noexcept
+          {
+               return std::move(*this).template PropertySetter<&FunctionScope::dllImportName>(std::move(value));
+          }
+          [[nodiscard]] FunctionScopeBuilder<TState> Source(Location value) && noexcept
+          {
+               return std::move(*this).template PropertySetter<&FunctionScope::source>(std::move(value));
           }
 
           [[nodiscard]] std::unique_ptr<FunctionScope> Build(void) && noexcept

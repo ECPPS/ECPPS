@@ -430,6 +430,28 @@ namespace ecpps::ast
           NodePointer _expression;
      };
 
+     class TypeAliasNode final : public Node
+     {
+     public:
+          explicit TypeAliasNode(NodePointer aliasName, NodePointer targetType, Location source)
+              : Node(source), _aliasName(std::move(aliasName)), _targetType(std::move(targetType))
+          {
+          }
+
+          [[nodiscard]] const NodePointer& AliasName(void) const noexcept { return this->_aliasName; }
+          [[nodiscard]] const NodePointer& TargetType(void) const noexcept { return this->_targetType; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "using " + this->_aliasName->ToString(0) + " = " +
+                      this->_targetType->ToString(0);
+          }
+
+     private:
+          NodePointer _aliasName;
+          NodePointer _targetType;
+     };
+
      class VariableDeclarationNode final : public Node
      {
      public:
@@ -599,7 +621,7 @@ namespace ecpps::ast
 
           // General
           std::unique_ptr<IdentifierNode, ASTContext::Deleter> ParseIdentifier(ASTContext& context);
-          NodePointer ParseSimpleTypeSpecifier(ASTContext& context);
+          NodePointer ParseSimpleTypeSpecifier(ASTContext& context, bool isConst = false, bool isVolatile = false);
 
           // Declarations
           NodePointer ParseDeclaration(ASTContext& context);

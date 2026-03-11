@@ -6,7 +6,7 @@
 
 std::string ecpps::codegen::RegisterOperand::ToString(void) const { return this->_index->friendlyName; }
 
-std::string ecpps::codegen::IntegerOperand::ToString(void) const { return std::to_string(this->_value); }
+std::string ecpps::codegen::IntegerOperand::ToString(void) const { return std::format("0x{:x}", this->_value); }
 
 std::string ecpps::codegen::MemoryLocationOperand::ToString(void) const
 {

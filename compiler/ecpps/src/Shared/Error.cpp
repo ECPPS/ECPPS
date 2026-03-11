@@ -21,7 +21,8 @@ std::string ecpps::diagnostics::UnresolvedSymbolError::Message(void) const noexc
 
 std::string ecpps::diagnostics::SyntaxError::Message(void) const noexcept { return this->_message; }
 
-void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic, int indent)
+void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic, int indent,
+                                         std::size_t lastPrintedLine)
 {
      std::string colour{};
 
@@ -40,7 +41,14 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
      std::println("{}{}[{}]\x1b[0m {} : {}", std::string(indent * 5uz, ' '), location, ToString(diagnostic->Level()),
                   diagnostic->Name(), diagnostic->Message());
 
-     if (!fileName.empty() && diagnostic->Source().line > 0)
+     bool shouldPrintSource = !fileName.empty() && diagnostic->Source().line > 0;
+     if (shouldPrintSource && lastPrintedLine != 0)
+     {
+          if (lastPrintedLine == diagnostic->Source().line) shouldPrintSource = false;
+     }
+
+     std::size_t newLastPrintedLine = lastPrintedLine;
+     if (shouldPrintSource)
      {
           std::ifstream file(fileName);
           if (file)
@@ -79,15 +87,22 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                                                   ? positionMap.at(diagnostic->Source().endPosition)
                                                   : diagnostic->Source().endPosition;
 
-                         std::println("{} {}", std::string(indent * 5uz, ' '), expandedLine);
+                         std::println("{}{:<{}} {}", diagnostic->Source().line, '|', indent * 5uz, expandedLine);
                          std::println("{}   {}{}{}\x1b[0m", std::string(indent * 5uz, ' '), "   ",
                                       std::string(startPos, ' '), colour, std::string(endPos - startPos + 2, '^'));
                          break;
                     }
                }
           }
+          newLastPrintedLine = diagnostic->Source().line;
      }
 
      for (const auto& subDiagnostic : diagnostic->SubDiagnostics())
-          PrintDiagnostic(fileName, subDiagnostic, indent + 1);
+     {
+          PrintDiagnostic(fileName, subDiagnostic, indent + 1, newLastPrintedLine);
+
+          if (!fileName.empty() && subDiagnostic->Source().line > 0 &&
+              (newLastPrintedLine == 0 || subDiagnostic->Source().line != newLastPrintedLine))
+               newLastPrintedLine = subDiagnostic->Source().line;
+     }
 }

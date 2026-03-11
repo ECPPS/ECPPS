@@ -702,6 +702,48 @@ namespace ecpps::ir
           LoadNode* _loadNode;
      };
 
+     class PointerConversionNode final : public NodeBase
+     {
+     public:
+          PointerConversionNode(Expression operand, ecpps::typeSystem::NonowningTypePointer targetType, Location source)
+              : NodeBase(NodeKind::PointerConversion, source), _operand(std::move(operand)), _targetType(targetType)
+          {
+          }
+
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
+          {
+               return this->_targetType;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "__pointer_cast<" + _targetType->RawName() + ">(" +
+                      _operand->Value()->ToString(0) + ")";
+          }
+          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
+          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
+          {
+               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+                    return NodeBase::TryConstantEvaluate(evaluationContext);
+               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
+                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+               if (!operandConstexpr.has_value())
+               {
+                    operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
+                        "Converted operand did not evaluate to a constant expression", this->Source()));
+                    return operandConstexpr;
+               }
+               const auto& operand = *operandConstexpr;
+
+               return operand;
+          }
+
+     private:
+          Expression _operand;
+          ecpps::typeSystem::NonowningTypePointer _targetType;
+     };
+
      class ConvertNode final : public NodeBase
      {
      public:

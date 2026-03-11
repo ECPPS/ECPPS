@@ -1,10 +1,12 @@
 #include "IR.h"
 #include <RuntimeAssert.h>
 #include <TypeSystem/TypeBase.h>
+#include <algorithm>
 #include <format>
 #include <memory>
 #include <queue>
 #include <ranges>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -28,6 +30,203 @@
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
 using ecpps::Expression;
+
+namespace
+{
+     std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
+     {
+          std::string signature = func->name + "(";
+          bool first = true;
+          for (const auto& param : func->parameters)
+          {
+               if (!first) signature += ", ";
+               first = false;
+               signature += param.type->Name();
+               if (!param.name.empty()) signature += " " + param.name;
+          }
+          signature += ")";
+          if (func->returnType) { signature += " -> " + func->returnType->Name(); }
+          return signature;
+     }
+
+     std::size_t LevenshteinDistance(const std::string& string1, const std::string& string2)
+     {
+          const std::size_t size1 = string1.size();
+          const std::size_t size2 = string2.size();
+
+          std::vector<std::size_t> previous(size2 + 1);
+          std::vector<std::size_t> current(size2 + 1);
+          std::vector<std::size_t> previousPrevious(size2 + 1);
+
+          for (std::size_t j = 0; j <= size2; j++) previous[j] = j * 2;
+
+          for (std::size_t i = 0; i < size1; i++)
+          {
+               current[0] = (i + 1) * 2;
+
+               for (std::size_t j = 0; j < size2; j++)
+               {
+                    std::size_t cost{};
+
+                    if (string1[i] == string2[j]) cost = 0;
+                    else if (std::tolower(string1[i]) == std::tolower(string2[j]))
+                         cost = 1;
+                    else
+                         cost = 2;
+
+                    current[j + 1] = std::min({previous[j + 1] + 2, current[j] + 2, previous[j] + cost});
+
+                    if (i > 0 && j > 0 && std::tolower(string1[i]) == std::tolower(string2[j - 1]) &&
+                        std::tolower(string1[i - 1]) == std::tolower(string2[j]))
+                         current[j + 1] = std::min(current[j + 1], previousPrevious[j - 1] + 2);
+               }
+
+               previousPrevious.swap(previous);
+               previous.swap(current);
+          }
+
+          return previous[size2] / 2;
+     }
+
+     std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> CollectExactMatches(
+         const std::string& name, ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+     {
+          std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> exactMatches;
+          for (const auto& context : contextSequence)
+               for (const auto& func : context->GetScope().functions)
+                    if (func->name == name) { exactMatches.push_back(func); }
+
+          return exactMatches;
+     }
+
+     std::vector<std::pair<std::string, std::size_t>> CollectSimilarNames(
+         const std::string& name, std::size_t argumentCount,
+         ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+     {
+          std::vector<std::pair<std::string, std::size_t>> similar;
+          std::set<std::string> seen;
+
+          for (const auto& context : contextSequence)
+          {
+               for (const auto& func : context->GetScope().functions)
+               {
+                    if (seen.contains(func->name)) continue;
+
+                    seen.insert(func->name);
+
+                    const auto nameDistance = LevenshteinDistance(name, func->name);
+                    if (nameDistance == 0) continue;
+
+                    if (nameDistance > std::max<std::size_t>(3, name.length() / 3)) continue;
+
+                    const std::size_t paramCount = func->parameters.size();
+                    const std::size_t argPenalty =
+                        (paramCount > argumentCount) ? (paramCount - argumentCount) : (argumentCount - paramCount);
+
+                    const std::size_t score = nameDistance + (argPenalty * 2);
+
+                    if (score > 5) continue;
+
+                    similar.emplace_back(func->name, score);
+               }
+          }
+
+          std::ranges::sort(similar, [](const auto& a, const auto& b) { return a.second < b.second; });
+
+          return similar;
+     }
+
+     std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
+         const std::string& name, ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+     {
+          std::vector<std::pair<std::string, std::size_t>> similar;
+          std::set<std::string> seen;
+
+          for (const auto& context : contextSequence)
+          {
+               const auto& scope = context->GetScope();
+               if (const auto* const functionScope = dynamic_cast<const ecpps::ir::FunctionScope*>(&scope))
+               {
+                    for (const auto& local : functionScope->locals)
+                    {
+                         if (seen.contains(local.name)) continue;
+                         seen.insert(local.name);
+
+                         const auto distance = LevenshteinDistance(name, local.name);
+                         if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
+                              similar.emplace_back(local.name, distance);
+                    }
+               }
+
+               for (const auto& func : scope.functions)
+               {
+                    if (seen.contains(func->name)) continue;
+                    seen.insert(func->name);
+
+                    const auto distance = LevenshteinDistance(name, func->name);
+                    if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
+                         similar.emplace_back(func->name, distance);
+               }
+          }
+
+          std::ranges::sort(similar, [](const auto& a, const auto& b) { return a.second < b.second; });
+
+          return similar;
+     }
+
+     struct CandidateFailureInfo
+     {
+          std::shared_ptr<ecpps::ir::FunctionScope> function;
+          std::vector<std::pair<std::size_t, std::string>> parameterFailures; // index <=> name
+     };
+
+     CandidateFailureInfo AnalyseCandidateFailure(const std::shared_ptr<ecpps::ir::FunctionScope>& function,
+                                                  const std::vector<ecpps::Expression>& arguments)
+     {
+          CandidateFailureInfo info{.function = function, .parameterFailures = {}};
+
+          if (arguments.size() != function->parameters.size())
+          {
+               using std::string_view_literals::operator""sv;
+               info.parameterFailures.emplace_back(
+                   static_cast<std::size_t>(-1),
+                   std::format("Expected {} argument{}, got {}", function->parameters.size(),
+                               function->parameters.size() == 1 ? ""sv : "s"sv, arguments.size()));
+               return info;
+          }
+
+          auto parameterIterator = function->parameters.begin();
+          std::size_t paramIndex = 1;
+          for (const auto& argument : arguments)
+          {
+               const auto& parameter = *parameterIterator++;
+               if (argument == nullptr)
+               {
+                    info.parameterFailures.emplace_back(
+                        paramIndex, std::format("Parameter {}: Invalid argument expression", paramIndex));
+                    paramIndex++;
+                    continue;
+               }
+
+               const auto& fromType = argument->Type();
+               const auto& toType = parameter.type;
+
+               ecpps::typeSystem::ConversionSequence seq = toType->CompareTo(fromType);
+
+               if (!seq.IsValid())
+               {
+                    std::string reason = std::format("Parameter {} ({}): Cannot convert from '{}' to '{}'", paramIndex,
+                                                     parameter.name.empty() ? "<unnamed>" : parameter.name,
+                                                     fromType->Name(), toType->Name());
+                    info.parameterFailures.emplace_back(paramIndex, reason);
+               }
+
+               paramIndex++;
+          }
+
+          return info;
+     }
+} // namespace
 
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAllocator& allocator,
                                                 const std::vector<ASTNodePointer>& ast)
@@ -79,6 +278,31 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           return;
      }
 
+     if (auto* const namespaceNode = dynamic_cast<ast::NamespaceNode*>(node.get()); namespaceNode != nullptr)
+     {
+          ParseNamespace(*namespaceNode);
+          return;
+     }
+
+     if (auto* const aliasNode = dynamic_cast<ast::TypeAliasNode*>(node.get()); aliasNode != nullptr)
+     {
+          const auto* targetType = ParseType(aliasNode->TargetType());
+          if (targetType == nullptr)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "Invalid target type in using declaration", aliasNode->Source()));
+               return;
+          }
+
+          const std::string aliasName = aliasNode->AliasName()->ToString(0);
+
+          auto& currentScope = this->_context.contextSequence.Back()->GetScope();
+          currentScope.typeAliases[aliasName] = targetType;
+
+          return;
+     }
+
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
 
@@ -115,10 +339,23 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      // TODO: Error on conflicting linkage specification
 
      bool isDllImportExport{};
+     std::string dllImportName{};
 
      for (const auto& attribute : node.Signature().attributes)
      {
-          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport") isDllImportExport = true;
+          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport")
+          {
+               isDllImportExport = true;
+               // Extract optional undecorated import name from dllimport attribute
+               if (attribute->Name() == "dllimport" && attribute->Arguments().Size() > 0)
+               {
+                    const auto& firstArg = *attribute->Arguments().begin();
+                    if (std::holds_alternative<ecpps::StringLiteral>(firstArg.value))
+                    {
+                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value;
+                    }
+               }
+          }
      }
 
      auto functionScope =
@@ -128,6 +365,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
              .CallingConvention(node.Signature().callingConvention)
              .Linkage(linkage)
              .IsDllImportExport(isDllImportExport)
+             .DllImportName(dllImportName)
              .IsExtern(node.Signature().isExtern)
              .IsFriend(node.Signature().isFriend)
              .IsInline(node.Signature().isInline)
@@ -136,6 +374,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                                      ? ecpps::ir::ConstexprType::Constexpr
                                      : ecpps::ir::ConstexprType::None)
              .Parameters(parameters)
+             .Source(node.Source())
              .Build();
      functionScope->parameters = parameters;
      this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
@@ -171,10 +410,23 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      // TODO: Error on conflicting linkage specification
 
      bool isDllImportExport{};
+     std::string dllImportName{};
 
      for (const auto& attribute : node.Signature().attributes)
      {
-          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport") isDllImportExport = true;
+          if (attribute->Name() == "dllexport" || attribute->Name() == "dllimport")
+          {
+               isDllImportExport = true;
+               // Extract optional undecorated import name from dllimport attribute
+               if (attribute->Name() == "dllimport" && attribute->Arguments().Size() > 0)
+               {
+                    const auto& firstArg = *attribute->Arguments().begin();
+                    if (std::holds_alternative<ecpps::StringLiteral>(firstArg.value))
+                    {
+                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value;
+                    }
+               }
+          }
      }
 
      auto functionScope =
@@ -184,6 +436,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
              .CallingConvention(node.Signature().callingConvention)
              .Linkage(linkage)
              .IsDllImportExport(isDllImportExport)
+             .DllImportName(dllImportName)
              .IsExtern(node.Signature().isExtern)
              .IsFriend(node.Signature().isFriend)
              .IsInline(node.Signature().isInline)
@@ -192,6 +445,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                      ? ecpps::ir::ConstexprType::Constexpr
                                      : ecpps::ir::ConstexprType::None)
              .Parameters(parameters)
+             .Source(node.Source())
              .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
@@ -286,6 +540,37 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 
 void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode& node)
 {
+     if (node.GetFlags().isTypedef)
+     {
+          const auto* declaredType = ParseType(node.Type());
+          if (declaredType == nullptr)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       std::format("Unknown type {} in typedef declaration", node.Type()->ToString(0)), node.Source()));
+               return;
+          }
+
+          auto& currentScope = this->_context.contextSequence.Back()->GetScope();
+          for (const auto& decl : node.Declarators())
+          {
+               const auto* idNodePtr = decl.name.get();
+               const auto* idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
+               if (idExpr == nullptr)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                            "Expected identifier in typedef declarator", decl.name->Source()));
+                    continue;
+               }
+
+               const std::string typedefName = idExpr->Value();
+               currentScope.typeAliases[typedefName] = declaredType;
+          }
+
+          return;
+     }
+
      auto* const functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
      runtime_assert(functionContext != nullptr, "Variable declaration outside of a function is not supported");
 
@@ -541,6 +826,23 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                // for scalars it is an indeterminate Value, but TODO: class types
                // TODO: Error for references
           }
+     }
+}
+
+void ecpps::ir::IR::ParseNamespace(const ast::NamespaceNode& node)
+{
+     std::string namespaceName;
+     if (node.Name() != nullptr) { namespaceName = node.Name()->ToString(0); }
+
+     // TODO: For full namespace support, we should:
+     // - Create a new scope for the namespace
+     // - Track the namespace in the symbol table
+     // - Support qualified name lookups
+     // Although this is not within the scope of this PR
+
+     for (const auto& decl : node.Declarations())
+     {
+          if (decl != nullptr) ParseNode(decl);
      }
 }
 
@@ -891,11 +1193,6 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
           return nullptr;
      }
 
-     bool arrayOperandIsLValue = false;
-     if (leftIsArray && left->IsLValue()) arrayOperandIsLValue = true;
-     else if (rightIsArray && right->IsLValue())
-          arrayOperandIsLValue = true;
-
      // Decay array operands to pointers
      if (leftIsArray)
      {
@@ -925,19 +1222,24 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
           if (right == nullptr) return nullptr;
      }
 
+     bool arrayOperandIsLValue = false;
+     if (leftIsArray && left->IsLValue()) arrayOperandIsLValue = true;
+     else if (rightIsArray && right->IsLValue())
+          arrayOperandIsLValue = true;
+
      auto additionResult = ParseAdditiveExpression(std::move(left), ast::Operator::Plus, std::move(right), source);
      if (additionResult == nullptr) return nullptr;
 
      auto dereferenceResult = ParseDereferenceExpression(std::move(additionResult), source);
      if (dereferenceResult == nullptr) return nullptr;
 
-     if (!arrayOperandIsLValue && dereferenceResult->IsLValue())
+     if (!arrayOperandIsLValue && !dereferenceResult->IsLValue())
      {
           return std::make_unique<XValue>(dereferenceResult->Type(), std::move(*dereferenceResult).Value(),
                                           dereferenceResult->IsConstantExpression());
      }
-
-     return dereferenceResult;
+     return std::make_unique<LValue>(dereferenceResult->Type(), std::move(*dereferenceResult).Value(),
+                                     dereferenceResult->IsConstantExpression());
 }
 
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
@@ -1162,9 +1464,92 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                // TODO: Check for references; lvalue reference => lvalue; rvalue reference => xvalue
                return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
           }
-          this->_context.diagnostics.get().diagnosticsList.push_back(
-              ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
-                  name, "Unresolved function " + name, identifierFunction->Source()));
+
+          std::string errorMessage = "Unresolved function " + name;
+
+          std::vector<Expression> argumentsForAnalysis =
+              node.Arguments() |
+              std::views::transform([this](const ast::NodePointer& argument)
+                                    { return this->ParseExpression(argument); }) |
+              std::ranges::to<std::vector>();
+
+          auto exactMatches = CollectExactMatches(name, this->_context.contextSequence);
+          if (!exactMatches.empty())
+          {
+               auto mainError = ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
+                   name, errorMessage, identifierFunction->Source());
+
+               std::vector<const ast::Node*> argumentNodes;
+               argumentNodes.reserve(node.Arguments().Size());
+               for (const auto& argNode : node.Arguments()) argumentNodes.push_back(argNode.get());
+               for (const auto& func : exactMatches)
+               {
+                    auto candidateNote = std::make_unique<diagnostics::Information>(
+                        "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
+
+                    auto failureInfo = AnalyseCandidateFailure(func, argumentsForAnalysis);
+                    for (const auto& [paramIndex, failure] : failureInfo.parameterFailures)
+                    {
+                         Location argSource = (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
+                                               paramIndex <= argumentNodes.size())
+                                                  ? argumentNodes[paramIndex - 1]->Source()
+                                                  : identifierFunction->Source();
+
+                         auto failureNote = std::make_unique<diagnostics::Information>("note", failure, argSource);
+
+                         if (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
+                             paramIndex <= argumentsForAnalysis.size() && paramIndex <= func->parameters.size())
+                         {
+                              const auto& arg = argumentsForAnalysis[paramIndex - 1];
+                              const auto& param = func->parameters[paramIndex - 1];
+
+                              if (arg != nullptr)
+                              {
+                                   const auto& fromType = arg->Type();
+                                   const auto& toType = param.type;
+
+                                   if ((ecpps::typeSystem::IsPointer(fromType) ||
+                                        ecpps::typeSystem::IsArray(fromType)) &&
+                                       !ecpps::typeSystem::IsPointer(toType) && !ecpps::typeSystem::IsArray(toType))
+                                        failureNote->SubDiagnostics().push_back(
+                                            std::make_unique<diagnostics::Information>(
+                                                "note", "Did you mean to dereference the argument?", argSource));
+                              }
+                         }
+
+                         candidateNote->SubDiagnostics().push_back(std::move(failureNote));
+                    }
+
+                    mainError->SubDiagnostics().push_back(std::move(candidateNote));
+               }
+
+               this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+          }
+          else
+          {
+               auto mainError = std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage,
+                                                                                     identifierFunction->Source());
+
+               auto similarNames =
+                   CollectSimilarNames(name, argumentsForAnalysis.size(), this->_context.contextSequence);
+               if (!similarNames.empty())
+               {
+                    auto didYouMeanNote = std::make_unique<diagnostics::Information>(
+                        "note", "Did you mean:", identifierFunction->Source());
+
+                    for (const auto& [similarName, distance] : similarNames)
+                    {
+                         didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                             "", std::format("    {} [distance={}]", similarName, distance),
+                             identifierFunction->Source()));
+                    }
+
+                    mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
+               }
+
+               this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+          }
+
           return nullptr;
      }
 
@@ -1222,9 +1607,26 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
           }
      }
 
-     this->_context.diagnostics.get().diagnosticsList.push_back(
-         ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
-             name, "Unresolved identifier " + name, expression.Source()));
+     std::string errorMessage = "Unresolved identifier " + name;
+
+     auto mainError = std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage, expression.Source());
+
+     auto similarNames = CollectSimilarIdentifierNames(name, this->_context.contextSequence);
+     if (!similarNames.empty())
+     {
+          auto didYouMeanNote =
+              std::make_unique<diagnostics::Information>("note", "Did you mean:", expression.Source());
+
+          for (const auto& [similarName, distance] : similarNames)
+          {
+               didYouMeanNote->SubDiagnostics().push_back(
+                   std::make_unique<diagnostics::Information>("", "    " + similarName, expression.Source()));
+          }
+
+          mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
+     }
+
+     this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
 
      return nullptr;
 }
@@ -1276,6 +1678,49 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType != nullptr)
      {
+          const auto& value = basicType->Value();
+
+          const auto scopeCount = this->_context.contextSequence.Size();
+          for (std::size_t i = scopeCount; i > 0; --i)
+          {
+               const auto& scope = this->_context.contextSequence[i - 1]->GetScope();
+               const auto aliasIt = scope.typeAliases.find(value);
+               if (aliasIt != scope.typeAliases.end())
+               {
+                    const auto* targetType = aliasIt->second;
+                    // TODO: Apply qualifiers from basicType to the resolved type
+
+                    if (const auto* intType = targetType->CastTo<typeSystem::IntegralType>())
+                    {
+                         request.kind = TypeKind::Fundamental;
+                         StandardSignedIntegerRequest signedRequest{};
+                         signedRequest.signedness = intType->Sign();
+                         signedRequest.size = intType->Kind();
+                         signedRequest.isCharWithoutSign = (intType == typeSystem::g_char.get());
+                         request.data = signedRequest;
+                    }
+                    else if (const auto* ptrType = targetType->CastTo<typeSystem::PointerType>())
+                    {
+                         request.kind = TypeKind::Compound;
+                         request.data = PointerRequest{.elementType = ptrType->BaseType()};
+                    }
+                    else if (targetType == typeSystem::g_void.get())
+                    {
+                         request.kind = TypeKind::Fundamental;
+                         request.data = VoidRequest{};
+                    }
+
+                    if (basicType->IsConst() && basicType->IsVolatile())
+                         request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
+                    else if (basicType->IsConst())
+                         request.qualifiers = typeSystem::Qualifiers::Const;
+                    else if (basicType->IsVolatile())
+                         request.qualifiers = typeSystem::Qualifiers::Volatile;
+
+                    return request;
+               }
+          }
+
           request.kind = TypeKind::Fundamental;
 
           if (basicType->IsConst() && basicType->IsVolatile())
@@ -1285,15 +1730,13 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           else if (basicType->IsVolatile())
                request.qualifiers = typeSystem::Qualifiers::Volatile;
 
-          if (basicType->Value() == "void")
+          if (value == "void")
           {
                request.data = VoidRequest{};
                return request;
           }
 
           StandardSignedIntegerRequest signedRequest{};
-
-          const auto& value = basicType->Value();
 
           std::vector<std::string_view> tokens;
           {
@@ -1340,6 +1783,18 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           request.data = PointerRequest{.elementType = baseType};
           return request;
      }
+     if (const auto* qualifiedType = dynamic_cast<const ast::QualifiedType*>(base); qualifiedType != nullptr)
+     {
+          // TODO: Qualified name lookup
+          if (qualifiedType->Sections().Size() == 0)
+          {
+               const auto* unqualified = qualifiedType->UnqualifiedType().get();
+               if (dynamic_cast<const ast::BasicType*>(unqualified))
+                    return TypeASTToRequest(qualifiedType->UnqualifiedType());
+          }
+
+          throw TracedException("Qualified types with namespaces not yet implemented");
+     }
 
      throw TracedException("not implemented");
 }
@@ -1350,115 +1805,6 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::Node
      const auto request = TypeASTToRequest(type);
 
      return typeContext.Get(request);
-
-     // auto ResolveBasicType = [this](const std::string& name) -> TypeRequest
-     // {
-     //      if (name == "int" || name == "signed" || name == "signed int" || name == "int signed")
-     //           return typeSystem::g_int.get();
-     //      if (name == "unsigned" || name == "unsigned int" || name == "int unsigned")
-     //           return typeSystem::g_unsignedInt.get();
-
-     //      for (const auto& scope : this->_context.contextSequence)
-     //      {
-     //           for (const auto& type : scope->GetScope().types)
-     //           {
-     //                if (type->Name() == name) return type;
-     //           }
-     //      }
-
-     //      return nullptr;
-     // };
-
-     // bool isConst = false;
-     // bool isVolatile = false;
-     // const ast::Node* base = type.get();
-     // // if (auto cvQualified = dynamic_cast<const ast::CVQualifiedType*>(base); cvQualified)
-     // //{
-     // //      isConst = cvQualified->IsConst();
-     // //      isVolatile = cvQualified->IsVolatile();
-     // //      base = cvQualified->UnqualifiedType().get();
-     // // }
-
-     // typeSystem::NonowningTypePointer result = nullptr;
-
-     // if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType)
-     // {
-     //      result = ResolveBasicType(basicType->Value());
-     //      if (basicType->IsConst())
-     //      {
-
-     //      }
-     // }
-     // else if (auto* const qualifiedType = dynamic_cast<ast::QualifiedType*>(type.get()); qualifiedType != nullptr)
-     // {
-     //      Scope* currentScope = &this->_context.contextSequence.Back()->GetScope();
-     //      for (const auto& section : qualifiedType->Sections())
-     //      {
-     //           if (auto* nsScope = dynamic_cast<ir::NamespaceScope*>(currentScope))
-     //           {
-     //                bool found = false;
-     //                for (auto& sub : nsScope->subNamespaces)
-     //                {
-     //                     if (sub->name == section.node->ToString(0))
-     //                     {
-     //                          currentScope = sub.get();
-     //                          found = true;
-     //                          break;
-     //                     }
-     //                }
-     //                if (!found) return nullptr;
-     //           }
-     //           else if (auto* classScope = dynamic_cast<ir::ClassScope*>(currentScope))
-     //           {
-     //                bool found = false;
-     //                for (auto& nested : classScope->nestedClasses)
-     //                {
-     //                     if (nested->name == section.node->ToString(0))
-     //                     {
-     //                          currentScope = nested.get();
-     //                          found = true;
-     //                          break;
-     //                     }
-     //                }
-     //                if (!found) return nullptr;
-     //           }
-     //           else
-     //                return nullptr;
-     //      }
-
-     //      if (const auto* const unqualified = dynamic_cast<ast::BasicType*>(qualifiedType->UnqualifiedType().get());
-     //          unqualified != nullptr)
-     //      {
-     //           for (const auto& currentType : currentScope->types)
-     //           {
-     //                if (currentType->Name() == unqualified->Value()) result = currentType;
-     //           }
-     //      }
-     // }
-     // else if (const auto* ptr = dynamic_cast<const ast::PointerType*>(base); ptr)
-     // {
-     //      const auto *inner = ParseType(ptr->BaseType());
-     //      typeSystem::Qualifiers qualifiers{};
-     //      // TOOD: Implement qualifiers
-     //      result = GetContext().Get(
-     //          GetContext().PushType(std::make_unique<typeSystem::PointerType>(inner, base->ToString(0),
-     //          qualifiers)));
-     // }
-     // else if (const auto* ref = dynamic_cast<const ast::ReferenceType*>(base); ref)
-     // {
-     //      const auto *inner = ParseType(ref->BaseType());
-     //      result = GetContext().Get(GetContext().PushType(std::make_unique<typeSystem::ReferenceType>(
-     //          inner,
-     //          ref->GetKind() == ast::ReferenceType::Kind::RValue ? typeSystem::ReferenceType::Kind::RValue
-     //                                                             : typeSystem::ReferenceType::Kind::RValue,
-     //          base->ToString(0))));
-     // }
-
-     // if (!result) return nullptr;
-
-     // if (isConst || isVolatile) {} // TODO: Implement
-
-     // return result; // NOLINT(clang-diagnostic-nrvo)
 }
 
 Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
@@ -1554,6 +1900,24 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
 
                throw TracedException(std::logic_error("Unsupported conversion"));
           }
+          if (conversion == typeSystem::ConversionSequence::ConversionKind::PointerConversion ||
+              conversion == typeSystem::ConversionSequence::ConversionKind::QualifierConversion)
+          {
+               const auto wasConstexpr = expression->IsConstantExpression();
+               const auto source = expression->Value()->Source();
+               const bool isPRValue = expression->IsPRValue();
+               const bool isXValue = expression->IsXValue();
+               const bool isLValue = expression->IsLValue();
+
+               auto castNode = std::unique_ptr<PointerConversionNode, IRDeleter>(
+                   new (*this->_context.nodeAllocator) PointerConversionNode(std::move(expression), toType, source));
+
+               if (isPRValue) return std::make_unique<PRValue>(toType, std::move(castNode), wasConstexpr);
+               if (isXValue) return std::make_unique<XValue>(toType, std::move(castNode), wasConstexpr);
+               if (isLValue) return std::make_unique<LValue>(toType, std::move(castNode), wasConstexpr);
+
+               throw TracedException(std::logic_error("Unknown value category"));
+          }
      }
 
      throw TracedException(std::logic_error("Unsupported conversion"));
@@ -1599,7 +1963,7 @@ ecpps::ir::MatchingScore ecpps::ir::IR::MatchFunction(const std::shared_ptr<Func
           const auto& fromType = argument->Type();
           const auto& toType = parameter.type;
 
-          ecpps::typeSystem::ConversionSequence seq = fromType->CompareTo(toType);
+          ecpps::typeSystem::ConversionSequence seq = toType->CompareTo(fromType);
 
           ImplicitConversion::RefBindingKind refKind = ImplicitConversion::RefBindingKind::None;
           // if (IsReference(toType)) // TODO: Implement references

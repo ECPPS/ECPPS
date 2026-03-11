@@ -22,7 +22,8 @@ namespace ecpps::linker::win
           std::vector<std::byte> CodeSection(std::vector<std::byte> data,
                                              const codegen::LinkerRelocationMap& relocationMap) override;
           void ExportFunction(const std::string& name, std::uint32_t address) override;
-          void ImportFunction(const std::string& name, const std::string& dll) override;
+          void ImportFunction(const std::string& symbolName, const std::string& importName,
+                              const std::string& dll) override;
 
           void AddSection(const PESection& value);
           void ExportAt(const std::string& name, std::uint32_t address);
@@ -44,6 +45,7 @@ namespace ecpps::linker::win
           std::vector<PESection> _sections{};
           std::unordered_map<std::string, std::uint32_t> _exports{};
           std::unordered_map<std::string, std::vector<std::string>> _imports{};
+          std::unordered_map<std::string, std::string> _importNameMap{};
           std::size_t _baseOfCode{};
           std::size_t _sizeOfCode{};
      };

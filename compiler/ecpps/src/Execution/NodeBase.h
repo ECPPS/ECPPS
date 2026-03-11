@@ -38,6 +38,7 @@ namespace ecpps::ir
           IntegerArray,
           IntegerArrayDecay,
           LoadArrayDecay,
+          PointerConversion,
           IncomingParameter
      };
 
