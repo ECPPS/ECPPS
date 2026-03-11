@@ -262,10 +262,32 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
           return ConversionSequence{std::nullopt, "converting arrays to pointers cannot cast away qualifiers"};
      }
 
+     if (this->_baseType->CastTo<VoidType>() != nullptr)
+          return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::PointerConversion}};
+
      const auto subobjectComparison = otherPointer->_baseType->CompareTo(this->_baseType);
-     if (!subobjectComparison.IsValid()) return ConversionSequence{std::nullopt};
-     return subobjectComparison.SameAs() ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
-                                         : ConversionSequence{std::nullopt};
+
+     if (subobjectComparison.SameAs()) return ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}};
+
+     const auto* thisQualified = this->_baseType->CastTo<QualifiedType>();
+     const auto* otherQualified = otherPointer->_baseType->CastTo<QualifiedType>();
+
+     if (thisQualified && otherQualified)
+     {
+          const bool addingConst = thisQualified->IsConst() && !otherQualified->IsConst();
+          const bool addingVolatile = thisQualified->IsVolatile() && !otherQualified->IsVolatile();
+
+          if ((addingConst || addingVolatile) && !castedAwayQualifiers)
+          {
+               const auto* thisIntegral = thisQualified->CastTo<IntegralType>();
+               const auto* otherIntegral = otherQualified->CastTo<IntegralType>();
+
+               if (thisIntegral && otherIntegral && thisIntegral->Kind() == otherIntegral->Kind())
+                    return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::QualifierConversion}};
+          }
+     }
+
+     return subobjectComparison.IsValid() ? subobjectComparison : ConversionSequence{std::nullopt};
 }
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept

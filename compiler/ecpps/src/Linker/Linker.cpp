@@ -54,23 +54,24 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      if (selectedLinker == nullptr) return {};
 
      const auto availableExports = GetExportsFromDlls(config.importedLibraries);
-     for (const auto& import : ecpps::codegen::g_functionImports)
+     for (const auto& [decoratedName, undecoratedName] : ecpps::codegen::g_functionImports)
      {
           std::string dllName{};
+          const auto& lookupName = undecoratedName.empty() ? decoratedName : undecoratedName;
 
           for (const auto& [dll, names] : availableExports)
           {
                if (!dllName.empty()) break;
                for (const auto& name : names)
                {
-                    if (name != import) continue;
+                    if (name != lookupName) continue;
                     dllName = dll;
                     break;
                }
           }
-          if (dllName.empty())
-               throw ecpps::TracedException(std::logic_error("LINK error: unresolved function " + import));
-          selectedLinker->ImportFunction(import, dllName);
+          if (dllName.empty()) // TODO: P3 diagnostic
+               throw ecpps::TracedException(std::logic_error("LINK error: unresolved function " + lookupName));
+          selectedLinker->ImportFunction(decoratedName, lookupName, dllName);
      }
 
      diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);

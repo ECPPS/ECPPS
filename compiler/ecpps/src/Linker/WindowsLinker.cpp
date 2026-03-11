@@ -16,18 +16,33 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
                                                                       const codegen::LinkerRelocationMap& relocationMap)
 {
      PESection textSection{};
-     std::size_t offset{};
      std::unordered_map<std::string, std::vector<std::byte>> relocationThunks{};
      auto codeSize = data.size();
-     for (const auto& relocation : relocationMap | std::views::values) codeSize += relocation.applyOutputSize;
 
-     for (const auto& [where, relocation] : relocationMap)
+     std::vector<std::pair<ByteOffset, codegen::Relocation>> sortedRelocations(relocationMap.begin(),
+                                                                               relocationMap.end());
+     std::ranges::sort(sortedRelocations,
+                       [](const auto& a, const auto& b) { return a.first.Value() > b.first.Value(); });
+
+     std::size_t cumulativeShift = 0;
+
+     for (const auto& [where, relocation] : sortedRelocations)
      {
           const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, codeSize);
-          auto toInsert = relocation.apply(Address{resolvedAddress - where.Value() - offset}, relocationThunks);
-          auto begin = data.begin() + static_cast<std::streamsize>(offset);
-          offset += toInsert.size();
-          data.insert_range(begin + static_cast<std::streamsize>(where.Value()), std::move(toInsert));
+          auto toInsert =
+              relocation.apply(Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks);
+
+          const auto pos = where.Value();
+          for (std::size_t i = 0; i < toInsert.size() && (pos + i) < data.size(); ++i) { data[pos + i] = toInsert[i]; }
+
+          if (toInsert.size() > relocation.applyOutputSize)
+          {
+               const auto extraBytes = toInsert.size() - relocation.applyOutputSize;
+               const auto insertPos = data.begin() + static_cast<std::streamsize>(pos + relocation.applyOutputSize);
+               const auto extraBegin = toInsert.begin() + static_cast<std::streamsize>(relocation.applyOutputSize);
+               data.insert(insertPos, extraBegin, toInsert.end());
+               cumulativeShift += extraBytes;
+          }
      }
 
      textSection.name = CodeSectionName;
@@ -44,9 +59,11 @@ void ecpps::linker::win::WindowsLinker::ExportFunction(const std::string& name, 
      this->ExportAt(name, ExportDisplacement + address);
 }
 
-void ecpps::linker::win::WindowsLinker::ImportFunction(const std::string& name, const std::string& dll)
+void ecpps::linker::win::WindowsLinker::ImportFunction(const std::string& symbolName, const std::string& importName,
+                                                       const std::string& dll)
 {
-     this->_imports[dll].push_back(name);
+     this->_imports[dll].push_back(importName);
+     this->_importNameMap[symbolName] = importName;
 }
 
 void ecpps::linker::win::WindowsLinker::AddSection(const PESection& value) { this->_sections.emplace_back(value); }
@@ -73,6 +90,12 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
 {
      if (auto it = this->_exports.find(symbolName); it != this->_exports.end()) return it->second;
 
+     std::string lookupName = symbolName;
+     if (auto mapIt = this->_importNameMap.find(symbolName); mapIt != this->_importNameMap.end())
+     {
+          lookupName = mapIt->second;
+     }
+
      std::uint32_t iatPtr = 0;
      std::uint32_t currentNameOffset = 0;
 
@@ -96,7 +119,7 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
      {
           for (std::size_t i = 0; i < funcs.size(); ++i)
           {
-               if (funcs[i] == symbolName)
+               if (funcs[i] == lookupName)
                {
                     return idataRva + iatPtr + static_cast<std::uint32_t>(i * sizeof(std::uint64_t)) - 6;
                }

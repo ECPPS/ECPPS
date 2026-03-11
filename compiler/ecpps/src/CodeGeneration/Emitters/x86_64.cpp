@@ -39,7 +39,7 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
           const auto code = x86_64::GenerateIndirectCall(-static_cast<std::int32_t>(index) +
                                                          static_cast<std::int32_t>(foundFunction));
 
-          for (std::size_t i = 0; i < code.size(); ++i) { source[index + i] = code[i]; }
+          for (std::size_t i = 0; i < code.size(); i++) source[index + i] = code[i];
      }
 }
 
@@ -340,7 +340,6 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const Tak
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
 {
      this->_relocationTable.emplace(this->_currentInstructionBase, call.functionName);
-
      if (ecpps::codegen::g_functionImports.contains(call.functionName))
      {
           return {std::byte{0x90}, std::byte{0x90}, std::byte{0x90}, std::byte{0x90}, std::byte{0x90}, std::byte{0x90}};

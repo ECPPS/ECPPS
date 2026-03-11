@@ -2,6 +2,7 @@
 #include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
+#include "../Parsing/ASTs/Type.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Context.h"
@@ -113,6 +114,7 @@ namespace ecpps::ir
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
+          void ParseNamespace(const ast::NamespaceNode& node);
 
           [[nodiscard]] Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                            const Location& source) const;

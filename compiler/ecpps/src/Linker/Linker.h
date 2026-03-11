@@ -84,7 +84,8 @@ namespace ecpps::linker
           virtual std::vector<std::byte> CodeSection(std::vector<std::byte> data,
                                                      const codegen::LinkerRelocationMap& relocationMap) = 0;
           virtual void ExportFunction(const std::string& name, std::uint32_t address) = 0;
-          virtual void ImportFunction(const std::string& name, const std::string& dll) = 0;
+          virtual void ImportFunction(const std::string& symbolName, const std::string& importName,
+                                      const std::string& dll) = 0;
 
      private:
      };

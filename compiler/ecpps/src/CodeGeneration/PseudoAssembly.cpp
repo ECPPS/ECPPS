@@ -23,7 +23,7 @@ using ecpps::codegen::Routine;
 #ifdef __clang__
 [[clang::no_sanitize("address")]]
 #endif
-std::unordered_set<std::string> ecpps::codegen::g_functionImports{};
+std::unordered_map<std::string, std::string> ecpps::codegen::g_functionImports{};
 
 constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
 {
@@ -625,7 +625,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                    ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
           }
 
-          if (function.isDllImportExport) ecpps::codegen::g_functionImports.insert(functionName);
+          if (function.isDllImportExport)
+               ecpps::codegen::g_functionImports[functionName] = function.dllImportName.empty() ? functionName
+                                                                 : function.dllImportName.empty()
+                                                                     ? functionName
+                                                                     : function.dllImportName;
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
           callAbi->Finish(code);
 
@@ -866,6 +870,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           }
           throw TracedException("Invalid parameter storage type");
      }
+     if (auto* const pointerConversionNode = dynamic_cast<ecpps::ir::PointerConversionNode*>(value.get());
+         pointerConversionNode != nullptr)
+     {
+          return ParseExpression(context, code, pointerConversionNode->Operand());
+     }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }
@@ -952,8 +961,34 @@ static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
           if (additionAssign->Right() != nullptr)
                ScanNodeForFunctionCalls(additionAssign->Right()->Value().get(), foundCalls);
      }
-     else
-          throw TracedException("not implemented");
+     else if (const auto* subtractionAssign = dynamic_cast<const ecpps::ir::SubtractionAssignNode*>(node);
+              subtractionAssign != nullptr)
+     {
+          if (subtractionAssign->Left() != nullptr)
+               ScanNodeForFunctionCalls(subtractionAssign->Left()->Value().get(), foundCalls);
+          if (subtractionAssign->Right() != nullptr)
+               ScanNodeForFunctionCalls(subtractionAssign->Right()->Value().get(), foundCalls);
+     }
+     else if (const auto* postIncrement = dynamic_cast<const ecpps::ir::PostIncrementNode*>(node);
+              postIncrement != nullptr)
+     {
+          if (postIncrement->Operand() != nullptr)
+               ScanNodeForFunctionCalls(postIncrement->Operand()->Value().get(), foundCalls);
+     }
+     else if (const auto* postDecrement = dynamic_cast<const ecpps::ir::PostDecrementNode*>(node);
+              postDecrement != nullptr)
+     {
+          if (postDecrement->Operand() != nullptr)
+               ScanNodeForFunctionCalls(postDecrement->Operand()->Value().get(), foundCalls);
+     }
+     else if (const auto* arrayDecay = dynamic_cast<const ecpps::ir::LoadArrayDecayNode*>(node); arrayDecay != nullptr)
+     {
+          ScanNodeForFunctionCalls(arrayDecay->GetOperand()->Value().get(), foundCalls);
+     }
+     else if (const auto* parameterNode = dynamic_cast<const ecpps::ir::ParameterNode*>(node); parameterNode != nullptr)
+     {
+          // No need to scan parameters
+     }
 }
 
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)
@@ -1073,7 +1108,9 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                         ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
                }
 
-               if (function.isDllImportExport) ecpps::codegen::g_functionImports.insert(functionName);
+               if (function.isDllImportExport)
+                    ecpps::codegen::g_functionImports[functionName] =
+                        function.dllImportName.empty() ? functionName : function.dllImportName;
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)

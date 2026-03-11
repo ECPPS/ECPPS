@@ -165,5 +165,6 @@ namespace ecpps::diagnostics
           }
      };
 
-     void PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic, int indent = 0);
+     void PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic, int indent = 0,
+                          std::size_t lastPrintedLine = 0);
 } // namespace ecpps::diagnostics

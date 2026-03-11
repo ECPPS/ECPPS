@@ -46,6 +46,41 @@ namespace ecpps::ast
           SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>> _aliasedNamespace;
      };
 
+     class NamespaceNode final : public Node
+     {
+     public:
+          explicit NamespaceNode(std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter> name,
+                                 SBOVector<NodePointer> declarations, Location source)
+              : Node(source), _name(std::move(name)), _declarations(std::move(declarations))
+          {
+          }
+
+          [[nodiscard]] const std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>& Name(
+              void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] const SBOVector<NodePointer>& Declarations(void) const noexcept { return this->_declarations; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built = std::string(indent * PrettyIndent, ' ') + "namespace ";
+               if (this->_name != nullptr) built += this->_name->ToString(0);
+               built += "\n" + std::string(indent * PrettyIndent, ' ') + "{";
+
+               for (const auto& decl : this->_declarations)
+               {
+                    if (decl != nullptr) built += "\n" + decl->ToString(indent + 1) + ";";
+               }
+
+               return built + "\n" + std::string(indent * PrettyIndent, ' ') + "}";
+          }
+
+     private:
+          std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter> _name;
+          SBOVector<NodePointer> _declarations;
+     };
+
      class BasicType final : public Node
      {
      public:

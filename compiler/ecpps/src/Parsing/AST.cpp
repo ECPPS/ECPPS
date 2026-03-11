@@ -9,6 +9,8 @@ static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "ch
                                                       "bool",     "short",   "int",      "long",     "signed",
                                                       "unsigned", "float",   "double",   "void"};
 
+static std::string CombineTypeWords(const std::vector<std::string>& words);
+
 std::vector<NodePointer> ecpps::ast::AST::Parse(ASTContext& context)
 {
      std::vector<NodePointer> nodes{};
@@ -33,7 +35,7 @@ std::unique_ptr<ecpps::ast::IdentifierNode, ecpps::ast::ASTContext::Deleter> ecp
          new (context) IdentifierNode(std::get<std::string>(identifier.value), identifier.location));
 }
 
-NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context)
+NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool isConst, bool isVolatile)
 {
      auto source = Peek().location;
 
@@ -42,7 +44,7 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context)
           source.endPosition = Peek().location.endPosition;
           Advance();
           return std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-              new (context) BasicType(std::get<std::string>(Peek(-1).value), source, false, false));
+              new (context) BasicType(std::get<std::string>(Peek(-1).value), source, isConst, isVolatile));
      }
      const auto& peek = Peek();
      this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
@@ -66,12 +68,14 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
      if (Peek().type == TokenType::Keyword)
      {
           runtime_assert(std::holds_alternative<std::string>(Peek().value), "Keyword was not an identifier");
-          if (std::get<std::string>(Peek().value) == "namespace")
+          const auto& keyword = std::get<std::string>(Peek().value);
+
+          if (keyword == "namespace")
           {
                Advance();
                auto name = ParseIdentifier(context);
-               if (name == nullptr) return nullptr; // TODO: Error
-               if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
+
+               if (name != nullptr && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
                {
                     Advance();
                     SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>> aliased{};
@@ -93,7 +97,156 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                         new (context) NamespaceAliasNode(std::move(name), std::move(aliased), source));
                }
 
+               if (Peek().type == TokenType::LeftBrace)
+               {
+                    Advance(); // {
+                    SBOVector<NodePointer> declarations{};
+
+                    while (!AtEnd() && Peek().type != TokenType::RightBrace)
+                    {
+                         auto decl = ParseDeclaration(context);
+                         if (decl != nullptr) declarations.Push(std::move(decl));
+                    }
+
+                    if (!Match(TokenType::RightBrace))
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Expected '}' at end of namespace definition", Peek().location));
+                         return nullptr;
+                    }
+
+                    source.endPosition = Peek(-1).location.endPosition;
+                    return std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                        new (context) NamespaceNode(std::move(name), std::move(declarations), source));
+               }
+
                // TODO: Nested names [ namespace A::B ]
+          }
+          else if (keyword == "using")
+          {
+               Advance(); // using
+
+               auto aliasName = ParseIdentifier(context);
+               if (aliasName == nullptr)
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected identifier after 'using'", Peek().location));
+                    return nullptr;
+               }
+
+               if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != "=")
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected '=' in using alias-declaration", Peek().location));
+                    return nullptr;
+               }
+               Advance(); // =
+
+               NodePointer targetType = nullptr;
+               SBOVector<QualifiedType::Section> sections;
+               bool nextConst = false;
+               bool nextVolatile = false;
+
+               while (Peek().type == TokenType::Keyword)
+               {
+                    const auto& qual = std::get<std::string>(Peek().value);
+                    if (qual == "const")
+                    {
+                         nextConst = true;
+                         Advance();
+                    }
+                    else if (qual == "volatile")
+                    {
+                         nextVolatile = true;
+                         Advance();
+                    }
+                    else
+                         break;
+               }
+
+               if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+               {
+                    std::vector<std::string> typeWords;
+                    while (Peek().type == TokenType::Keyword &&
+                           SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                    {
+                         typeWords.push_back(std::get<std::string>(Peek().value));
+                         Advance();
+                    }
+
+                    std::string combinedType = CombineTypeWords(typeWords);
+
+                    targetType = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+                        new (context) BasicType(combinedType, source, nextConst, nextVolatile));
+               }
+               else if (Peek().type == TokenType::Identifier)
+               {
+                    while (true)
+                    {
+                         NodePointer part =
+                             std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(new (context) BasicType(
+                                 std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
+                         Advance();
+                         nextConst = false;
+                         nextVolatile = false;
+
+                         bool isTemplate = false;
+                         if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+                         {
+                              // TODO: Implement template arguments parsing
+                              part = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
+                                  new (context) QualifiedType(SBOVector<QualifiedType::Section>{}, std::move(part),
+                                                              Peek().location));
+                              isTemplate = true;
+                         }
+
+                         if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+                         {
+                              Advance();
+                              sections.EmplaceBack(std::move(part), isTemplate);
+                         }
+                         else
+                         {
+                              targetType = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
+                                  new (context) QualifiedType(std::move(sections), std::move(part), Peek().location));
+                              break;
+                         }
+                    }
+               }
+               else
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected type-id after '=' in using alias-declaration", Peek().location));
+                    return nullptr;
+               }
+
+               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+               {
+                    Advance();
+
+                    // TODO: cv qualifiers
+                    while (Peek().type == TokenType::Keyword)
+                    {
+                         const auto& qual = std::get<std::string>(Peek().value);
+                         if (qual == "const" || qual == "volatile") { Advance(); }
+                         else
+                              break;
+                    }
+
+                    targetType = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+                        new (context) PointerType(std::move(targetType), source));
+               }
+
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected ';' at end of using alias-declaration", Peek().location));
+                    return nullptr;
+               }
+
+               source.endPosition = Peek(-1).location.endPosition;
+               return std::unique_ptr<TypeAliasNode, ecpps::ast::ASTContext::Deleter>(
+                   new (context) TypeAliasNode(std::move(aliasName), std::move(targetType), source));
           }
      }
 
@@ -103,11 +256,35 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
 NodePointer ecpps::ast::AST::ParseNameDeclaration(ASTContext& context)
 {
      if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
+
+     if (Peek().type == TokenType::Keyword && std::holds_alternative<std::string>(Peek().value))
+     {
+          const auto& keyword = std::get<std::string>(Peek().value);
+
+          if (keyword == "using" || keyword == "namespace") { return ParseBlockDeclaration(context); }
+
+          if (keyword == "typedef" || keyword == "const" || keyword == "volatile" || keyword == "static" ||
+              keyword == "inline" || keyword == "constexpr" || keyword == "consteval" || keyword == "constinit" ||
+              keyword == "friend" || keyword == "thread_local" || keyword == "mutable")
+               return ParseSimpleDeclaration(context);
+     }
+
      return ParseFunctionDefinition(context);
 }
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
 {
+     if (Peek().type == TokenType::Keyword && std::holds_alternative<std::string>(Peek().value))
+     {
+          const auto& keyword = std::get<std::string>(Peek().value);
+          if (keyword == "using" || keyword == "typedef" || keyword == "namespace")
+          {
+               if (keyword == "using" || keyword == "namespace") return ParseBlockDeclaration(context);
+
+               return ParseSimpleDeclaration(context);
+          }
+     }
+
      SBOVector<std::unique_ptr<AttributeNode, ecpps::ast::ASTContext::Deleter>> attributes{};
 #ifdef __clang__
 #pragma GCC diagnostic push
@@ -130,6 +307,31 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
                {
                     std::string name = std::get<std::string>(Peek(-1).value);
                     SBOVector<Token> arguments{};
+
+                    if (Peek().type == TokenType::LeftParenthesis)
+                    {
+                         Advance(); // (
+
+                         while (Peek().type != TokenType::RightParenthesis)
+                         {
+                              arguments.EmplaceBack(Peek());
+                              Advance();
+
+                              if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
+                              {
+                                   Advance();
+                              }
+                         }
+
+                         if (Peek().type == TokenType::RightParenthesis)
+                         {
+                              Advance(); // )
+                         }
+                         else
+                              this->_diagnostics.get().diagnosticsList.push_back(
+                                  std::make_unique<diagnostics::SyntaxError>("Expected ) in attribute",
+                                                                             Peek().location));
+                    }
 
                     attributeSource.endPosition = Peek(-1).location.endPosition;
                     attributes.EmplaceBack(std::unique_ptr<AttributeNode, ecpps::ast::ASTContext::Deleter>(
@@ -168,8 +370,30 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      }
 
      auto source = Peek().location;
-     auto type = ParseSimpleTypeSpecifier(context);
+
+     NodePointer type = nullptr;
+     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+          type = ParseSimpleTypeSpecifier(context);
+     else if (Peek().type == TokenType::Identifier)
+     {
+          auto typeName = std::get<std::string>(Peek().value);
+          auto typeSource = Peek().location;
+          Advance();
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+              new (context) BasicType(typeName, typeSource, false, false));
+     }
+     else
+          type = ParseSimpleTypeSpecifier(context); // should generate an error if any
+
      if (type == nullptr) return (Advance(), nullptr);
+
+     while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+     {
+          Advance();
+          type = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+              new (context) PointerType(std::move(type), source));
+     }
+
      abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
 
      if (Peek().type == TokenType::Keyword)
@@ -268,7 +492,18 @@ bool ecpps::ast::AST::IsDeclarationStart(ASTContext& context)
      if (hasType || hasLong) return true;
 
      const auto& nextTok = Peek(static_cast<std::ptrdiff_t>(i));
-     return nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*";
+
+     if (nextTok.type == TokenType::Operator && std::get<std::string>(nextTok.value) == "*") return true;
+
+     if (nextTok.type == TokenType::Identifier)
+     {
+          const auto& nextNextTok = Peek(static_cast<std::ptrdiff_t>(i + 1));
+          if (nextNextTok.type == TokenType::Identifier) return true; // decl
+          if (nextNextTok.type == TokenType::Operator && std::get<std::string>(nextNextTok.value) == "*")
+               return true; // decl
+     }
+
+     return false;
 }
 
 std::string CombineTypeWords(const std::vector<std::string>& words)
@@ -471,6 +706,20 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                          break;
                     }
                }
+
+               std::size_t pointerLevel = 0;
+               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+               {
+                    pointerLevel++;
+                    Advance();
+               }
+
+               for (std::size_t i = 0; i < pointerLevel; ++i)
+               {
+                    typeSpecifier = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+                        new (context) PointerType(std::move(typeSpecifier), source));
+               }
+
                break;
           }
           else
@@ -1245,9 +1494,52 @@ ecpps::ast::FunctionParameter ecpps::ast::AST::ParseFunctionParameter(ASTContext
 {
      // TODO: Attributes
      // TODO: explicit this
-     auto type = ParseSimpleTypeSpecifier(context); // TODO: More complex types
+
+     bool isConst = false;
+     bool isVolatile = false;
+     while (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = std::get<std::string>(Peek().value);
+          if (keyword == "const")
+          {
+               isConst = true;
+               Advance();
+          }
+          else if (keyword == "volatile")
+          {
+               isVolatile = true;
+               Advance();
+          }
+          else
+               break;
+     }
+
+     NodePointer type = nullptr;
+     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+     {
+          type = ParseSimpleTypeSpecifier(context, isConst, isVolatile);
+     }
+     else if (Peek().type == TokenType::Identifier)
+     {
+          auto typeName = std::get<std::string>(Peek().value);
+          auto typeSource = Peek().location;
+          Advance();
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+              new (context) BasicType(typeName, typeSource, isConst, isVolatile));
+     }
+     else
+          type = ParseSimpleTypeSpecifier(context, isConst, isVolatile);
+
      FunctionParameter parameter{};
      if (type == nullptr) return parameter;
+
+     while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+     {
+          Advance();
+          type = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+              new (context) PointerType(std::move(type), Peek().location));
+     }
+
      parameter.type = std::move(type);
      if (Peek().type != TokenType::Identifier) return parameter;
      parameter.name = ParseIdentifier(context);
