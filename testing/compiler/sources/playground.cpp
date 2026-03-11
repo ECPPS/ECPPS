@@ -1,6 +1,6 @@
 #include "test.h"
 
-int main()
+int __std_cwrite(const char* __buffer)
 {
      puts("hello kittie!\n");
      puts("meoww");
