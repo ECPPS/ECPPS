@@ -125,6 +125,8 @@ namespace
 
                     const std::size_t score = nameDistance + (argPenalty * 2);
 
+                    if (score > 5) continue;
+
                     similar.emplace_back(func->name, score);
                }
           }
@@ -1538,7 +1540,8 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                     for (const auto& [similarName, distance] : similarNames)
                     {
                          didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                             "", "    " + similarName, identifierFunction->Source()));
+                             "", std::format("    {} [distance={}]", similarName, distance),
+                             identifierFunction->Source()));
                     }
 
                     mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
