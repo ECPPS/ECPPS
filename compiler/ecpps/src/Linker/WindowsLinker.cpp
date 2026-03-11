@@ -1,4 +1,5 @@
 #include "WindowsLinker.h"
+#include <algorithm>
 #include <cstdint>
 #include <ranges>
 #include <string>
