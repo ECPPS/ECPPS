@@ -1,8 +1,15 @@
-#include "test.h"
+#include <cstdio>
 
-int __std_cwrite(const char* __buffer)
+int main()
 {
-     puts("hello kittie!\n");
-     puts("meoww");
+     int c1 = getchar();
+     int c2 = getchar();
+     int c3 = getchar();
+     int c4 = getchar();
+     puts("Your kitteny string: ");
+     putchar(c1);
+     putchar(c2);
+     putchar(c3);
+     putchar(c4);
+     puts("\n");
 }
-

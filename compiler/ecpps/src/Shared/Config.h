@@ -100,6 +100,7 @@ namespace ecpps
                                   char* argv[]); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 
           std::vector<std::string> sourceFiles{};
+          std::vector<std::string> includeDirectories{};
           std::unordered_map<DiagnosticType, DiagnosticState> diagnostics{};
           bool warningsAreErrors = false;
           std::string outputImage{};

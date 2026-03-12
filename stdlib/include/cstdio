@@ -1,0 +1,19 @@
+#include "__ecpps/sysvars.h"
+
+// int putc(_In_ int _Character, _Inout_ FILE* _Stream);
+
+_DLLEXPORT int putchar(int __character)
+{
+     _HANDLE __hConsole = __std_stdout_handle();
+     char __buffer = __character;
+     _DWORD __length = 1;
+     return __std_console_write(__hConsole, &__buffer, __length);
+}
+
+_DLLEXPORT int getchar()
+{
+     _HANDLE __hConsole = __std_stdin_handle();
+     return __std_console_read(__hConsole);
+}
+
+_DLLEXPORT int puts(const char* __buffer) { return __std_cwrite(__buffer); }

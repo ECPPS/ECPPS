@@ -9,7 +9,9 @@
 #include <unordered_set>
 
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
-                                                                  std::vector<MacroReplacement>& macros, const std::string& fileName)
+                                                                  std::vector<MacroReplacement>& macros,
+                                                                  const std::string& fileName,
+                                                                  const std::vector<std::string>& includeDirectories)
 {
      std::vector<ecpps::PreprocessingToken> tokens{};
      Location location{1, 0, 0};
@@ -110,14 +112,15 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     if (delimiter == '"') tryFile(std::filesystem::path(fileName).parent_path());
 
-                    // if (!found)
-                    // {
-                    //      for (const auto& dir : includeDirectories)
-                    //      {
-                    //           tryFile(dir);
-                    //           if (found) break;
-                    //      }
-                    // }
+                    if (!found)
+                    {
+                         for (const auto& dir : includeDirectories)
+                         {
+                              tryFile(dir);
+                              if (found) break;
+                         }
+                    }
+                    if (delimiter == '<') tryFile(std::filesystem::path(fileName).parent_path());
 
                     if (!found) { throw std::runtime_error("include file not found: " + header); }
 
@@ -126,7 +129,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     std::string includedSource{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
 
-                    tokens.append_range(Parse(includedSource, macros, resolvedPath.string()));
+                    tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includeDirectories));
                }
                else if (directive == "define")
                {
@@ -240,7 +243,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                          Advance(sourceIterator);
                     }
-                    auto parsed = Parse(builtSource, macros, fileName);
+                    auto parsed = Parse(builtSource, macros, fileName, includeDirectories);
                     for (auto& token : parsed) token.source.line += previousLine - 1;
                     location.line++;
 

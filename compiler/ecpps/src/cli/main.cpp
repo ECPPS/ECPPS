@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
 
-                    const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros, source.name);
+                    const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros, source.name, config.includeDirectories);
                     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Tokens:");

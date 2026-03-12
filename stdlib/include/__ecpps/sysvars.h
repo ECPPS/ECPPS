@@ -40,6 +40,9 @@ _DLLIMPORT(WriteFile) _BOOL __WriteFile(_HANDLE, const void*, _DWORD, _DWORD*, _
 _DLLIMPORT(WriteConsoleA)
 _BOOL __WriteConsoleA(_HANDLE __hConsole, const char* __lpBuffer, _DWORD __nNumberOfCharsToWrite,
                       _DWORD* __lpNumberOfCharsWritten, _QWORD q);
+_DLLIMPORT(ReadConsoleA)
+_BOOL __ReadConsoleA(_HANDLE __hConsole, char* __lpBuffer, _DWORD __nNumberOfCharsToRead, _DWORD* __lpNumberOfCharsRead,
+                     _QWORD q);
 
 _HANDLE __std_stdin_handle() { return __GetStdHandle(0 - 10); }
 _HANDLE __std_stdout_handle() { return __GetStdHandle(0 - 11); }
@@ -50,6 +53,13 @@ _DWORD __std_console_write(_HANDLE __hConsole, const char* __buffer, _DWORD __le
      __WriteConsoleA(__hConsole, __buffer, __length, &__numberOfCharsWritten, 0);
      return __numberOfCharsWritten;
 }
+char __std_console_read(_HANDLE __hConsole)
+{
+     char __buffer;
+     _DWORD __numberOfCharsRead;
+     __ReadConsoleA(__hConsole, &__buffer, 1, &__numberOfCharsRead, 0);
+     return __buffer;
+}
 
 int __std_strlen(const char* __string) { return __lstrlenA(__string); }
 
@@ -59,8 +69,6 @@ int __std_cwrite(const char* __buffer)
      _DWORD __length = __std_strlen(__buffer);
      return __std_console_write(__hConsole, __buffer, __length);
 }
-
-_DLLEXPORT int puts(const char* __buffer) { return __std_cwrite(__buffer); }
 
 // stub
 int main();

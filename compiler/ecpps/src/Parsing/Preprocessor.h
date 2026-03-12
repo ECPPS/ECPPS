@@ -63,9 +63,9 @@ namespace ecpps
      class Preprocessor
      {
      public:
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(const std::string& source,
-                                                                     std::vector<MacroReplacement>& macros,
-                                                                     const std::string& fileName);
+          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
+              const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
+              const std::vector<std::string>& includeDirectories = {});
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:
