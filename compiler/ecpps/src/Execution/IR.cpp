@@ -1716,9 +1716,7 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
                          request.data = VoidRequest{};
                     }
                     else
-                    {
                          throw TracedException("Type aliases for this kind of type not yet implemented");
-                    }
 
                     if (basicType->IsConst() && basicType->IsVolatile())
                          request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
