@@ -1,0 +1,3 @@
+add_subdirectory(utilitieslib)
+add_subdirectory(platformlib)
+add_subdirectory(ecpps)

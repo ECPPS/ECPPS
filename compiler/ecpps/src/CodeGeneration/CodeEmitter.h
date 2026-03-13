@@ -1,0 +1,92 @@
+#pragma once
+
+#include <Numbers.h>
+#include <cstddef>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+#include "../Machine/Machine.h"
+#include "Nodes.h"
+
+define_number(ByteOffset, std::size_t);
+define_number(Address, std::size_t);
+
+namespace ecpps::codegen
+{
+     struct Relocation
+     {
+          std::string symbolName;
+          std::function<std::vector<std::byte>(
+              Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
+              apply;
+          std::size_t applyOutputSize;
+     };
+     struct StringRelocation
+     {
+          std::size_t offset;
+          std::uint8_t register_;
+          std::function<std::vector<std::byte>(std::uint8_t register_, std::size_t stringTableOffset)> apply;
+     };
+     using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
+
+     /// <summary>
+     /// Provides a foundation for all emitters.
+     /// An emitter might add custom emittees, but it has to implement the instructions added here
+     /// Note that each emitter header might define its own instruction set on top of the existing one, mainly for the
+     /// architecture-specific optimiser. Each custom-defined instruction should be generated from the Optimise virtual
+     /// member function. Note that the Optimise function is called after the generic optimiser, and the generic
+     /// optimiser will not understand its output. For each custom-defined instruction, it shall inherit from
+     /// ArchitectureInstruction class that is part of the Instruction variant.
+     /// </summary>
+     class CodeEmitter
+     {
+     public:
+          virtual ~CodeEmitter(void) = default;
+          [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
+          [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+
+          virtual void PatchCalls(std::vector<std::byte>& source,
+                                  std::unordered_map<std::string, std::size_t>& routines) = 0;
+
+          static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
+
+          LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
+          std::size_t _stringRelocationSize{};              // in bytes
+          std::vector<std::size_t> _stringRelocation{};
+
+     protected:
+          explicit CodeEmitter(std::string name) : _name(std::move(name)) {}
+
+          std::size_t _currentInstructionBase{};
+          // PRE emitting: used to store locations of calls to be patched later
+          // POST emitting: contains offsets to be patched with the function address (imports)
+          std::map<std::size_t, std::string> _relocationTable{};
+
+     private:
+          [[nodiscard]] std::vector<std::byte> EmitInstruction(const Instruction& instruction);
+
+          // generic instruction emitters
+          [[nodiscard]] virtual std::vector<std::byte> EmitMov(const MovInstruction& mov) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitAdd(const AddInstruction& add) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitSub(const SubInstruction& sub) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitMul(const MulInstruction& mul) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitDiv(const DivInstruction& div) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitCall(const CallInstruction& call) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitLea(const TakeAddressInstruction& lea) = 0;
+          [[nodiscard]] virtual std::vector<std::byte> EmitReturn(void) = 0;
+
+          /// <summary>
+          /// Custom instruction emitter. By default a no-op.
+          /// </summary>
+          [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(
+              [[maybe_unused]] const CustomInstruction& instruction)
+          {
+               return {};
+          }
+
+          std::string _name;
+     };
+} // namespace ecpps::codegen

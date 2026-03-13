@@ -1,13 +1,13 @@
 # Compiler
-/compiler/ecpps/abi/src/CodeGeneration/*      @ECPPS/compiler @ECPPS/backend
-/compiler/ecpps/abi/src/Linker/*      @ECPPS/compiler @ECPPS/backend
-/compiler/ecpps/abi/src/Machine/*      @ECPPS/compiler @ECPPS/backend
+/compiler/ecpps/src/CodeGeneration/*      @ECPPS/compiler @ECPPS/backend
+/compiler/ecpps/src/Linker/*      @ECPPS/compiler @ECPPS/backend
+/compiler/ecpps/src/Machine/*      @ECPPS/compiler @ECPPS/backend
 
-/compiler/ecpps/abi/src/Execution/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
-/compiler/ecpps/abi/src/Shared/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
-/compiler/ecpps/abi/src/TypeSystem/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
+/compiler/ecpps/src/Execution/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
+/compiler/ecpps/src/Shared/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
+/compiler/ecpps/src/TypeSystem/*      @ECPPS/compiler @ECPPS/backend @ECPPS/frontend
 
-/compiler/ecpps/abi/src/Parsing/*      @ECPPS/compiler @ECPPS/frontend
+/compiler/ecpps/src/Parsing/*      @ECPPS/compiler @ECPPS/frontend
 /compiler/*          @ECPPS/compiler
 
 # Library

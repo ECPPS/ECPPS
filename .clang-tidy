@@ -1,0 +1,75 @@
+Checks: >
+  -*,
+  modernize-*,
+  readability-*,
+  cppcoreguidelines-*,
+  performance-*,
+  bugprone-*,
+  portability-*,
+  clang-analyzer-*,
+  -modernize-use-trailing-return-type,
+  -modernize-redundant-void-arg,
+  -readability-braces-around-statements,
+  -cppcoreguidelines-special-member-functions,
+  -readability-redundant-member-init,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-function-cognitive-complexity,
+  -readability-avoid-nested-conditional-operator,
+  -bugprone-switch-missing-default-case,
+  -readability-uppercase-literal-suffix,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -clang-analyzer-optin.core.EnumCastOutOfRange,
+  -readability-identifier-length,
+  -cppcoreguidelines-owning-memory,
+  -bugprone-suspicious-semicolon,
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -bugprone-branch-clone,
+  -performance-no-int-to-ptr,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-union-access,
+  -readability-implicit-bool-conversion,
+  -bugprone-multi-level-implicit-pointer-conversion,
+  -clang-analyzer-deadcode.DeadStores,
+  -readability-convert-member-functions-to-static,
+  -bugprone-bitwise-pointer-cast,
+  -bugprone-exception-escape,
+  -clang-analyzer-core.NonNullParamChecker,
+  -modernize-use-auto,
+  -bugprone-macro-parentheses,
+  -readability-suspicious-call-argument,
+  -bugprone-reserved-identifier,
+  -cppcoreguidelines-macro-usage
+
+CheckOptions:
+  # Identifier naming rules
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.NamespaceCase
+    value: camelBack
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+
+  # Non-private members (fields) use camelBack
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack
+
+  # Private members: _camelBack
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: "_"
+  # Private members: _camelBack
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.ProtectedMemberPrefix
+    value: "_"
+
+  # Statement braces rule
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: "1"
