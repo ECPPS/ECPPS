@@ -19,7 +19,7 @@ using namespace ecpps::ir;
 static std::vector<Token> TokeniseSource(const std::string& source)
 {
      std::vector<MacroReplacement> macros;
-     auto ppTokens = Preprocessor::Parse(source, macros);
+     auto ppTokens = Preprocessor::Parse(source, macros, "");
      return Tokeniser::Tokenise(ppTokens);
 }
 
@@ -159,7 +159,7 @@ TEST_CASE("Integration - Preprocessor and tokeniser", "[integration][preprocesso
 
           // Preprocess
           std::vector<ecpps::MacroReplacement> macros{};
-          auto preprocessingTokens = Preprocessor::Parse(std::string{sourceWithMacro}, macros);
+          auto preprocessingTokens = Preprocessor::Parse(std::string{sourceWithMacro}, macros, "");
           REQUIRE(!preprocessingTokens.empty());
 
           // Then tokenise the preprocessed output

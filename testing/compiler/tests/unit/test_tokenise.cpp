@@ -26,7 +26,7 @@ int main()
 int main() { return 0; }
 )";
      std::vector<ecpps::MacroReplacement> macros{};
-     const auto ppTokens = ecpps::Preprocessor::Parse(source, macros);
+     const auto ppTokens = ecpps::Preprocessor::Parse(source, macros, "");
      if (!AssertTokens(
              ppTokens,
              std::vector<ecpps::PreprocessingToken>{
