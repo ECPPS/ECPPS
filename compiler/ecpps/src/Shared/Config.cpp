@@ -73,10 +73,7 @@ ecpps::CompilerConfig::CompilerConfig(
                     if (!this->outputImage.empty()) {} // TODO: Warning
                     this->outputImage = value;
                }
-               else if (lowerFlag == "I" || lowerFlag == "include")
-               {
-                    this->includeDirectories.emplace_back(value);
-               }
+               else if (lowerFlag == "I" || lowerFlag == "include") { this->includeDirectories.emplace_back(value); }
                else if (lowerFlag == "image")
                {
                     if (lowerValue == "win64" || lowerValue == "pe64" || lowerValue == "pe32p")

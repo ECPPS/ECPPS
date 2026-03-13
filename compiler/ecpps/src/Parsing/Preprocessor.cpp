@@ -46,7 +46,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           location.position++;
           if (character == '\r')
           {
-               if (sourceIterator != source.end() && *std::next(sourceIterator) == '\n') ++sourceIterator;
+               if (sourceIterator != source.end() && sourceIterator + 1 != source.end() &&
+                   *std::next(sourceIterator) == '\n')
+                    ++sourceIterator;
                location.line++;
                location.position = 0;
                for (auto& macro : macros)
