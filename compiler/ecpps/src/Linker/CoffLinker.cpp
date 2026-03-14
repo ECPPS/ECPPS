@@ -1,4 +1,6 @@
 #include "CoffLinker.h"
+#include <algorithm>
+#include <ranges>
 #include <unordered_map>
 #include <vector>
 
