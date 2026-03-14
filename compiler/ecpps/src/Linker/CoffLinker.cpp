@@ -70,11 +70,12 @@ namespace
           union
           {
                char shortName[8]; // NOLINT
-               struct
+               struct LongName
                {
                     std::uint32_t zero;
                     std::uint32_t offset;
-               } longName;
+               };
+               LongName longName;
           };
 
           std::uint32_t value;
