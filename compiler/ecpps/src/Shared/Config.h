@@ -20,7 +20,8 @@ namespace ecpps
           Windows64,
           Windows32,
           Caosys,
-          Undefined
+          Undefined,
+          Windows64Coff
      };
 
      constexpr LinkerUsed DefaultLinker = LinkerUsed::

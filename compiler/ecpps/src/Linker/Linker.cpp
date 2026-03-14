@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <utility>
 #include "../CodeGeneration/PseudoAssembly.h"
+#include "CoffLinker.h"
 #include "WindowsLinker.h"
 #include "dllHelp.h"
 
@@ -15,6 +16,11 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
      {
           auto peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
           return std::make_unique<win::WindowsLinker>(std::move(peOptions));
+     }
+     case LinkerType::Coff:
+     {
+          auto coffOptions = dynamic_cast<LinkerOptions<LinkerType::Coff>&>(*options);
+          return std::make_unique<win::CoffLinker>(std::move(coffOptions));
      }
      default: return nullptr;
      }
@@ -41,6 +47,13 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
                   config.linker == LinkerUsed::Windows32 ? LinkerBitness::x32 : LinkerBitness::x64));
      }
      break;
+     case LinkerUsed::Windows64Coff:
+     {
+          selectedLinker = ecpps::linker::Linker::CreateLinker(
+              ecpps::linker::LinkerType::Coff,
+              std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::Coff>>(LinkerBitness::x64));
+          break;
+     }
      case LinkerUsed::Caosys:
      {
           selectedLinker = ecpps::linker::Linker::CreateLinker(
@@ -56,6 +69,11 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      const auto availableExports = GetExportsFromDlls(config.importedLibraries);
      for (const auto& [decoratedName, undecoratedName] : ecpps::codegen::g_functionImports)
      {
+          if (config.linker == LinkerUsed::Windows64Coff)
+          {
+               selectedLinker->ImportFunction(decoratedName, undecoratedName, "");
+               continue;
+          }
           std::string dllName{};
           const auto& lookupName = undecoratedName.empty() ? decoratedName : undecoratedName;
 
@@ -74,12 +92,13 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
           selectedLinker->ImportFunction(decoratedName, lookupName, dllName);
      }
 
+     if (auto* coff = dynamic_cast<win::CoffLinker*>(selectedLinker.get()))
+          coff->SetStringRelocations(stringRelocations, toRelocateWidth);
+
      diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);
 
      for (const auto& [functionName, functionOffset] : functions)
           selectedLinker->ExportFunction(functionName, functionOffset);
-
-     // TODO: Imports
 
      return selectedLinker->ToBytes(config.outputImage, mainOffset, stringData);
 }

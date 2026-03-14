@@ -84,6 +84,13 @@ ecpps::CompilerConfig::CompilerConfig(
                          this->intptrSize = Size::LongLong;
                          this->ptrdiffSize = Size::LongLong;
                     }
+                    else if (lowerValue == "coff64")
+                    {
+                         this->linker = LinkerUsed::Windows64Coff;
+                         this->sizeSize = Size::LongLong;
+                         this->intptrSize = Size::LongLong;
+                         this->ptrdiffSize = Size::LongLong;
+                    }
                     else if (lowerValue == "win32" || lowerValue == "pe32")
                          this->linker = LinkerUsed::Windows32;
                     else if (lowerValue == "cao" || lowerValue == "caosys" || lowerValue == "cao64")
@@ -120,6 +127,7 @@ ecpps::CompilerConfig::CompilerConfig(
      {
      case LinkerUsed::Windows64:
      case LinkerUsed::Windows32:
+     case LinkerUsed::Windows64Coff:
           if (this->outputImage.empty()) this->outputImage = "output.exe";
           this->importedLibraries.emplace_back("KERNEL32.dll");
           this->importedLibraries.emplace_back("USER32.dll");
