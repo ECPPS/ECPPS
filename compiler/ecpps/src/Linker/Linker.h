@@ -42,6 +42,7 @@ namespace ecpps::linker
      enum struct LinkerType : std::uint_fast8_t
      {
           PE,
+          Coff
      };
      struct LinkerOptionsBase
      {
@@ -70,6 +71,13 @@ namespace ecpps::linker
               : subsystem(subsystem), type(type), bitness(bitness)
           {
           }
+     };
+
+     template <> struct LinkerOptions<LinkerType::Coff> final : LinkerOptionsBase
+     {
+          LinkerBitness bitness;
+
+          explicit LinkerOptions(const LinkerBitness bitness) : bitness(bitness) {}
      };
 
      class LinkerBase

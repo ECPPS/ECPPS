@@ -451,8 +451,8 @@ int main(int argc, char* argv[])
           config.stringArray.emplace_back(0);
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
-              config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection, {},
-              4,
+              config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,
+              emitter->_stringRelocation, 4,
               config.stringArray |
                   std::views::transform([](const char8_t character) { return static_cast<std::byte>(character); }) |
                   std::ranges::to<std::vector>());

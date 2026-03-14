@@ -30,6 +30,7 @@ using _CHAR = char;
 #endif
 
 _DLLIMPORT(ExitProcess) void __ExitProcess(_UINT32);
+_DLLIMPORT(DebugBreak) void __DebugBreak();
 _DLLIMPORT(AttachConsole) _BOOL __AttachConsole(_DWORD);
 _DLLIMPORT(AllocConsole) _BOOL __AllocConsole();
 _DLLIMPORT(GetLastError) _DWORD __GetLastError();
