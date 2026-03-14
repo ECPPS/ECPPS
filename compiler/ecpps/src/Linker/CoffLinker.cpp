@@ -67,7 +67,7 @@ namespace
 
      struct COFFSymbolRaw
      {
-          union
+          union Union
           {
                char shortName[8]; // NOLINT
                struct LongName
@@ -77,6 +77,7 @@ namespace
                };
                LongName longName;
           };
+          Union name;
 
           std::uint32_t value;
           std::int16_t sectionNumber;
@@ -279,11 +280,11 @@ std::vector<std::byte> CoffLinker::ToBytes(const std::string& imageName, std::si
      for (const auto& sym : symbols)
      {
           COFFSymbolRaw raw{};
-          if (sym.name.size() <= 8) { std::ranges::copy(sym.name, raw.shortName); }
+          if (sym.name.size() <= 8) std::ranges::copy(sym.name, raw.name.shortName);
           else
           {
-               raw.longName.zero = 0;
-               raw.longName.offset = strSize;
+               raw.name.longName.zero = 0;
+               raw.name.longName.offset = strSize;
                for (char c : sym.name) strTable.push_back(static_cast<std::byte>(c));
                strTable.push_back(std::byte{0});
                strSize += static_cast<std::uint32_t>(sym.name.size() + 1);
