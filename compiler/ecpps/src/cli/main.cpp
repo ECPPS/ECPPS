@@ -163,9 +163,13 @@ int main(int argc, char* argv[])
 
                     std::vector<ecpps::MacroReplacement> macros{};
                     macros.emplace_back("__cplusplus", std::nullopt, "202302", false); // TODO: 202302L
-                    // TODO: __DATE__
                     macros.emplace_back("__LINE__", std::nullopt, "1", false);
                     macros.emplace_back("__FILE__", std::nullopt, "\"" + source.name + "\"", false);
+                    const auto now = std::chrono::system_clock::now();
+                    std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(now)};
+                    macros.emplace_back("__DATE__", std::nullopt, std::format("\"{:%b %e %Y}\"", ymd), false);
+                    std::chrono::hh_mm_ss hms{std::chrono::floor<std::chrono::seconds>(now - std::chrono::floor<std::chrono::days>(now))};
+                    macros.emplace_back("__TIME__", std::nullopt, std::format("\"{:%T}\"", hms), false);
                     // TODO: __STDC_HOSTED__
                     // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
                     // TODO: __STDCPP_FLOAT16_T__
