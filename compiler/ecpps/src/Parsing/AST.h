@@ -247,9 +247,9 @@ namespace ecpps::ast
                default: break;
                }
 
-               built += this->type->ToString(0) + " ";
+               built += this->type == nullptr ? "__unknown" : this->type->ToString(0) + " ";
                built += ::ToString(this->callingConvention) + " ";
-               built += this->name->ToString(0);
+               built += this->name == nullptr ? "__unknown" : this->name->ToString(0);
                built += "(";
                built += this->parameters.ToString();
                built += ")";

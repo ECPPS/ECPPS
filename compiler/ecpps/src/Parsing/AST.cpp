@@ -2,6 +2,7 @@
 #include <RuntimeAssert.h>
 #include <format>
 #include <unordered_set>
+#include <utility>
 #include "ASTs/Type.h"
 
 using ecpps::ast::NodePointer;
@@ -96,6 +97,22 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     return std::unique_ptr<NamespaceAliasNode, ecpps::ast::ASTContext::Deleter>(
                         new (context) NamespaceAliasNode(std::move(name), std::move(aliased), source));
                }
+               std::vector<std::pair<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>, bool>>
+                   nestedNames;
+               nestedNames.emplace_back(std::move(name), false);
+
+               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+               {
+                    Advance(); // eat ::
+                    auto nestedName = ParseIdentifier(context);
+                    if (nestedName == nullptr)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Expected identifier in nested namespace declaration", Peek().location));
+                         return nullptr;
+                    }
+                    nestedNames.emplace_back(std::move(nestedName), false);
+               }
 
                if (Peek().type == TokenType::LeftBrace)
                {
@@ -116,11 +133,21 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     }
 
                     source.endPosition = Peek(-1).location.endPosition;
-                    return std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) NamespaceNode(std::move(name), std::move(declarations), source));
-               }
 
-               // TODO: Nested names [ namespace A::B ]
+                    auto back = std::move(nestedNames.back());
+                    nestedNames.pop_back();
+                    std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter> currentNode =
+                        std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                            new (context) NamespaceNode(std::move(back.first), std::move(declarations), source));
+                    for (auto it = nestedNames.rbegin(); it != nestedNames.rend(); ++it)
+                    {
+                         SBOVector<NodePointer> decls{};
+                         decls.Push(std::move(currentNode));
+                         currentNode = std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                             new (context) NamespaceNode(std::move(it->first), std::move(decls), source));
+                    }
+                    return currentNode;
+               }
           }
           else if (keyword == "using")
           {

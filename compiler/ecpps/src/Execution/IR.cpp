@@ -433,9 +433,10 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      const auto namespacePath = NamespacePathFromContext();
 
+     const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
      auto functionScope =
          MakeFunctionScope()
-             .Name(node.Signature().name->ToString(0))
+             .Name(name)
              .ReturnType(returnType)
              .CallingConvention(node.Signature().callingConvention)
              .Linkage(linkage)
@@ -455,7 +456,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
      auto functionContext = std::make_shared<FunctionContext>(
-         functionScope.get(), node.Signature().callingConvention, returnType, node.Signature().name->ToString(0),
+         functionScope.get(), node.Signature().callingConvention, returnType, name,
          parameters |
              std::views::transform([](const FunctionScope::Parameter& parameter) -> decltype(auto)
                                    { return parameter.type; }) |
@@ -487,13 +488,11 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      locals.reserve(vFunctionScope->locals.size());
      for (const auto& toCopy : vFunctionScope->locals) locals.emplace_back(toCopy);
 
-     const auto functionName = node.Signature().name->ToString(0);
-
      if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator)
                                                                              ir::ReturnNode(nullptr, node.Source())});
 
-     if (functionName == "main" && (ir._built.empty() || ir._built.back()->Kind() != NodeKind::Return))
+     if (name == "main" && (ir._built.empty() || ir._built.back()->Kind() != NodeKind::Return))
           ir._built.push_back(
               std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir._context.nodeAllocator) ir::ReturnNode(
                   std::make_unique<PRValue>(typeSystem::g_int.get(),
@@ -504,8 +503,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
          new (*this->_context.nodeAllocator) ecpps::ir::ProcedureNode(
-             linkage, node.Signature().callingConvention, returnType, functionName, std::move(parameters),
-             std::move(locals), std::move(ir._built), node.Source(), NamespacePathFromContext())});
+             linkage, node.Signature().callingConvention, returnType, name, std::move(parameters), std::move(locals),
+             std::move(ir._built), node.Source(), NamespacePathFromContext())});
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
