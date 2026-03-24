@@ -2,6 +2,7 @@
 #include <RuntimeAssert.h>
 #include <TypeSystem/TypeBase.h>
 #include <algorithm>
+#include <deque>
 #include <format>
 #include <memory>
 #include <queue>
@@ -89,7 +90,7 @@ namespace
      }
 
      std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> CollectExactMatches(
-         const std::string& name, ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+         const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> exactMatches;
           for (const auto& context : contextSequence)
@@ -100,8 +101,7 @@ namespace
      }
 
      std::vector<std::pair<std::string, std::size_t>> CollectSimilarNames(
-         const std::string& name, std::size_t argumentCount,
-         ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+         const std::string& name, std::size_t argumentCount, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::pair<std::string, std::size_t>> similar;
           std::set<std::string> seen;
@@ -137,7 +137,7 @@ namespace
      }
 
      std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
-         const std::string& name, ecpps::SBOQueue<ecpps::ir::ContextPointer>& contextSequence)
+         const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::pair<std::string, std::size_t>> similar;
           std::set<std::string> seen;
@@ -244,10 +244,10 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAl
      ir._context.globalScope->types.insert(typeSystem::g_unsignedInt.get());
      ir._context.globalScope->types.insert(typeSystem::g_unsignedLong.get());
      ir._context.globalScope->types.insert(typeSystem::g_unsignedLongLong.get());
-     ir._context.contextSequence.Push(std::make_unique<NamespaceContext>(ir._context.globalScope.get()));
+     ir._context.contextSequence.push_back(std::make_unique<NamespaceContext>(ir._context.globalScope.get()));
      for (const auto& node : ast) ir.ParseNode(node);
      auto built = std::move(ir._built);
-     ir._context.contextSequence.Pop();
+     ir._context.contextSequence.pop_back();
      return built;
 }
 
@@ -297,7 +297,7 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
 
           const std::string aliasName = aliasNode->AliasName()->ToString(0);
 
-          auto& currentScope = this->_context.contextSequence.Back()->GetScope();
+          auto& currentScope = this->_context.contextSequence.back()->GetScope();
           currentScope.typeAliases[aliasName] = targetType;
 
           return;
@@ -357,6 +357,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                }
           }
      }
+     const auto namespacePath = NamespacePathFromContext();
 
      auto functionScope =
          MakeFunctionScope()
@@ -375,9 +376,10 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                                      : ecpps::ir::ConstexprType::None)
              .Parameters(parameters)
              .Source(node.Source())
+             .NamespacePath(namespacePath)
              .Build();
      functionScope->parameters = parameters;
-     this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
+     this->_context.contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
 }
 void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& node)
 {
@@ -429,6 +431,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           }
      }
 
+     const auto namespacePath = NamespacePathFromContext();
+
      auto functionScope =
          MakeFunctionScope()
              .Name(node.Signature().name->ToString(0))
@@ -446,6 +450,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                      : ecpps::ir::ConstexprType::None)
              .Parameters(parameters)
              .Source(node.Source())
+             .NamespacePath(namespacePath)
              .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
@@ -458,9 +463,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      ir._context = this->_context;
      auto* vFunctionScope = functionScope.get();
-     ir._context.contextSequence.Push(std::move(functionContext));
+     ir._context.contextSequence.push_back(std::move(functionContext));
 
-     this->_context.contextSequence.Back()->GetScope().functions.push_back(std::move(functionScope));
+     this->_context.contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
      std::uint64_t paramIndex{};
      for (const auto& param : parameters)
      {
@@ -498,14 +503,14 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                   node.Source())});
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
-         new (*this->_context.nodeAllocator)
-             ecpps::ir::ProcedureNode(linkage, node.Signature().callingConvention, returnType, functionName,
-                                      std::move(parameters), std::move(locals), std::move(ir._built), node.Source())});
+         new (*this->_context.nodeAllocator) ecpps::ir::ProcedureNode(
+             linkage, node.Signature().callingConvention, returnType, functionName, std::move(parameters),
+             std::move(locals), std::move(ir._built), node.Source(), NamespacePathFromContext())});
 }
 
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 {
-     auto* const function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+     auto* const function = dynamic_cast<FunctionContext*>(this->_context.contextSequence.back().get());
 
      runtime_assert(function != nullptr, "Function was null when parsing the function");
 
@@ -551,7 +556,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                return;
           }
 
-          auto& currentScope = this->_context.contextSequence.Back()->GetScope();
+          auto& currentScope = this->_context.contextSequence.back()->GetScope();
           for (const auto& decl : node.Declarators())
           {
                const auto* idNodePtr = decl.name.get();
@@ -571,7 +576,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           return;
      }
 
-     auto* const functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.Back().get());
+     auto* const functionContext = dynamic_cast<FunctionContext*>(this->_context.contextSequence.back().get());
      runtime_assert(functionContext != nullptr, "Variable declaration outside of a function is not supported");
 
      auto& fscope = functionContext->GetScope<FunctionScope>(); // NOLINT(clang-analyzer-core.CallAndMessage)
@@ -829,21 +834,60 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
      }
 }
 
+std::vector<std::string> ecpps::ir::IR::NamespacePathFromContext(void) const
+{
+     std::vector<std::string> path{};
+     for (const auto& context : this->_context.contextSequence)
+     {
+          if (auto* const namespaceContext = dynamic_cast<NamespaceContext*>(context.get());
+              namespaceContext != nullptr)
+          {
+               auto* vScope = &namespaceContext->GetScope();
+
+               auto* vNamespaceScope = dynamic_cast<NamespaceScope*>(vScope);
+               runtime_assert(vNamespaceScope != nullptr, "Expected a namespace scope in a namespace context");
+               if (!vNamespaceScope->name.empty()) path.push_back(vNamespaceScope->name);
+          }
+     }
+     return path;
+}
+
 void ecpps::ir::IR::ParseNamespace(const ast::NamespaceNode& node)
 {
      std::string namespaceName;
      if (node.Name() != nullptr) { namespaceName = node.Name()->ToString(0); }
 
-     // TODO: For full namespace support, we should:
-     // - Create a new scope for the namespace
-     // - Track the namespace in the symbol table
-     // - Support qualified name lookups
-     // Although this is not within the scope of this PR
+     auto& parentScope = this->_context.contextSequence.back()->GetScope();
+     auto* parentNamespace = dynamic_cast<NamespaceScope*>(&parentScope);
+     runtime_assert(parentNamespace != nullptr, "Parent scope for namespace was not a namespace");
+
+     std::unique_ptr<NamespaceScope> ns{};
+     if (namespaceName.empty()) { ns = std::make_unique<NamespaceScope>(); }
+     else
+     {
+          ns = std::make_unique<NamespaceScope>(namespaceName);
+
+          // Check for duplicate namespace
+          for (const auto& existingNs : parentNamespace->subNamespaces)
+          {
+               if (existingNs->name == namespaceName)
+               {
+                    this->_context.diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            "Redefinition of namespace '" + namespaceName + "'", node.Name()->Source()));
+                    return;
+               }
+          }
+     }
+     auto* nsPtr = ns.get();
+     parentNamespace->subNamespaces.push_back(std::move(ns));
+     this->_context.contextSequence.push_back(std::make_unique<NamespaceContext>(nsPtr));
 
      for (const auto& decl : node.Declarations())
      {
           if (decl != nullptr) ParseNode(decl);
      }
+     this->_context.contextSequence.pop_back();
 }
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
@@ -1416,144 +1460,181 @@ struct CompareByPriority
 
 Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 {
-     // fast/hot path for identifiers
-     if (auto* const identifierFunction = dynamic_cast<ast::IdentifierNode*>(node.Function().get()))
+     const ast::IdentifierNode* identifierFunction = nullptr;
+     std::vector<std::string> qualifiers;
+
+     if (auto* id = dynamic_cast<ast::IdentifierNode*>(node.Function().get())) { identifierFunction = id; }
+     else if (auto* qid = dynamic_cast<ast::QualifiedIdNode*>(node.Function().get()))
      {
-          const std::string& name = identifierFunction->Value();
-          std::priority_queue<
-              std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>,
-              std::vector<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>>,
-              CompareByPriority>
-              candidates{};
-          // TODO: Traverse contexts
-          for (const auto& context : this->_context.contextSequence)
+          const auto& parts = qid->Path();
+
+          if (parts.empty()) return nullptr;
+
+          for (size_t i = 0; i + 1 < parts.size(); ++i)
           {
-               std::vector<Expression> arguments = node.Arguments() |
-                                                   std::views::transform([this](const ast::NodePointer& argument)
-                                                                         { return this->ParseExpression(argument); }) |
-                                                   std::ranges::to<std::vector>();
-
-               for (const auto& candidate : context->GetScope().functions)
-               {
-                    if (candidate->name != name) continue;
-
-                    const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
-                    if (!match) continue;
-                    candidates.emplace(match, candidate);
-               }
-
-               if (candidates.empty()) continue;
-               // TODO: Ambiguity
-               const auto& candidate = candidates.top().second;
-               auto moveRange = std::ranges::subrange(std::make_move_iterator(arguments.begin()),
-                                                      std::make_move_iterator(arguments.end()));
-
-               std::vector<Expression> evaluatedArguments = std::views::zip(candidate->parameters, moveRange) |
-                                                            std::views::transform(
-                                                                [this](auto&& pair)
-                                                                {
-                                                                     auto&& [param, arg] = pair;
-                                                                     return ConvertTo(std::move(arg), param.type);
-                                                                }) |
-                                                            std::ranges::to<std::vector>();
-
-               auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
-                   new (*this->_context.nodeAllocator)
-                       FunctionCallNode(candidate, std::move(evaluatedArguments), node.Source())};
-
-               // TODO: Check for references; lvalue reference => lvalue; rvalue reference => xvalue
-               return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
+               auto* part = dynamic_cast<ast::IdentifierNode*>(parts[i].get());
+               if (!part) return nullptr;
+               qualifiers.push_back(part->Value());
           }
 
-          std::string errorMessage = "Unresolved function " + name;
-
-          std::vector<Expression> argumentsForAnalysis =
-              node.Arguments() |
-              std::views::transform([this](const ast::NodePointer& argument)
-                                    { return this->ParseExpression(argument); }) |
-              std::ranges::to<std::vector>();
-
-          auto exactMatches = CollectExactMatches(name, this->_context.contextSequence);
-          if (!exactMatches.empty())
-          {
-               auto mainError = ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
-                   name, errorMessage, identifierFunction->Source());
-
-               std::vector<const ast::Node*> argumentNodes;
-               argumentNodes.reserve(node.Arguments().Size());
-               for (const auto& argNode : node.Arguments()) argumentNodes.push_back(argNode.get());
-               for (const auto& func : exactMatches)
-               {
-                    auto candidateNote = std::make_unique<diagnostics::Information>(
-                        "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
-
-                    auto failureInfo = AnalyseCandidateFailure(func, argumentsForAnalysis);
-                    for (const auto& [paramIndex, failure] : failureInfo.parameterFailures)
-                    {
-                         Location argSource = (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
-                                               paramIndex <= argumentNodes.size())
-                                                  ? argumentNodes[paramIndex - 1]->Source()
-                                                  : identifierFunction->Source();
-
-                         auto failureNote = std::make_unique<diagnostics::Information>("note", failure, argSource);
-
-                         if (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
-                             paramIndex <= argumentsForAnalysis.size() && paramIndex <= func->parameters.size())
-                         {
-                              const auto& arg = argumentsForAnalysis[paramIndex - 1];
-                              const auto& param = func->parameters[paramIndex - 1];
-
-                              if (arg != nullptr)
-                              {
-                                   const auto& fromType = arg->Type();
-                                   const auto& toType = param.type;
-
-                                   if ((ecpps::typeSystem::IsPointer(fromType) ||
-                                        ecpps::typeSystem::IsArray(fromType)) &&
-                                       !ecpps::typeSystem::IsPointer(toType) && !ecpps::typeSystem::IsArray(toType))
-                                        failureNote->SubDiagnostics().push_back(
-                                            std::make_unique<diagnostics::Information>(
-                                                "note", "Did you mean to dereference the argument?", argSource));
-                              }
-                         }
-
-                         candidateNote->SubDiagnostics().push_back(std::move(failureNote));
-                    }
-
-                    mainError->SubDiagnostics().push_back(std::move(candidateNote));
-               }
-
-               this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
-          }
-          else
-          {
-               auto mainError = std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage,
-                                                                                     identifierFunction->Source());
-
-               auto similarNames =
-                   CollectSimilarNames(name, argumentsForAnalysis.size(), this->_context.contextSequence);
-               if (!similarNames.empty())
-               {
-                    auto didYouMeanNote = std::make_unique<diagnostics::Information>(
-                        "note", "Did you mean:", identifierFunction->Source());
-
-                    for (const auto& [similarName, distance] : similarNames)
-                    {
-                         didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                             "", std::format("    {} [distance={}]", similarName, distance),
-                             identifierFunction->Source()));
-                    }
-
-                    mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
-               }
-
-               this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
-          }
-
-          return nullptr;
+          identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
      }
 
-     // TODO: More
+     if (!identifierFunction) return nullptr;
+
+     const std::string& name = identifierFunction->Value();
+     std::priority_queue<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>,
+                         std::vector<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>>,
+                         CompareByPriority>
+         candidates{};
+     // TODO: Traverse contexts
+     for (const auto& context : this->_context.contextSequence)
+     {
+          auto* scope = &context->GetScope();
+          // Handle namespaces in qualifiers
+          if (!qualifiers.empty())
+          {
+               bool matchesQualifiers = true;
+               auto* currentScope = scope;
+               for (const auto& qualifier : qualifiers)
+               {
+                    const auto* namespaceScope = dynamic_cast<ecpps::ir::NamespaceScope*>(currentScope);
+                    if (!namespaceScope)
+                    {
+                         matchesQualifiers = false; // TODO: Classes
+                         break;
+                    }
+
+                    auto it = std::ranges::find_if(namespaceScope->subNamespaces,
+                                                   [&qualifier](const std::unique_ptr<ecpps::ir::NamespaceScope>& ns)
+                                                   { return ns->name == qualifier; });
+                    if (it == namespaceScope->subNamespaces.end())
+                    {
+                         matchesQualifiers = false;
+                         break;
+                    }
+                    currentScope = it->get();
+               }
+               if (!matchesQualifiers) continue;
+               scope = currentScope;
+          }
+
+          std::vector<Expression> arguments = node.Arguments() |
+                                              std::views::transform([this](const ast::NodePointer& argument)
+                                                                    { return this->ParseExpression(argument); }) |
+                                              std::ranges::to<std::vector>();
+
+          for (const auto& candidate : scope->functions)
+          {
+               if (candidate->name != name) continue;
+
+               const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
+               if (!match) continue;
+               candidates.emplace(match, candidate);
+          }
+
+          if (candidates.empty()) continue;
+          // TODO: Ambiguity
+          const auto& candidate = candidates.top().second;
+          auto moveRange = std::ranges::subrange(std::make_move_iterator(arguments.begin()),
+                                                 std::make_move_iterator(arguments.end()));
+
+          std::vector<Expression> evaluatedArguments = std::views::zip(candidate->parameters, moveRange) |
+                                                       std::views::transform(
+                                                           [this](auto&& pair)
+                                                           {
+                                                                auto&& [param, arg] = pair;
+                                                                return ConvertTo(std::move(arg), param.type);
+                                                           }) |
+                                                       std::ranges::to<std::vector>();
+
+          auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->_context.nodeAllocator) FunctionCallNode(
+              candidate, std::move(evaluatedArguments), node.Source())};
+
+          // TODO: Check for references; lvalue reference => lvalue; rvalue reference => xvalue
+          return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
+     }
+
+     std::string errorMessage = "Unresolved function " + name;
+
+     std::vector<Expression> argumentsForAnalysis =
+         node.Arguments() |
+         std::views::transform([this](const ast::NodePointer& argument) { return this->ParseExpression(argument); }) |
+         std::ranges::to<std::vector>();
+
+     auto exactMatches = CollectExactMatches(name, this->_context.contextSequence);
+     if (!exactMatches.empty())
+     {
+          auto mainError = ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
+              name, errorMessage, identifierFunction->Source());
+
+          std::vector<const ast::Node*> argumentNodes;
+          argumentNodes.reserve(node.Arguments().Size());
+          for (const auto& argNode : node.Arguments()) argumentNodes.push_back(argNode.get());
+          for (const auto& func : exactMatches)
+          {
+               auto candidateNote = std::make_unique<diagnostics::Information>(
+                   "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
+
+               auto failureInfo = AnalyseCandidateFailure(func, argumentsForAnalysis);
+               for (const auto& [paramIndex, failure] : failureInfo.parameterFailures)
+               {
+                    Location argSource =
+                        (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 && paramIndex <= argumentNodes.size())
+                            ? argumentNodes[paramIndex - 1]->Source()
+                            : identifierFunction->Source();
+
+                    auto failureNote = std::make_unique<diagnostics::Information>("note", failure, argSource);
+
+                    if (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
+                        paramIndex <= argumentsForAnalysis.size() && paramIndex <= func->parameters.size())
+                    {
+                         const auto& arg = argumentsForAnalysis[paramIndex - 1];
+                         const auto& param = func->parameters[paramIndex - 1];
+
+                         if (arg != nullptr)
+                         {
+                              const auto& fromType = arg->Type();
+                              const auto& toType = param.type;
+
+                              if ((ecpps::typeSystem::IsPointer(fromType) || ecpps::typeSystem::IsArray(fromType)) &&
+                                  !ecpps::typeSystem::IsPointer(toType) && !ecpps::typeSystem::IsArray(toType))
+                                   failureNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                                       "note", "Did you mean to dereference the argument?", argSource));
+                         }
+                    }
+
+                    candidateNote->SubDiagnostics().push_back(std::move(failureNote));
+               }
+
+               mainError->SubDiagnostics().push_back(std::move(candidateNote));
+          }
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+     }
+     else
+     {
+          auto mainError =
+              std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage, identifierFunction->Source());
+
+          auto similarNames = CollectSimilarNames(name, argumentsForAnalysis.size(), this->_context.contextSequence);
+          if (!similarNames.empty())
+          {
+               auto didYouMeanNote =
+                   std::make_unique<diagnostics::Information>("note", "Did you mean:", identifierFunction->Source());
+
+               for (const auto& [similarName, distance] : similarNames)
+               {
+                    didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                        "", std::format("    {} [distance={}]", similarName, distance), identifierFunction->Source()));
+               }
+
+               mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
+          }
+
+          this->_context.diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+     }
+
      return nullptr;
 }
 
@@ -1686,10 +1767,10 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
                                   : basicType->IsVolatile() ? typeSystem::Qualifiers::Volatile
                                                             : typeSystem::Qualifiers::None;
 
-          const auto scopeCount = this->_context.contextSequence.Size();
-          for (std::size_t i = scopeCount; i > 0; --i)
+          for (const auto& context : this->_context.contextSequence)
           {
-               const auto& scope = this->_context.contextSequence[i - 1]->GetScope();
+               const auto& scope = context->GetScope();
+
                const auto aliasIt = scope.typeAliases.find(value);
                if (aliasIt != scope.typeAliases.end())
                {

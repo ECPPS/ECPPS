@@ -329,14 +329,16 @@ namespace ecpps::ast
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string arguments{};
-               for (const auto& arg : this->_arguments) arguments += arg->ToString(0) + ", ";
+               for (const auto& arg : this->_arguments)
+                    arguments += (arg == nullptr ? "__unknown" : arg->ToString(0)) + ", ";
                if (!arguments.empty()) // trailing comma
                {
                     arguments.pop_back();
                     arguments.pop_back();
                }
 
-               return std::string(indent * PrettyIndent, ' ') + "(" + this->_function->ToString(0) + ")(" + arguments +
+               return std::string(indent * PrettyIndent, ' ') + "(" +
+                      (this->_function == nullptr ? "__unknown" : this->_function->ToString(0)) + ")(" + arguments +
                       ")";
           }
 

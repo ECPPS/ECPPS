@@ -16,4 +16,19 @@ _DLLEXPORT int getchar()
      return __std_console_read(__hConsole);
 }
 
-_DLLEXPORT int puts(const char* __buffer) { return __std_cwrite(__buffer); }
+_DLLEXPORT int puts(const char* __buffer)
+{
+     int count = __std_cwrite(__buffer);
+     __std_cwrite("\n");
+     return count;
+}
+
+namespace std
+{
+     _DLLEXPORT int puts(const char* __buffer)
+     {
+          int count = __std_cwrite(__buffer);
+          __std_cwrite("\n");
+          return count;
+     }
+} // namespace std

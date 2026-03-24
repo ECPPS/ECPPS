@@ -871,6 +871,18 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
           }
           return expression;
      }
+     case TokenType::Operator:
+     {
+          // ::
+          if (std::get<std::string>(currentToken.value) == "::")
+          {
+               this->Advance();
+               auto idExpr = ParseIdExpression(context);
+               if (!idExpr) { return nullptr; }
+               return idExpr;
+          }
+          break;
+     }
      case TokenType::Identifier:
      {
           return ParseIdExpression(context);
@@ -889,13 +901,18 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
 {
-     if (Peek().type != TokenType::Identifier) return nullptr;
-
      const auto source = Peek().location;
      std::vector<NodePointer> parts;
 
-     bool expectIdentifier = true; // NOLINT
      bool sawTemplateKeyword = false;
+     bool globalScope = false;
+
+     if (!AtEnd() && Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+     {
+          Advance();
+          Advance();
+          globalScope = true;
+     }
 
      while (true)
      {
@@ -905,7 +922,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
                Advance();
           }
 
-          if (AtEnd() || Peek().type != TokenType::Identifier) break;
+          if (AtEnd()) break;
 
           auto currentToken = Peek();
           const auto& identifierName = std::get<std::string>(currentToken.value);
@@ -974,13 +991,19 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
 
           if (AtEnd()) break;
 
-          if (Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
           {
                Advance();
-               Advance();
+
+               if (AtEnd() || Peek().type != TokenType::Identifier) // TODO: template & operator op
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected an identifier after '::' in qualified-id", Peek().location));
+                    return nullptr;
+               }
+
                continue;
           }
-          const auto& next = Peek(); // NOLINT
 
           break;
      }

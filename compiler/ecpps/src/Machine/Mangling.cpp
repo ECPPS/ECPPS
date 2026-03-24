@@ -82,7 +82,8 @@ std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer ty
 std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::string& name,
                                              const CallingConventionName callingConvention,
                                              const typeSystem::NonowningTypePointer returnType,
-                                             const std::vector<typeSystem::NonowningTypePointer>& parameters)
+                                             const std::vector<typeSystem::NonowningTypePointer>& parameters,
+                                             const std::vector<std::string>& namespacePath)
 {
      std::string built = "?";
      switch (linkage)
@@ -98,6 +99,7 @@ std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::s
      {
      case CallingConventionName::Microsoftx64: built += CallingConventionMsCall; break;
      }
+     for (const auto& ns : namespacePath) built += ns + "??";
      built += MangleType(returnType);
      built += "@";
      built += name;
