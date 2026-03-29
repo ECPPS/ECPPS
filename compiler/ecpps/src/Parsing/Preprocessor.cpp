@@ -74,10 +74,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     location.position++;
                }
 
+               sourceIterator = directiveIt;
                if (directive == "include")
                {
-                    sourceIterator = directiveIt;
-
                     std::string header;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
                          ++sourceIterator;
@@ -133,8 +132,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
                else if (directive == "define")
                {
-                    sourceIterator = directiveIt;
-
                     while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                     std::string macroName;
@@ -196,7 +193,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     // Parse macro name
                     while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
-                    std::string macroName;
+                    std::string macroName{};
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
                          macroName += *sourceIterator++;
 
