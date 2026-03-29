@@ -932,13 +932,13 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
      std::vector<NodePointer> parts;
 
      bool sawTemplateKeyword = false;
-     bool globalScope = false;
+     // bool globalScope = false;
 
      if (!AtEnd() && Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
      {
           Advance();
           Advance();
-          globalScope = true;
+          // globalScope = true;
      }
 
      while (true)
