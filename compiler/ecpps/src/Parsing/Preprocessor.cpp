@@ -309,9 +309,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         currentRawArg.clear();
                                    }
                                    else
-                                   {
                                         currentRawArg += c;
-                                   }
                                    ++argIt;
                               }
                               for (const auto& rawArg : rawArgs)
