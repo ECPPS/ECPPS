@@ -1,6 +1,7 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
 #include <format>
+#include <ranges>
 #include <unordered_set>
 #include <utility>
 #include "ASTs/Type.h"
