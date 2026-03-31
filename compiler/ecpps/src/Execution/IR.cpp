@@ -1479,7 +1479,14 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
      }
 
-     if (!identifierFunction) return nullptr;
+     if (!identifierFunction)
+     {
+          this->_context.diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  std::format("Expected a function name in a call expression, found: {}", node.Function()->ToString(0)),
+                  node.Function()->Source()));
+          return nullptr;
+     }
 
      const std::string& name = identifierFunction->Value();
      std::priority_queue<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>,
