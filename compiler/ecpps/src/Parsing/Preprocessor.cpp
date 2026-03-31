@@ -246,10 +246,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     // TODO: handle nested #if/#ifdef recursively
                }
-               else if (directive == "else" || directive == "endif")
-               {
-                    // Handled above
-               }
+               else
+                    throw std::runtime_error(std::format("unknown preprocessor directive: {}", directive));
+
                if (sourceIterator != source.begin()) --sourceIterator;
                location.position = 0;
                continue;
