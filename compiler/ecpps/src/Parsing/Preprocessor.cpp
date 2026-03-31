@@ -206,6 +206,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     bool inElse = false;
                     std::string builtSource{};
                     const auto previousLine = location.line;
+                    bool wasAnyBranchTaken = conditionMet;
                     while (sourceIterator != source.end())
                     {
                          char c = *sourceIterator;
@@ -226,25 +227,101 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               {
                                    inElse = true;
                                    sourceIterator = peekIt;
+                                   Advance(sourceIterator);
+                                   continue;
                               }
-                              else if (nextDirective == "endif")
+                              if (nextDirective == "endif")
                               {
                                    sourceIterator = peekIt;
                                    break;
                               }
+                              if (nextDirective == "elif")
+                              {
+                                   inElse = false;
+                                   conditionMet = false;
+
+                                   while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0))
+                                        Advance(sourceIterator);
+
+                                   std::string elifCondition;
+                                   while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                                        elifCondition += *sourceIterator++;
+
+                                   if (!elifCondition.empty())
+                                   {
+                                        auto it =
+                                            std::ranges::find_if(macros, [&elifCondition](const MacroReplacement& m)
+                                                                 { return m.name == elifCondition; });
+                                        conditionMet = (it != macros.end());
+                                        if (conditionMet) wasAnyBranchTaken = true;
+                                   }
+                                   Advance(sourceIterator);
+                                   continue;
+                              }
+                              if (nextDirective == "elifdef" || nextDirective == "elifndef")
+                              {
+                                   inElse = false;
+                                   conditionMet = false;
+
+                                   bool isElifndef = (nextDirective == "elifndef");
+
+                                   while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0))
+                                        Advance(sourceIterator);
+
+                                   std::string elifMacroName;
+                                   while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                                        elifMacroName += *sourceIterator++;
+
+                                   if (!elifMacroName.empty())
+                                   {
+                                        auto it =
+                                            std::ranges::find_if(macros, [&elifMacroName](const MacroReplacement& m)
+                                                                 { return m.name == elifMacroName; });
+                                        conditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
+                                        if (conditionMet) wasAnyBranchTaken = true;
+                                   }
+                                   Advance(sourceIterator);
+                                   continue;
+                              }
                          }
 
                          if (conditionMet && !inElse) builtSource += c;
+                         else if (!wasAnyBranchTaken && inElse)
+                              builtSource += c;
                          Advance(sourceIterator);
                     }
                     auto parsed = Parse(builtSource, macros, fileName, includeDirectories);
                     for (auto& token : parsed) token.source.line += previousLine - 1;
-                    location.line++;
 
                     tokens.reserve(tokens.size() + parsed.size());
                     tokens.insert_range(tokens.end(), parsed);
 
                     // TODO: handle nested #if/#ifdef recursively
+               }
+               else if (directive == "undef")
+               {
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
+
+                    std::string macroName;
+                    while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                    {
+                         macroName += *sourceIterator++;
+                         location.position++;
+                    }
+
+                    auto it = std::ranges::find_if(macros, [&macroName](const MacroReplacement& m)
+                                                   { return m.name == macroName; });
+                    if (it != macros.end()) macros.erase(it);
+               }
+               else if (directive == "error")
+               {
+                    std::string errorMessage;
+                    while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')
+                    {
+                         errorMessage += *sourceIterator;
+                         Advance(sourceIterator);
+                    }
+                    throw std::runtime_error("preprocessor error: " + errorMessage);
                }
                else
                     throw std::runtime_error(std::format("unknown preprocessor directive: {}", directive));
