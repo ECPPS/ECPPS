@@ -139,12 +139,12 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter> currentNode =
                         std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
                             new (context) NamespaceNode(std::move(back.first), std::move(declarations), source));
-                    for (auto it = nestedNames.rbegin(); it != nestedNames.rend(); ++it)
+                    for (auto& nestedName : std::ranges::reverse_view(nestedNames) | std::views::keys)
                     {
                          SBOVector<NodePointer> decls{};
                          decls.Push(std::move(currentNode));
                          currentNode = std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
-                             new (context) NamespaceNode(std::move(it->first), std::move(decls), source));
+                             new (context) NamespaceNode(std::move(nestedName), std::move(decls), source));
                     }
                     return currentNode;
                }
