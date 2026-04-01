@@ -1461,6 +1461,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 {
      const ast::IdentifierNode* identifierFunction = nullptr;
      std::vector<std::string> qualifiers;
+     bool isFromGlobalNamespace = false;
 
      if (auto* id = dynamic_cast<ast::IdentifierNode*>(node.Function().get())) { identifierFunction = id; }
      else if (auto* qid = dynamic_cast<ast::QualifiedIdNode*>(node.Function().get()))
@@ -1468,15 +1469,25 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           const auto& parts = qid->Path();
 
           if (parts.empty()) return nullptr;
+          if (typeid(*parts.front()) == typeid(ast::GlobalScopeNode)) isFromGlobalNamespace = true;
 
-          for (size_t i = 0; i + 1 < parts.size(); ++i)
+          for (std::size_t i = +isFromGlobalNamespace; i + 1 < parts.size(); i++)
           {
                auto* part = dynamic_cast<ast::IdentifierNode*>(parts[i].get());
                if (!part) return nullptr;
                qualifiers.push_back(part->Value());
           }
-
-          identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
+          if (isFromGlobalNamespace && parts.size() == 1)
+          {
+               this->_context.diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "Expected a function name in a call expression, found global scope specifier",
+                       node.Function()->Source()));
+               identifierFunction =
+                   new ast::IdentifierNode("__unknown", node.Function()->Source()); // a leak yeah, but uh
+          }
+          else
+               identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
      }
 
      if (!identifierFunction)
@@ -1493,9 +1504,14 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                          std::vector<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>>,
                          CompareByPriority>
          candidates{};
-     // TODO: Traverse contexts
-     for (const auto& context : this->_context.contextSequence)
+
+     bool didMatchName = false;
+     for (const auto& context : (isFromGlobalNamespace ? std::deque{this->_context.contextSequence.front()}
+                                                       : this->_context.contextSequence) |
+                                    std::views::reverse)
      {
+          if (didMatchName) break;
+
           auto* scope = &context->GetScope();
           // Handle namespaces in qualifiers
           if (!qualifiers.empty())
@@ -1534,6 +1550,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           {
                if (candidate->name != name) continue;
 
+               didMatchName = true;
                const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
                if (!match) continue;
                candidates.emplace(match, candidate);

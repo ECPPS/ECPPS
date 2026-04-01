@@ -904,7 +904,6 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
           // ::
           if (std::get<std::string>(currentToken.value) == "::")
           {
-               this->Advance();
                auto idExpr = ParseIdExpression(context);
                if (!idExpr) { return nullptr; }
                return idExpr;
@@ -933,13 +932,18 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
      std::vector<NodePointer> parts;
 
      bool sawTemplateKeyword = false;
-     // bool globalScope = false;
+     bool isGlobalScope = false;
 
-     if (!AtEnd() && Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
      {
           Advance();
-          Advance();
-          // globalScope = true;
+          isGlobalScope = true;
+     }
+
+     if (isGlobalScope)
+     {
+          parts.push_back(
+              std::unique_ptr<GlobalScopeNode, ecpps::ast::ASTContext::Deleter>(new (context) GlobalScopeNode(source)));
      }
 
      while (true)

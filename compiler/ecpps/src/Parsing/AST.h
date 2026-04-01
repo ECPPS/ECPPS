@@ -592,6 +592,16 @@ namespace ecpps::ast
           char _value;
      };
 
+     class GlobalScopeNode final : public Node
+     {
+     public:
+          explicit GlobalScopeNode(Location source) : Node(source) {}
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' '); // NOLINT
+          }
+     };
+
      class AST
      {
      public:
