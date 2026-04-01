@@ -20,6 +20,7 @@
 #include "Constexpr.h"
 #include "Context.h"
 #include "ControlFlow.h"
+#include "Entities.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Operations.h"
@@ -36,7 +37,7 @@ namespace
 {
      std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
      {
-          std::string signature = func->name + "(";
+          std::string signature = func->Name().value_or("__unknown") + "(";
           bool first = true;
           for (const auto& param : func->parameters)
           {
@@ -95,7 +96,7 @@ namespace
           std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> exactMatches;
           for (const auto& context : contextSequence)
                for (const auto& func : context->GetScope().functions)
-                    if (func->name == name) { exactMatches.push_back(func); }
+                    if (func->Name() == name) exactMatches.push_back(func);
 
           return exactMatches;
      }
@@ -110,11 +111,15 @@ namespace
           {
                for (const auto& func : context->GetScope().functions)
                {
-                    if (seen.contains(func->name)) continue;
+                    runtime_assert(func != nullptr, "Function pointer cannot be null");
+                    runtime_assert(func->Name().has_value(), "Function must have a name");
+                    const auto& functionName = func->Name().value(); // NOLINT
 
-                    seen.insert(func->name);
+                    if (seen.contains(functionName)) continue;
 
-                    const auto nameDistance = LevenshteinDistance(name, func->name);
+                    seen.insert(functionName);
+
+                    const auto nameDistance = LevenshteinDistance(name, functionName);
                     if (nameDistance == 0) continue;
 
                     if (nameDistance > std::max<std::size_t>(3, name.length() / 3)) continue;
@@ -127,7 +132,7 @@ namespace
 
                     if (score > 5) continue;
 
-                    similar.emplace_back(func->name, score);
+                    similar.emplace_back(functionName, score);
                }
           }
 
@@ -149,23 +154,27 @@ namespace
                {
                     for (const auto& local : functionScope->locals)
                     {
-                         if (seen.contains(local.name)) continue;
-                         seen.insert(local.name);
+                         const auto name = local.Name();
+                         if (seen.contains(name)) continue;
+                         seen.insert(name);
 
-                         const auto distance = LevenshteinDistance(name, local.name);
+                         const auto distance = LevenshteinDistance(name, name);
                          if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
-                              similar.emplace_back(local.name, distance);
+                              similar.emplace_back(name, distance);
                     }
                }
 
                for (const auto& func : scope.functions)
                {
-                    if (seen.contains(func->name)) continue;
-                    seen.insert(func->name);
+                    runtime_assert(func != nullptr, "Function pointer cannot be null");
+                    runtime_assert(func->Name().has_value(), "Function must have a name");
+                    const auto& functionName = func->Name().value(); // NOLINT
+                    if (seen.contains(functionName)) continue;
+                    seen.insert(functionName);
 
-                    const auto distance = LevenshteinDistance(name, func->name);
+                    const auto distance = LevenshteinDistance(name, functionName);
                     if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
-                         similar.emplace_back(func->name, distance);
+                         similar.emplace_back(functionName, distance);
                }
           }
 
@@ -470,8 +479,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      std::uint64_t paramIndex{};
      for (const auto& param : parameters)
      {
-          vFunctionScope->locals.push_back(
-              FunctionScope::Variable{.name = param.name, .type = param.type, .isStatic = false, .isExtern = false});
+          Variable paramVariable{param.name, param.type, StorageDuration::Automatic};
+          FunctionScope::LocalEntity localEntity{std::move(paramVariable)};
+          vFunctionScope->locals.push_back(std::move(localEntity));
 
           auto paramNode =
               std::make_unique<PRValue>(param.type,
@@ -484,7 +494,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
-     std::vector<FunctionScope::Variable> locals{};
+     std::vector<FunctionScope::LocalEntity> locals{};
      locals.reserve(vFunctionScope->locals.size());
      for (const auto& toCopy : vFunctionScope->locals) locals.emplace_back(toCopy);
 
@@ -663,7 +673,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           bool duplicate = false;
           for (const auto& v : fscope.locals)
           {
-               if (v.name == varName)
+               if (v.Name() == varName)
                {
                     duplicate = true;
                     break;
@@ -688,13 +698,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                continue;
           }
 
-          FunctionScope::Variable varEntry;
-          varEntry.name = varName;
-          varEntry.type = variableType;
-          varEntry.isStatic = node.GetFlags().isStatic;
-          varEntry.isExtern = node.GetFlags().isExtern;
+          Variable varEntry{varName, variableType, StorageDuration::Automatic};
 
-          auto& registeredVar = fscope.locals.emplace_back(std::move(varEntry));
+          auto& registeredVarLocal = fscope.locals.emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
+          auto& registeredVar = std::get<Variable>(registeredVarLocal.local);
 
           if (inferLastArrayFromInitialiser)
           {
@@ -734,8 +741,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                              std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
                          this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                             new (*this->_context.nodeAllocator) ir::StoreNode(
-                                 registeredVar.name, std::move(initialiserExpression), decl.initialiser->Source())});
+                             new (*this->_context.nodeAllocator)
+                                 ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
+                                               std::move(initialiserExpression), decl.initialiser->Source())});
                     }
                }
                if (inferLastArrayFromInitialiser)
@@ -803,8 +811,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
                               this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
                                   new (*this->_context.nodeAllocator)
-                                      ir::StoreNode(registeredVar.name, std::move(initialiserExpression),
-                                                    decl.initialiser->Source())});
+                                      ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
+                                                    std::move(initialiserExpression), decl.initialiser->Source())});
                          }
                          continue;
                     }
@@ -822,7 +830,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
                this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
                    new (*this->_context.nodeAllocator)
-                       ir::StoreNode(registeredVar.name, std::move(converted), decl.initialiser->Source())});
+                       ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(converted),
+                                     decl.initialiser->Source())});
           }
           else
           {
@@ -845,7 +854,11 @@ std::vector<std::string> ecpps::ir::IR::NamespacePathFromContext(void) const
 
                auto* vNamespaceScope = dynamic_cast<NamespaceScope*>(vScope);
                runtime_assert(vNamespaceScope != nullptr, "Expected a namespace scope in a namespace context");
-               if (!vNamespaceScope->name.empty()) path.push_back(vNamespaceScope->name);
+               if (vNamespaceScope->Name().has_value())
+               {
+                    const auto& namespaceName = vNamespaceScope->Name().value();
+                    path.push_back(namespaceName);
+               }
           }
      }
      return path;
@@ -869,7 +882,7 @@ void ecpps::ir::IR::ParseNamespace(const ast::NamespaceNode& node)
           // Check for duplicate namespace
           for (const auto& existingNs : parentNamespace->subNamespaces)
           {
-               if (existingNs->name == namespaceName)
+               if (existingNs->Name() == namespaceName)
                {
                     this->_context.diagnostics.get().diagnosticsList.push_back(
                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1529,7 +1542,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
                     auto it = std::ranges::find_if(namespaceScope->subNamespaces,
                                                    [&qualifier](const std::unique_ptr<ecpps::ir::NamespaceScope>& ns)
-                                                   { return ns->name == qualifier; });
+                                                   { return ns->Name() == qualifier; });
                     if (it == namespaceScope->subNamespaces.end())
                     {
                          matchesQualifiers = false;
@@ -1548,7 +1561,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
           for (const auto& candidate : scope->functions)
           {
-               if (candidate->name != name) continue;
+               if (candidate->Name() != name) continue;
 
                didMatchName = true;
                const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
@@ -1699,13 +1712,17 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
                for (const auto& local : functionScope->locals)
                {
                     // TODO: Constexpr evaluation
-                    if (local.name == name)
+                    if (std::holds_alternative<Variable>(local.local))
                     {
-                         return std::make_unique<LValue>(
-                             local.type,
-                             std::unique_ptr<LoadNode, IRDeleter>{new (*this->_context.nodeAllocator)
-                                                                      LoadNode(local.name, expression.Source())},
-                             false);
+                         const auto& variable = std::get<Variable>(local.local);
+                         if (variable.Name().value_or("__unknown_local") == name)
+                         {
+                              return std::make_unique<LValue>(
+                                  variable.type,
+                                  std::unique_ptr<LoadNode, IRDeleter>{new (*this->_context.nodeAllocator) LoadNode(
+                                      variable.Name().value_or("__unknown_local"), expression.Source())},
+                                  false);
+                         }
                     }
                }
           }

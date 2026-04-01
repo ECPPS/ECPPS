@@ -13,6 +13,7 @@
 #include "../Machine/ABI.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
+#include "Entities.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
 #include "TypeSystem/ArithmeticTypes.h"
@@ -450,9 +451,25 @@ namespace ecpps::ir
           typeSystem::NonowningTypePointer type;
           explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type) {}
      };
-     struct FunctionScope final : Scope
+     struct Variable final : ir::Entity
      {
-          std::string name{};
+          typeSystem::NonowningTypePointer type;
+          StorageDuration storageDuration;
+
+          [[nodiscard]] std::string ToString(void) const override
+          {
+               return std::format("{} {}", this->type ? this->type->Name() : "__unknown",
+                                  this->Name().value_or("<anonymous>"));
+          }
+
+          explicit Variable(std::string name, typeSystem::NonowningTypePointer type, StorageDuration storageDuration)
+              : ir::Entity(IsReference(type) ? ir::EntityKind::Reference : ir::EntityKind::Object, std::move(name)),
+                type(type), storageDuration(storageDuration)
+          {
+          }
+     };
+     struct FunctionScope final : Scope, ir::Entity
+     {
           typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
           bool isInline = false;
@@ -472,18 +489,53 @@ namespace ecpps::ir
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
-          struct Variable
+          ///
+          /// A local entity is a variable with automatic storage duration, a structured binding whose corresponding
+          /// variable is such an entity, or the *this object.
+          ///
+          struct LocalEntity
           {
-               std::string name{};
-               typeSystem::NonowningTypePointer type{};
-               bool isStatic = false;
-               bool isExtern = false;
+               struct ThisTag
+               {
+               };
+               using LocalType = std::variant<Variable, ThisTag>; // TODO: Structured bindings
+               LocalType local;
+
+               [[nodiscard]] std::string Name(void) const
+               {
+                    if (std::holds_alternative<Variable>(this->local))
+                    {
+                         return std::get<Variable>(this->local).Name().value_or("<anonymous>");
+                    }
+                    if (std::holds_alternative<ThisTag>(this->local)) { return "*this"; }
+                    return "__unknown_local";
+               }
           };
 
-          std::vector<Variable> locals{};
+          std::vector<LocalEntity> locals{};
 
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
           std::vector<std::string> namespacePath{};
+
+          explicit FunctionScope(void) : ir::Entity(ir::EntityKind::Function, std::nullopt) {}
+
+          using ir::Entity::SetName;
+
+          [[nodiscard]] std::string ToString(void) const override
+          {
+               std::string result = std::format("{}{} {}(", this->isInline ? "inline " : "",
+                                                this->returnType ? this->returnType->Name() : "void",
+                                                this->Name().has_value() ? this->Name().value() : "<anonymous>");
+               for (std::size_t i = 0; i < this->parameters.size(); i++)
+               {
+                    const auto& param = this->parameters[i];
+                    result += std::format("{}{} {}", param.isVariadic ? "..." : "",
+                                          param.type ? param.type->Name() : "void", param.name);
+                    if (i != this->parameters.size() - 1) result += ", ";
+               }
+               result += ")";
+               return result;
+          }
      };
 
      enum struct FunctionScopeBuilderState : std::uint16_t
@@ -525,7 +577,8 @@ namespace ecpps::ir
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(
               std::string value) && noexcept
           {
-               return std::move(*this).template PropertySetter<&FunctionScope::name>(std::move(value));
+               this->_scope->SetName(std::forward<std::remove_reference_t<decltype(value)>>(value));
+               return std::move(*this);
           }
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
@@ -620,15 +673,20 @@ namespace ecpps::ir
           std::vector<std::unique_ptr<ClassScope>> nestedClasses{};
      };
 
-     struct NamespaceScope final : Scope
+     struct NamespaceScope final : Scope, ir::Entity
      {
-          std::string name{};
           bool isInline = false;
           std::vector<std::unique_ptr<NamespaceScope>> subNamespaces{};
           std::vector<std::unique_ptr<ClassScope>> classes{};
-          explicit NamespaceScope(void) = default;
-          explicit NamespaceScope(std::string name, bool isInline = false) : name(std::move(name)), isInline(isInline)
+          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {};
+          explicit NamespaceScope(std::string name, bool isInline = false)
+              : ir::Entity(ir::EntityKind::Namespace, name), isInline(isInline)
           {
+          }
+          [[nodiscard]] std::string ToString(void) const override
+          {
+               return std::format("namespace {}{}", this->isInline ? "inline " : "",
+                                  this->Name().has_value() ? this->Name().value() : "<anonymous>");
           }
      };
 
