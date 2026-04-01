@@ -579,7 +579,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
               function.parameters |
                   std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                         { return parameter.type; }) |
-                  std::ranges::to<std::vector>());
+                  std::ranges::to<std::vector>(),
+              function.namespacePath);
           auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
 
           runtime_assert(function.parameters.size() == call->Arguments().size(),
@@ -1067,7 +1068,8 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                    function.parameters |
                        std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                              { return parameter.type; }) |
-                       std::ranges::to<std::vector>());
+                       std::ranges::to<std::vector>(),
+                   function.namespacePath);
                const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
                const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
                const auto parameterSizes =
@@ -1186,7 +1188,8 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                                      node.ParameterList() |
                                          std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                                                { return parameter.type; }) |
-                                         std::ranges::to<std::vector>()));
+                                         std::ranges::to<std::vector>(),
+                                     node.NamespacePath()));
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,

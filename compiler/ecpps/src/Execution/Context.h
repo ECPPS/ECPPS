@@ -2,6 +2,7 @@
 #include <Queue.h>
 #include <SBOVector.h>
 #include <algorithm>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <ranges>
@@ -482,6 +483,7 @@ namespace ecpps::ir
           std::vector<Variable> locals{};
 
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
+          std::vector<std::string> namespacePath{};
      };
 
      enum struct FunctionScopeBuilderState : std::uint16_t
@@ -498,8 +500,9 @@ namespace ecpps::ir
           IsExtern = 256,
           ConstexprSpecifier = 512,
           IsDllImportExport = 1024,
+          NamespacePath = 2048,
           All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
-                IsExtern | ConstexprSpecifier | IsDllImportExport
+                IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept
@@ -583,6 +586,11 @@ namespace ecpps::ir
           {
                return std::move(*this).template PropertySetter<&FunctionScope::source>(std::move(value));
           }
+          [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::NamespacePath> NamespacePath(
+              std::vector<std::string> value) && noexcept
+          {
+               return std::move(*this).template PropertySetter<&FunctionScope::namespacePath>(std::move(value));
+          }
 
           [[nodiscard]] std::unique_ptr<FunctionScope> Build(void) && noexcept
                requires(TState == FunctionScopeBuilderState::All)
@@ -630,7 +638,7 @@ namespace ecpps::ir
           BumpAllocator* nodeAllocator;
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
-          SBOQueue<ContextPointer> contextSequence{};
+          std::deque<ContextPointer> contextSequence{};
 
           explicit Context(Diagnostics& diagnostics, BumpAllocator& allocator)
               : diagnostics(std::ref(diagnostics)), nodeAllocator(&allocator)

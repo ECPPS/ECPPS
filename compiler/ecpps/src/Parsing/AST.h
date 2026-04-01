@@ -247,9 +247,9 @@ namespace ecpps::ast
                default: break;
                }
 
-               built += this->type->ToString(0) + " ";
+               built += this->type == nullptr ? "__unknown" : this->type->ToString(0) + " ";
                built += ::ToString(this->callingConvention) + " ";
-               built += this->name->ToString(0);
+               built += this->name == nullptr ? "__unknown" : this->name->ToString(0);
                built += "(";
                built += this->parameters.ToString();
                built += ")";
@@ -329,14 +329,16 @@ namespace ecpps::ast
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string arguments{};
-               for (const auto& arg : this->_arguments) arguments += arg->ToString(0) + ", ";
+               for (const auto& arg : this->_arguments)
+                    arguments += (arg == nullptr ? "__unknown" : arg->ToString(0)) + ", ";
                if (!arguments.empty()) // trailing comma
                {
                     arguments.pop_back();
                     arguments.pop_back();
                }
 
-               return std::string(indent * PrettyIndent, ' ') + "(" + this->_function->ToString(0) + ")(" + arguments +
+               return std::string(indent * PrettyIndent, ' ') + "(" +
+                      (this->_function == nullptr ? "__unknown" : this->_function->ToString(0)) + ")(" + arguments +
                       ")";
           }
 
@@ -588,6 +590,16 @@ namespace ecpps::ast
 
      private:
           char _value;
+     };
+
+     class GlobalScopeNode final : public Node
+     {
+     public:
+          explicit GlobalScopeNode(Location source) : Node(source) {}
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' '); // NOLINT
+          }
      };
 
      class AST

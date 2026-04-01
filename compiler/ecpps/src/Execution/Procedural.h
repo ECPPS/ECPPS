@@ -23,14 +23,18 @@ namespace ecpps::ir
                                  typeSystem::NonowningTypePointer returnType, std::string name,
                                  std::vector<FunctionScope::Parameter> parameterList,
                                  std::vector<FunctionScope::Variable> locals, std::vector<NodePointer> body,
-                                 Location source)
+                                 Location source, std::vector<std::string> namespacePath)
               : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
-                _returnType(returnType), _name(std::move(name)), _parameterList(std::move(parameterList)),
-                _locals(std::move(locals)), _body(std::move(body))
+                _returnType(returnType), _name(std::move(name)), _namespacePath(std::move(namespacePath)),
+                _parameterList(std::move(parameterList)), _locals(std::move(locals)), _body(std::move(body))
           {
           }
 
           [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+          [[nodiscard]] const std::vector<std::string>& NamespacePath(void) const noexcept
+          {
+               return this->_namespacePath;
+          }
           [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
                return this->_parameterList;
@@ -62,6 +66,7 @@ namespace ecpps::ir
           abi::CallingConventionName _callingConvention;
           typeSystem::NonowningTypePointer _returnType;
           std::string _name;
+          std::vector<std::string> _namespacePath;
           std::vector<FunctionScope::Parameter> _parameterList;
           std::vector<FunctionScope::Variable> _locals;
           std::vector<NodePointer> _body;

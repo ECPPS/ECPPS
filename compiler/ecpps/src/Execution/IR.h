@@ -115,6 +115,7 @@ namespace ecpps::ir
           void ParseReturn(const ast::ReturnNode& node);
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
           void ParseNamespace(const ast::NamespaceNode& node);
+          [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
           [[nodiscard]] Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                            const Location& source) const;

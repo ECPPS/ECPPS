@@ -45,19 +45,10 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           auto character = *sourceIterator;
 
           location.position++;
-          if (character == '\r')
+          if (character == '\r' || character == '\n')
           {
-               if (sourceIterator != source.end() && sourceIterator + 1 != source.end() &&
-                   *std::next(sourceIterator) == '\n')
+               if (character == '\r' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '\n')
                     ++sourceIterator;
-               location.line++;
-               location.position = 0;
-               for (auto& macro : macros)
-                    if (macro.name == "__LINE__") macro.contents = std::to_string(location.line);
-               continue;
-          }
-          if (character == '\n')
-          {
                location.line++;
                location.position = 0;
                for (auto& macro : macros)
@@ -68,36 +59,40 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
           if (character == '#' && location.position == 1)
           {
-               ++sourceIterator;
-               while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
-
-               std::string directive;
-               while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+               auto directiveIt = std::next(sourceIterator);
+               location.position++;
+               while (directiveIt != source.end() && (*directiveIt == ' ' || *directiveIt == '\t'))
                {
-                    directive += *sourceIterator;
-                    ++sourceIterator;
+                    ++directiveIt;
                     location.position++;
                }
 
+               std::string directive;
+               while (directiveIt != source.end() && IsCharacterContinuation(*directiveIt))
+               {
+                    directive += *directiveIt++;
+                    location.position++;
+               }
+
+               sourceIterator = directiveIt;
                if (directive == "include")
                {
-                    // Parse header name: <...> or "..."
                     std::string header;
-                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
+                    while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
+                         ++sourceIterator;
 
                     if (sourceIterator == source.end()) break;
 
-                    char delimiter = *sourceIterator;
+                    char delimiter = *sourceIterator++;
+                    char closing = (delimiter == '<') ? '>' : '"';
+
                     if (delimiter == '<' || delimiter == '"')
                     {
-                         ++sourceIterator;
-                         while (sourceIterator != source.end() && *sourceIterator != (delimiter == '<' ? '>' : '"'))
+                         while (sourceIterator != source.end() && *sourceIterator != closing)
                          {
-                              header += *sourceIterator;
-                              ++sourceIterator;
+                              header += *sourceIterator++;
                          }
-                         if (delimiter == '"') ++sourceIterator;                                   // skip closing '"'
-                         if (delimiter == '<' && sourceIterator != source.end()) ++sourceIterator; // skip closing '>'
+                         if (sourceIterator != source.end()) ++sourceIterator; // skip closing delimiter
                     }
 
                     std::filesystem::path resolvedPath;
@@ -105,6 +100,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     auto tryFile = [&](const std::filesystem::path& base)
                     {
+                         if (found) return;
                          std::filesystem::path candidate = base / header;
                          if (std::filesystem::exists(candidate))
                          {
@@ -136,7 +132,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
                else if (directive == "define")
                {
-                    // Parse macro name
                     while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                     std::string macroName;
@@ -151,7 +146,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          }
                     }
 
-                    // Check for parameters (function-like)
                     std::optional<std::vector<std::string>> parameters;
                     bool isVariadic = false;
                     if (sourceIterator != source.end() && *sourceIterator == '(')
@@ -180,13 +174,16 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (sourceIterator != source.end()) ++sourceIterator; // skip ')'
                     }
 
-                    // Collect rest of the line as macro contents
                     std::string contents;
                     while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')
                     {
                          contents += *sourceIterator;
                          Advance(sourceIterator);
                     }
+                    auto last = contents.find_last_not_of(" \t");
+                    if (last != std::string::npos) contents.erase(last + 1);
+                    else
+                         contents.clear();
 
                     macros.emplace_back(macroName, parameters, contents, isVariadic);
                }
@@ -196,28 +193,25 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                     // Parse macro name
                     while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
-                    std::string macroName;
+                    std::string macroName{};
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
-                    {
                          macroName += *sourceIterator++;
-                    }
 
                     bool conditionMet = isIfndef ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
                                                                         { return m.name == macroName; })
                                                  : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
                                                                        { return m.name == macroName; });
 
-                    // Handle conditional block
                     std::vector<PreprocessingToken> branchTokens;
                     bool inElse = false;
                     std::string builtSource{};
                     const auto previousLine = location.line;
+                    bool wasAnyBranchTaken = conditionMet;
                     while (sourceIterator != source.end())
                     {
                          char c = *sourceIterator;
-                         if (c == '#' /* && location.position == 1*/)
+                         if (c == '#')
                          {
-                              // peek directive name
                               auto peekIt = sourceIterator;
                               Advance(peekIt);
                               while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
@@ -231,36 +225,110 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                               if (nextDirective == "else")
                               {
-                                   runtime_assert(!inElse, "Invalid #else");
                                    inElse = true;
                                    sourceIterator = peekIt;
+                                   Advance(sourceIterator);
+                                   continue;
                               }
-                              else if (nextDirective == "endif")
+                              if (nextDirective == "endif")
                               {
                                    sourceIterator = peekIt;
                                    break;
                               }
+                              if (nextDirective == "elif")
+                              {
+                                   inElse = false;
+                                   conditionMet = false;
+
+                                   while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0))
+                                        Advance(sourceIterator);
+
+                                   std::string elifCondition;
+                                   while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                                        elifCondition += *sourceIterator++;
+
+                                   if (!elifCondition.empty())
+                                   {
+                                        auto it =
+                                            std::ranges::find_if(macros, [&elifCondition](const MacroReplacement& m)
+                                                                 { return m.name == elifCondition; });
+                                        conditionMet = (it != macros.end());
+                                        if (conditionMet) wasAnyBranchTaken = true;
+                                   }
+                                   Advance(sourceIterator);
+                                   continue;
+                              }
+                              if (nextDirective == "elifdef" || nextDirective == "elifndef")
+                              {
+                                   inElse = false;
+                                   conditionMet = false;
+
+                                   bool isElifndef = (nextDirective == "elifndef");
+
+                                   while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0))
+                                        Advance(sourceIterator);
+
+                                   std::string elifMacroName;
+                                   while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                                        elifMacroName += *sourceIterator++;
+
+                                   if (!elifMacroName.empty())
+                                   {
+                                        auto it =
+                                            std::ranges::find_if(macros, [&elifMacroName](const MacroReplacement& m)
+                                                                 { return m.name == elifMacroName; });
+                                        conditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
+                                        if (conditionMet) wasAnyBranchTaken = true;
+                                   }
+                                   Advance(sourceIterator);
+                                   continue;
+                              }
                          }
 
                          if (conditionMet && !inElse) builtSource += c;
-
+                         else if (!wasAnyBranchTaken && inElse)
+                              builtSource += c;
                          Advance(sourceIterator);
                     }
                     auto parsed = Parse(builtSource, macros, fileName, includeDirectories);
                     for (auto& token : parsed) token.source.line += previousLine - 1;
-                    location.line++;
 
                     tokens.reserve(tokens.size() + parsed.size());
                     tokens.insert_range(tokens.end(), parsed);
 
                     // TODO: handle nested #if/#ifdef recursively
                }
-               else if (directive == "else" || directive == "endif")
+               else if (directive == "undef")
                {
-                    // Handled above
-               }
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
-               continue; // directive handled
+                    std::string macroName;
+                    while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
+                    {
+                         macroName += *sourceIterator++;
+                         location.position++;
+                    }
+
+                    auto it = std::ranges::find_if(macros, [&macroName](const MacroReplacement& m)
+                                                   { return m.name == macroName; });
+                    if (it != macros.end()) macros.erase(it);
+               }
+               else if (directive == "error")
+               {
+                    std::string errorMessage;
+                    while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')
+                    {
+                         errorMessage += *sourceIterator;
+                         Advance(sourceIterator);
+                    }
+                    throw std::runtime_error("preprocessor error: " + errorMessage);
+               }
+               else
+                    throw std::runtime_error(std::format("unknown preprocessor directive: {}", directive));
+
+               if (sourceIterator != source.begin()) --sourceIterator;
+               location.position = 0;
+               continue;
           }
 
           if (IsCharacterBeginning(character))
@@ -281,47 +349,51 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     if (it->Type() == ecpps::MacroReplacementType::FunctionLike)
                     {
                          auto peekIt = std::next(sourceIterator);
-                         while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) ++peekIt;
+                         while (peekIt != source.end() && (*peekIt == ' ' || *peekIt == '\t')) Advance(peekIt);
 
                          if (it->parameters && peekIt != source.end() && *peekIt == '(')
                          {
                               ++peekIt; // skip '('
                               std::vector<std::vector<PreprocessingToken>> arguments;
-                              std::vector<PreprocessingToken> currentArg;
                               int parenLevel = 1;
+                              std::vector<std::string> rawArgs;
+                              std::string currentRawArg;
 
                               auto argIt = peekIt;
-                              for (; argIt != source.end() && parenLevel > 0; ++argIt)
+                              while (argIt != source.end())
                               {
                                    char c = *argIt;
                                    if (c == '(')
                                    {
                                         parenLevel++;
-                                        currentArg.emplace_back(PreprocessingTokenType::OperatorOrPunctuator, "(",
-                                                                location);
+                                        currentRawArg += c;
                                    }
                                    else if (c == ')')
                                    {
                                         parenLevel--;
-                                        if (parenLevel > 0)
-                                             currentArg.emplace_back(PreprocessingTokenType::OperatorOrPunctuator, ")",
-                                                                     location);
+                                        if (parenLevel == 0)
+                                        {
+                                             rawArgs.push_back(currentRawArg);
+                                             sourceIterator = argIt;
+                                             break;
+                                        }
+                                        currentRawArg += c;
                                    }
                                    else if (c == ',' && parenLevel == 1)
                                    {
-                                        arguments.push_back(std::move(currentArg));
-                                        currentArg.clear();
+                                        rawArgs.push_back(currentRawArg);
+                                        currentRawArg.clear();
                                    }
                                    else
-                                   {
-                                        currentArg.emplace_back(PreprocessingTokenType::Identifier, std::string(1, c),
-                                                                location);
-                                   }
+                                        currentRawArg += c;
+                                   ++argIt;
                               }
-
-                              if (!currentArg.empty()) arguments.push_back(std::move(currentArg));
-
-                              sourceIterator = argIt == source.end() ? std::prev(argIt) : std::prev(argIt);
+                              for (const auto& rawArg : rawArgs)
+                              {
+                                   std::vector<MacroReplacement> macrosCopy = macros;
+                                   auto argTokens = Preprocessor::Parse(rawArg, macrosCopy, "");
+                                   arguments.push_back(std::move(argTokens));
+                              }
 
                               auto expandedTokens = it->ProcessFunctionLike(arguments, location, macros);
                               tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
@@ -580,45 +652,49 @@ bool ecpps::Preprocessor::IsOperatorOrPunctuatorBeginning(char ch)
 
 static std::string ExpandMacroString(const std::string& contents,
                                      const std::unordered_map<std::string, std::string>& parameterMap,
+                                     const std::unordered_map<std::string, std::string>& rawParameterMap,
                                      const std::vector<ecpps::MacroReplacement>& macros)
 {
      std::string result{};
-     for (std::size_t i = 0; i < contents.size(); ++i)
+     for (std::size_t i = 0; i < contents.size(); i++)
      {
-          if (contents[i] == '#' && i + 1 < contents.size())
-          {
-               std::string param;
-               std::size_t j = i + 1;
-               while (j < contents.size() && ((std::isalnum(contents[j]) != 0) || contents[j] == '_'))
-                    param += contents[j++];
-               if (parameterMap.contains(param)) result += "\"" + parameterMap.at(param) + "\"";
-               i = j - 1;
-               continue;
-          }
-
-          // token pasting ##
           if (i + 1 < contents.size() && contents[i] == '#' && contents[i + 1] == '#')
           {
-               std::string left;
                std::size_t l = result.size();
-               while (l > 0 && (std::isspace(result[l - 1]) == 0)) --l;
-               left = result.substr(l);
+               while (l > 0 && std::isspace(static_cast<unsigned char>(result[l - 1]))) --l;
+               std::string left = result.substr(l);
                result.erase(l);
 
-               std::string right{};
-               std::size_t replacement = i + 2;
-               while (replacement < contents.size() && (std::isspace(contents[replacement]) == 0) &&
-                      contents[replacement] != '#')
-                    right += contents[replacement++];
+               std::size_t r = i + 2;
+               while (r < contents.size() && std::isspace(static_cast<unsigned char>(contents[r]))) ++r;
+               std::string right;
+               while (r < contents.size() &&
+                      (std::isalnum(static_cast<unsigned char>(contents[r])) || contents[r] == '_'))
+                    right += contents[r++];
 
-               if (parameterMap.contains(right)) right = parameterMap.at(right);
+               if (rawParameterMap.contains(right)) right = rawParameterMap.at(right);
 
                result += left + right;
-               i = replacement - 1;
+               i = r - 1;
                continue;
           }
 
-          // parameter replacement
+          if (contents[i] == '#' && i + 1 < contents.size())
+          {
+               std::size_t j = i + 1;
+               while (j < contents.size() && std::isspace(static_cast<unsigned char>(contents[j]))) ++j;
+               std::string param;
+               while (j < contents.size() &&
+                      (std::isalnum(static_cast<unsigned char>(contents[j])) || contents[j] == '_'))
+                    param += contents[j++];
+               if (rawParameterMap.contains(param))
+               {
+                    result += '"' + rawParameterMap.at(param) + '"';
+                    i = j - 1;
+                    continue;
+               }
+          }
+
           if ((std::isalnum(contents[i]) != 0) || contents[i] == '_')
           {
                std::string token;
@@ -626,19 +702,7 @@ static std::string ExpandMacroString(const std::string& contents,
                while (j < contents.size() && ((std::isalnum(contents[j]) != 0) || contents[j] == '_'))
                     token += contents[j++];
 
-               if (parameterMap.contains(token)) result += parameterMap.at(token);
-               else
-               {
-                    // check if token is another macro (recursive expansion)
-                    auto it = std::ranges::find_if(macros, [&token](const ecpps::MacroReplacement& m)
-                                                   { return m.name == token; });
-                    if (it != macros.end() && it->parameters == std::nullopt) // object-like
-                    {
-                         result += ExpandMacroString(it->contents, parameterMap, macros);
-                    }
-                    else
-                         result += token;
-               }
+               result += parameterMap.contains(token) ? parameterMap.at(token) : token;
                i = j - 1;
                continue;
           }
@@ -650,11 +714,11 @@ static std::string ExpandMacroString(const std::string& contents,
 }
 
 static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::string& expanded,
-                                                                    const ecpps::Location& location)
+                                                                    const ecpps::Location& location,
+                                                                    const std::vector<ecpps::MacroReplacement>& macros)
 {
-     std::vector<ecpps::MacroReplacement> macros{};
-     auto tokens = ecpps::Preprocessor::Parse(expanded, macros, "");
-     runtime_assert(macros.empty(), "Expansion cannot introduce new macros");
+     std::vector<ecpps::MacroReplacement> macrosCopy = macros;
+     auto tokens = ecpps::Preprocessor::Parse(expanded, macrosCopy, "");
      for (auto& token : tokens) token.source = location;
      return tokens;
 }
@@ -662,8 +726,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
-     auto expandedString = ExpandMacroString(contents, {}, macros);
-     return TokeniseExpandedMacro(expandedString, location);
+     return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}, macros), location, macros);
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionLike(
@@ -671,6 +734,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
     const std::vector<ecpps::MacroReplacement>& macros) const
 {
      std::unordered_map<std::string, std::string> parameterMap;
+     std::unordered_map<std::string, std::string> rawParameterMap;
+
      if (parameters)
      {
           for (std::size_t i = 0; i < parameters->size(); i++)
@@ -688,10 +753,21 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                {
                     std::string argStr;
                     for (const auto& token : arguments[i]) argStr += token.value;
-                    parameterMap[parameterName] = argStr;
+
+                    rawParameterMap[parameterName] = argStr;
+
+                    std::vector<ecpps::MacroReplacement> macrosCopy = macros;
+                    auto expandedTokens = ecpps::Preprocessor::Parse(argStr, macrosCopy, "");
+                    std::string expandedArg;
+                    for (const auto& tok : expandedTokens) expandedArg += tok.value;
+
+                    parameterMap[parameterName] = expandedArg;
                }
                else
-                    parameterMap[(*parameters)[i]] = "";
+               {
+                    parameterMap[parameterName] = "";
+                    rawParameterMap[parameterName] = "";
+               }
           }
           if (isVariadic)
           {
@@ -708,6 +784,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
           }
      }
 
-     auto expandedString = ExpandMacroString(contents, parameterMap, macros);
-     return TokeniseExpandedMacro(expandedString, location);
+     auto expandedString = ExpandMacroString(contents, parameterMap, rawParameterMap, macros);
+     return TokeniseExpandedMacro(expandedString, location, macros);
 }

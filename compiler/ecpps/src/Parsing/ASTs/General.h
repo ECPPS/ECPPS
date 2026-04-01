@@ -49,6 +49,8 @@ namespace ecpps::ast
                return std::string(indent * PrettyIndent, ' ') + built;
           }
 
+          [[nodiscard]] const std::vector<NodePointer>& Path(void) const noexcept { return this->_path; }
+
      private:
           std::vector<NodePointer> _path;
      };

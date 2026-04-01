@@ -309,11 +309,12 @@ bool ecpps::abi::ABI::CheckRegisterAllocation(std::size_t width, const std::stri
 std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name,
                                         const CallingConventionName callingConvention,
                                         typeSystem::NonowningTypePointer returnType,
-                                        const std::vector<typeSystem::NonowningTypePointer>& parameters)
+                                        const std::vector<typeSystem::NonowningTypePointer>& parameters,
+                                        const std::vector<std::string>& namespacePath)
 {
      if (name == "main") return "main";
 
-     return Mangling::MangleName(linkage, name, callingConvention, returnType, parameters);
+     return Mangling::MangleName(linkage, name, callingConvention, returnType, parameters, namespacePath);
 }
 
 ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(void) const

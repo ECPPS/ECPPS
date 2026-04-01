@@ -1,7 +1,9 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
 #include <format>
+#include <ranges>
 #include <unordered_set>
+#include <utility>
 #include "ASTs/Type.h"
 
 using ecpps::ast::NodePointer;
@@ -96,6 +98,22 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     return std::unique_ptr<NamespaceAliasNode, ecpps::ast::ASTContext::Deleter>(
                         new (context) NamespaceAliasNode(std::move(name), std::move(aliased), source));
                }
+               std::vector<std::pair<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>, bool>>
+                   nestedNames;
+               nestedNames.emplace_back(std::move(name), false);
+
+               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+               {
+                    Advance(); // eat ::
+                    auto nestedName = ParseIdentifier(context);
+                    if (nestedName == nullptr)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Expected identifier in nested namespace declaration", Peek().location));
+                         return nullptr;
+                    }
+                    nestedNames.emplace_back(std::move(nestedName), false);
+               }
 
                if (Peek().type == TokenType::LeftBrace)
                {
@@ -116,11 +134,21 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     }
 
                     source.endPosition = Peek(-1).location.endPosition;
-                    return std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) NamespaceNode(std::move(name), std::move(declarations), source));
-               }
 
-               // TODO: Nested names [ namespace A::B ]
+                    auto back = std::move(nestedNames.back());
+                    nestedNames.pop_back();
+                    std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter> currentNode =
+                        std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                            new (context) NamespaceNode(std::move(back.first), std::move(declarations), source));
+                    for (auto& nestedName : std::ranges::reverse_view(nestedNames) | std::views::keys)
+                    {
+                         SBOVector<NodePointer> decls{};
+                         decls.Push(std::move(currentNode));
+                         currentNode = std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                             new (context) NamespaceNode(std::move(nestedName), std::move(decls), source));
+                    }
+                    return currentNode;
+               }
           }
           else if (keyword == "using")
           {
@@ -871,6 +899,17 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
           }
           return expression;
      }
+     case TokenType::Operator:
+     {
+          // ::
+          if (std::get<std::string>(currentToken.value) == "::")
+          {
+               auto idExpr = ParseIdExpression(context);
+               if (!idExpr) { return nullptr; }
+               return idExpr;
+          }
+          break;
+     }
      case TokenType::Identifier:
      {
           return ParseIdExpression(context);
@@ -889,13 +928,23 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
 {
-     if (Peek().type != TokenType::Identifier) return nullptr;
-
      const auto source = Peek().location;
      std::vector<NodePointer> parts;
 
-     bool expectIdentifier = true; // NOLINT
      bool sawTemplateKeyword = false;
+     bool isGlobalScope = false;
+
+     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+     {
+          Advance();
+          isGlobalScope = true;
+     }
+
+     if (isGlobalScope)
+     {
+          parts.push_back(
+              std::unique_ptr<GlobalScopeNode, ecpps::ast::ASTContext::Deleter>(new (context) GlobalScopeNode(source)));
+     }
 
      while (true)
      {
@@ -905,7 +954,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
                Advance();
           }
 
-          if (AtEnd() || Peek().type != TokenType::Identifier) break;
+          if (AtEnd()) break;
 
           auto currentToken = Peek();
           const auto& identifierName = std::get<std::string>(currentToken.value);
@@ -974,13 +1023,19 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
 
           if (AtEnd()) break;
 
-          if (Peek().type == TokenType::Colon && Peek(1).type == TokenType::Colon)
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
           {
                Advance();
-               Advance();
+
+               if (AtEnd() || Peek().type != TokenType::Identifier) // TODO: template & operator op
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                        "Expected an identifier after '::' in qualified-id", Peek().location));
+                    return nullptr;
+               }
+
                continue;
           }
-          const auto& next = Peek(); // NOLINT
 
           break;
      }
