@@ -83,8 +83,8 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
           request.data =
               ir::StandardSignedIntegerRequest{.size = signedType->Kind(), .signedness = Signedness::Unsigned};
 
-          return ir::GetContext().Get(request);
-          // return ecpps::ir::GetContext().Get(ecpps::ir::GetContext().PushType(
+          return ir::GetTypeContext().Get(request);
+          // return ecpps::ir::GetTypeContext().Get(ecpps::ir::GetTypeContext().PushType(
           //     std::make_unique<IntegralType>(Signedness::Unsigned, signedType->Kind(),
           //                                    "unsigned " + signedType->RawName(), signedType->qualifiers())));
      }

@@ -235,23 +235,24 @@ namespace ecpps::ir
      private:
           typeSystem::OwningTypePointer CreateType(const TypeRequest& request)
           {
+               std::string cv{};
+               switch (request.qualifiers)
+               {
+               case typeSystem::Qualifiers::ConstVolatile: cv = "const volatile "; break;
+               case typeSystem::Qualifiers::Const: cv = "const "; break;
+               case typeSystem::Qualifiers::Volatile: cv = "volatile "; break;
+               case typeSystem::Qualifiers::None: break;
+               }
+
                if (request.kind == TypeKind::Fundamental)
                {
                     if (std::holds_alternative<VoidRequest>(request.data))
                     {
-                         return std::make_unique<typeSystem::VoidType>("void", request.qualifiers);
+                         return std::make_unique<typeSystem::VoidType>(std::format("{}void", cv), request.qualifiers);
                     }
                     if (std::holds_alternative<StandardSignedIntegerRequest>(request.data))
                     {
                          const auto& data = std::get<StandardSignedIntegerRequest>(request.data);
-                         std::string cv{};
-                         switch (request.qualifiers)
-                         {
-                         case typeSystem::Qualifiers::ConstVolatile: cv = "const volatile "; break;
-                         case typeSystem::Qualifiers::Const: cv = "const "; break;
-                         case typeSystem::Qualifiers::Volatile: cv = "volatile "; break;
-                         case typeSystem::Qualifiers::None: break;
-                         }
                          if (data.isCharWithoutSign)
                               return std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char,
                                                                                  std::format("{}char", cv),
@@ -293,15 +294,6 @@ namespace ecpps::ir
                     if (std::holds_alternative<PlatformIntegerRequest>(request.data))
                     {
                          const auto& data = std::get<PlatformIntegerRequest>(request.data);
-
-                         std::string cv{};
-                         switch (request.qualifiers)
-                         {
-                         case typeSystem::Qualifiers::ConstVolatile: cv = "const volatile "; break;
-                         case typeSystem::Qualifiers::Const: cv = "const "; break;
-                         case typeSystem::Qualifiers::Volatile: cv = "volatile "; break;
-                         case typeSystem::Qualifiers::None: break;
-                         }
 
                          typeSystem::Signedness signedness{};
                          typeSystem::TypeKind size{};
@@ -359,7 +351,7 @@ namespace ecpps::ir
                     {
                          const auto& pointerData = std::get<PointerRequest>(request.data);
                          return std::make_unique<typeSystem::PointerType>(
-                             pointerData.elementType, std::format("{}*", pointerData.elementType->Name()),
+                             pointerData.elementType, std::format("{}* {}", pointerData.elementType->Name(), cv),
                              request.qualifiers);
                     }
                }
@@ -370,7 +362,7 @@ namespace ecpps::ir
           std::unordered_map<TypeRequest, Node, TypeRequestHash> _typeDatabase{};
      };
 
-     inline TypeContext& GetContext(void)
+     inline TypeContext& GetTypeContext(void)
      {
           static TypeContext typeContext{};
           return typeContext;
@@ -680,7 +672,7 @@ namespace ecpps::ir
           std::vector<std::unique_ptr<ClassScope>> classes{};
           explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {};
           explicit NamespaceScope(std::string name, bool isInline = false)
-              : ir::Entity(ir::EntityKind::Namespace, name), isInline(isInline)
+              : ir::Entity(ir::EntityKind::Namespace, std::move(name)), isInline(isInline)
           {
           }
           [[nodiscard]] std::string ToString(void) const override
