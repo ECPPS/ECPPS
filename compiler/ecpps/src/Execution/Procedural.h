@@ -22,7 +22,7 @@ namespace ecpps::ir
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::NonowningTypePointer returnType, std::string name,
                                  std::vector<FunctionScope::Parameter> parameterList,
-                                 std::vector<FunctionScope::Variable> locals, std::vector<NodePointer> body,
+                                 std::vector<FunctionScope::LocalEntity> locals, std::vector<NodePointer> body,
                                  Location source, std::vector<std::string> namespacePath)
               : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
                 _returnType(returnType), _name(std::move(name)), _namespacePath(std::move(namespacePath)),
@@ -39,7 +39,7 @@ namespace ecpps::ir
           {
                return this->_parameterList;
           }
-          [[nodiscard]] const std::vector<FunctionScope::Variable>& Locals(void) const noexcept
+          [[nodiscard]] const std::vector<FunctionScope::LocalEntity>& Locals(void) const noexcept
           {
                return this->_locals;
           }
@@ -68,7 +68,7 @@ namespace ecpps::ir
           std::string _name;
           std::vector<std::string> _namespacePath;
           std::vector<FunctionScope::Parameter> _parameterList;
-          std::vector<FunctionScope::Variable> _locals;
+          std::vector<FunctionScope::LocalEntity> _locals;
           std::vector<NodePointer> _body;
      };
 
@@ -91,7 +91,8 @@ namespace ecpps::ir
                     args.pop_back();
                     args.pop_back();
                }
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_function->name + "(" + args + ")";
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_function->Name().value_or("__unknown") +
+                      "(" + args + ")";
           }
 
           [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept { return this->_function; }

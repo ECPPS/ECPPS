@@ -2,10 +2,13 @@
 #include <SBOVector.h>
 #include <bitset>
 #include <cstdint>
+#include <format>
 #include <initializer_list>
 #include <memory>
 #include <optional>
 #include <string>
+#include "../Execution/Entities.h"
+#include "RuntimeAssert.h"
 
 namespace ecpps::typeSystem
 {
@@ -107,12 +110,15 @@ namespace ecpps::typeSystem
      /// types. There are two kinds of types : fundamental types and compound types. Types describe objects(6.7.2),
      /// references(9.3.4.3), or functions(9.3.4.6).- end note]
      /// </summary>
-     class TypeBase
+     class TypeBase : ir::Entity
      {
      public:
-          virtual ~TypeBase(void) = default;
-          explicit TypeBase(std::string name) : _name(std::move(name)) {}
-          [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+          explicit TypeBase(std::string name) : ir::Entity(ir::EntityKind::Type, std::move(name)) {}
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               runtime_assert(this->ir::Entity::Name().has_value(), "Nameless types don't exist");
+               return this->ir::Entity::Name().value();
+          }
           [[nodiscard]] virtual std::string RawName(void) const = 0;
 
           [[nodiscard]] virtual TypeTraits Traits(void) const noexcept = 0;
@@ -148,8 +154,12 @@ namespace ecpps::typeSystem
                return dynamic_cast<T*>(this);
           }
 
+          [[nodiscard]] std::string ToString(void) const override
+          {
+               return std::format("'{}' aka '{}'", this->Name(), this->RawName());
+          }
+
      private:
-          std::string _name;
           friend struct TypePointerHash;
           friend struct TypePointerEqual;
      };
@@ -178,6 +188,7 @@ namespace ecpps::typeSystem
      TraitCheckerFunction(Incomplete);
      TraitCheckerFunction(Boolean);
      TraitCheckerFunction(Pointer);
+     TraitCheckerFunction(Reference);
      TraitCheckerFunction(Scalar);
      TraitCheckerFunction(Array);
      TraitCheckerFunction(Object);
@@ -190,12 +201,12 @@ namespace ecpps::typeSystem
 
           std::size_t operator()(const OwningTypePointer& ptr) const noexcept
           {
-               return std::hash<std::string>{}(ptr->_name);
+               return std::hash<std::string>{}(ptr->RawName());
           }
 
           std::size_t operator()(const NonowningTypePointer& ptr) const noexcept
           {
-               return std::hash<std::string>{}(ptr->_name);
+               return std::hash<std::string>{}(ptr->RawName());
           }
           std::size_t operator()(const std::string& str) const noexcept { return std::hash<std::string>{}(str); }
      };
@@ -208,7 +219,7 @@ namespace ecpps::typeSystem
                if (lhs == rhs) return true;
                if (!lhs || !rhs) return false;
 
-               return lhs->_name == rhs->_name;
+               return lhs->RawName() == rhs->RawName();
           }
 
           bool operator()(const NonowningTypePointer& lhs, const NonowningTypePointer& rhs) const noexcept
@@ -216,22 +227,22 @@ namespace ecpps::typeSystem
                if (lhs == rhs) return true;
                if (!lhs || !rhs) return false;
 
-               return lhs->_name == rhs->_name;
+               return lhs->RawName() == rhs->RawName();
           }
 
           bool operator()(const OwningTypePointer& lhs, const std::string& rhs) const noexcept
           {
-               return lhs && lhs->_name == rhs;
+               return lhs && lhs->RawName() == rhs;
           }
 
           bool operator()(const NonowningTypePointer& lhs, const std::string& rhs) const noexcept
           {
-               return lhs && lhs->_name == rhs;
+               return lhs && lhs->RawName() == rhs;
           }
 
           bool operator()(const std::string& lhs, const OwningTypePointer& rhs) const noexcept
           {
-               return rhs && lhs == rhs->_name;
+               return rhs && lhs == rhs->RawName();
           }
      };
 

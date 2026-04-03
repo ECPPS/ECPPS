@@ -35,10 +35,10 @@ TEST_CASE("Type Comparison - operator==", "[typesystem][type_comparison]")
          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::LongLong,
                                                          .signedness = Signedness::Signed}};
 
-     const auto* int32A = ecpps::ir::GetContext().Get(int32RequestA);
-     const auto* int32B = ecpps::ir::GetContext().Get(int32RequestB);
-     const auto* uint32 = ecpps::ir::GetContext().Get(uint32Request);
-     const auto* int64 = ecpps::ir::GetContext().Get(int64Request);
+     const auto* int32A = ecpps::ir::GetTypeContext().Get(int32RequestA);
+     const auto* int32B = ecpps::ir::GetTypeContext().Get(int32RequestB);
+     const auto* uint32 = ecpps::ir::GetTypeContext().Get(uint32Request);
+     const auto* int64 = ecpps::ir::GetTypeContext().Get(int64Request);
 
      SECTION("Same integral types are equal")
      {
@@ -88,10 +88,10 @@ TEST_CASE("Type Comparison - CompareTo conversion sequences", "[typesystem][type
          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Short,
                                                          .signedness = Signedness::Signed}};
 
-     const auto* int32Signed = ecpps::ir::GetContext().Get(int32SignedRequest);
-     const auto* int32Unsigned = ecpps::ir::GetContext().Get(int32UnsignedRequest);
-     const auto* charType = ecpps::ir::GetContext().Get(charRequest);
-     const auto* shortType = ecpps::ir::GetContext().Get(shortRequest);
+     const auto* int32Signed = ecpps::ir::GetTypeContext().Get(int32SignedRequest);
+     const auto* int32Unsigned = ecpps::ir::GetTypeContext().Get(int32UnsignedRequest);
+     const auto* charType = ecpps::ir::GetTypeContext().Get(charRequest);
+     const auto* shortType = ecpps::ir::GetTypeContext().Get(shortRequest);
 
      SECTION("Identical types - no conversion needed")
      {
@@ -139,9 +139,9 @@ TEST_CASE("Type Comparison - CommonWith for binary operators", "[typesystem][typ
          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
                                                          .signedness = Signedness::Signed}};
 
-     const auto* int32 = ecpps::ir::GetContext().Get(int32Request);
-     const auto* int64 = ecpps::ir::GetContext().Get(int64Request);
-     const auto* charType = ecpps::ir::GetContext().Get(charRequest);
+     const auto* int32 = ecpps::ir::GetTypeContext().Get(int32Request);
+     const auto* int64 = ecpps::ir::GetTypeContext().Get(int64Request);
+     const auto* charType = ecpps::ir::GetTypeContext().Get(charRequest);
 
      SECTION("Common type of int and int is int")
      {
@@ -177,8 +177,8 @@ TEST_CASE("Type Comparison - Pointer type comparisons", "[typesystem][type_compa
          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
                                                          .signedness = Signedness::Signed}};
 
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
-     const auto* charType = ecpps::ir::GetContext().Get(charRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
+     const auto* charType = ecpps::ir::GetTypeContext().Get(charRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
@@ -190,9 +190,9 @@ TEST_CASE("Type Comparison - Pointer type comparisons", "[typesystem][type_compa
                                            .qualifiers = Qualifiers::None,
                                            .data = ecpps::ir::PointerRequest{.elementType = charType}};
 
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest);
-     const auto* intPtr2 = ecpps::ir::GetContext().Get(intPtr2Request);
-     const auto* charPtr = ecpps::ir::GetContext().Get(charPtrRequest);
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest);
+     const auto* intPtr2 = ecpps::ir::GetTypeContext().Get(intPtr2Request);
+     const auto* charPtr = ecpps::ir::GetTypeContext().Get(charPtrRequest);
 
      SECTION("Pointers to same type are equal") { REQUIRE((*intPtr == intPtr2)); }
 
@@ -208,7 +208,7 @@ TEST_CASE("Type Comparison - Array type comparisons", "[typesystem][type_compari
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
 
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intArray10Request{.kind = ecpps::ir::TypeKind::Compound,
                                               .qualifiers = Qualifiers::None,
@@ -223,9 +223,9 @@ TEST_CASE("Type Comparison - Array type comparisons", "[typesystem][type_compari
                                               .data =
                                                   ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 20}};
 
-     const auto* intArray10 = ecpps::ir::GetContext().Get(intArray10Request);
-     const auto* intArray10Dup = ecpps::ir::GetContext().Get(intArray10DupRequest);
-     const auto* intArray20 = ecpps::ir::GetContext().Get(intArray20Request);
+     const auto* intArray10 = ecpps::ir::GetTypeContext().Get(intArray10Request);
+     const auto* intArray10Dup = ecpps::ir::GetTypeContext().Get(intArray10DupRequest);
+     const auto* intArray20 = ecpps::ir::GetTypeContext().Get(intArray20Request);
 
      SECTION("Arrays of same type and size are equal") { REQUIRE((*intArray10 == intArray10Dup)); }
 
@@ -239,32 +239,32 @@ TEST_CASE("Type Comparison - Multi-level pointer comparisons", "[typesystem][typ
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
 
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
                                           .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest); // int*
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest); // int*
 
      ecpps::ir::TypeRequest intPtrPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                              .qualifiers = Qualifiers::None,
                                              .data = ecpps::ir::PointerRequest{.elementType = intPtr}};
-     const auto* intPtrPtr = ecpps::ir::GetContext().Get(intPtrPtrRequest); // int**
+     const auto* intPtrPtr = ecpps::ir::GetTypeContext().Get(intPtrPtrRequest); // int**
 
      ecpps::ir::TypeRequest intPtrPtrPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                                 .qualifiers = Qualifiers::None,
                                                 .data = ecpps::ir::PointerRequest{.elementType = intPtrPtr}};
-     const auto* intPtrPtrPtr = ecpps::ir::GetContext().Get(intPtrPtrPtrRequest); // int***
+     const auto* intPtrPtrPtr = ecpps::ir::GetTypeContext().Get(intPtrPtrPtrRequest); // int***
 
      ecpps::ir::TypeRequest intPtr2Request{.kind = ecpps::ir::TypeKind::Compound,
                                            .qualifiers = Qualifiers::None,
                                            .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr2 = ecpps::ir::GetContext().Get(intPtr2Request);
+     const auto* intPtr2 = ecpps::ir::GetTypeContext().Get(intPtr2Request);
 
      ecpps::ir::TypeRequest intPtrPtr2Request{.kind = ecpps::ir::TypeKind::Compound,
                                               .qualifiers = Qualifiers::None,
                                               .data = ecpps::ir::PointerRequest{.elementType = intPtr2}};
-     const auto* intPtrPtr2 = ecpps::ir::GetContext().Get(intPtrPtr2Request);
+     const auto* intPtrPtr2 = ecpps::ir::GetTypeContext().Get(intPtrPtr2Request);
 
      SECTION("int* != int**") { REQUIRE_FALSE((*intPtr == intPtrPtr)); }
 
@@ -280,12 +280,12 @@ TEST_CASE("Type Comparison - Const qualifiers", "[typesystem][type_comparison]")
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
 
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
                                           .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest);
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest);
 
      SECTION("Pointer comparison with const")
      {
@@ -319,17 +319,17 @@ TEST_CASE("Type Comparison - Cross-category comparisons", "[typesystem][type_com
                                        .qualifiers = Qualifiers::None,
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
                                           .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest);
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest);
 
      ecpps::ir::TypeRequest intArrayRequest{.kind = ecpps::ir::TypeKind::Compound,
                                             .qualifiers = Qualifiers::None,
                                             .data = ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
-     const auto* intArray = ecpps::ir::GetContext().Get(intArrayRequest);
+     const auto* intArray = ecpps::ir::GetTypeContext().Get(intArrayRequest);
 
      SECTION("int != int*") { REQUIRE_FALSE((*intType == intPtr)); }
 
@@ -344,12 +344,12 @@ TEST_CASE("Type Comparison - Nullptr and void* conversions", "[typesystem][type_
                                        .qualifiers = Qualifiers::None,
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
                                           .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest);
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest);
 
      SECTION("Type to void* conversion")
      {
@@ -365,17 +365,17 @@ TEST_CASE("Type Comparison - Array decay to pointer", "[typesystem][type_compari
                                        .qualifiers = Qualifiers::None,
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intArrayRequest{.kind = ecpps::ir::TypeKind::Compound,
                                             .qualifiers = Qualifiers::None,
                                             .data = ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
-     const auto* intArray = ecpps::ir::GetContext().Get(intArrayRequest);
+     const auto* intArray = ecpps::ir::GetTypeContext().Get(intArrayRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                           .qualifiers = Qualifiers::None,
                                           .data = ecpps::ir::PointerRequest{.elementType = intType}};
-     const auto* intPtr = ecpps::ir::GetContext().Get(intPtrRequest);
+     const auto* intPtr = ecpps::ir::GetTypeContext().Get(intPtrRequest);
 
      SECTION("Array can decay to pointer")
      {
@@ -411,7 +411,7 @@ TEST_CASE("Type Comparison - Type traits affect comparison", "[typesystem][type_
                                        .qualifiers = Qualifiers::None,
                                        .data = ecpps::ir::StandardSignedIntegerRequest{
                                            .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
-     const auto* intType = ecpps::ir::GetContext().Get(intRequest);
+     const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      auto traits = intType->Traits();
 
@@ -424,7 +424,7 @@ TEST_CASE("Type Comparison - Type traits affect comparison", "[typesystem][type_
           ecpps::ir::TypeRequest ptrRequest{.kind = ecpps::ir::TypeKind::Compound,
                                             .qualifiers = Qualifiers::None,
                                             .data = ecpps::ir::PointerRequest{.elementType = intType}};
-          const auto* ptr = ecpps::ir::GetContext().Get(ptrRequest);
+          const auto* ptr = ecpps::ir::GetTypeContext().Get(ptrRequest);
           REQUIRE(ptr->Traits().Has(TypeTraitEnum::Pointer));
      }
 }

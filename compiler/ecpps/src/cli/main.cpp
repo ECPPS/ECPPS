@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
                                      : TypeKind::LongLong;
           };
 
-          ecpps::ir::GetContext().optimisations = config.optimisations;
+          ecpps::ir::GetTypeContext().optimisations = config.optimisations;
           ecpps::abi::ABI::Current().sizeSize = translateSizes(config.sizeSize);
           ecpps::abi::ABI::Current().ptrdiffSize = translateSizes(config.ptrdiffSize);
           ecpps::abi::ABI::Current().intptrSize = translateSizes(config.intptrSize);
@@ -511,12 +511,21 @@ int main(int argc, char* argv[])
                             (std::chrono::duration_cast<std::chrono::microseconds>(end - startTime) / 1000.0).count());
           if (isExtraVerbose)
           {
-               std::println("Instantiated \x1b[92m{}\x1b[0m types:", ecpps::ir::GetContext().Count());
-               const auto list = ecpps::ir::GetContext().List();
+               std::println("Instantiated \x1b[92m{}\x1b[0m types:", ecpps::ir::GetTypeContext().Count());
+               const auto list = ecpps::ir::GetTypeContext().List();
                for (const auto& type : list)
                {
                     std::println("     \x1b[35m{}\x1b[0m \x1b[94m=> \x1b[92m{} \x1b[33mreference{}\x1b[0m",
                                  type.typePointer->RawName(), type.hitCount, type.hitCount == 1 ? "" : "s");
+               }
+               std::println("Created \x1b[92m{}\x1b[0m entities:", ecpps::ir::GetEntityStatistics().Count());
+               for (const auto& [kind, entries] : ecpps::ir::GetEntityStatistics().Entries())
+               {
+                    std::println("     \x1b[35m{}\x1b[0m:", ecpps::ir::EntityKindToString(kind));
+                    for (const auto& entry : entries)
+                    {
+                         std::println("       \x1b[35m{}\x1b[0m", entry.has_value() ? entry.value() : "<unnamed>");
+                    }
                }
           }
           outFile.close();

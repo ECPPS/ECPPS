@@ -575,7 +575,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           auto& currentAbi = ecpps::abi::ABI::Current();
           const std::string functionName = ecpps::abi::ABI::MangleName(
-              function.linkage, function.name, function.callingConvention, function.returnType,
+              function.linkage, function.Name().value_or("__unknown"), function.callingConvention, function.returnType,
               function.parameters |
                   std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                         { return parameter.type; }) |
@@ -1028,7 +1028,10 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      for (const auto& decl : node.Locals())
      {
           // TODO: static & extern
-          const auto& type = decl.type;
+          if (!std::holds_alternative<ecpps::ir::Variable>(decl.local)) continue;
+          const auto& variableDecl = std::get<ecpps::ir::Variable>(decl.local);
+
+          const auto& type = variableDecl.type;
           ecpps::abi::StorageRequirement request{type->Size(), type->Alignment(),
                                                  IsIntegral(type) ? ecpps::abi::RequiredStorageKind::Integer
                                                  : IsFloatingPoint(type)
@@ -1037,8 +1040,9 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                                                                    : ecpps::abi::RequiredStorageKind::Aggregate};
 
           auto storage = stackManager->ReserveStorage(request);
-          symbolTable.emplace(decl.name, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{
-                                             std::move(storage), request});
+          symbolTable.emplace(
+              variableDecl.Name().value_or("__unknown_local_variable"),
+              std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{std::move(storage), request});
      }
 
      context.stackFrameAdjustment = stackManager->GetParameterAdjustment();
@@ -1064,7 +1068,8 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                const auto& function = *call->Function();
 
                const std::string functionName = ecpps::abi::ABI::MangleName(
-                   function.linkage, function.name, function.callingConvention, function.returnType,
+                   function.linkage, function.Name().value_or("__unknown"), function.callingConvention,
+                   function.returnType,
                    function.parameters |
                        std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
                                              { return parameter.type; }) |

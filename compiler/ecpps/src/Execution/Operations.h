@@ -62,7 +62,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
@@ -211,7 +212,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
@@ -279,7 +281,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
@@ -348,7 +351,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
@@ -424,7 +428,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
@@ -607,7 +612,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
@@ -661,7 +667,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                return ConstantEvaluatedResult{
@@ -724,7 +731,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
@@ -766,7 +774,8 @@ namespace ecpps::ir
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
+               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
+                   evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});

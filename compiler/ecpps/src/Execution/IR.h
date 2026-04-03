@@ -105,9 +105,10 @@ namespace ecpps::ir
                                                 const std::vector<ast::NodePointer>& ast);
 
      private:
-          explicit IR(Diagnostics& diagnostics, BumpAllocator& allocator) : _context(diagnostics, allocator) {}
+          explicit IR(Context* context) : _context(context) {}
           std::vector<NodePointer> _built{};
-          Context _context;
+          Context* _context;
+          [[nodiscard]] Context& GetContext(void) const noexcept { return *this->_context; }
 
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
