@@ -154,13 +154,13 @@ namespace
                {
                     for (const auto& local : functionScope->locals)
                     {
-                         const auto name = local.Name();
-                         if (seen.contains(name)) continue;
-                         seen.insert(name);
+                         const auto localName = local.Name();
+                         if (seen.contains(localName)) continue;
+                         seen.insert(localName);
 
-                         const auto distance = LevenshteinDistance(name, name);
-                         if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
-                              similar.emplace_back(name, distance);
+                         const auto distance = LevenshteinDistance(name, localName);
+                         if (distance > 0 && distance <= std::max<std::size_t>(3, localName.length() / 3))
+                              similar.emplace_back(localName, distance);
                     }
                }
 
@@ -173,7 +173,7 @@ namespace
                     seen.insert(functionName);
 
                     const auto distance = LevenshteinDistance(name, functionName);
-                    if (distance > 0 && distance <= std::max<std::size_t>(3, name.length() / 3))
+                    if (distance > 0 && distance <= std::max<std::size_t>(3, functionName.length() / 3))
                          similar.emplace_back(functionName, distance);
                }
           }
