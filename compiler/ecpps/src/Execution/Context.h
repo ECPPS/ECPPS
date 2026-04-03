@@ -670,7 +670,7 @@ namespace ecpps::ir
           bool isInline = false;
           std::vector<std::unique_ptr<NamespaceScope>> subNamespaces{};
           std::vector<std::unique_ptr<ClassScope>> classes{};
-          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {};
+          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {}
           explicit NamespaceScope(std::string name, bool isInline = false)
               : ir::Entity(ir::EntityKind::Namespace, std::move(name)), isInline(isInline)
           {
