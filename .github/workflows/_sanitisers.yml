@@ -87,8 +87,8 @@ jobs:
             --preset x64-Clang-Debug `
             -DBUILD_TESTING=ON `
             -DSANITISE=ON `
-            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" `
-            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" `
+            "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all -static-libsan" `
+            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined -static-libsan -Xlinker -stack:10000000" `
             -DUSE_MIMALLOC=OFF
 
       - name: Build (ASan + UBSan)
@@ -96,6 +96,14 @@ jobs:
         run: |
           cmake --build out/build/x64-Clang-Debug `
             --parallel
+
+      - name: I hate myself
+        shell: pwsh
+        run: |
+          $testExe = Get-ChildItem -Recurse out/build/x64-Clang-Debug `
+                      -Filter "test_bump_allocator.exe" | Select-Object -First 1
+          & "C:\Program Files\LLVM\bin\llvm-objdump.exe" --private-headers $testExe.FullName `
+            | Select-String "DLL Name"
 
       - name: Run tests under ASan + UBSan
         shell: pwsh
