@@ -20,9 +20,6 @@ if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         /Zc:templateScope
         /EHsc
     )
-    target_link_options(ecpps_options INTERFACE
-        $<$<CONFIG:Release>:/INCREMENTAL:NO>
-    )
 endif()
 
 add_library(ecpps_defaults INTERFACE)
