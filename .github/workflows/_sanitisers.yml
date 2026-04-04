@@ -97,22 +97,13 @@ jobs:
           cmake --build out/build/x64-Clang-Debug `
             --parallel
 
-      - name: ugh
-        shell: pwsh
-        run: |
-          $exe = Get-ChildItem -Recurse out/build/x64-Clang-Debug `
-                  -Filter "test_bump_allocator.exe" | Select-Object -First 1
-          Write-Host "Checking: $($exe.FullName)"
-          & "C:\Program Files\LLVM\bin\llvm-objdump.exe" `
-              --private-headers $exe.FullName | Select-String "DLL Name"
-            
       - name: Copy ASan/UBSan runtime DLLs
         shell: pwsh
         run: |
-          $llvmBin  = "C:\Program Files\LLVM\lib\clang\${{ inputs.llvm-version }}\lib\windows"
+          $llvmMajor = ("${{ inputs.llvm-version }}" -split '\.')[0]
+          $llvmBin  = "C:\Program Files\LLVM\lib\clang\$llvmMajor\lib\windows"
           $buildDir = "out/build/x64-Clang-Debug"
 
-          # Find every test executable directory
           $testDirs = Get-ChildItem -Recurse -Filter "*.exe" $buildDir |
                         Select-Object -ExpandProperty DirectoryName -Unique
 
