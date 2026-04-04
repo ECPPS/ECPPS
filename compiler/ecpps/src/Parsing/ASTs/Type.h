@@ -27,7 +27,7 @@ namespace ecpps::ast
                return this->_aliasedNamespace;
           }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] std::string ToString([[maybe_unused]] const std::size_t indent) const override
           {
                if (this->_aliasName == nullptr) return "";
 

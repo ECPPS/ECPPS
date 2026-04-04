@@ -165,7 +165,7 @@ TEST_CASE("E2E - Control flow", "[e2e][control_flow]")
           const char* code = R"(
             int main() {
                 int sum = 0;
-                for (int i = 0; i < 10; ++i) {
+                for (std::size_t i = 0; i < 10; i++) {
                     sum += i;
                 }
                 return sum - 45; // 0+1+2+...+9 = 45, returns 0

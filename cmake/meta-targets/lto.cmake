@@ -1,0 +1,3 @@
+add_library(ecpps_lto INTERFACE)
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)

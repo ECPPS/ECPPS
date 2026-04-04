@@ -35,7 +35,7 @@ std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(con
           auto* names = reinterpret_cast<DWORD*>(reinterpret_cast<std::byte*>(module) + exports->AddressOfNames);
 
           result[dllName].reserve(exports->NumberOfNames);
-          for (DWORD i = 0; i < exports->NumberOfNames; ++i)
+          for (DWORD i = 0; i < exports->NumberOfNames; i++)
           {
                const char* funcName = reinterpret_cast<const char*>(reinterpret_cast<std::byte*>(module) + names[i]);
 

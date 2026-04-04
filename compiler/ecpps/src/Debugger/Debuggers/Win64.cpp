@@ -18,7 +18,10 @@ enum struct PromptResult : std::uint_fast8_t
      None
 };
 
-static std::uint64_t ResolveRegister(const CONTEXT& ctx, const std::string& name) { return 0; }
+static std::uint64_t ResolveRegister([[maybe_unused]] const CONTEXT& ctx, [[maybe_unused]] const std::string& name)
+{
+     return 0;
+}
 
 static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
 {
@@ -56,7 +59,7 @@ static void PrintStackTrace(HANDLE process, HANDLE thread, const CONTEXT& ctx)
 
      std::println("Stack trace:");
 
-     for (int frameIndex = 0; frameIndex < 64; ++frameIndex)
+     for (std::size_t frameIndex = 0; frameIndex < 64; frameIndex++)
      {
           if (StackWalk64(
                   IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
@@ -151,7 +154,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           SIZE_T bytesRead = 0;
           std::vector<std::byte> buffer(count * 8);
           if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(),
-                                &bytesRead) != 0)
+                                &bytesRead) == FALSE)
           {
                std::println("Failed to read memory at 0x{:016x} (error {})", address, GetLastError());
                return PromptResult::None;
@@ -159,7 +162,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
 
           if (type == "qword" || type == "q")
           {
-               for (std::size_t i = 0; i < bytesRead / 8; ++i)
+               for (std::size_t i = 0; i < bytesRead / 8; i++)
                {
                     auto value = std::bit_cast<std::uint64_t*>(buffer.data())[i];
                     std::println("{:016x}: 0x{:016x}", address + (i * 8uz), value);
@@ -167,7 +170,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           }
           else if (type == "dword" || type == "d")
           {
-               for (std::size_t i = 0; i < bytesRead / 4; ++i)
+               for (std::size_t i = 0; i < bytesRead / 4; i++)
                {
                     auto value = std::bit_cast<std::uint32_t*>(buffer.data())[i];
                     std::println("{:016x}: 0x{:08x}", address + (i * 4uz), value);
@@ -175,7 +178,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           }
           else if (type == "word" || type == "w")
           {
-               for (std::size_t i = 0; i < bytesRead / 2; ++i)
+               for (std::size_t i = 0; i < bytesRead / 2; i++)
                {
                     auto value = std::bit_cast<std::uint16_t*>(buffer.data())[i];
                     std::println("{:016x}: 0x{:04x}", address + (i * 2uz), value);
@@ -183,7 +186,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           }
           else if (type == "byte" || type == "b")
           {
-               for (std::size_t i = 0; i < bytesRead; ++i)
+               for (std::size_t i = 0; i < bytesRead; i++)
                {
                     std::println("{:016x}: 0x{:02x}", address + i, static_cast<std::uint32_t>(buffer[i]));
                }
@@ -191,7 +194,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           else if (type == "ascii" || type == "a")
           {
                std::print("{:016x}: ", address);
-               for (std::size_t i = 0; i < bytesRead; ++i)
+               for (std::size_t i = 0; i < bytesRead; i++)
                {
                     char c = static_cast<char>(buffer[i]);
                     std::print("{}", std::isprint(static_cast<unsigned char>(c)) != 0 ? c : '.');
@@ -214,7 +217,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      if (cmd.empty()) return -1;
 
      std::vector<wchar_t> commandLineBuffer(cmd.begin(), cmd.end());
-     commandLineBuffer.emplace_back(0);
+     commandLineBuffer.emplace_back(L'\0');
      LPWSTR commandLine = commandLineBuffer.data();
 
      STARTUPINFOW si{};
@@ -222,7 +225,8 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      PROCESS_INFORMATION pi{};
      DWORD creationFlags = DEBUG_ONLY_THIS_PROCESS;
 
-     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) != 0)
+     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) ==
+         FALSE)
      {
           return static_cast<int>(GetLastError());
      }

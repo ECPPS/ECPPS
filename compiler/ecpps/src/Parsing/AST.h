@@ -516,7 +516,7 @@ namespace ecpps::ast
 
                built += this->_type->ToString(0) + " ";
 
-               for (size_t i = 0; i < _declarators.size(); ++i)
+               for (size_t i = 0; i < _declarators.size(); i++)
                {
                     const auto& declarator = this->_declarators[i];
                     built += declarator.name->ToString(0);
@@ -619,9 +619,12 @@ namespace ecpps::ast
           [[nodiscard]] bool AtEnd(void) const { return this->_position >= this->_tokens.size(); }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
           {
-               return this->_tokens[this->_position + offset];
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
           }
-          [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0) { return this->_tokens[this->_position + offset]; }
+          [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0)
+          {
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+          }
           void Advance(void) noexcept { this->_position++; }
           void Retreat(void) noexcept { this->_position--; }
           [[nodiscard]] bool Match(const TokenType type) noexcept

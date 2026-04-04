@@ -152,7 +152,7 @@ namespace
                const auto& scope = context->GetScope();
                if (const auto* const functionScope = dynamic_cast<const ecpps::ir::FunctionScope*>(&scope))
                {
-                    for (const auto& local : functionScope->locals)
+                    for (const auto& local : functionScope->Locals())
                     {
                          const auto localName = local.Name();
                          if (seen.contains(localName)) continue;
@@ -539,11 +539,16 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      ir.GetContext().contextSequence.push_back(std::move(functionContext));
      std::uint64_t paramIndex{};
+     std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals =
+         std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+     locals->reserve(parameters.size());
+     vFunctionScope->SetLocals(locals);
+
      for (const auto& param : parameters)
      {
           Variable paramVariable{param.name, param.type, StorageDuration::Automatic};
           FunctionScope::LocalEntity localEntity{std::move(paramVariable)};
-          vFunctionScope->locals.push_back(std::move(localEntity));
+          locals->push_back(std::move(localEntity));
 
           auto paramNode = std::make_unique<PRValue>(
               param.type,
@@ -556,9 +561,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
-     std::vector<FunctionScope::LocalEntity> locals{};
-     locals.reserve(vFunctionScope->locals.size());
-     for (const auto& toCopy : vFunctionScope->locals) locals.emplace_back(toCopy);
 
      if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir.GetContext().nodeAllocator)
@@ -740,7 +742,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
 
           bool duplicate = false;
-          for (const auto& v : fscope.locals)
+          for (const auto& v : fscope.Locals())
           {
                if (v.Name() == varName)
                {
@@ -769,7 +771,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           Variable varEntry{varName, variableType, StorageDuration::Automatic};
 
-          auto& registeredVarLocal = fscope.locals.emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
+          auto& registeredVarLocal = fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
           auto& registeredVar = std::get<Variable>(registeredVarLocal.local);
 
           if (inferLastArrayFromInitialiser)
@@ -802,7 +804,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          std::vector<std::uint32_t> arrayValues{};
                          arrayValues.reserve(arrayLength);
                          for (const auto character : string) arrayValues.emplace_back(character);
-                         arrayValues.emplace_back(0);
+                         arrayValues.emplace_back(0u);
                          std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
                              new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
                                  std::move(arrayValues), elementType, decl.initialiser->Source())};
@@ -867,7 +869,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                               std::vector<std::uint32_t> arrayValues{};
                               arrayValues.reserve(arrayLength);
                               for (const auto character : string) arrayValues.emplace_back(character);
-                              arrayValues.emplace_back(0);
+                              arrayValues.emplace_back(0u);
 
                               if (arrayLength < arrayType->ElementCount())
                                    arrayValues.resize(arrayType->ElementCount());
@@ -1773,7 +1775,7 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
-     values.emplace_back(0);
+     values.emplace_back(0u);
 
      TypeRequest arrayRequest{};
      arrayRequest.kind = TypeKind::Compound;
@@ -1798,7 +1800,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
           const auto& scope = context->GetScope();
           if (const auto* const functionScope = dynamic_cast<const FunctionScope*>(&scope))
           {
-               for (const auto& local : functionScope->locals)
+               for (const auto& local : functionScope->Locals())
                {
                     // TODO: Constexpr evaluation
                     if (std::holds_alternative<Variable>(local.local))
@@ -1855,11 +1857,11 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      if (auto* const characterLiteral = dynamic_cast<ast::CharacterLiteralNode*>(expression.get());
          characterLiteral != nullptr)
-          return std::make_unique<PRValue>(typeSystem::g_char.get(),
-                                           std::unique_ptr<ir::IntegralNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator)
-                                                   ir::IntegralNode(characterLiteral->Value(), expression->Source())},
-                                           true);
+          return std::make_unique<PRValue>(
+              typeSystem::g_char.get(),
+              std::unique_ptr<ir::IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator) ir::IntegralNode(
+                  static_cast<std::uint64_t>(characterLiteral->Value()), expression->Source())},
+              true);
      if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);
@@ -1904,7 +1906,7 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
                if (aliasIt != scope.typeAliases.end())
                {
                     const auto* targetType = aliasIt->second;
-                    // TODO: Apply qualifiers from basicType to the resolved type
+                    request.qualifiers = qualifiers;
 
                     if (const auto* intType = targetType->CastTo<typeSystem::IntegralType>())
                     {

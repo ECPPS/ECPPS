@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
 
                          std::ranges::sort(ordered, {}, &std::pair<std::string, std::size_t>::second);
 
-                         for (std::size_t i = 0; i < ordered.size(); ++i)
+                         for (std::size_t i = 0; i < ordered.size(); i++)
                          {
                               const auto& [routineName, routineOffset] = ordered[i];
                               std::println("{}:", routineName);
@@ -452,7 +452,7 @@ int main(int argc, char* argv[])
           if (isVerbose) std::println("Linking objects...");
 
           std::vector<std::byte> codeSection{};
-          config.stringArray.emplace_back(0);
+          config.stringArray.emplace_back(u8'\0');
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,

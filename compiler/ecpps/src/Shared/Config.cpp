@@ -10,6 +10,8 @@
 #include "../Machine/ABI.h"
 #include "../Machine/Machine.h"
 
+ecpps::CompilerStrategy ecpps::g_compilerStrategy{};
+
 ecpps::CompilerConfig::CompilerConfig(
     int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {
@@ -107,7 +109,8 @@ ecpps::CompilerConfig::CompilerConfig(
                {
                     const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(),
                                                            this->optimisations.maxConstantEvaluationDepth);
-                    // TODO: Check ec
+
+                    if (ec != std::errc()) { std::println("Invalid value for /Oconst-depth: `{}`", value); }
                }
                else if (flag == "?" || lowerFlag == "help")
                     PrintHelpAndExit();

@@ -114,3 +114,9 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
              [](const ReturnInstruction&) -> std::string { return "ret"; }},
          instruction);
 }
+
+std::string ecpps::codegen::Routine::GenerateName(void)
+{
+     static std::size_t index{};
+     return ".LOC" + std::to_string(++index);
+}

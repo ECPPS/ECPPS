@@ -2,6 +2,7 @@
 #include <Queue.h>
 #include <SBOVector.h>
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -362,11 +363,7 @@ namespace ecpps::ir
           std::unordered_map<TypeRequest, Node, TypeRequestHash> _typeDatabase{};
      };
 
-     inline TypeContext& GetTypeContext(void)
-     {
-          static TypeContext typeContext{};
-          return typeContext;
-     }
+     TypeContext& GetTypeContext(void);
 
      struct Scope
      {
@@ -504,8 +501,6 @@ namespace ecpps::ir
                }
           };
 
-          std::vector<LocalEntity> locals{};
-
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
           std::vector<std::string> namespacePath{};
 
@@ -528,6 +523,26 @@ namespace ecpps::ir
                result += ")";
                return result;
           }
+
+          [[nodiscard]] std::vector<LocalEntity>& Locals(void) noexcept
+          {
+               runtime_assert(this->_locals != nullptr, "Locals pointer cannot be null");
+               return *this->_locals;
+          }
+          [[nodiscard]] const std::vector<LocalEntity>& Locals(void) const noexcept
+          {
+               runtime_assert(this->_locals != nullptr, "Locals pointer cannot be null");
+               return *this->_locals;
+          }
+
+          void SetLocals(std::shared_ptr<std::vector<LocalEntity>> locals) noexcept
+          {
+               runtime_assert(this->_locals == nullptr, "Locals can only be set once");
+               this->_locals = std::move(locals);
+          }
+
+     private:
+          std::shared_ptr<std::vector<LocalEntity>> _locals{};
      };
 
      enum struct FunctionScopeBuilderState : std::uint16_t

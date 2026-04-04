@@ -21,8 +21,8 @@ std::string ecpps::diagnostics::UnresolvedSymbolError::Message(void) const noexc
 
 std::string ecpps::diagnostics::SyntaxError::Message(void) const noexcept { return this->_message; }
 
-void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic, int indent,
-                                         std::size_t lastPrintedLine)
+void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic,
+                                         std::size_t indent, std::size_t lastPrintedLine)
 {
      std::string colour{};
 
@@ -61,10 +61,10 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                     if (currentLine == diagnostic->Source().line)
                     {
                          std::string expandedLine;
-                         std::vector<int> positionMap(line.size() + 1, 0);
+                         std::vector<std::size_t> positionMap(line.size() + 1, 0);
 
-                         int pos = 0;
-                         for (size_t i = 0; i < line.size(); ++i)
+                         std::size_t pos = 0;
+                         for (std::size_t i = 0; i < line.size(); i++)
                          {
                               positionMap[i] = pos;
                               if (line[i] == '\t')

@@ -349,10 +349,6 @@ namespace ecpps::codegen
                if (this->name.empty()) this->name = GenerateName();
           }
 
-          static std::string GenerateName(void)
-          {
-               static std::size_t index{};
-               return ".LOC" + std::to_string(++index);
-          }
+          static std::string GenerateName(void);
      };
 } // namespace ecpps::codegen

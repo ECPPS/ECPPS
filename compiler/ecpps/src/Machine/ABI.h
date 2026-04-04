@@ -238,18 +238,22 @@ namespace ecpps::abi
           [[nodiscard]] std::size_t ConvertEndian(auto&& range) const noexcept
           {
                std::size_t value = 0;
+               using Range = std::remove_reference_t<decltype(range)>;
+               using IndexType = std::conditional_t<requires { typename Range::difference_type; },
+                                                    typename Range::difference_type, std::size_t>;
 
                if (this->_endianness == ecpps::abi::Endianness::Big)
                {
                     for (std::size_t i = 0; i < TTo; i++)
                     {
                          value <<= 8;
-                         value |= static_cast<std::size_t>(range[i]);
+                         value |= static_cast<std::size_t>(range[static_cast<IndexType>(i)]);
                     }
                }
                else
                {
-                    for (std::size_t i = 0; i < TTo; i++) value |= static_cast<std::size_t>(range[i]) << (i * 8);
+                    for (std::size_t i = 0; i < TTo; i++)
+                         value |= static_cast<std::size_t>(range[static_cast<IndexType>(i)]) << (i * 8);
                }
 
                return value;
@@ -280,7 +284,7 @@ namespace ecpps::abi
 
 namespace
 {
-     std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
+     [[maybe_unused]] std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
      {
           switch (callingConvention)
           {

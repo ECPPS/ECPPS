@@ -173,17 +173,6 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.optionalHeader.addressOfEntryPoint = entryPoint;
 }
 
-static auto AppendBytes(std::vector<std::byte>& destination, const void* data, std::size_t size) -> void
-{
-     const auto* first = static_cast<const std::byte*>(data);
-     destination.insert(destination.end(), first, first + size);
-}
-
-static auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view string) -> void
-{
-     for (const char character : string) destination.push_back(std::byte{static_cast<unsigned char>(character)});
-}
-
 static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
                                                const std::unordered_map<std::string, std::vector<std::string>>& imports)
 {
@@ -292,9 +281,6 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      exportDirectory.NumberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
      exportDirectory.NumberOfNames = static_cast<std::uint32_t>(this->exports.size());
 
-     // Calculate aligned offsets
-     const std::uint32_t sectionAlignment = this->ntHeaders.optionalHeader.sectionAlignment;
-
      std::vector<std::byte> exportData{};
 
      constexpr std::uint32_t exportRVA = AlignUp(0x2000, 0x1000); // Aligned RVA for export section
@@ -319,7 +305,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      currentOffset +=
          AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
 
-     int offset = 0;
+     std::uint32_t offset = 0;
      // Serialise function addresses
      for (auto& [name, addr] : this->exports)
      {
@@ -341,8 +327,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      offset = 0;
      for (const auto& [name, address] : this->exports)
      {
-          const std::size_t insertPos =
-              std::max<std::size_t>(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
+          const std::size_t insertPos = std::max<std::size_t>(
+              address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
@@ -356,7 +342,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      }
 
      offset = 0;
-     for (size_t i = 0; i < this->exports.size(); ++i)
+     for (size_t i = 0; i < this->exports.size(); i++)
      {
           const size_t insertPos = (exportDirectory.AddressOfNameOrdinals - exportRVA) + offset;
 
@@ -417,7 +403,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      //     AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
 
      // Headers and section layout
-     constexpr std::uint32_t ntHeadersOffset = AlignUp(sizeof(DosHeader), sizeof(std::uint32_t));
+     constexpr std::uint32_t ntHeadersOffset = AlignUp<std::uint32_t>(sizeof(DosHeader), sizeof(std::uint32_t));
      constexpr std::uint32_t sectionHeadersOffset = ntHeadersOffset + sizeof(NtHeaders);
      const std::uint32_t headersSize =
          AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),

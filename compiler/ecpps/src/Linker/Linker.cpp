@@ -14,12 +14,12 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
      {
      case LinkerType::PE:
      {
-          auto peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
+          auto& peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
           return std::make_unique<win::WindowsLinker>(std::move(peOptions));
      }
      case LinkerType::Coff:
      {
-          auto coffOptions = dynamic_cast<LinkerOptions<LinkerType::Coff>&>(*options);
+          auto& coffOptions = dynamic_cast<LinkerOptions<LinkerType::Coff>&>(*options);
           return std::make_unique<win::CoffLinker>(std::move(coffOptions));
      }
      default: return nullptr;
@@ -98,7 +98,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);
 
      for (const auto& [functionName, functionOffset] : functions)
-          selectedLinker->ExportFunction(functionName, functionOffset);
+          selectedLinker->ExportFunction(functionName, static_cast<std::uint32_t>(functionOffset));
 
-     return selectedLinker->ToBytes(config.outputImage, mainOffset, stringData);
+     return selectedLinker->ToBytes(config.outputImage, static_cast<std::uint32_t>(mainOffset), stringData);
 }

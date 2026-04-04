@@ -820,7 +820,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
               ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
                                                     context.GetStringOffset(stringIndex), movWidth},
               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
-          context.AddStringPatch(instructionIndex, ecpps::InstructionPatchType::LeaFrom, stringIndex);
+          context.AddStringPatch(static_cast<std::uint32_t>(instructionIndex), ecpps::InstructionPatchType::LeaFrom,
+                                 stringIndex);
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -990,6 +991,12 @@ static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
      {
           // No need to scan parameters
      }
+}
+
+std::uint32_t ecpps::codegen::AssemblyContext::ReserveNextStringEntry(void) noexcept
+{
+     static std::atomic<std::uint32_t> next = 0;
+     return next.fetch_add(1, std::memory_order::relaxed);
 }
 
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)

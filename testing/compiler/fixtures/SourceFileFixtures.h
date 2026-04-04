@@ -26,7 +26,7 @@ int main() {
           constexpr std::string_view ControlFlow = R"(
 int main() {
     int sum = 0;
-    for (int i = 0; i < 10; ++i) {
+    for (std::size_t i = 0; i < 10; i++) {
         if (i % 2 == 0) {
             sum += i;
         } else {
