@@ -117,10 +117,7 @@ jobs:
                         Select-Object -ExpandProperty DirectoryName -Unique
 
           $runtimeDlls = @(
-            "clang_rt.asan_dynamic-x86_64.dll",
-            "clang_rt.asan_dbg_dynamic-x86_64.dll",
-            "clang_rt.ubsan_standalone_dynamic-x86_64.dll",
-            "clang_rt.ubsan_standalone_dbg_dynamic-x86_64.dll"
+            "clang_rt.asan_dynamic-x86_64.dll"
           )
 
           foreach ($dir in $testDirs) {
@@ -129,6 +126,10 @@ jobs:
               if (Test-Path $src) {
                 Copy-Item $src $dir -Force
                 Write-Host "Copied $dll → $dir"
+              }
+              else {
+                Write-Error "Runtime DLL not found: $src"
+                exit 1
               }
             }
           }
