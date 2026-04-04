@@ -154,7 +154,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
           SIZE_T bytesRead = 0;
           std::vector<std::byte> buffer(count * 8);
           if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(),
-                                &bytesRead) != 0)
+                                &bytesRead) == FALSE)
           {
                std::println("Failed to read memory at 0x{:016x} (error {})", address, GetLastError());
                return PromptResult::None;
@@ -217,7 +217,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      if (cmd.empty()) return -1;
 
      std::vector<wchar_t> commandLineBuffer(cmd.begin(), cmd.end());
-     commandLineBuffer.emplace_back(0);
+     commandLineBuffer.emplace_back(L'\0');
      LPWSTR commandLine = commandLineBuffer.data();
 
      STARTUPINFOW si{};
@@ -225,7 +225,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      PROCESS_INFORMATION pi{};
      DWORD creationFlags = DEBUG_ONLY_THIS_PROCESS;
 
-     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) != 0)
+     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) == FALSE)
      {
           return static_cast<int>(GetLastError());
      }
