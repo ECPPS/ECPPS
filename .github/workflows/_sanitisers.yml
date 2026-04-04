@@ -67,7 +67,7 @@ jobs:
                 --parallel "$(nproc)"
 
   clang-asan-ubsan:
-    name: Clang / ASan + UBSan
+    name: Clang / UBSan
     runs-on: windows-latest
 
     steps:
@@ -105,7 +105,7 @@ jobs:
             ccache --max-size=500M --set-config=compression=true
           fi
 
-      - name: Configure (ASan + UBSan)
+      - name: Configure (UBSan)
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
@@ -150,7 +150,7 @@ jobs:
             }
           }
 
-      - name: Run tests under ASan + UBSan
+      - name: Run tests under UBSan
         shell: pwsh
         run: |
           $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
