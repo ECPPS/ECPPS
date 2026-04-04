@@ -21,6 +21,7 @@ jobs:
         with:
           path: C:\Program Files\LLVM
           key: llvm-${{ inputs.llvm-version }}-windows
+          fail-on-cache-miss: true
 
       - name: Add LLVM to PATH
         shell: pwsh

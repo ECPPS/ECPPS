@@ -79,6 +79,7 @@ jobs:
         with:
           path: C:\Program Files\LLVM
           key: llvm-${{ inputs.llvm-version }}-windows
+          fail-on-cache-miss: true
 
       - name: Add LLVM to PATH
         if: matrix.needs_llvm
@@ -93,10 +94,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.LOCALAPPDATA }}\ccache
-          key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.ref }}-${{ github.sha }}
+          key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.sha }}
           restore-keys: |
-            ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.ref }}-
             ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-
+            ccache-${{ runner.os }}-${{ matrix.name }}-
+            ccache-${{ runner.os }}-
 
       - name: Configure ccache limits
         shell: bash

@@ -33,15 +33,7 @@ jobs:
         shell: pwsh
         run: choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
 
-      - name: Cache ccache installation
-        id: cache-ccache-bin
-        uses: actions/cache@v4
-        with:
-          path: C:\ProgramData\chocolatey\lib\ccache
-          key: ccache-bin-windows-v1
-
       - name: Install ccache
-        if: steps.cache-ccache-bin.outputs.cache-hit != 'true'
         shell: pwsh
         run: choco install ccache -y
 

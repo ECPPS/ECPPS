@@ -18,10 +18,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.LOCALAPPDATA }}\ccache
-          key: ccache-${{ runner.os }}-msvc-Debug-tests-${{ github.ref }}-${{ github.sha }}
+          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
           restore-keys: |
-            ccache-${{ runner.os }}-msvc-Debug-tests-${{ github.ref }}-
-            ccache-${{ runner.os }}-msvc-Debug-tests-
+            ccache-${{ runner.os }}-msvc-Debug-
+            ccache-${{ runner.os }}-
 
       - name: Configure with BUILD_TESTING=ON
         shell: pwsh
