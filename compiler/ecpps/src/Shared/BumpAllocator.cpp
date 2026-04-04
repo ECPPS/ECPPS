@@ -1,6 +1,7 @@
 #include "BumpAllocator.h"
 
 #include <algorithm>
+#include <format>
 
 #include <RuntimeAssert.h>
 #include "SBOVector.h"
