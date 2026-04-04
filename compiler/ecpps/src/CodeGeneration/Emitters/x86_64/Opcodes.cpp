@@ -1764,9 +1764,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem64(std::size_t
      std::vector<std::byte> binary{};
      binary.reserve(11);
 
-     const bool rexW = true;
      const bool rexB = reg >= 8;
-     if (rexW || rexB) binary.push_back(static_cast<std::byte>(0x48 | (rexB ? 0x01 : 0x00)));
+     if (rexB) binary.push_back(static_cast<std::byte>(0x48 | (rexB ? 0x01 : 0x00)));
 
      binary.push_back(static_cast<std::byte>(0x81)); // /5 for SUB
 
