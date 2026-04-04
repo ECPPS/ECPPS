@@ -1,6 +1,7 @@
 #include "Opcodes.h"
 #include <cstddef>
 #include <cstdint>
+#include <ranges>
 #include <vector>
 
 // NOLINTBEGIN(readability-identifier-length)

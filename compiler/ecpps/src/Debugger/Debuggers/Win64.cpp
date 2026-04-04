@@ -225,7 +225,8 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      PROCESS_INFORMATION pi{};
      DWORD creationFlags = DEBUG_ONLY_THIS_PROCESS;
 
-     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) == FALSE)
+     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) ==
+         FALSE)
      {
           return static_cast<int>(GetLastError());
      }
