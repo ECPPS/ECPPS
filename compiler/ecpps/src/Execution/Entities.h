@@ -97,7 +97,7 @@ namespace ecpps::ir
 
      protected:
           explicit Entity(EntityKind kind, std::optional<std::string> name = std::nullopt)
-              : _kind(kind), _name(std::move(name))
+              : _name(std::move(name)), _kind(kind)
           {
                this->_id = GetEntityStatistics().AddEntry(kind, this->_name);
           }
@@ -113,8 +113,8 @@ namespace ecpps::ir
           }
 
      private:
-          EntityKind _kind;
-          std::optional<std::string> _name;
           std::size_t _id{};
+          std::optional<std::string> _name;
+          EntityKind _kind;
      };
 } // namespace ecpps::ir

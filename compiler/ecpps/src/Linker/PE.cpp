@@ -173,17 +173,6 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.optionalHeader.addressOfEntryPoint = entryPoint;
 }
 
-static auto AppendBytes(std::vector<std::byte>& destination, const void* data, std::size_t size) -> void
-{
-     const auto* first = static_cast<const std::byte*>(data);
-     destination.insert(destination.end(), first, first + size);
-}
-
-static auto AppendStringAsBytes(std::vector<std::byte>& destination, std::string_view string) -> void
-{
-     for (const char character : string) destination.push_back(std::byte{static_cast<unsigned char>(character)});
-}
-
 static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
                                                const std::unordered_map<std::string, std::vector<std::string>>& imports)
 {
@@ -291,9 +280,6 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      exportDirectory.Base = 1; // Start ordinals from 1
      exportDirectory.NumberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
      exportDirectory.NumberOfNames = static_cast<std::uint32_t>(this->exports.size());
-
-     // Calculate aligned offsets
-     const std::uint32_t sectionAlignment = this->ntHeaders.optionalHeader.sectionAlignment;
 
      std::vector<std::byte> exportData{};
 

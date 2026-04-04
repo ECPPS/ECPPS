@@ -1777,7 +1777,6 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem32(std::size_t
      binary.push_back(std::byte{0x81}); // /5
 
      bool needsSib = (baseLow == 4); // rsp/r12
-     bool forceDisp32 = false;
 
      std::uint8_t mod{};
      if (offset == 0 && baseLow != 5) // rbp/r13 cannot use mod=00

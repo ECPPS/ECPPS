@@ -280,7 +280,7 @@ namespace ecpps::abi
 
 namespace
 {
-     std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
+     [[maybe_unused]] std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
      {
           switch (callingConvention)
           {

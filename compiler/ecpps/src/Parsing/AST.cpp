@@ -480,7 +480,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
          new (context) FunctionDefinitionNode(std::move(signature), std::move(body), source));
 }
 
-bool ecpps::ast::AST::IsDeclarationStart(ASTContext& context)
+bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
 {
      std::size_t i = 0;
      [[maybe_unused]] bool hasQualifier = false; // NOLINT
@@ -828,21 +828,21 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                                                std::move(optExplicitSpecifier), source));
 }
 
-NodePointer ecpps::ast::AST::TryParseDeclSpecifier(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDeclSpecifier([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::ParseInitDeclarator(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::ParseInitDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseDeclarator(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParsePtrDeclarator(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParsePtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::ParseInitialiser(ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::ParseInitialiser([[maybe_unused]] ASTContext& context) { return {}; }
 
-NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
+NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext& context)
 {
      if (this->AtEnd()) return nullptr;
 
@@ -926,7 +926,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression(ASTContext& context)
      return nullptr;
 }
 
-NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
+NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& context)
 {
      const auto source = Peek().location;
      std::vector<NodePointer> parts;
@@ -1046,7 +1046,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression(ASTContext& context)
          new (context) QualifiedIdNode(std::move(parts), source));
 }
 
-NodePointer ecpps::ast::AST::ParsePostfixExpresssion(ASTContext& context)
+NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext& context)
 {
      auto currentToken = this->Peek();
      auto source = currentToken.location;

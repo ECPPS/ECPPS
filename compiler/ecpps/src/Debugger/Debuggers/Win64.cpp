@@ -18,7 +18,7 @@ enum struct PromptResult : std::uint_fast8_t
      None
 };
 
-static std::uint64_t ResolveRegister(const CONTEXT& ctx, const std::string& name) { return 0; }
+static std::uint64_t ResolveRegister([[maybe_unused]] const CONTEXT& ctx, [[maybe_unused]] const std::string& name) { return 0; }
 
 static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
 {

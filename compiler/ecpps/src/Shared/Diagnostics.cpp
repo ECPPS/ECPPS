@@ -52,7 +52,6 @@ void ecpps::IssueICE(std::string_view message, platformlib::DebuggerContext* def
 {
 #ifdef _WIN32
      HANDLE hProcess = GetCurrentProcess();
-     HANDLE hThread = GetCurrentThread();
 
      const auto stack = platformlib::debugger::WalkTrace(defaultContext);
 

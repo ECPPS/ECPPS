@@ -11,38 +11,46 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
      target_compile_options(ecpps_warnings INTERFACE
+          # Initial
           -Weverything
           -Werror
 
-          -Wno-padded
-          -Wno-unused-parameter
-          -Wno-unused-variable
-          -Wno-unused-function
+          # Useless compatibility warnings
           -Wno-c++98-compat
           -Wno-c++20-compat
-          -Wno-c++98-compat-pedantic
           -Wno-pre-c++17-compat
           -Wno-pre-c++23-compat
+          -Wno-c++98-compat-pedantic
+          -Wno-c++98-c++11-compat-binary-literal
+
+          # Don't care
           -Wno-global-constructors
           -Wno-exit-time-destructors
-          -Wno-c++98-c++11-compat-binary-literal
           -Wno-source-uses-openmp
-          -Wno-covered-switch-default
           -Wno-missing-noreturn
-          -Wno-shadow-field-in-constructor
-          -Wno-shadow-uncaptured-local
+          -Wno-unknown-warning-option # clang-cl doesn't support -Wno-nvro
+
+          # Genually stupid
           -Wno-nonportable-system-include-path
+          -Wno-potentially-evaluated-expression
+          -Wno-shadow-field-in-constructor
+          -Wno-comma
+          -Wno-padded # good intentions, but way too many false positives
+
+          # Integers
           -Wno-sign-conversion
+          -Wno-shorten-64-to-32
+          -Wno-implicit-int-conversion
+
+          # Other
+          -Wno-covered-switch-default
+          -Wno-shadow-uncaptured-local
           -Wno-switch-default
           -Wno-unsafe-buffer-usage
           -Wno-nrvo
           -Wno-ctad-maybe-unsupported
-          -Wno-shorten-64-to-32
-          -Wno-implicit-int-conversion
           -Wno-undefined-reinterpret-cast
           -Wno-switch-enum
-          -Wno-comma
           -Wno-unused-macros
-          -Wno-potentially-evaluated-expression
      )
 endif()

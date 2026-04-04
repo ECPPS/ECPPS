@@ -109,7 +109,11 @@ ecpps::CompilerConfig::CompilerConfig(
                {
                     const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(),
                                                            this->optimisations.maxConstantEvaluationDepth);
-                    // TODO: Check ec
+                    
+                    if (ec != std::errc())
+                    {
+                         std::println("Invalid value for /Oconst-depth: `{}`", value);
+                    }
                }
                else if (flag == "?" || lowerFlag == "help")
                     PrintHelpAndExit();

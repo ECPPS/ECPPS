@@ -19,20 +19,16 @@ TEST_CASE("Pointer arithmetic - Basic operations", "[regression][pointer-arithme
 
      SECTION("Pointer + integer")
      {
-          const char* source = "int* p = nullptr; int* q = p + 5;";
-          // Test that p + 5 advances by 5 * sizeof(int) bytes
           REQUIRE_NOTHROW(
               [&]()
               {
                    auto alloc = MakeAllocator();
-                   // This is a compilation test - if it compiles, arithmetic is recognized
                    INFO("Pointer + integer addition should compile");
               }());
      }
 
      SECTION("Pointer - integer")
      {
-          const char* source = "int* p = nullptr; int* q = p - 3;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -43,7 +39,6 @@ TEST_CASE("Pointer arithmetic - Basic operations", "[regression][pointer-arithme
 
      SECTION("Pointer - pointer yields ptrdiff_t")
      {
-          const char* source = "int* p = nullptr; int* q = nullptr; auto diff = p - q;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -59,11 +54,6 @@ TEST_CASE("Pointer arithmetic - Array subscript equivalence", "[regression][poin
 
      SECTION("arr[i] should be equivalent to *(arr + i)")
      {
-          const char* source = R"(
-            int arr[10];
-            int x = arr[5];
-            int y = *(arr + 5);
-        )";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -79,7 +69,6 @@ TEST_CASE("Pointer arithmetic - Comparison operators", "[regression][pointer-ari
 
      SECTION("Pointer less than comparison")
      {
-          const char* source = "int* p = nullptr; int* q = nullptr; bool b = p < q;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -90,7 +79,6 @@ TEST_CASE("Pointer arithmetic - Comparison operators", "[regression][pointer-ari
 
      SECTION("Pointer equality comparison")
      {
-          const char* source = "int* p = nullptr; int* q = nullptr; bool b = p == q;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -106,7 +94,6 @@ TEST_CASE("Pointer arithmetic - Type-specific scaling", "[regression][pointer-ar
 
      SECTION("char* increments by 1 byte")
      {
-          const char* source = "char* p = nullptr; char* q = p + 1;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -117,7 +104,6 @@ TEST_CASE("Pointer arithmetic - Type-specific scaling", "[regression][pointer-ar
 
      SECTION("int* increments by 4 bytes (on typical platforms)")
      {
-          const char* source = "int* p = nullptr; int* q = p + 1;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -128,7 +114,6 @@ TEST_CASE("Pointer arithmetic - Type-specific scaling", "[regression][pointer-ar
 
      SECTION("long long* increments by 8 bytes")
      {
-          const char* source = "long long* p = nullptr; long long* q = p + 1;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -144,7 +129,6 @@ TEST_CASE("Pointer arithmetic - Pre/post increment and decrement", "[regression]
 
      SECTION("Post-increment p++")
      {
-          const char* source = "int* p = nullptr; int* q = p++;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -155,7 +139,6 @@ TEST_CASE("Pointer arithmetic - Pre/post increment and decrement", "[regression]
 
      SECTION("Pre-increment ++p")
      {
-          const char* source = "int* p = nullptr; int* q = ++p;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -166,7 +149,6 @@ TEST_CASE("Pointer arithmetic - Pre/post increment and decrement", "[regression]
 
      SECTION("Post-decrement p--")
      {
-          const char* source = "int* p = nullptr; int* q = p--;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -177,7 +159,6 @@ TEST_CASE("Pointer arithmetic - Pre/post increment and decrement", "[regression]
 
      SECTION("Pre-decrement --p")
      {
-          const char* source = "int* p = nullptr; int* q = --p;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -193,7 +174,6 @@ TEST_CASE("Pointer arithmetic - Edge cases", "[regression][pointer-arithmetic]")
 
      SECTION("nullptr arithmetic (defined behavior in expressions)")
      {
-          const char* source = "int* p = nullptr + 0;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -204,7 +184,6 @@ TEST_CASE("Pointer arithmetic - Edge cases", "[regression][pointer-arithmetic]")
 
      SECTION("Zero offset")
      {
-          const char* source = "int* p = nullptr; int* q = p + 0;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -215,7 +194,6 @@ TEST_CASE("Pointer arithmetic - Edge cases", "[regression][pointer-arithmetic]")
 
      SECTION("Large offset")
      {
-          const char* source = "int* p = nullptr; int* q = p + 1000000;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -231,7 +209,6 @@ TEST_CASE("Pointer arithmetic - Compound assignment", "[regression][pointer-arit
 
      SECTION("Compound addition +=")
      {
-          const char* source = "int* p = nullptr; p += 5;";
           REQUIRE_NOTHROW(
               [&]()
               {
@@ -242,7 +219,6 @@ TEST_CASE("Pointer arithmetic - Compound assignment", "[regression][pointer-arit
 
      SECTION("Compound subtraction -=")
      {
-          const char* source = "int* p = nullptr; p -= 3;";
           REQUIRE_NOTHROW(
               [&]()
               {

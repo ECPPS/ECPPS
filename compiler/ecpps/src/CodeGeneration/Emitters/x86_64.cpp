@@ -1342,9 +1342,6 @@ struct ecpps::codegen::emitters::EmitSpecificLeaImpl<ecpps::codegen::emitters::O
                                               [[maybe_unused]] const TakeAddressInstruction& lea)
      {
 
-          constexpr static auto ApplyStringRelocationLambda = [](std::uint8_t register_, std::size_t stringTableOffset)
-          { return x86_64::GenerateLeaToReg(x86_64::Rip, stringTableOffset, register_); };
-
           const auto& source = lea.from;
           const auto& destination = std::get<RegisterOperand>(lea.to);
 

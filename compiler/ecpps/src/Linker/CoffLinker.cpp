@@ -20,13 +20,7 @@ namespace
           std::uint16_t sizeOfOptionalHeader;
           std::uint16_t characteristics;
      };
-     constexpr std::uint16_t F_RELFLG = 0x0001;
-     constexpr std::uint16_t F_EXEC = 0x0002;
-     constexpr std::uint16_t F_LNNO = 0x0004;
-     constexpr std::uint16_t F_LSYMS = 0x0008;
-     constexpr std::uint16_t F_LITTLE = 0x0100;
-     constexpr std::uint16_t F_BIG = 0x0200;
-     constexpr std::uint16_t F_SYMMERGE = 0x1000;
+
      struct COFFOptionalHeader
      {
           std::uint16_t magic;
@@ -52,13 +46,6 @@ namespace
           std::uint16_t numberOfLinenumbers;
           std::uint32_t characteristics;
      };
-
-     constexpr std::uint32_t SCN_CNT_CODE = 0x00000020;
-     constexpr std::uint32_t SCN_MEM_EXECUTE = 0x20000000;
-     constexpr std::uint32_t SCN_MEM_READ = 0x40000000;
-     constexpr std::uint32_t SCN_MEM_WRITE = 0x80000000;
-     constexpr std::uint32_t SCN_CNT_INITIALISED_DATA = 0x00000040;
-     constexpr std::uint32_t SCN_CNT_UNINITIALISED_DATA = 0x00000080;
 
      struct COFFRelocationRaw
      {
@@ -182,15 +169,16 @@ void CoffLinker::ImportFunction(const std::string& symbolName, const std::string
      this->_symbols.emplace_back(std::move(symbol));
 }
 
-std::vector<std::byte> CoffLinker::ToBytes(const std::string& imageName, std::size_t entryPointAddress,
-                                           const std::vector<std::byte>& stringData) const
+std::vector<std::byte> CoffLinker::ToBytes([[maybe_unused]] const std::string& imageName,
+                                           [[maybe_unused]] std::size_t entryPointAddress,
+                                           [[maybe_unused]] const std::vector<std::byte>& stringData) const
 {
      auto symbols = this->_symbols;
      auto symbolOffsets = this->_symbolOffsets;
 
      std::vector<COFFSection> ownedSections(this->_sections);
      std::size_t rdataSectionIndex = std::string::npos;
-     for (std::size_t i = 0; i < ownedSections.size(); ++i)
+     for (std::size_t i = 0; i < ownedSections.size(); i++)
      {
           if (ownedSections[i].name == RdataSectionName)
           {

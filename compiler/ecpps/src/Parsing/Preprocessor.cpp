@@ -35,10 +35,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           else
                location.position++;
      };
-     auto AdvanceIf = [&](auto& it, char expected)
-     {
-          if (it != source.end() && *it == expected) Advance(it);
-     };
 
      for (auto sourceIterator = source.begin(); sourceIterator != source.end(); ++sourceIterator)
      {
@@ -652,8 +648,7 @@ bool ecpps::Preprocessor::IsOperatorOrPunctuatorBeginning(char ch)
 
 static std::string ExpandMacroString(const std::string& contents,
                                      const std::unordered_map<std::string, std::string>& parameterMap,
-                                     const std::unordered_map<std::string, std::string>& rawParameterMap,
-                                     const std::vector<ecpps::MacroReplacement>& macros)
+                                     const std::unordered_map<std::string, std::string>& rawParameterMap)
 {
      std::string result{};
      for (std::size_t i = 0; i < contents.size(); i++)
@@ -726,7 +721,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
-     return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}, macros), location, macros);
+     return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}), location, macros);
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionLike(
@@ -784,6 +779,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
           }
      }
 
-     auto expandedString = ExpandMacroString(contents, parameterMap, rawParameterMap, macros);
+     auto expandedString = ExpandMacroString(contents, parameterMap, rawParameterMap);
      return TokeniseExpandedMacro(expandedString, location, macros);
 }

@@ -114,7 +114,7 @@ namespace ecpps::ir
                return std::string(indent * ast::PrettyIndent, ' ') + std::to_string(this->_value);
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
+          TryConstantEvaluate([[maybe_unused]] const EvaluationContext& evaluationContext) const override
           {
                return ConstantEvaluatedResult{this->_value, this->Source()};
           }

@@ -56,7 +56,7 @@ namespace ecpps::linker::win
                _toRelocateWidth = toRelocateWidth;
           }
 
-          explicit CoffLinker(const LinkerOptions<LinkerType::Coff>& options) {}
+          explicit CoffLinker([[maybe_unused]] const LinkerOptions<LinkerType::Coff>& options) {}
 
           std::vector<std::byte> CodeSection(std::vector<std::byte> data,
                                              const codegen::LinkerRelocationMap& relocationMap) override;

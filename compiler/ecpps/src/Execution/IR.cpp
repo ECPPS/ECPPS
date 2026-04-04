@@ -1906,7 +1906,7 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
                if (aliasIt != scope.typeAliases.end())
                {
                     const auto* targetType = aliasIt->second;
-                    // TODO: Apply qualifiers from basicType to the resolved type
+                    request.qualifiers = qualifiers;
 
                     if (const auto* intType = targetType->CastTo<typeSystem::IntegralType>())
                     {
