@@ -26,13 +26,22 @@ jobs:
         shell: pwsh
         run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-      - name: Verify clang-format version
-        shell: bash
-        run: clang-format --version
-
       - name: Run clang-format
-        uses: jidicula/clang-format-action@v4.13.0
-        with:
-          clang-format-version: "20"
-          check-only: true
-          fallback-style: "none"
+        shell: pwsh
+        run: |
+          $files = git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' |
+                  Where-Object { $_ -ne '' }
+
+          if (-not $files) {
+            Write-Host "No C/C++ files found."
+            exit 0
+          }
+
+          # Single clang-format invocation across all files — no per-process overhead
+          $result = & clang-format --style=file --dry-run --Werror @files 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "clang-format violations found:"
+            $result | Write-Host
+            exit 1
+          }
+          Write-Host "All files correctly formatted ($($files.Count) files checked)"
