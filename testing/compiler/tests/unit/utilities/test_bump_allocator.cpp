@@ -24,7 +24,7 @@ TEST_CASE("BumpAllocator - Basic Allocation", "[utilities][bump_allocator]")
           BumpAllocator alloc(4096);
           std::vector<std::byte*> ptrs;
 
-          for (int i = 0; i < 10; ++i)
+          for (std::size_t i = 0; i < 10; i++)
           {
                auto* ptr = alloc.Allocate(16);
                REQUIRE((ptr != nullptr));
@@ -93,7 +93,7 @@ TEST_CASE("BumpAllocator - Large allocations", "[utilities][bump_allocator]")
           std::vector<std::byte*> ptrs;
 
           // Allocate in 16KB chunks
-          for (int i = 0; i < 16; ++i)
+          for (std::size_t i = 0; i < 16; i++)
           {
                auto* ptr = alloc.Allocate(16uz * 1024);
                if (ptr) ptrs.push_back(ptr);
@@ -132,12 +132,12 @@ TEST_CASE("BumpAllocator - Placement new operator", "[utilities][bump_allocator]
 
      SECTION("Allocate array via placement new")
      {
-          auto* arr = new (alloc) int[10]; // NOLINT
-          REQUIRE((arr != nullptr));       // NOLINT
+          auto* arr = new (alloc) std::size_t[10]; // NOLINT
+          REQUIRE((arr != nullptr));               // NOLINT
 
-          for (int i = 0; i < 10; ++i) arr[i] = i * 2; // NOLINT
+          for (std::size_t i = 0; i < 10; i++) arr[i] = i * 2; // NOLINT
 
-          for (int i = 0; i < 10; ++i) REQUIRE((arr[i] == i * 2)); // NOLINT
+          for (std::size_t i = 0; i < 10; i++) REQUIRE((arr[i] == i * 2)); // NOLINT
      }
 }
 

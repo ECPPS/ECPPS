@@ -305,7 +305,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      currentOffset +=
          AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
 
-     int offset = 0;
+     std::uint32_t offset = 0;
      // Serialise function addresses
      for (auto& [name, addr] : this->exports)
      {
@@ -327,8 +327,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      offset = 0;
      for (const auto& [name, address] : this->exports)
      {
-          const std::size_t insertPos =
-              std::max<std::size_t>(address - exportRVA, offset + exportDirectory.AddressOfNames - exportRVA);
+          const std::size_t insertPos = std::max<std::size_t>(
+              address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
@@ -342,7 +342,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      }
 
      offset = 0;
-     for (size_t i = 0; i < this->exports.size(); ++i)
+     for (size_t i = 0; i < this->exports.size(); i++)
      {
           const size_t insertPos = (exportDirectory.AddressOfNameOrdinals - exportRVA) + offset;
 

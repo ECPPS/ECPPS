@@ -820,7 +820,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
               ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
                                                     context.GetStringOffset(stringIndex), movWidth},
               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
-          context.AddStringPatch(static_cast<std::uint32_t>(instructionIndex), ecpps::InstructionPatchType::LeaFrom, stringIndex);
+          context.AddStringPatch(static_cast<std::uint32_t>(instructionIndex), ecpps::InstructionPatchType::LeaFrom,
+                                 stringIndex);
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }

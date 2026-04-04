@@ -31,12 +31,12 @@ if(NOT EXISTS "${CATCH2_HPP}" OR NOT EXISTS "${CATCH2_CPP}")
 endif()
 
 add_library(Catch2 STATIC "${CATCH2_CPP}")
-target_include_directories(Catch2 PUBLIC "${CATCH2_DOWNLOAD_DIR}")
+target_include_directories(Catch2 SYSTEM PUBLIC "${CATCH2_DOWNLOAD_DIR}")
 target_compile_features(Catch2 PUBLIC cxx_std_17)
 
 target_compile_options(Catch2 PRIVATE
-    -w
     $<$<CXX_COMPILER_ID:MSVC>:/W0>
+    $<$<CXX_COMPILER_ID:Clang>:-w>
 )
 
 add_library(Catch2::Catch2WithMain ALIAS Catch2)

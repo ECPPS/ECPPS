@@ -36,15 +36,15 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                std::string out{};
                out.reserve(in.size());
 
-               auto hex = [](char c) -> int
+               auto hex = [](char c) -> std::uint32_t
                {
-                    if (c >= '0' && c <= '9') return c - '0';
-                    if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
-                    if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
-                    return -1;
+                    if (c >= '0' && c <= '9') return static_cast<std::uint32_t>(c - '0');
+                    if (c >= 'a' && c <= 'f') return 10 + static_cast<std::uint32_t>(c - 'a');
+                    if (c >= 'A' && c <= 'F') return 10 + static_cast<std::uint32_t>(c - 'A');
+                    return ~0u;
                };
 
-               for (std::size_t i = 0; i < in.size(); ++i)
+               for (std::size_t i = 0; i < in.size(); i++)
                {
                     const char c = in[i];
                     if (c != '\\')
@@ -71,11 +71,11 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
 
                     case 'x':
                     {
-                         int value = 0;
+                         std::uint32_t value = 0;
                          while (i + 1 < in.size())
                          {
-                              int h = hex(in[i + 1]);
-                              if (h < 0) break;
+                              std::uint32_t h = hex(in[i + 1]);
+                              if (h == ~0u) break;
                               value = (value << 4) | h;
                               i++;
                          }
@@ -87,11 +87,11 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     {
                          if (i + 4 >= in.size()) throw std::runtime_error("invalid \\u escape");
 
-                         int value = 0;
-                         for (int j = 0; j < 4; ++j)
+                         std::uint32_t value = 0;
+                         for (std::size_t j = 0; j < 4; j++)
                          {
-                              int h = hex(in[++i]);
-                              if (h < 0) throw std::runtime_error("invalid hex");
+                              std::uint32_t h = hex(in[++i]);
+                              if (h == ~0u) throw std::runtime_error("invalid hex");
                               value = (value << 4) | h;
                          }
 
@@ -115,11 +115,11 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     {
                          if (i + 8 >= in.size()) throw std::runtime_error("invalid \\U escape");
 
-                         uint32_t value = 0;
-                         for (int j = 0; j < 8; ++j)
+                         std::uint32_t value = 0;
+                         for (std::size_t j = 0; j < 8; j++)
                          {
-                              int h = hex(in[++i]);
-                              if (h < 0) throw std::runtime_error("invalid hex");
+                              std::uint32_t h = hex(in[++i]);
+                              if (h == ~0u) throw std::runtime_error("invalid hex");
                               value = (value << 4) | h;
                          }
 
@@ -351,11 +351,12 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           break;
           default: colour = "\x1b[38m";
           }
-          const std::string spaces(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
-                                                static_cast<std::ptrdiff_t>(previous.endPosition),
-                                            1Z) -
-                                       1Z,
-                                   ' ');
+          const std::string spaces(
+              static_cast<std::size_t>(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
+                                                    static_cast<std::ptrdiff_t>(previous.endPosition),
+                                                1z) -
+                                       1z),
+              ' ');
           previous = token.location;
 
           std::print("{}{}{}", spaces, colour, value);

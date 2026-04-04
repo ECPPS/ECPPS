@@ -160,7 +160,7 @@ namespace ecpps
           ~SBOVector(void)
           {
                const auto* first = begin();
-               for (std::size_t i = 0; i < _size; ++i) std::destroy_at(const_cast<TElement*>(first + i));
+               for (std::size_t i = 0; i < _size; i++) std::destroy_at(const_cast<TElement*>(first + i));
                if (!UseSBO())
                {
                     TAllocator allocator{};
@@ -220,7 +220,7 @@ namespace ecpps
                     {
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuffer = allocator.allocate(cap);
-                         for (std::size_t i = 0; i < SBOSize; ++i)
+                         for (std::size_t i = 0; i < SBOSize; i++)
                          {
                               new (newBuffer + i)
                                   TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
@@ -276,7 +276,7 @@ namespace ecpps
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
                          UMoveN(this->_buffer.noSbo.begin, newBuf, index);
-                         for (std::size_t i = 0; i < index; ++i) { std::destroy_at(this->_buffer.noSbo.begin + i); }
+                         for (std::size_t i = 0; i < index; i++) { std::destroy_at(this->_buffer.noSbo.begin + i); }
                          allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
                          this->_buffer.noSbo.capacity = newCap;
                     }
@@ -307,7 +307,7 @@ namespace ecpps
                                                                      // modernize-avoid-c-arrays)
                                  _buffer.sbo));
 
-                         for (std::size_t i = 0; i < index; ++i)
+                         for (std::size_t i = 0; i < index; i++)
                          {
                               new (&newBuf[i]) auto(std::move(sboPtr[i]));
                               sboPtr[i].~TElement();

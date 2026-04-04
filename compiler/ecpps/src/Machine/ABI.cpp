@@ -487,7 +487,7 @@ std::size_t ecpps::abi::MicrosoftX64CallingConvention::CalculateArgumentStackSpa
      if (parameters.size() <= 4) return 0;
 
      std::size_t stackSpace = 0;
-     for (std::size_t i = 4; i < parameters.size(); ++i) { stackSpace += std::max<std::size_t>(parameters[i].size, 8); }
+     for (std::size_t i = 4; i < parameters.size(); i++) { stackSpace += std::max<std::size_t>(parameters[i].size, 8); }
 
      return stackSpace;
 }
@@ -517,7 +517,7 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
 
      [[nodiscard]] std::size_t GetParameterAdjustment(void) const final
      {
-          return (((this->_currentStackSize) + 15) & ~15) + 16;
+          return (((this->_currentStackSize) + 15uz) & ~15uz) + 16uz;
      }
      void AfterParameters(void) const override {}
      void ReserveCallArgumentSpace(std::size_t argumentStackSpace) final
@@ -660,7 +660,7 @@ std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GenerateProlo
      std::vector<ecpps::codegen::Instruction> instructions{};
      const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
      instructions.emplace_back(ecpps::codegen::SubInstruction{
-         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15uz) & ~15uz) + 8, stackPointerRegister->width},
          ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
      return instructions;
 }
@@ -670,7 +670,7 @@ std::vector<ecpps::codegen::Instruction> Microsoftx64StackManager::GenerateEpilo
      std::vector<ecpps::codegen::Instruction> instructions{};
      const auto& stackPointerRegister = ABI::Current().StackPointerRegister();
      instructions.emplace_back(ecpps::codegen::AddInstruction{
-         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15) & ~15) + 8, stackPointerRegister->width},
+         ecpps::codegen::IntegerOperand{((this->_currentStackSize + 15uz) & ~15uz) + 8, stackPointerRegister->width},
          ecpps::codegen::RegisterOperand{stackPointerRegister}, stackPointerRegister->width});
      return instructions;
 }

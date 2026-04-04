@@ -562,7 +562,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                         *std::next(sourceIterator, static_cast<std::streamsize>(delimiter.size())) == '"')
                     {
                          literal += ')';
-                         for (std::size_t i = 0; i < delimiter.size(); ++i) literal += *++sourceIterator;
+                         for (std::size_t i = 0; i < delimiter.size(); i++) literal += *++sourceIterator;
                          literal += *++sourceIterator;
                          break;
                     }
@@ -769,7 +769,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                std::string vargs;
                if (arguments.size() > parameters->size())
                {
-                    for (std::size_t i = parameters->size(); i < arguments.size(); ++i)
+                    for (std::size_t i = parameters->size(); i < arguments.size(); i++)
                     {
                          for (const auto& tok : arguments[i]) vargs += tok.value;
                          if (i + 1 < arguments.size()) vargs += ",";

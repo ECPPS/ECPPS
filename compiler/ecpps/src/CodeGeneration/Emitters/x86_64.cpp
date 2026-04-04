@@ -614,7 +614,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
                return self->EmitMov(newMov);
           }
 
-          switch (static_cast<int>(toSize < fromSize))
+          switch (static_cast<std::size_t>(toSize < fromSize))
           {
           case 1:
           {
@@ -686,7 +686,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
           if (fromSize == toSize) [[unlikely]]
                return self->EmitMov(mov);
 
-          switch (static_cast<int>(toSize < fromSize))
+          switch (static_cast<std::size_t>(toSize < fromSize))
           {
           case 1:
           {
@@ -1202,7 +1202,8 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, [[maybe_unused]] const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
           // const auto& source = std::get<IntegerOperand>(div.from);
           // const auto& destination = std::get<MemoryLocationOperand>(div.to);
@@ -1285,7 +1286,8 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, [[maybe_unused]] const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
           // const auto& source = std::get<RegisterOperand>(div.from);
           // const auto& destination = std::get<MemoryLocationOperand>(div.to);
@@ -1301,7 +1303,8 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, [[maybe_unused]] const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
           // const auto& source = std::get<RegisterOperand>(div.from);
           // const auto& destination = std::get<RegisterOperand>(div.to);

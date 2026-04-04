@@ -574,8 +574,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isFriend)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'friend' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'friend' specifier", Peek().location));
                     }
                     isFriend = true;
                }
@@ -583,8 +583,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isTypedef)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'typedef' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'typedef' specifier", Peek().location));
                     }
                     isTypedef = true;
                }
@@ -592,8 +592,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isConstexpr)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'constexpr' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'constexpr' specifier", Peek().location));
                     }
                     isConstexpr = true;
                }
@@ -601,8 +601,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isConsteval)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'consteval' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'consteval' specifier", Peek().location));
                     }
                     isConsteval = true;
                }
@@ -610,8 +610,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isConstinit)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'constinit' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'constinit' specifier", Peek().location));
                     }
                     isConstinit = true;
                }
@@ -619,8 +619,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isInline)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'inline' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'inline' specifier", Peek().location));
                     }
                     isInline = true;
                }
@@ -628,8 +628,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isStatic)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'static' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'static' specifier", Peek().location));
                     }
                     isStatic = true;
                }
@@ -637,8 +637,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isThreadLocal)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'thread_local' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'thread_local' specifier", Peek().location));
                     }
                     isThreadLocal = true;
                }
@@ -646,8 +646,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isExtern)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'extern' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'extern' specifier", Peek().location));
                     }
                     isExtern = true;
                }
@@ -655,8 +655,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (isMutable)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'mutable' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'mutable' specifier", Peek().location));
                     }
                     isMutable = true;
                }
@@ -664,8 +664,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (optExplicitSpecifier.has_value())
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'explicit' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'explicit' specifier", Peek().location));
                     }
                     optExplicitSpecifier = ParseLogicalOrExpression(context);
                }
@@ -673,8 +673,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (nextConst)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'const' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'const' specifier", Peek().location));
                     }
                     nextConst = true;
                }
@@ -682,8 +682,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                {
                     if (nextVolatile)
                     {
-                         this->_diagnostics.get().diagnosticsList.push_back(
-                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'volatile' specifier", Peek().location));
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                             "Duplicate 'volatile' specifier", Peek().location));
                     }
                     nextVolatile = true;
                }
@@ -719,7 +719,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                             combinedType, source, std::exchange(nextConst, false), std::exchange(nextVolatile, false)));
 
                     // Wrap it in PointerType layers
-                    for (std::size_t i = 0; i < pointerLevel; ++i)
+                    for (std::size_t i = 0; i < pointerLevel; i++)
                     {
                          base = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
                              new (context) PointerType(std::move(base), source));
@@ -774,7 +774,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     Advance();
                }
 
-               for (std::size_t i = 0; i < pointerLevel; ++i)
+               for (std::size_t i = 0; i < pointerLevel; i++)
                {
                     typeSpecifier = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
                         new (context) PointerType(std::move(typeSpecifier), source));

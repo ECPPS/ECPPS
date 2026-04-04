@@ -1857,11 +1857,11 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      if (auto* const characterLiteral = dynamic_cast<ast::CharacterLiteralNode*>(expression.get());
          characterLiteral != nullptr)
-          return std::make_unique<PRValue>(typeSystem::g_char.get(),
-                                           std::unique_ptr<ir::IntegralNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator)
-                                                   ir::IntegralNode(characterLiteral->Value(), expression->Source())},
-                                           true);
+          return std::make_unique<PRValue>(
+              typeSystem::g_char.get(),
+              std::unique_ptr<ir::IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator) ir::IntegralNode(
+                  static_cast<std::uint64_t>(characterLiteral->Value()), expression->Source())},
+              true);
      if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);

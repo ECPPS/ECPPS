@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
 
                          std::ranges::sort(ordered, {}, &std::pair<std::string, std::size_t>::second);
 
-                         for (std::size_t i = 0; i < ordered.size(); ++i)
+                         for (std::size_t i = 0; i < ordered.size(); i++)
                          {
                               const auto& [routineName, routineOffset] = ordered[i];
                               std::println("{}:", routineName);

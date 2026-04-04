@@ -235,7 +235,7 @@ std::vector<std::byte> CoffLinker::ToBytes([[maybe_unused]] const std::string& i
      std::vector<COFFSectionHeader> sectionHeaders;
      sectionHeaders.reserve(numSections);
 
-     for (std::size_t i = 0; i < numSections; ++i)
+     for (std::size_t i = 0; i < numSections; i++)
      {
           const auto& sec = ownedSections[i];
           const auto& relocs = perSectionRelocs[i];
@@ -301,7 +301,7 @@ std::vector<std::byte> CoffLinker::ToBytes([[maybe_unused]] const std::string& i
           std::memcpy(output.data() + p, &sh, sizeof(sh));
      }
 
-     for (std::size_t i = 0; i < numSections; ++i)
+     for (std::size_t i = 0; i < numSections; i++)
      {
           const auto& sec = ownedSections[i];
           const auto p = output.size();

@@ -516,7 +516,7 @@ namespace ecpps::ast
 
                built += this->_type->ToString(0) + " ";
 
-               for (size_t i = 0; i < _declarators.size(); ++i)
+               for (size_t i = 0; i < _declarators.size(); i++)
                {
                     const auto& declarator = this->_declarators[i];
                     built += declarator.name->ToString(0);

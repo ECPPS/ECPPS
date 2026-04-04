@@ -78,7 +78,8 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::str
                                                                   const std::size_t entryPointAddress,
                                                                   const std::vector<std::byte>& stringData) const
 {
-     return this->Link(static_cast<std::uint32_t>(entryPointAddress) + ExportDisplacement).ToBytes(imageName, stringData);
+     return this->Link(static_cast<std::uint32_t>(entryPointAddress) + ExportDisplacement)
+         .ToBytes(imageName, stringData);
 }
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
@@ -118,7 +119,7 @@ std::uint32_t ecpps::linker::win::WindowsLinker::LookupSymbol(const std::string&
 
      for (const auto& [dll, funcs] : this->_imports)
      {
-          for (std::size_t i = 0; i < funcs.size(); ++i)
+          for (std::size_t i = 0; i < funcs.size(); i++)
           {
                if (funcs[i] == lookupName)
                {
