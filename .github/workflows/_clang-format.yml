@@ -31,7 +31,8 @@ jobs:
         run: clang-format --version
 
       - name: Run clang-format
-        shell: bash
-        run: |
-          git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' \
-          | xargs clang-format --style=file --dry-run --Werror
+        uses: jidicula/clang-format-action@v4.13.0
+        with:
+          clang-format-version: "20"
+          check-only: true
+          fallback-style: "none"
