@@ -37,7 +37,6 @@ jobs:
             exit 0
           }
 
-          # Single clang-format invocation across all files — no per-process overhead
           $result = & clang-format --style=file --dry-run --Werror @files 2>&1
           if ($LASTEXITCODE -ne 0) {
             Write-Host "clang-format violations found:"
