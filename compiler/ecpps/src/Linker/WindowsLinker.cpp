@@ -29,12 +29,12 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
 
      for (const auto& [where, relocation] : sortedRelocations)
      {
-          const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, codeSize);
+          const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, static_cast<std::uint32_t>(codeSize));
           auto toInsert =
               relocation.apply(Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks);
 
           const auto pos = where.Value();
-          for (std::size_t i = 0; i < toInsert.size() && (pos + i) < data.size(); ++i) { data[pos + i] = toInsert[i]; }
+          for (std::size_t i = 0; i < toInsert.size() && (pos + i) < data.size(); i++) data[pos + i] = toInsert[i];
 
           if (toInsert.size() > relocation.applyOutputSize)
           {
@@ -78,7 +78,7 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::str
                                                                   const std::size_t entryPointAddress,
                                                                   const std::vector<std::byte>& stringData) const
 {
-     return this->Link(entryPointAddress + ExportDisplacement).ToBytes(imageName, stringData);
+     return this->Link(static_cast<std::uint32_t>(entryPointAddress) + ExportDisplacement).ToBytes(imageName, stringData);
 }
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
@@ -142,7 +142,7 @@ ecpps::linker::win::PEImage ecpps::linker::win::WindowsLinker::Link(const std::u
      output.sections = this->_sections;
      output.exports = this->_exports;
      output.imports = this->_imports;
-     output.ntHeaders.optionalHeader.sizeOfCode = this->_sizeOfCode;
+     output.ntHeaders.optionalHeader.sizeOfCode = static_cast<std::uint32_t>(this->_sizeOfCode);
 
      // TODO: Real values
      output.ntHeaders.optionalHeader.baseOfCode = 0x1000;

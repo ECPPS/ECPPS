@@ -403,7 +403,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      //     AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
 
      // Headers and section layout
-     constexpr std::uint32_t ntHeadersOffset = AlignUp(sizeof(DosHeader), sizeof(std::uint32_t));
+     constexpr std::uint32_t ntHeadersOffset = AlignUp<std::uint32_t>(sizeof(DosHeader), sizeof(std::uint32_t));
      constexpr std::uint32_t sectionHeadersOffset = ntHeadersOffset + sizeof(NtHeaders);
      const std::uint32_t headersSize =
          AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),

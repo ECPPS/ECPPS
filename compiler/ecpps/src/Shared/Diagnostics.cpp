@@ -42,7 +42,7 @@ void ecpps::IssueICE(const TracedException& ex)
      operator delete(storage);
 
      SymCleanup(hProcess);
-     ExitProcess(-1);
+     ExitProcess(~0u);
 #elifdef __linux__
      _exit(-1);
 #endif
@@ -97,7 +97,7 @@ void ecpps::IssueICE(std::string_view message, platformlib::DebuggerContext* def
 
      std::print("\x1b[0m");
      SymCleanup(hProcess);
-     ExitProcess(-1);
+     ExitProcess(~0u);
 #elifdef __linux__
      _exit(-1);
 #endif

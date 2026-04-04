@@ -314,15 +314,8 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      }
 
      SBOVector<std::unique_ptr<AttributeNode, ecpps::ast::ASTContext::Deleter>> attributes{};
-#ifdef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-     bool isFriend = false;
-     bool isInline = false;
-#ifdef __clang__
-#pragma GCC diagnostic pop
-#endif
+     // bool isFriend = false; TODO: Handle
+     // bool isInline = false; TODO: Handle
      bool isExtern = false;
      std::optional<std::string> externOptional = std::nullopt;
      while (Peek().type == TokenType::LeftBracket)
@@ -580,79 +573,118 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                if (keyword == "friend")
                {
                     if (isFriend)
-                         ; // TODO: error: duplicate 'friend'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'friend' specifier", Peek().location));
+                    }
                     isFriend = true;
                }
                else if (keyword == "typedef")
                {
                     if (isTypedef)
-                         ; // TODO: error: duplicate 'typedef'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'typedef' specifier", Peek().location));
+                    }
                     isTypedef = true;
                }
                else if (keyword == "constexpr")
                {
                     if (isConstexpr)
-                         ; // TODO: error: duplicate 'constexpr'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'constexpr' specifier", Peek().location));
+                    }
                     isConstexpr = true;
                }
                else if (keyword == "consteval")
                {
                     if (isConsteval)
-                         ; // TODO: error: duplicate 'consteval'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'consteval' specifier", Peek().location));
+                    }
                     isConsteval = true;
                }
                else if (keyword == "constinit")
                {
                     if (isConstinit)
-                         ; // TODO: error: duplicate 'constinit'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'constinit' specifier", Peek().location));
+                    }
                     isConstinit = true;
                }
                else if (keyword == "inline")
                {
                     if (isInline)
-                         ; // TODO: error: duplicate 'inline'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'inline' specifier", Peek().location));
+                    }
                     isInline = true;
                }
                else if (keyword == "static")
                {
                     if (isStatic)
-                         ; // TODO: error: duplicate 'static'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'static' specifier", Peek().location));
+                    }
                     isStatic = true;
                }
                else if (keyword == "thread_local")
                {
                     if (isThreadLocal)
-                         ; // TODO: error: duplicate 'thread_local'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'thread_local' specifier", Peek().location));
+                    }
                     isThreadLocal = true;
                }
                else if (keyword == "extern")
                {
                     if (isExtern)
-                         ; // TODO: error: duplicate 'extern'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'extern' specifier", Peek().location));
+                    }
                     isExtern = true;
                }
                else if (keyword == "mutable")
                {
                     if (isMutable)
-                         ; // TODO: error: duplicate 'mutable'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'mutable' specifier", Peek().location));
+                    }
                     isMutable = true;
                }
                else if (keyword == "explicit") // explicit-specifier
                {
                     if (optExplicitSpecifier.has_value())
-                         ; // TODO: error: duplicate 'explicit'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'explicit' specifier", Peek().location));
+                    }
                     optExplicitSpecifier = ParseLogicalOrExpression(context);
                }
                else if (keyword == "const") // cv-qualifier
                {
                     if (nextConst)
-                         ; // TODO: error: duplicate 'const'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'const' specifier", Peek().location));
+                    }
                     nextConst = true;
                }
                else if (keyword == "volatile") // cv-qualifier
                {
                     if (nextVolatile)
-                         ; // TODO: error: duplicate 'volatile'
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                             std::make_unique<diagnostics::SyntaxError>("Duplicate 'volatile' specifier", Peek().location));
+                    }
                     nextVolatile = true;
                }
                else if (keyword == "struct" || keyword == "class" || keyword == "union") // elaborated-type-specifier

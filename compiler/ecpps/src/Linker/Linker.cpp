@@ -98,7 +98,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);
 
      for (const auto& [functionName, functionOffset] : functions)
-          selectedLinker->ExportFunction(functionName, functionOffset);
+          selectedLinker->ExportFunction(functionName, static_cast<std::uint32_t>(functionOffset));
 
-     return selectedLinker->ToBytes(config.outputImage, mainOffset, stringData);
+     return selectedLinker->ToBytes(config.outputImage, static_cast<std::uint32_t>(mainOffset), stringData);
 }

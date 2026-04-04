@@ -1,7 +1,8 @@
 add_library(ecpps_warnings INTERFACE)
 
 if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-     target_compile_options(ecpps_warnings INTERFACE /W4)
+     target_compile_options(ecpps_warnings INTERFACE /W4 /WX)
+     target_link_options(ecpps_warnings INTERFACE /WX)
 else()
      target_compile_options(ecpps_warnings INTERFACE
           -Wall
@@ -38,7 +39,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-padded # good intentions, but way too many false positives
 
           # Integers
-          -Wno-sign-conversion
           -Wno-shorten-64-to-32
           -Wno-implicit-int-conversion
 

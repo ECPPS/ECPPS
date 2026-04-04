@@ -1805,13 +1805,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem32(std::size_t
      if (mod == 0b01) { binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset))); }
      else if (mod == 0b10)
      {
-          for (std::uint8_t i : std::views::iota(0, 4))
+          for (std::uint32_t i : std::views::iota(0u, 4uz))
           {
                binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset >> (i * 8))));
           }
      }
 
-     for (std::uint8_t i : std::views::iota(0, 4))
+     for (std::uint32_t i : std::views::iota(0u, 4uz))
      {
           binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(imm >> (i * 8))));
      }
@@ -1864,13 +1864,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem16(std::size_t
      if (mod == 0b01) { binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset))); }
      else if (mod == 0b10)
      {
-          for (std::uint8_t i : std::views::iota(0, 4))
+          for (std::uint32_t i : std::views::iota(0u, 4uz))
           {
                binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset >> (i * 8))));
           }
      }
 
-     for (std::uint8_t i : std::views::iota(0, 2))
+     for (std::uint32_t i : std::views::iota(0u, 2uz))
      {
           binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(imm >> (i * 8))));
      }
@@ -1921,7 +1921,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem8(std::size_t 
      if (mod == 0b01) { binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset))); }
      else if (mod == 0b10)
      {
-          for (std::uint8_t i : std::views::iota(0, 4))
+          for (std::uint32_t i : std::views::iota(0u, 4u))
           {
                binary.push_back(static_cast<std::byte>(static_cast<std::uint8_t>(offset >> (i * 8))));
           }
