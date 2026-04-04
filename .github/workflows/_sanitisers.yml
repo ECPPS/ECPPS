@@ -100,6 +100,7 @@ jobs:
       - name: Run tests under ASan + UBSan
         shell: pwsh
         run: |
+          $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
           $env:ASAN_OPTIONS  = "abort_on_error=1:detect_leaks=0"
           $env:UBSAN_OPTIONS = "halt_on_error=1:print_stacktrace=1"
           ctest --test-dir out/build/x64-Clang-Debug `
