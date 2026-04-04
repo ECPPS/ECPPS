@@ -30,9 +30,10 @@ jobs:
         shell: bash
         run: clang-format --version
 
-      - name: Run clang-format (parallel, dry-run)
+      - name: Run clang-format
         shell: bash
         run: |
           git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' \
-            | xargs -P "$(nproc)" -I {} \
-                clang-format --style=file --dry-run --Werror "{}"
+            > /tmp/sources.txt
+          clang-format --style=file --dry-run --Werror \
+            $(cat /tmp/sources.txt | tr '\n' ' ')
