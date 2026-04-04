@@ -38,9 +38,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-comma
           -Wno-padded # good intentions, but way too many false positives
 
-          # Integers
-          -Wno-implicit-int-conversion
-
           # Other
           -Wno-covered-switch-default
           -Wno-shadow-uncaptured-local
