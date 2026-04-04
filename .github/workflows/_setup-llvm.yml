@@ -1,0 +1,54 @@
+name: _setup-llvm
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        description: "Exact LLVM version to install (e.g. 20.1.8)"
+        required: false
+        type: string
+        default: "20.1.8"
+    outputs:
+      llvm-path:
+        description: "Absolute path to the LLVM bin directory"
+        value: ${{ jobs.setup.outputs.llvm-path }}
+
+jobs:
+  setup:
+    name: Install LLVM ${{ inputs.llvm-version }} + ccache
+    runs-on: windows-latest
+    outputs:
+      llvm-path: ${{ steps.emit.outputs.llvm-path }}
+
+    steps:
+      - name: Cache LLVM installation
+        id: cache-llvm
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-${{ inputs.llvm-version }}-windows
+
+      - name: Install LLVM ${{ inputs.llvm-version }}
+        if: steps.cache-llvm.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
+
+      - name: Cache ccache installation
+        id: cache-ccache-bin
+        uses: actions/cache@v4
+        with:
+          path: C:\ProgramData\chocolatey\lib\ccache
+          key: ccache-bin-windows-v1
+
+      - name: Install ccache
+        if: steps.cache-ccache-bin.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: choco install ccache -y
+
+      - name: Emit outputs
+        id: emit
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          echo "$llvmBin" >> $env:GITHUB_PATH
+          echo "llvm-path=$llvmBin" >> $env:GITHUB_OUTPUT

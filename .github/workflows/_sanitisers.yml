@@ -1,0 +1,107 @@
+name: _sanitisers
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+
+jobs:
+  msvc-asan:
+    name: MSVC / ASan
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-msvc-Debug-ASan-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-msvc-Debug-ASan-${{ github.ref }}-
+            ccache-${{ runner.os }}-msvc-Debug-ASan-
+
+      - name: Configure (ASan)
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset x64-MSVC-Debug-ASan `
+            -DBUILD_TESTING=ON `
+            -DSANITISE=ON
+
+      - name: Build (ASan)
+        shell: pwsh
+        run: |
+          cmake --build build-asan `
+            --preset x64-MSVC-Debug-ASan-Build `
+            --parallel
+
+      - name: Run tests under ASan
+        shell: pwsh
+        run: |
+          $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
+          ctest --test-dir out/build/x64-Debug-MSVC-ASan `
+                --output-on-failure `
+                --parallel "$(nproc)"
+
+  clang-asan-ubsan:
+    name: Clang / ASan + UBSan
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore LLVM cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-${{ inputs.llvm-version }}-windows
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-clang20-Debug-ASanUBSan-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-clang20-Debug-ASanUBSan-${{ github.ref }}-
+            ccache-${{ runner.os }}-clang20-Debug-ASanUBSan-
+
+      - name: Configure (ASan + UBSan)
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset x64-Clang-Debug `
+            -DBUILD_TESTING=ON `
+            -DSANITISE=ON `
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all" `
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined" `
+            -DUSE_MIMALLOC=OFF
+
+      - name: Build (ASan + UBSan)
+        shell: pwsh
+        run: |
+          cmake --build out/build/x64-Clang-Debug `
+            --parallel
+
+      - name: Run tests under ASan + UBSan
+        shell: pwsh
+        run: |
+          $env:ASAN_OPTIONS  = "abort_on_error=1:detect_leaks=0"
+          $env:UBSAN_OPTIONS = "halt_on_error=1:print_stacktrace=1"
+          ctest --test-dir out/build/x64-Clang-Debug `
+                --output-on-failure `
+                --parallel "$(nproc)"

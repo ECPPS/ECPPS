@@ -1,6 +1,5 @@
 {
 	"version": 3,
-
 	"configurePresets": [
 		{
 			"name": "base",
@@ -9,10 +8,12 @@
 			"cacheVariables": {
 				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
 				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
-				"CMAKE_CXX_STANDARD":  "23"
+				"CMAKE_CXX_STANDARD": "23",
+				"CMAKE_CXX_STANDARD_REQUIRED": "ON",
+				"CMAKE_CXX_EXTENSIONS": "OFF",
+				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
 			}
 		},
-
 		{
 			"name": "debug",
 			"hidden": true,
@@ -52,11 +53,12 @@
 				"rhs": "Linux"
 			}
 		},
-
 		{
 			"name": "msvc",
 			"hidden": true,
-			"inherits": [ "windows" ],
+			"inherits": [
+				"windows"
+			],
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "cl",
 				"CMAKE_CXX_COMPILER": "cl",
@@ -69,7 +71,9 @@
 		{
 			"name": "clang-cl",
 			"hidden": true,
-			"inherits": [ "windows" ],
+			"inherits": [
+				"windows"
+			],
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "clang-cl",
 				"CMAKE_CXX_COMPILER": "clang-cl",
@@ -93,29 +97,44 @@
 				"CMAKE_CXX_COMPILER": "g++"
 			}
 		},
-
 		{
-			"name": "asan-windows",
+			"name": "asan-windows-msvc",
 			"hidden": true,
 			"cacheVariables": {
 				"CMAKE_C_FLAGS": "/fsanitize=address",
 				"CMAKE_CXX_FLAGS": "/fsanitize=address",
-				"USE_MIMALLOC": "OFF"
+				"USE_MIMALLOC": "OFF",
+				"SANITISE": "ON"
+			}
+		},
+		{
+			"name": "asan-ubsan-clang",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all",
+				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined -Xlinker -stack:10000000",
+				"USE_MIMALLOC": "OFF",
+				"SANITISE": "ON"
 			}
 		},
 		{
 			"name": "asan-linux",
 			"hidden": true,
 			"cacheVariables": {
-				"CMAKE_CXX_FLAGS": "-fsanitize=address",
-				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
-				"USE_MIMALLOC": "OFF"
+				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all",
+				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+				"USE_MIMALLOC": "OFF",
+				"SANITISE": "ON"
 			}
 		},
-
 		{
 			"name": "x64-MSVC-Debug",
-			"inherits": [ "base", "msvc", "debug" ],
+			"displayName": "Windows x64 · MSVC · Debug",
+			"inherits": [
+				"base",
+				"msvc",
+				"debug"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Debug-MSVC",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug-MSVC",
@@ -124,7 +143,11 @@
 		},
 		{
 			"name": "x64-MSVC-Debug-ASan",
-			"inherits": [ "x64-MSVC-Debug", "asan-windows" ],
+			"displayName": "Windows x64 · MSVC · Debug · ASan",
+			"inherits": [
+				"x64-MSVC-Debug",
+				"asan-windows-msvc"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Debug-MSVC-ASan",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug-MSVC-ASan"
@@ -132,17 +155,26 @@
 		},
 		{
 			"name": "x64-MSVC-Release",
-			"inherits": [ "base", "msvc", "relwithdebinfo" ],
+			"displayName": "Windows x64 · MSVC · RelWithDebInfo",
+			"inherits": [
+				"base",
+				"msvc",
+				"relwithdebinfo"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Release-MSVC",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Release-MSVC",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
 			}
 		},
-
 		{
 			"name": "x64-Clang-cl-Debug",
-			"inherits": [ "base", "clang-cl", "debug" ],
+			"displayName": "Windows x64 · Clang-cl · Debug",
+			"inherits": [
+				"base",
+				"clang-cl",
+				"debug"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug"
@@ -150,23 +182,52 @@
 		},
 		{
 			"name": "x64-Clang-cl-Release",
-			"inherits": [ "base", "clang-cl", "relwithdebinfo" ],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug-ASan",
+			"displayName": "Windows x64 · Clang-cl · RelWithDebInfo",
+			"inherits": [
+				"base",
+				"clang-cl",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Release",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug-ASan"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Release"
 			}
 		},
 		{
 			"name": "x64-Clang-Debug",
-			"inherits": [ "base", "windows", "clang", "debug" ],
+			"displayName": "Windows x64 · Clang · Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"clang",
+				"debug"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug"
 			}
 		},
 		{
+			"name": "x64-Clang-Debug-ASanUBSan",
+			"displayName": "Windows x64 · Clang · Debug · ASan + UBSan",
+			"inherits": [
+				"x64-Clang-Debug",
+				"asan-ubsan-clang"
+			],
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-ASanUBSan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-ASanUBSan"
+			}
+		},
+		{
 			"name": "x64-Clang-Release",
-			"inherits": [ "base", "windows", "clang", "relwithdebinfo" ],
+			"displayName": "Windows x64 · Clang · RelWithDebInfo",
+			"inherits": [
+				"base",
+				"windows",
+				"clang",
+				"relwithdebinfo"
+			],
 			"binaryDir": "${sourceDir}/out/build/x64-Clang-Release",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Release"
@@ -174,7 +235,14 @@
 		},
 		{
 			"name": "Linux-Clang-Debug",
-			"inherits": [ "base", "linux", "clang", "debug", "asan-linux" ],
+			"displayName": "Linux · Clang · Debug · ASan + UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"clang",
+				"debug",
+				"asan-linux"
+			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug"
@@ -182,49 +250,69 @@
 		},
 		{
 			"name": "Linux-GCC-Release",
-			"inherits": [ "base", "linux", "gcc", "relwithdebinfo" ],
+			"displayName": "Linux · GCC · RelWithDebInfo",
+			"inherits": [
+				"base",
+				"linux",
+				"gcc",
+				"relwithdebinfo"
+			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release",
 			"cacheVariables": {
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release"
 			}
 		}
 	],
-
 	"buildPresets": [
 		{
-			"name": "x64-MSVC-Debug-Parallel",
+			"name": "x64-MSVC-Debug-Build",
 			"configurePreset": "x64-MSVC-Debug",
-			"jobs": 8
+			"jobs": 0
 		},
 		{
-			"name": "x64-MSVC-Debug-ASan-Parallel",
+			"name": "x64-MSVC-Debug-ASan-Build",
 			"configurePreset": "x64-MSVC-Debug-ASan",
-			"jobs": 8
+			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-Debug-Parallel",
-			"configurePreset": "x64-Clang-Debug",
-			"jobs": 8
-		},
-		{
-			"name": "x64-Clang-cl-Debug-Parallel",
-			"configurePreset": "x64-Clang-cl-Debug",
-			"jobs": 8
-		},
-		{
-			"name": "x64-MSVC-Release-Parallel",
+			"name": "x64-MSVC-Release-Build",
 			"configurePreset": "x64-MSVC-Release",
-			"jobs": 8
+			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-Release-Parallel",
-			"configurePreset": "x64-Clang-Release",
-			"jobs": 8
+			"name": "x64-Clang-cl-Debug-Build",
+			"configurePreset": "x64-Clang-cl-Debug",
+			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-cl-Release-Parallel",
+			"name": "x64-Clang-cl-Release-Build",
 			"configurePreset": "x64-Clang-cl-Release",
-			"jobs": 8
+			"jobs": 0
+		},
+		{
+			"name": "x64-Clang-Debug-Build",
+			"configurePreset": "x64-Clang-Debug",
+			"jobs": 0
+		},
+		{
+			"name": "x64-Clang-Debug-ASanUBSan-Build",
+			"configurePreset": "x64-Clang-Debug-ASanUBSan",
+			"jobs": 0
+		},
+		{
+			"name": "x64-Clang-Release-Build",
+			"configurePreset": "x64-Clang-Release",
+			"jobs": 0
+		},
+		{
+			"name": "Linux-Clang-Debug-Build",
+			"configurePreset": "Linux-Clang-Debug",
+			"jobs": 0
+		},
+		{
+			"name": "Linux-GCC-Release-Build",
+			"configurePreset": "Linux-GCC-Release",
+			"jobs": 0
 		}
 	]
 }

@@ -1,0 +1,25 @@
+name: CI — Feature Branch
+
+on:
+  push:
+    branches:
+      - "feature/**"
+
+concurrency:
+  group: feature-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clang-format:
+    name: clang-format
+    uses: ./.github/workflows/_clang-format.yml
+    with:
+      llvm-version: "20.1.8"
+
+  build:
+    name: Build
+    needs: clang-format
+    uses: ./.github/workflows/_build-windows.yml
+    with:
+      llvm-version: "20.1.8"
+      upload-artifacts: false

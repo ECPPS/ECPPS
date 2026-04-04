@@ -1,0 +1,45 @@
+name: _tests
+
+on:
+  workflow_call:
+
+jobs:
+  build-and-test:
+    name: Build & Run Tests (MSVC Debug)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-msvc-Debug-tests-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-msvc-Debug-tests-${{ github.ref }}-
+            ccache-${{ runner.os }}-msvc-Debug-tests-
+
+      - name: Configure with BUILD_TESTING=ON
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset x64-MSVC-Debug `
+            -DBUILD_TESTING=ON
+
+      - name: Build tests
+        shell: pwsh
+        run: |
+          cmake --build build `
+            --preset x64-MSVC-Debug-Build `
+            --parallel
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ctest --test-dir out/build/x64-Debug-MSVC \
+                --output-on-failure \
+                --parallel "$(nproc)"

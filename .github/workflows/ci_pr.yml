@@ -1,0 +1,67 @@
+name: CI — Pull Request
+
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  clang-format:
+    name: "clang-format"
+    uses: ./.github/workflows/_clang-format.yml
+    with:
+      llvm-version: "20.1.8"
+
+  build:
+    name: "Build Matrix"
+    needs: clang-format
+    uses: ./.github/workflows/_build-windows.yml
+    with:
+      llvm-version: "20.1.8"
+      upload-artifacts: true
+
+  tests-build:
+    name: "Tests - Build"
+    needs: clang-format
+    uses: ./.github/workflows/_tests.yml
+
+  clang-tidy:
+    name: "clang-tidy"
+    needs: build
+    uses: ./.github/workflows/_clang-tidy.yml
+    with:
+      llvm-version: "20.1.8"
+
+  sanitisers:
+    name: "Sanitisers"
+    needs: build
+    uses: ./.github/workflows/_sanitisers.yml
+    with:
+      llvm-version: "20.1.8"
+
+  all-checks-pass:
+    name: All checks pass
+    if: always()
+    needs:
+      - clang-format
+      - build
+      - tests-build
+      - clang-tidy
+      - sanitisers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          results='${{ toJSON(needs.*.result) }}'
+          echo "Job results: $results"
+          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
+            echo "One or more required jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All required jobs passed."

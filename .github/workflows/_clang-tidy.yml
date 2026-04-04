@@ -1,0 +1,65 @@
+name: _clang-tidy
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+
+jobs:
+  clang-tidy:
+    name: clang-tidy
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore LLVM cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-${{ inputs.llvm-version }}-windows
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Download Clang Release build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-clang20-Release
+          path: out/build
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure (fetch dependencies only)
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset x64-Clang-Release `
+            -DBUILD_TESTING=ON `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Verify clang-tidy version
+        shell: bash
+        run: clang-tidy --version
+
+      - name: Run clang-tidy (parallel, warnings-as-errors)
+        shell: bash
+        run: |
+          git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
+            | xargs -P "$(nproc)" -I {} clang-tidy {} \
+                --warnings-as-errors='*' \
+                --extra-arg=-std=c++23 \
+                -- \
+                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
+                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
+                -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
+                -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
+                -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
+                -I"${GITHUB_WORKSPACE}/out/build/x64-Clang-Release/_deps/catch2" \
+                -DCLANG_TIDY \
+                -DNOMINMAX

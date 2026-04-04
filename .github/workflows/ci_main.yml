@@ -1,0 +1,112 @@
+name: CI — Main
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ci-main
+  cancel-in-progress: false
+
+jobs:
+  clang-format:
+    name: "clang-format"
+    uses: ./.github/workflows/_clang-format.yml
+    with:
+      llvm-version: "20.1.8"
+
+  build:
+    name: "Build Matrix"
+    needs: clang-format
+    uses: ./.github/workflows/_build-windows.yml
+    with:
+      llvm-version: "20.1.8"
+      upload-artifacts: true
+
+  tests:
+    name: "Tests"
+    needs: clang-format
+    uses: ./.github/workflows/_tests.yml
+
+  clang-tidy:
+    name: "clang-tidy"
+    needs: build
+    uses: ./.github/workflows/_clang-tidy.yml
+    with:
+      llvm-version: "20.1.8"
+
+  sanitisers:
+    name: "Sanitisers"
+    needs: build
+    uses: ./.github/workflows/_sanitisers.yml
+    with:
+      llvm-version: "20.1.8"
+
+  release:
+    name: "Release"
+    needs:
+      - clang-tidy
+      - sanitisers
+      - tests
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Clang Release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-clang20-Release
+          path: dist/clang-release
+
+      - name: Derive version from tag or SHA
+        shell: pwsh
+        run: |
+          $sha    = "${{ github.sha }}".Substring(0, 8)
+          $gitTag = git tag --points-at HEAD | Select-Object -First 1
+          $version = if ($gitTag) { $gitTag } else { "release-clang-$sha" }
+
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+          echo "SHA_SHORT=$sha"   >> $env:GITHUB_ENV
+
+      - name: Package release archive
+        shell: pwsh
+        run: |
+          $archive = "ecpps-${{ env.VERSION }}-clang.zip"
+
+          $items = @(
+            (Get-ChildItem -Recurse dist\clang-release -Include "*.exe","*.pdb") |
+              Select-Object -ExpandProperty FullName
+          )
+
+          if ($items.Count -eq 0) {
+            Write-Error "No build outputs found in dist/clang-release"
+            exit 1
+          }
+
+          Compress-Archive -Path $items -DestinationPath $archive -Force
+          echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
+
+      - name: Create stable release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ env.VERSION }}"
+          name: "ECPPS ${{ env.VERSION }}"
+          body: |
+            **Stable release** built from `main` @ `${{ github.sha }}`.
+
+            Compiler: Clang 20.1.8
+            Commit:   `${{ github.sha }}`
+
+            ### What's included
+            - `*.exe`  — ECPPS compiler binaries
+            - `*.pdb`  — Debug symbols
+          prerelease: false
+          files: ${{ env.ARCHIVE }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
