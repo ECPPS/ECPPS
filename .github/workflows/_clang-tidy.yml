@@ -35,6 +35,20 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Clear FetchContent update stamps
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Filter "*-update*" `
+            -Path out/build `
+            -ErrorAction SilentlyContinue |
+            Remove-Item -Force
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: out/build/x64-Clang-Release/_deps
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
+
       - name: Configure (fetch dependencies only)
         shell: pwsh
         run: |
