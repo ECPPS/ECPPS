@@ -16,7 +16,7 @@ static void* ReserveMemory(std::size_t count) noexcept
 
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
-     auto* const committed = VirtualAlloc(address, count, MEM_COMMIT, PAGE_READWRITE);
+     [[maybe_unused]] auto* const committed = VirtualAlloc(address, count, MEM_COMMIT, PAGE_READWRITE);
      runtime_assert(committed == address, std::format("Commit failed: {}", GetLastError()));
 }
 
