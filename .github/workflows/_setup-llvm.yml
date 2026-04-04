@@ -33,9 +33,16 @@ jobs:
         shell: pwsh
         run: choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
 
-      - name: Install ccache
+      - name: Verify LLVM installation
         shell: pwsh
-        run: choco install ccache -y
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          if (Test-Path $llvmBin) {
+            Write-Host "LLVM ${{ inputs.llvm-version }} installed at: $llvmBin"
+            & "$llvmBin\clang.exe" --version
+          } else {
+            throw "LLVM installation failed or not found at $llvmBin"
+          }
 
       - name: Emit outputs
         id: emit

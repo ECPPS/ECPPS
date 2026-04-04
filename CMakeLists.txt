@@ -10,9 +10,12 @@ option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 option(BUILD_TESTING "Build the testing suite" OFF)
 option(USE_MIMALLOC "Use mimalloc allocator" ON)
+option(ENABLE_CCACHE "Use ccache compiler cache" ON)
+option(ENABLE_LTO "Enable Link-Time Optimisation" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+include(meta-targets/ccache)
 include(meta-targets/warnings)
 include(meta-targets/project_options)
 include(meta-targets/optimisations)

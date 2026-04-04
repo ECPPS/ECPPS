@@ -33,11 +33,15 @@ jobs:
     with:
       llvm-version: "20.1.8"
       upload-artifacts: true
+      enable-lto: false
+      enable-ccache: true
 
   tests-build:
     name: "Tests - Build"
     needs: clang-format
     uses: ./.github/workflows/_tests.yml
+    with:
+      enable-ccache: true
 
   clang-tidy:
     name: "clang-tidy"
@@ -52,6 +56,7 @@ jobs:
     uses: ./.github/workflows/_sanitisers.yml
     with:
       llvm-version: "20.1.8"
+      enable-ccache: true
 
   all-checks-pass:
     name: All checks pass

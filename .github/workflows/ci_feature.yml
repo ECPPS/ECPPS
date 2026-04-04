@@ -31,3 +31,5 @@ jobs:
     with:
       llvm-version: "20.1.8"
       upload-artifacts: false
+      enable-lto: false
+      enable-ccache: true

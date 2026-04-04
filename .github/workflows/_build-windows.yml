@@ -12,6 +12,16 @@ on:
         required: false
         type: boolean
         default: true
+      enable-lto:
+        description: "Enable Link-Time Optimization in Release builds"
+        required: false
+        type: boolean
+        default: true
+      enable-ccache:
+        description: "Use ccache compiler cache if available"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -91,6 +101,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore ccache
+        if: inputs.enable-ccache
         uses: actions/cache@v4
         with:
           path: ${{ env.LOCALAPPDATA }}\ccache
@@ -100,9 +111,16 @@ jobs:
             ccache-${{ runner.os }}-${{ matrix.name }}-
             ccache-${{ runner.os }}-
 
-      - name: Configure ccache limits
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
         shell: bash
-        run: ccache --max-size=500M --set-config=compression=true
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+            echo "[OK] ccache configured (500M limit)"
+          else
+            echo "[WARN] ccache not found - proceeding without cache"
+          fi
 
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
@@ -115,7 +133,9 @@ jobs:
         run: |
           cmake -S . -G Ninja `
             --preset ${{ matrix.preset_configure }} `
-            -DBUILD_TESTING=OFF
+            -DBUILD_TESTING=OFF `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} `
+            -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
 
       - name: Build
         shell: pwsh
@@ -125,8 +145,15 @@ jobs:
             --parallel
 
       - name: Print ccache statistics
+        if: inputs.enable-ccache
         shell: bash
-        run: ccache --show-stats
+        run: |
+          if command -v ccache &> /dev/null; then
+            echo "=== CCACHE STATISTICS ==="
+            ccache --show-stats
+            echo ""
+            ccache --show-log-stats || true
+          fi
 
       - name: Upload build artifact
         if: inputs.upload-artifacts

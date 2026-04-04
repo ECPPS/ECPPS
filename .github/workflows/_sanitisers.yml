@@ -7,6 +7,11 @@ on:
         required: false
         type: string
         default: "20.1.8"
+      enable-ccache:
+        description: "Use ccache compiler cache if available"
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   msvc-asan:
@@ -20,6 +25,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore ccache
+        if: inputs.enable-ccache
         uses: actions/cache@v4
         with:
           path: ${{ env.LOCALAPPDATA }}\ccache
@@ -28,13 +34,22 @@ jobs:
             ccache-${{ runner.os }}-msvc-Debug-
             ccache-${{ runner.os }}-
 
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+          fi
+
       - name: Configure (ASan)
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
             --preset x64-MSVC-Debug-ASan `
             -DBUILD_TESTING=ON `
-            -DSANITISE=ON
+            -DSANITISE=ON `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
       - name: Build (ASan)
         shell: pwsh
@@ -73,6 +88,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore ccache
+        if: inputs.enable-ccache
         uses: actions/cache@v4
         with:
           path: ${{ env.LOCALAPPDATA }}\ccache
@@ -81,29 +97,37 @@ jobs:
             ccache-${{ runner.os }}-clang-Debug-
             ccache-${{ runner.os }}-
 
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+          fi
+
       - name: Configure (ASan + UBSan)
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
-            --preset x64-Clang-Debug `
+            --preset x64-Clang-Debug-UBSan `
             -DBUILD_TESTING=ON `
-            -DSANITISE=ON `
-            "-DCMAKE_CXX_FLAGS=-fsanitize=address,undefined -fno-sanitize-recover=all" `
-            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined -Xlinker -stack:10000000" `
-            -DUSE_MIMALLOC=OFF
+            "-DCMAKE_CXX_FLAGS=-fsanitize=undefined -fno-sanitize-recover=all" `
+            "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=undefined -Xlinker -stack:10000000" `
+            -DUSE_MIMALLOC=OFF `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
-      - name: Build (ASan + UBSan)
+      - name: Build (UBSan)
         shell: pwsh
         run: |
-          cmake --build out/build/x64-Clang-Debug `
+          cmake --build out/build/x64-Clang-Debug-UBSan `
             --parallel
 
-      - name: Copy ASan/UBSan runtime DLLs
+      - name: Copy UBSan runtime DLLs
         shell: pwsh
         run: |
           $llvmMajor = ("${{ inputs.llvm-version }}" -split '\.')[0]
           $llvmBin  = "C:\Program Files\LLVM\lib\clang\$llvmMajor\lib\windows"
-          $buildDir = "out/build/x64-Clang-Debug"
+          $buildDir = "out/build/x64-Clang-Debug-UBSan"
 
           $testDirs = Get-ChildItem -Recurse -Filter "*.exe" $buildDir |
                         Select-Object -ExpandProperty DirectoryName -Unique
@@ -130,8 +154,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = "C:\Program Files\LLVM\bin;$env:PATH"
-          $env:ASAN_OPTIONS  = "abort_on_error=1:detect_leaks=0"
           $env:UBSAN_OPTIONS = "halt_on_error=1:print_stacktrace=1"
-          ctest --test-dir out/build/x64-Clang-Debug `
+          ctest --test-dir out/build/x64-Clang-Debug-UBSan `
                 --output-on-failure `
                 --parallel "$(nproc)"

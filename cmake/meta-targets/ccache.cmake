@@ -1,0 +1,25 @@
+if(ENABLE_CCACHE)
+    find_program(CCACHE_PROGRAM ccache)
+    
+    if(CCACHE_PROGRAM)
+        message(STATUS "[CCACHE] Found ccache at: ${CCACHE_PROGRAM}")
+        
+        set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+        
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            set(ENV{CCACHE_COMPILERCHECK} mtime)
+        else()
+            set(ENV{CCACHE_COMPILERCHECK} content)
+        endif()
+        
+        set(CMAKE_C_COMPILER_LAUNCHER_ENABLED TRUE)
+        set(CMAKE_CXX_COMPILER_LAUNCHER_ENABLED TRUE)
+    else()
+        message(WARNING "[CCACHE] ccache not found - proceeding without cache. Install ccache for faster rebuilds.")
+    endif()
+else()
+    message(STATUS "[CCACHE] ccache explicitly disabled (ENABLE_CCACHE=OFF)")
+    unset(CMAKE_C_COMPILER_LAUNCHER)
+    unset(CMAKE_CXX_COMPILER_LAUNCHER)
+endif()

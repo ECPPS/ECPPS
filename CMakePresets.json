@@ -4,35 +4,57 @@
 		{
 			"name": "base",
 			"hidden": true,
+			"description": "Base configuration for all platforms. LTO defaults to OFF for safety; enable via preset inheritance or -DENABLE_LTO=ON",
 			"generator": "Ninja",
 			"cacheVariables": {
-				"CMAKE_C_COMPILER_LAUNCHER": "ccache",
-				"CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
 				"CMAKE_CXX_STANDARD": "23",
 				"CMAKE_CXX_STANDARD_REQUIRED": "ON",
 				"CMAKE_CXX_EXTENSIONS": "OFF",
-				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+				"ENABLE_CCACHE": "ON",
+				"ENABLE_LTO": "OFF"
 			}
 		},
 		{
 			"name": "debug",
 			"hidden": true,
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug"
+				"CMAKE_BUILD_TYPE": "Debug",
+				"ENABLE_LTO": "OFF"
 			}
 		},
 		{
 			"name": "relwithdebinfo",
 			"hidden": true,
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "RelWithDebInfo"
+				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"ENABLE_LTO": "ON"
 			}
 		},
 		{
 			"name": "release",
 			"hidden": true,
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Release"
+				"CMAKE_BUILD_TYPE": "Release",
+				"ENABLE_LTO": "ON"
+			}
+		},
+		{
+			"name": "ci-pr",
+			"hidden": true,
+			"description": "CI preset for Pull Requests: disabled LTO for speed",
+			"inherits": ["base"],
+			"cacheVariables": {
+				"ENABLE_LTO": "OFF"
+			}
+		},
+		{
+			"name": "ci-release",
+			"hidden": true,
+			"description": "CI preset for Release builds (main/development): enabled LTO",
+			"inherits": ["base"],
+			"cacheVariables": {
+				"ENABLE_LTO": "ON"
 			}
 		},
 		{
@@ -86,7 +108,8 @@
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++",
-				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker -stack:10000000"
+				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker -stack:10000000",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
 			}
 		},
 		{
@@ -103,6 +126,11 @@
 			"cacheVariables": {
 				"CMAKE_C_FLAGS": "/fsanitize=address",
 				"CMAKE_CXX_FLAGS": "/fsanitize=address",
+				"CMAKE_EXE_LINKER_FLAGS": "/stack:10000000 /INCREMENTAL:NO /DEBUG",
+				"CMAKE_EXE_LINKER_FLAGS_DEBUG": "/DEBUG /INCREMENTAL:NO",
+				"CMAKE_SHARED_LINKER_FLAGS": "/INCREMENTAL:NO /DEBUG",
+				"CMAKE_SHARED_LINKER_FLAGS_DEBUG": "/DEBUG /INCREMENTAL:NO",
+				"CMAKE_CXX_LINKER_FLAGS": "/INCREMENTAL:NO /DEBUG",
 				"USE_MIMALLOC": "OFF",
 				"SANITISE": "ON"
 			}
@@ -113,6 +141,16 @@
 			"cacheVariables": {
 				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all",
 				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined -Xlinker -stack:10000000",
+				"USE_MIMALLOC": "OFF",
+				"SANITISE": "ON"
+			}
+		},
+		{
+			"name": "ubsan-clang",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all",
+				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined -Xlinker -stack:10000000",
 				"USE_MIMALLOC": "OFF",
 				"SANITISE": "ON"
 			}
@@ -208,15 +246,14 @@
 			}
 		},
 		{
-			"name": "x64-Clang-Debug-ASanUBSan",
-			"displayName": "Windows x64 · Clang · Debug · ASan + UBSan",
+			"name": "x64-Clang-Debug-UBSan",
+			"displayName": "Windows x64 · Clang · Debug · UBSan",
 			"inherits": [
-				"x64-Clang-Debug",
-				"asan-ubsan-clang"
+				"x64-Clang-Debug"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-ASanUBSan",
+			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-UBSan",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-ASanUBSan"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-UBSan"
 			}
 		},
 		{
@@ -235,7 +272,7 @@
 		},
 		{
 			"name": "Linux-Clang-Debug",
-			"displayName": "Linux · Clang · Debug · ASan + UBSan",
+			"displayName": "Linux · Clang · Debug · UBSan",
 			"inherits": [
 				"base",
 				"linux",
@@ -295,8 +332,8 @@
 			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-Debug-ASanUBSan-Build",
-			"configurePreset": "x64-Clang-Debug-ASanUBSan",
+			"name": "x64-Clang-Debug-UBSan-Build",
+			"configurePreset": "x64-Clang-Debug-UBSan",
 			"jobs": 0
 		},
 		{
