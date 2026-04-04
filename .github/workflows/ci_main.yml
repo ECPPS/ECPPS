@@ -10,6 +10,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  setup-llvm:
+    uses: ./.github/workflows/_setup-llvm.yml
+    with:
+      llvm-version: "20.1.8"
+
   clang-format:
     name: "clang-format"
     uses: ./.github/workflows/_clang-format.yml
