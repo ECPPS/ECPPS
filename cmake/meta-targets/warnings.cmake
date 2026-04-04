@@ -30,6 +30,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-source-uses-openmp
           -Wno-missing-noreturn
           -Wno-unknown-warning-option # clang-cl doesn't support -Wno-nvro
+          -Wno-unused-command-line-argument
 
           # Genually stupid
           -Wno-nonportable-system-include-path
