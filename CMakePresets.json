@@ -141,6 +141,7 @@
 			"cacheVariables": {
 				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all",
 				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined -Xlinker -stack:10000000",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded",
 				"USE_MIMALLOC": "OFF",
 				"SANITISE": "ON"
 			}
@@ -151,6 +152,7 @@
 			"cacheVariables": {
 				"CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all",
 				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined -Xlinker -stack:10000000",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded",
 				"USE_MIMALLOC": "OFF",
 				"SANITISE": "ON"
 			}
@@ -167,7 +169,7 @@
 		},
 		{
 			"name": "x64-MSVC-Debug",
-			"displayName": "Windows x64 · MSVC · Debug",
+			"displayName": "Windows x64 / MSVC / Debug",
 			"inherits": [
 				"base",
 				"msvc",
@@ -181,7 +183,7 @@
 		},
 		{
 			"name": "x64-MSVC-Debug-ASan",
-			"displayName": "Windows x64 · MSVC · Debug · ASan",
+			"displayName": "Windows x64 / MSVC / Debug / ASan",
 			"inherits": [
 				"x64-MSVC-Debug",
 				"asan-windows-msvc"
@@ -193,7 +195,7 @@
 		},
 		{
 			"name": "x64-MSVC-Release",
-			"displayName": "Windows x64 · MSVC · RelWithDebInfo",
+			"displayName": "Windows x64 / MSVC / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"msvc",
@@ -207,7 +209,7 @@
 		},
 		{
 			"name": "x64-Clang-cl-Debug",
-			"displayName": "Windows x64 · Clang-cl · Debug",
+			"displayName": "Windows x64 / Clang-cl / Debug",
 			"inherits": [
 				"base",
 				"clang-cl",
@@ -220,7 +222,7 @@
 		},
 		{
 			"name": "x64-Clang-cl-Release",
-			"displayName": "Windows x64 · Clang-cl · RelWithDebInfo",
+			"displayName": "Windows x64 / Clang-cl / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"clang-cl",
@@ -233,7 +235,7 @@
 		},
 		{
 			"name": "x64-Clang-Debug",
-			"displayName": "Windows x64 · Clang · Debug",
+			"displayName": "Windows x64 / Clang / Debug",
 			"inherits": [
 				"base",
 				"windows",
@@ -247,7 +249,7 @@
 		},
 		{
 			"name": "x64-Clang-Debug-UBSan",
-			"displayName": "Windows x64 · Clang · Debug · UBSan",
+			"displayName": "Windows x64 / Clang / Debug / UBSan",
 			"inherits": [
 				"x64-Clang-Debug"
 			],
@@ -258,7 +260,7 @@
 		},
 		{
 			"name": "x64-Clang-Release",
-			"displayName": "Windows x64 · Clang · RelWithDebInfo",
+			"displayName": "Windows x64 / Clang / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"windows",
@@ -272,7 +274,7 @@
 		},
 		{
 			"name": "Linux-Clang-Debug",
-			"displayName": "Linux · Clang · Debug · UBSan",
+			"displayName": "Linux / Clang / Debug / UBSan",
 			"inherits": [
 				"base",
 				"linux",
@@ -287,7 +289,7 @@
 		},
 		{
 			"name": "Linux-GCC-Release",
-			"displayName": "Linux · GCC · RelWithDebInfo",
+			"displayName": "Linux / GCC / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"linux",
