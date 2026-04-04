@@ -452,7 +452,7 @@ int main(int argc, char* argv[])
           if (isVerbose) std::println("Linking objects...");
 
           std::vector<std::byte> codeSection{};
-          config.stringArray.emplace_back(0);
+          config.stringArray.emplace_back(u8'\0');
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,

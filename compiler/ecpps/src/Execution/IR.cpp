@@ -804,7 +804,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          std::vector<std::uint32_t> arrayValues{};
                          arrayValues.reserve(arrayLength);
                          for (const auto character : string) arrayValues.emplace_back(character);
-                         arrayValues.emplace_back(0);
+                         arrayValues.emplace_back(0u);
                          std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
                              new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
                                  std::move(arrayValues), elementType, decl.initialiser->Source())};
@@ -869,7 +869,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                               std::vector<std::uint32_t> arrayValues{};
                               arrayValues.reserve(arrayLength);
                               for (const auto character : string) arrayValues.emplace_back(character);
-                              arrayValues.emplace_back(0);
+                              arrayValues.emplace_back(0u);
 
                               if (arrayLength < arrayType->ElementCount())
                                    arrayValues.resize(arrayType->ElementCount());
@@ -1775,7 +1775,7 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
-     values.emplace_back(0);
+     values.emplace_back(0u);
 
      TypeRequest arrayRequest{};
      arrayRequest.kind = TypeKind::Compound;
