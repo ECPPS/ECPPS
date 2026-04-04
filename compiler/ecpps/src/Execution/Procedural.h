@@ -22,8 +22,8 @@ namespace ecpps::ir
           explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
                                  typeSystem::NonowningTypePointer returnType, std::string name,
                                  std::vector<FunctionScope::Parameter> parameterList,
-                                 std::vector<FunctionScope::LocalEntity> locals, std::vector<NodePointer> body,
-                                 Location source, std::vector<std::string> namespacePath)
+                                 std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals,
+                                 std::vector<NodePointer> body, Location source, std::vector<std::string> namespacePath)
               : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
                 _returnType(returnType), _name(std::move(name)), _namespacePath(std::move(namespacePath)),
                 _parameterList(std::move(parameterList)), _locals(std::move(locals)), _body(std::move(body))
@@ -41,7 +41,8 @@ namespace ecpps::ir
           }
           [[nodiscard]] const std::vector<FunctionScope::LocalEntity>& Locals(void) const noexcept
           {
-               return this->_locals;
+               runtime_assert(this->_locals != nullptr, "ProcedureNode must have a non-nullptr _locals");
+               return *this->_locals;
           }
           [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept { return this->_body; }
 
@@ -68,7 +69,7 @@ namespace ecpps::ir
           std::string _name;
           std::vector<std::string> _namespacePath;
           std::vector<FunctionScope::Parameter> _parameterList;
-          std::vector<FunctionScope::LocalEntity> _locals;
+          std::shared_ptr<std::vector<FunctionScope::LocalEntity>> _locals;
           std::vector<NodePointer> _body;
      };
 

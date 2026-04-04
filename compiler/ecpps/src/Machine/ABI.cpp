@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <format>
 #include "Machine.h"
+#include "Machine/Machine.h"
 #include "Machine/Storage.h"
 #ifndef NDEBUG
 #endif
@@ -15,6 +16,8 @@
 #include "Vendor/Shared/ISA.h"
 
 using ecpps::abi::ABI;
+
+extern template ecpps::abi::ISA ecpps::abi::Platform::CurrentISA<ecpps::abi::Platform::CurrentVendor()>(void);
 
 #ifdef __clang__
 __attribute__((no_sanitize("address")))

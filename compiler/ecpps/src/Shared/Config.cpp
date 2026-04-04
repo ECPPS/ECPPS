@@ -10,6 +10,8 @@
 #include "../Machine/ABI.h"
 #include "../Machine/Machine.h"
 
+ecpps::CompilerStrategy ecpps::g_compilerStrategy{};
+
 ecpps::CompilerConfig::CompilerConfig(
     int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {

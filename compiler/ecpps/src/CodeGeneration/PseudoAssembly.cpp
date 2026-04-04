@@ -992,6 +992,12 @@ static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
      }
 }
 
+std::uint32_t ecpps::codegen::AssemblyContext::ReserveNextStringEntry(void) noexcept
+{
+     static std::atomic<std::uint32_t> next = 0;
+     return next.fetch_add(1, std::memory_order::relaxed);
+}
+
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node)
 {
      std::vector<Instruction> instructions{};

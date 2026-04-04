@@ -619,9 +619,12 @@ namespace ecpps::ast
           [[nodiscard]] bool AtEnd(void) const { return this->_position >= this->_tokens.size(); }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
           {
-               return this->_tokens[this->_position + offset];
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
           }
-          [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0) { return this->_tokens[this->_position + offset]; }
+          [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0)
+          {
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+          }
           void Advance(void) noexcept { this->_position++; }
           void Retreat(void) noexcept { this->_position--; }
           [[nodiscard]] bool Match(const TokenType type) noexcept

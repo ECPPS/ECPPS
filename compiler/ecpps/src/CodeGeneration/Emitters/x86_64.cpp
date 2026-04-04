@@ -768,7 +768,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
                return x86_64::GenerateAddImmToMem64(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint64_t>(sourceImmediate));
+                                                    static_cast<std::uint32_t>(sourceImmediate));
           default: throw TracedException(std::logic_error("Invalid mov operation"));
           }
      }

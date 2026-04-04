@@ -1,7 +1,6 @@
 #include "Opcodes.h"
 #include <cstddef>
 #include <cstdint>
-#include <ranges>
 #include <vector>
 
 // NOLINTBEGIN(readability-identifier-length)
@@ -110,7 +109,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(const std::
 
      auto rm = static_cast<uint8_t>(reg % 8);
      bool needsSIB = (rm == 4);
-     std::uint8_t modrm = (mod << 6) | (0 << 3) | rm;
+     std::uint8_t modrm = static_cast<std::uint8_t>((static_cast<std::size_t>(mod) << 6uz) | (0uz << 3) | rm);
      binary.push_back(static_cast<std::byte>(modrm));
      if (needsSIB) binary.push_back(static_cast<std::byte>(0x24));
 
@@ -149,7 +148,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem32(const std::
 
      // Special case: RSP or R12 always need a SIB
      bool needsSIB = (rm == 4);
-     std::uint8_t modrm = (mod << 6) | (0 << 3) | rm;
+     std::uint8_t modrm = static_cast<std::uint8_t>((static_cast<std::size_t>(mod) << 6uz) | (0uz << 3) | rm);
      binary.push_back(static_cast<std::byte>(modrm));
 
      if (needsSIB) binary.push_back(static_cast<std::byte>(0x24)); // SIB: scale=0, index=4(none), base=rsp/r12
@@ -161,7 +160,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem32(const std::
           for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((offset >> (i * 8)) & 0xFF));
 
      // immediate
-     for (int i = 0; i < 4; ++i) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+     for (int i = 0; i < 4; i++) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
 
      return binary;
 }
@@ -187,9 +186,9 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem16(const std::
      else
           mod = 0x02;
 
-     auto rm = static_cast<uint8_t>(reg % 8);
+     auto rm = static_cast<std::uint8_t>(reg % 8);
      bool needsSIB = (rm == 4);
-     std::uint8_t modrm = (mod << 6) | (0 << 3) | rm;
+     std::uint8_t modrm = static_cast<std::uint8_t>((static_cast<std::size_t>(mod) << 6) | (0uz << 3) | rm);
      binary.push_back(static_cast<std::byte>(modrm));
      if (needsSIB) binary.push_back(static_cast<std::byte>(0x24));
 
@@ -221,9 +220,9 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem8(const std::s
      else
           mod = 0x02;
 
-     auto rm = static_cast<uint8_t>(reg % 8);
+     auto rm = static_cast<std::uint8_t>(reg % 8);
      bool needsSIB = (rm == 4);
-     std::uint8_t modrm = (mod << 6) | (0 << 3) | rm;
+     std::uint8_t modrm = static_cast<std::uint8_t>((static_cast<std::size_t>(mod) << 6) | (0uz << 3) | rm);
      binary.push_back(static_cast<std::byte>(modrm));
      if (needsSIB) binary.push_back(static_cast<std::byte>(0x24));
 
@@ -755,7 +754,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem16ToReg64
      const std::uint8_t mod = needsDisp ? 0b01 : disp8 ? 0b01 : 0b10;
      const std::uint8_t rm = needsSib ? 0b100 : (sourceRegister & 7);
 
-     binary.push_back(static_cast<std::byte>((mod << 6) | ((destinationRegister & 7) << 3) | rm));
+     binary.push_back(static_cast<std::byte>(
+         static_cast<std::size_t>((static_cast<std::size_t>(mod) << 6) | ((destinationRegister & 7) << 3) | rm)));
 
      if (needsSib) binary.push_back(static_cast<std::byte>(0b00100100 | (sourceRegister & 7)));
 
@@ -934,11 +934,11 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRspToReg64(std::size_t
      std::uint8_t mod = 0b10; // 32-bit displacement
      std::uint8_t rm = 0b100; // SIB follows
      std::uint8_t reg = destinationRegister & 7;
-     std::uint8_t modrm = (mod << 6) | (reg << 3) | rm;
+     std::uint8_t modrm = static_cast<std::uint8_t>((static_cast<std::size_t>(mod) << 6) | (reg << 3) | rm);
      binary.push_back(static_cast<std::byte>(modrm));
 
      // SIB byte: scale=00, index=100 (none), base=100 (RSP)
-     std::uint8_t sib = (0b00 << 6) | (0b100 << 3) | 0b100;
+     std::uint8_t sib = static_cast<std::uint8_t>((0b00 << 6) | (0b100 << 3) | 0b100);
      binary.push_back(static_cast<std::byte>(sib));
 
      // 4-byte little-endian displacement

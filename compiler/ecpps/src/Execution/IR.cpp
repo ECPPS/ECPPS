@@ -152,7 +152,7 @@ namespace
                const auto& scope = context->GetScope();
                if (const auto* const functionScope = dynamic_cast<const ecpps::ir::FunctionScope*>(&scope))
                {
-                    for (const auto& local : functionScope->locals)
+                    for (const auto& local : functionScope->Locals())
                     {
                          const auto localName = local.Name();
                          if (seen.contains(localName)) continue;
@@ -539,11 +539,16 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      ir.GetContext().contextSequence.push_back(std::move(functionContext));
      std::uint64_t paramIndex{};
+     std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals =
+         std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+     locals->reserve(parameters.size());
+     vFunctionScope->SetLocals(locals);
+
      for (const auto& param : parameters)
      {
           Variable paramVariable{param.name, param.type, StorageDuration::Automatic};
           FunctionScope::LocalEntity localEntity{std::move(paramVariable)};
-          vFunctionScope->locals.push_back(std::move(localEntity));
+          locals->push_back(std::move(localEntity));
 
           auto paramNode = std::make_unique<PRValue>(
               param.type,
@@ -556,9 +561,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
-     std::vector<FunctionScope::LocalEntity> locals{};
-     locals.reserve(vFunctionScope->locals.size());
-     for (const auto& toCopy : vFunctionScope->locals) locals.emplace_back(toCopy);
 
      if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir.GetContext().nodeAllocator)
@@ -740,7 +742,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
 
           bool duplicate = false;
-          for (const auto& v : fscope.locals)
+          for (const auto& v : fscope.Locals())
           {
                if (v.Name() == varName)
                {
@@ -769,7 +771,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           Variable varEntry{varName, variableType, StorageDuration::Automatic};
 
-          auto& registeredVarLocal = fscope.locals.emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
+          auto& registeredVarLocal = fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
           auto& registeredVar = std::get<Variable>(registeredVarLocal.local);
 
           if (inferLastArrayFromInitialiser)
@@ -1798,7 +1800,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
           const auto& scope = context->GetScope();
           if (const auto* const functionScope = dynamic_cast<const FunctionScope*>(&scope))
           {
-               for (const auto& local : functionScope->locals)
+               for (const auto& local : functionScope->Locals())
                {
                     // TODO: Constexpr evaluation
                     if (std::holds_alternative<Variable>(local.local))

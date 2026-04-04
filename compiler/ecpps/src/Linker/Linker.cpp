@@ -14,12 +14,12 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
      {
      case LinkerType::PE:
      {
-          auto peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
+          auto& peOptions = dynamic_cast<LinkerOptions<LinkerType::PE>&>(*options);
           return std::make_unique<win::WindowsLinker>(std::move(peOptions));
      }
      case LinkerType::Coff:
      {
-          auto coffOptions = dynamic_cast<LinkerOptions<LinkerType::Coff>&>(*options);
+          auto& coffOptions = dynamic_cast<LinkerOptions<LinkerType::Coff>&>(*options);
           return std::make_unique<win::CoffLinker>(std::move(coffOptions));
      }
      default: return nullptr;

@@ -64,11 +64,7 @@ namespace ecpps::ir
      private:
           std::unordered_map<EntityKind, std::vector<std::optional<std::string>>> _entries;
      };
-     inline EntityStatistics& GetEntityStatistics(void)
-     {
-          static EntityStatistics statistics{};
-          return statistics;
-     }
+     EntityStatistics& GetEntityStatistics(void);
      [[nodiscard]] inline std::string_view EntityKindToString(EntityKind kind) noexcept
      {
           switch (kind)
@@ -90,6 +86,10 @@ namespace ecpps::ir
      struct Entity
      {
           virtual ~Entity(void) = default;
+          Entity(const Entity&) = delete;
+          Entity(Entity&&) = default;
+          Entity& operator=(const Entity&) = delete;
+          Entity& operator=(Entity&&) = default;
 
           [[nodiscard]] EntityKind Kind(void) const noexcept { return this->_kind; }
           [[nodiscard]] const std::optional<std::string>& Name(void) const noexcept { return this->_name; }

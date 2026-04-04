@@ -46,7 +46,6 @@ namespace ecpps::linker::win
           std::unordered_map<std::string, std::uint32_t> _exports{};
           std::unordered_map<std::string, std::vector<std::string>> _imports{};
           std::unordered_map<std::string, std::string> _importNameMap{};
-          std::size_t _baseOfCode{};
           std::size_t _sizeOfCode{};
      };
 } // namespace ecpps::linker::win
