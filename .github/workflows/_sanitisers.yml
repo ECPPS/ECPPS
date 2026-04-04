@@ -109,7 +109,7 @@ jobs:
       - name: Copy ASan/UBSan runtime DLLs
         shell: pwsh
         run: |
-          $llvmBin  = "C:\Program Files\LLVM\bin"
+          $llvmBin  = "C:\Program Files\LLVM\lib\clang\${{ inputs.llvm-version }}\lib\windows"
           $buildDir = "out/build/x64-Clang-Debug"
 
           # Find every test executable directory
