@@ -59,6 +59,6 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          ctest --test-dir out/build/Win64-MSVC-Debug-ASan \
+          ctest --test-dir out/build/Win64-MSVC-Debug \
                 --output-on-failure \
                 --parallel "$(nproc)"
