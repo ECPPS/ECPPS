@@ -1,7 +1,7 @@
 include(libecpps.cmake)
 
 set(CLI_SOURCES
-    "src/cli/main.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/cli/main.cpp"
 )
 
 add_executable(ecpps ${CLI_SOURCES})

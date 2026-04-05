@@ -1,0 +1,53 @@
+name: _setup-llvm-linux
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        description: "Exact LLVM version to install (e.g. 20.1.8)"
+        required: false
+        type: string
+        default: "20"
+    outputs:
+      llvm-path:
+        description: "Absolute path to the LLVM bin directory"
+        value: ${{ jobs.setup.outputs.llvm-path }}
+
+jobs:
+  setup:
+    name: Install LLVM ${{ inputs.llvm-version }} + ccache
+    runs-on: ubuntu-latest
+    outputs:
+      llvm-path: ${{ steps.emit.outputs.llvm-path }}
+
+    steps:
+      - name: Install LLVM ${{ inputs.llvm-version }} and dependencies
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ inputs.llvm-version }} all
+          
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+
+      - name: Verify LLVM installation
+        run: |
+          llvm_bin="/usr/lib/llvm-${{ inputs.llvm-version }}/bin"
+          llvm_lib="/usr/lib/llvm-${{ inputs.llvm-version }}/lib"
+          if [ -d "$llvm_bin" ]; then
+            echo "LLVM ${{ inputs.llvm-version }} installed at: $llvm_bin"
+            export LD_LIBRARY_PATH="$llvm_lib:$LD_LIBRARY_PATH"
+            "$llvm_bin/clang" --version
+          else
+            echo "LLVM installation failed or not found at $llvm_bin"
+            exit 1
+          fi
+
+      - name: Emit outputs
+        id: emit
+        run: |
+          llvm_bin="/usr/lib/llvm-${{ inputs.llvm-version }}/bin"
+          llvm_lib="/usr/lib/llvm-${{ inputs.llvm-version }}/lib"
+          echo "$llvm_bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=$llvm_lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "llvm-path=$llvm_bin" >> $GITHUB_OUTPUT

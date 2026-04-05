@@ -17,19 +17,28 @@ jobs:
 
   clang-format:
     name: "clang-format"
-    needs: setup-llvm
     uses: ./.github/workflows/_clang-format.yml
     with:
       llvm-version: "20.1.8"
 
-  build:
-    name: "Build Matrix"
+  build-windows:
+    name: "Build Matrix (Windows)"
     needs:
       - setup-llvm
       - clang-format
     uses: ./.github/workflows/_build-windows.yml
     with:
       llvm-version: "20.1.8"
+      upload-artifacts: true
+      enable-lto: true
+      enable-ccache: true
+
+  build-linux:
+    name: "Build Matrix (Linux)"
+    needs: clang-format
+    uses: ./.github/workflows/_build-linux.yml
+    with:
+      llvm-version: "20"
       upload-artifacts: true
       enable-lto: true
       enable-ccache: true
@@ -43,7 +52,9 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
-    needs: build
+    needs: 
+      - build-windows
+      - build-linux
     uses: ./.github/workflows/_clang-tidy.yml
     with:
       llvm-version: "20.1.8"
