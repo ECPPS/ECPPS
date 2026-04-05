@@ -36,6 +36,12 @@ jobs:
             preset_configure: Linux-Clang-Debug
             preset_build: Linux-Clang-Debug-Build
             needs_llvm: true
+          - compiler: Clang
+            name: clang20
+            build_type: Release
+            preset_configure: Linux-Clang-Release
+            preset_build: Linux-Clang-Release-Build
+            needs_llvm: true
 
     name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
 
