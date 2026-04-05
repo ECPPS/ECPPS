@@ -82,18 +82,46 @@ jobs:
         run: |
           $sha   = "${{ env.CURRENT_SHA }}".Substring(0, 8)
           $archive = "ecpps-pre-release-clang-$sha.zip"
-
-          $items = @(
-            (Get-ChildItem -Recurse dist\clang-release -Include "*.exe","*.pdb") |
-              Select-Object -ExpandProperty FullName
-          )
-
-          if ($items.Count -eq 0) {
-            Write-Error "No build outputs found in dist/clang-release"
+          $packageDir = "ecpps-package"
+          
+          $sourceMap = Get-Content -Path .github/workflows/.release-sourcemap.json | ConvertFrom-Json
+          
+          New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+          
+          foreach ($mapping in $sourceMap.mappings) {
+            $source = $mapping.source
+            $destination = Join-Path $packageDir $mapping.destination
+            
+            New-Item -ItemType Directory -Path $destination -Force | Out-Null
+            
+            if ($mapping.patterns) {
+              foreach ($pattern in $mapping.patterns) {
+                $files = Get-ChildItem -Recurse $source -Include $pattern -ErrorAction SilentlyContinue
+                $files | ForEach-Object {
+                  Write-Host "Copying $($_.FullName) to $destination"
+                  Copy-Item $_.FullName -Destination $destination
+                }
+              }
+            } else {
+              if (Test-Path $source) {
+                Write-Host "Copying directory $source to $destination"
+                Copy-Item -Path "$source/*" -Destination $destination -Recurse -Force
+              }
+            }
+          }
+          
+          $fileCount = @(Get-ChildItem -Recurse $packageDir -File).Count
+          
+          if ($fileCount -eq 0) {
+            Write-Error "No files packaged"
             exit 1
           }
-
-          Compress-Archive -Path $items -DestinationPath $archive -Force
+          
+          Write-Host "Packaged $fileCount files"
+          
+          Compress-Archive -Path "$packageDir/*" -DestinationPath $archive -Force
+          Remove-Item -Recurse -Force $packageDir
+          
           echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
           echo "SHA_SHORT=$sha"   >> $env:GITHUB_ENV
 
