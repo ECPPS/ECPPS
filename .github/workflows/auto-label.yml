@@ -3,6 +3,8 @@ name: Label new issues
 on:
   issues:
     types: [opened]
+permissions:
+  issues: write
 
 jobs:
   label:
