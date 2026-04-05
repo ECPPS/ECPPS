@@ -24,7 +24,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Machine.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Mangling.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/CoffLinker.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/dllhelp.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/dllHelp.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/Linker.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/PE.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/WindowsLinker.cpp"
