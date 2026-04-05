@@ -136,28 +136,6 @@
 			}
 		},
 		{
-			"name": "asan-ubsan-clang",
-			"hidden": true,
-			"cacheVariables": {
-				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -shared-libsan",
-				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined -Xlinker -stack:10000000 -shared-libsan",
-				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
-				"USE_MIMALLOC": "OFF",
-				"SANITISE": "ON"
-			}
-		},
-		{
-			"name": "ubsan-clang",
-			"hidden": true,
-			"cacheVariables": {
-				"CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -shared-libsan",
-				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined -Xlinker -stack:10000000 -shared-libsan",
-				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL",
-				"USE_MIMALLOC": "OFF",
-				"SANITISE": "ON"
-			}
-		},
-		{
 			"name": "asan-linux",
 			"hidden": true,
 			"cacheVariables": {
@@ -168,73 +146,73 @@
 			}
 		},
 		{
-			"name": "x64-MSVC-Debug",
+			"name": "Win64-MSVC-Debug",
 			"displayName": "Windows x64 / MSVC / Debug",
 			"inherits": [
 				"base",
 				"msvc",
 				"debug"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Debug-MSVC",
+			"binaryDir": "${sourceDir}/out/build/Win64-Debug-MSVC",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug-MSVC",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Debug-MSVC",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
 			}
 		},
 		{
-			"name": "x64-MSVC-Debug-ASan",
+			"name": "Win64-MSVC-Debug-ASan",
 			"displayName": "Windows x64 / MSVC / Debug / ASan",
 			"inherits": [
-				"x64-MSVC-Debug",
+				"Win64-MSVC-Debug",
 				"asan-windows-msvc"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Debug-MSVC-ASan",
+			"binaryDir": "${sourceDir}/out/build/Win64-Debug-MSVC-ASan",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Debug-MSVC-ASan"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Debug-MSVC-ASan"
 			}
 		},
 		{
-			"name": "x64-MSVC-Release",
+			"name": "Win64-MSVC-Release",
 			"displayName": "Windows x64 / MSVC / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"msvc",
 				"relwithdebinfo"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Release-MSVC",
+			"binaryDir": "${sourceDir}/out/build/Win64-Release-MSVC",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Release-MSVC",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Release-MSVC",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
 			}
 		},
 		{
-			"name": "x64-Clang-cl-Debug",
+			"name": "Win64-Clang-cl-Debug",
 			"displayName": "Windows x64 / Clang-cl / Debug",
 			"inherits": [
 				"base",
 				"clang-cl",
 				"debug"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Debug",
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Debug"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Debug"
 			}
 		},
 		{
-			"name": "x64-Clang-cl-Release",
+			"name": "Win64-Clang-cl-Release",
 			"displayName": "Windows x64 / Clang-cl / RelWithDebInfo",
 			"inherits": [
 				"base",
 				"clang-cl",
 				"relwithdebinfo"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-cl-Release",
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Release",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-cl-Release"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Release"
 			}
 		},
 		{
-			"name": "x64-Clang-Debug",
+			"name": "Win64-Clang-Debug",
 			"displayName": "Windows x64 / Clang / Debug",
 			"inherits": [
 				"base",
@@ -242,24 +220,13 @@
 				"clang",
 				"debug"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug",
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug"
 			}
 		},
 		{
-			"name": "x64-Clang-Debug-UBSan",
-			"displayName": "Windows x64 / Clang / Debug / UBSan",
-			"inherits": [
-				"x64-Clang-Debug"
-			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-Debug-UBSan",
-			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Debug-UBSan"
-			}
-		},
-		{
-			"name": "x64-Clang-Release",
+			"name": "Win64-Clang-Release",
 			"displayName": "Windows x64 / Clang / RelWithDebInfo",
 			"inherits": [
 				"base",
@@ -267,9 +234,9 @@
 				"clang",
 				"relwithdebinfo"
 			],
-			"binaryDir": "${sourceDir}/out/build/x64-Clang-Release",
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Release",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/x64-Clang-Release"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release"
 			}
 		},
 		{
@@ -304,43 +271,38 @@
 	],
 	"buildPresets": [
 		{
-			"name": "x64-MSVC-Debug-Build",
-			"configurePreset": "x64-MSVC-Debug",
+			"name": "Win64-MSVC-Debug-Build",
+			"configurePreset": "Win64-MSVC-Debug",
 			"jobs": 0
 		},
 		{
-			"name": "x64-MSVC-Debug-ASan-Build",
-			"configurePreset": "x64-MSVC-Debug-ASan",
+			"name": "Win64-MSVC-Debug-ASan-Build",
+			"configurePreset": "Win64-MSVC-Debug-ASan",
 			"jobs": 0
 		},
 		{
-			"name": "x64-MSVC-Release-Build",
-			"configurePreset": "x64-MSVC-Release",
+			"name": "Win64-MSVC-Release-Build",
+			"configurePreset": "Win64-MSVC-Release",
 			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-cl-Debug-Build",
-			"configurePreset": "x64-Clang-cl-Debug",
+			"name": "Win64-Clang-cl-Debug-Build",
+			"configurePreset": "Win64-Clang-cl-Debug",
 			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-cl-Release-Build",
-			"configurePreset": "x64-Clang-cl-Release",
+			"name": "Win64-Clang-cl-Release-Build",
+			"configurePreset": "Win64-Clang-cl-Release",
 			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-Debug-Build",
-			"configurePreset": "x64-Clang-Debug",
+			"name": "Win64-Clang-Debug-Build",
+			"configurePreset": "Win64-Clang-Debug",
 			"jobs": 0
 		},
 		{
-			"name": "x64-Clang-Debug-UBSan-Build",
-			"configurePreset": "x64-Clang-Debug-UBSan",
-			"jobs": 0
-		},
-		{
-			"name": "x64-Clang-Release-Build",
-			"configurePreset": "x64-Clang-Release",
+			"name": "Win64-Clang-Release-Build",
+			"configurePreset": "Win64-Clang-Release",
 			"jobs": 0
 		},
 		{
