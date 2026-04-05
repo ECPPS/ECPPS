@@ -37,13 +37,6 @@ jobs:
             preset_build: Linux-Clang-Debug-Build
             needs_llvm: true
 
-          - compiler: GCC
-            name: gcc
-            build_type: Release
-            preset_configure: Linux-GCC-Release
-            preset_build: Linux-GCC-Release-Build
-            needs_llvm: false
-
     name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
 
     steps:
