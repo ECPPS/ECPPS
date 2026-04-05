@@ -1,0 +1,120 @@
+name: Daily Pre-release
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-release:
+    name: "Check for new commits and create pre-release"
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: development
+
+      - name: Check for new commits since last pre-release
+        id: check-commits
+        shell: pwsh
+        run: |
+          $lastTag = git describe --tags --match "pre-release-*" --abbrev=0 2>$null
+          
+          if ($null -eq $lastTag) {
+            Write-Host "No previous pre-release tags found, will create new release"
+            echo "has-new-commits=true" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          
+          $lastTagSha = git rev-list -n 1 $lastTag
+          $currentSha = git rev-parse HEAD
+          
+          if ($lastTagSha -eq $currentSha) {
+            Write-Host "No new commits since last pre-release ($lastTag)"
+            echo "has-new-commits=false" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "Found new commits since $lastTag"
+            echo "has-new-commits=true" >> $env:GITHUB_OUTPUT
+          }
+          
+          echo "LAST_TAG=$lastTag" >> $env:GITHUB_ENV
+          echo "CURRENT_SHA=$currentSha" >> $env:GITHUB_ENV
+
+      - name: Download latest Clang Release artifact from development branch
+        if: steps.check-commits.outputs.has-new-commits == 'true'
+        shell: pwsh
+        run: |
+          $response = gh run list `
+            --workflow=ci_development.yml `
+            --branch=development `
+            --status=success `
+            --limit=1 `
+            --json=databaseId `
+            --jq='.[0].databaseId'
+          
+          if ($null -eq $response -or $response -eq "") {
+            Write-Error "No successful development CI runs found"
+            exit 1
+          }
+          
+          $runId = $response
+          Write-Host "Found successful run: $runId"
+          
+          gh run download $runId `
+            --name build-clang20-Release `
+            --dir dist/clang-release
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to download artifacts"
+            exit 1
+          }
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Package release archive
+        if: steps.check-commits.outputs.has-new-commits == 'true'
+        shell: pwsh
+        run: |
+          $sha   = "${{ env.CURRENT_SHA }}".Substring(0, 8)
+          $archive = "ecpps-pre-release-clang-$sha.zip"
+
+          $items = @(
+            (Get-ChildItem -Recurse dist\clang-release -Include "*.exe","*.pdb") |
+              Select-Object -ExpandProperty FullName
+          )
+
+          if ($items.Count -eq 0) {
+            Write-Error "No build outputs found in dist/clang-release"
+            exit 1
+          }
+
+          Compress-Archive -Path $items -DestinationPath $archive -Force
+          echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
+          echo "SHA_SHORT=$sha"   >> $env:GITHUB_ENV
+
+      - name: Create pre-release
+        if: steps.check-commits.outputs.has-new-commits == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "pre-release-${{ env.SHA_SHORT }}"
+          name: "Pre-release ${{ env.SHA_SHORT }} (development)"
+          body: |
+            **Pre-release** built from `development` @ `${{ env.CURRENT_SHA }}`.
+
+            Compiler: Clang 20.1.8
+            Commit:   ${{ env.CURRENT_SHA }}
+
+            > [!WARNING]
+            > This is an automated daily pre-release from the `development` branch.
+            > It has passed the full CI suite (build, tests, clang-tidy, sanitisers)
+            > but is **not** a stable release.
+
+            This release was created because new commits were detected on the development branch.
+          prerelease: true
+          files: ${{ env.ARCHIVE }}
+          fail_on_unmatched_files: true
