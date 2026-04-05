@@ -13,7 +13,7 @@ namespace ecpps
           Multithreaded = 1,
           LowMemory = 2
      };
-     inline CompilerStrategy g_compilerStrategy{};
+     extern CompilerStrategy g_compilerStrategy;
 
      enum struct LinkerUsed : std::uint_fast8_t
      {

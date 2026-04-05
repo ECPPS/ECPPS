@@ -1,0 +1,57 @@
+name: CI — Development
+
+on:
+  push:
+    branches:
+      - development
+
+concurrency:
+  group: ci-development
+  cancel-in-progress: true
+
+jobs:
+  setup-llvm:
+    uses: ./.github/workflows/_setup-llvm.yml
+    with:
+      llvm-version: "20.1.8"
+
+  clang-format:
+    name: "clang-format"
+    needs: setup-llvm
+    uses: ./.github/workflows/_clang-format.yml
+    with:
+      llvm-version: "20.1.8"
+
+  build:
+    name: "Build Matrix"
+    needs:
+      - setup-llvm
+      - clang-format
+    uses: ./.github/workflows/_build-windows.yml
+    with:
+      llvm-version: "20.1.8"
+      upload-artifacts: true
+      enable-lto: true
+      enable-ccache: true
+
+  tests:
+    name: "Tests"
+    needs: clang-format
+    uses: ./.github/workflows/_tests.yml
+    with:
+      enable-ccache: true
+
+  clang-tidy:
+    name: "clang-tidy"
+    needs: build
+    uses: ./.github/workflows/_clang-tidy.yml
+    with:
+      llvm-version: "20.1.8"
+
+  sanitisers:
+    name: "Sanitisers"
+    needs: build
+    uses: ./.github/workflows/_sanitisers.yml
+    with:
+      llvm-version: "20.1.8"
+      enable-ccache: true

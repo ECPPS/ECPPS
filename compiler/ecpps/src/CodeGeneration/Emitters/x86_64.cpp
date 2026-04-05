@@ -614,7 +614,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
                return self->EmitMov(newMov);
           }
 
-          switch (static_cast<int>(toSize < fromSize))
+          switch (static_cast<std::size_t>(toSize < fromSize))
           {
           case 1:
           {
@@ -686,7 +686,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
           if (fromSize == toSize) [[unlikely]]
                return self->EmitMov(mov);
 
-          switch (static_cast<int>(toSize < fromSize))
+          switch (static_cast<std::size_t>(toSize < fromSize))
           {
           case 1:
           {
@@ -768,7 +768,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
                return x86_64::GenerateAddImmToMem64(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint64_t>(sourceImmediate));
+                                                    static_cast<std::uint32_t>(sourceImmediate));
           default: throw TracedException(std::logic_error("Invalid mov operation"));
           }
      }
@@ -934,7 +934,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
                                                     static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
                return x86_64::GenerateSubImmToMem64(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint64_t>(sourceImmediate));
+                                                    static_cast<std::uint32_t>(sourceImmediate));
           default: throw TracedException(std::logic_error("Invalid sub operation"));
           }
      }
@@ -1077,7 +1077,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
                                                           static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
                return x86_64::GenerateSignedMulImmToMem64(destinationRegister, destinationDisplacement,
-                                                          static_cast<std::uint64_t>(sourceImmediate));
+                                                          static_cast<std::uint32_t>(sourceImmediate));
           }
 
           throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
@@ -1202,22 +1202,16 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
-          const auto& source = std::get<IntegerOperand>(div.from);
-          const auto& destination = std::get<MemoryLocationOperand>(div.to);
+          // const auto& source = std::get<IntegerOperand>(div.from);
+          // const auto& destination = std::get<MemoryLocationOperand>(div.to);
 
-#ifdef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-          const auto sourceImmediate = source.Value();
-          const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
-          const auto destinationDisplacement = destination.Displacement();
-#ifdef __clang__
-#pragma GCC diagnostic pop
-#endif
+          // const auto sourceImmediate = source.Value();
+          // const auto destinationRegister =
+          //     ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+          // const auto destinationDisplacement = destination.Displacement();
 
           throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
      }
@@ -1292,43 +1286,30 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
-          // NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
-          const auto& source = std::get<RegisterOperand>(div.from);
-          const auto& destination = std::get<MemoryLocationOperand>(div.to);
-#ifdef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
-          const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
-          const auto destinationDisplacement = destination.Displacement();
-#ifdef __clang__
-#pragma GCC diagnostic pop
-#endif
+          // const auto& source = std::get<RegisterOperand>(div.from);
+          // const auto& destination = std::get<MemoryLocationOperand>(div.to);
+          // const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
+          // const auto destinationRegister =
+          //     ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+          // const auto destinationDisplacement = destination.Displacement();
+
           throw TracedException(std::logic_error("Invalid mov operation"));
-          // NOLINTEND(clang-analyzer-deadcode.DeadStores)
      }
 };
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
 {
-     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const DivInstruction& div)
+     static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
+                                              [[maybe_unused]] const DivInstruction& div)
      {
-          const auto& source = std::get<RegisterOperand>(div.from);
-          const auto& destination = std::get<RegisterOperand>(div.to);
-#ifdef __clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-          const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
-          const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
-#ifdef __clang__
-#pragma GCC diagnostic pop
-#endif
+          // const auto& source = std::get<RegisterOperand>(div.from);
+          // const auto& destination = std::get<RegisterOperand>(div.to);
+          // const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
+          // const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
           throw TracedException(std::logic_error("Invalid mov operation"));
      }
 };
@@ -1341,9 +1322,6 @@ struct ecpps::codegen::emitters::EmitSpecificLeaImpl<ecpps::codegen::emitters::O
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
                                               [[maybe_unused]] const TakeAddressInstruction& lea)
      {
-
-          constexpr static auto ApplyStringRelocationLambda = [](std::uint8_t register_, std::size_t stringTableOffset)
-          { return x86_64::GenerateLeaToReg(x86_64::Rip, stringTableOffset, register_); };
 
           const auto& source = lea.from;
           const auto& destination = std::get<RegisterOperand>(lea.to);

@@ -47,6 +47,10 @@ namespace ecpps::linker
      struct LinkerOptionsBase
      {
           virtual ~LinkerOptionsBase(void) = default;
+          LinkerOptionsBase(const LinkerOptionsBase&) = delete;
+          LinkerOptionsBase(LinkerOptionsBase&&) = delete;
+          LinkerOptionsBase& operator=(const LinkerOptionsBase&) = delete;
+          LinkerOptionsBase& operator=(LinkerOptionsBase&&) = delete;
 
      protected:
           explicit LinkerOptionsBase(void) = default;

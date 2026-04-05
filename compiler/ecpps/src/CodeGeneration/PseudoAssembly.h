@@ -97,11 +97,7 @@ namespace ecpps::codegen
           [[nodiscard]] auto& Patches(void) noexcept { return this->_patches; }
 
      private:
-          static std::uint32_t ReserveNextStringEntry(void) noexcept
-          {
-               static std::atomic<std::uint32_t> next = 0;
-               return next.fetch_add(1, std::memory_order::relaxed);
-          }
+          static std::uint32_t ReserveNextStringEntry(void) noexcept;
 
           [[nodiscard]] StringIndex AppendNew(std::span<const Byte> value)
           {

@@ -11,26 +11,26 @@ TEST_CASE("SBOVector - Construction", "[utilities][sbo_vector]")
 {
      SECTION("Default construction")
      {
-          SBOVector<int> vec;
+          SBOVector<std::size_t> vec;
           REQUIRE((vec.Size() == 0));
      }
 
      SECTION("Construction with size")
      {
-          SBOVector<int> vec(10);
+          SBOVector<std::size_t> vec(10);
           REQUIRE((vec.Size() == 10));
      }
 
      SECTION("Construction with size and value")
      {
-          SBOVector<int> vec(5, 42);
+          SBOVector<std::size_t> vec(5, 42);
           REQUIRE((vec.Size() == 5));
-          for (std::size_t i = 0; i < vec.Size(); ++i) { REQUIRE((vec.begin()[i] == 42)); }
+          for (std::size_t i = 0; i < vec.Size(); i++) { REQUIRE((vec.begin()[i] == 42)); }
      }
 
      SECTION("Push elements to construct")
      {
-          SBOVector<int> vec;
+          SBOVector<std::size_t> vec;
           vec.Push(1);
           vec.Push(2);
           vec.Push(3);
@@ -45,12 +45,12 @@ TEST_CASE("SBOVector - Construction", "[utilities][sbo_vector]")
 
 TEST_CASE("SBOVector - Capacity transitions", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
 
      SECTION("Inline storage - stays on stack")
      {
           // Add elements up to inline capacity
-          for (int i = 0; i < 8; ++i) { vec.Push(i); }
+          for (std::size_t i = 0; i < 8; i++) { vec.Push(i); }
           REQUIRE((vec.Size() == 8));
           REQUIRE(vec.UseSBO()); // Should still use SBO
      }
@@ -58,12 +58,12 @@ TEST_CASE("SBOVector - Capacity transitions", "[utilities][sbo_vector]")
      SECTION("Transition to heap")
      {
           // Add many elements to force heap allocation
-          for (int i = 0; i < 100; ++i) { vec.Push(i); }
+          for (std::size_t i = 0; i < 100; i++) { vec.Push(i); }
           REQUIRE((vec.Size() == 100));
           REQUIRE(!vec.UseSBO()); // Should have transitioned to heap
 
           // Verify all elements
-          for (int i = 0; i < 100; ++i) { REQUIRE((vec.begin()[i] == i)); }
+          for (std::size_t i = 0; i < 100; i++) { REQUIRE((vec.begin()[i] == i)); }
      }
 }
 
@@ -71,12 +71,12 @@ TEST_CASE("SBOVector - Copy semantics", "[utilities][sbo_vector]")
 {
      SECTION("Copy inline vector")
      {
-          SBOVector<int> vec1;
+          SBOVector<std::size_t> vec1;
           vec1.Push(1);
           vec1.Push(2);
           vec1.Push(3);
 
-          SBOVector<int> vec2 = vec1;
+          SBOVector<std::size_t> vec2 = vec1;
 
           REQUIRE((vec2.Size() == 3));
           REQUIRE((vec2.begin()[0] == 1));
@@ -90,25 +90,25 @@ TEST_CASE("SBOVector - Copy semantics", "[utilities][sbo_vector]")
 
      SECTION("Copy heap vector")
      {
-          SBOVector<int> vec1;
-          for (int i = 0; i < 100; ++i) { vec1.Push(i); }
+          SBOVector<std::size_t> vec1;
+          for (std::size_t i = 0; i < 100; i++) { vec1.Push(i); }
 
-          SBOVector<int> vec2 = vec1;
+          SBOVector<std::size_t> vec2 = vec1;
           REQUIRE((vec2.Size() == 100));
 
-          for (int i = 0; i < 100; ++i) { REQUIRE((vec2.begin()[i] == i)); }
+          for (std::size_t i = 0; i < 100; i++) { REQUIRE((vec2.begin()[i] == i)); }
      }
 
      SECTION("Copy assignment")
      {
-          SBOVector<int> vec1;
-          for (int i = 1; i <= 5; ++i) { vec1.Push(i); }
+          SBOVector<std::size_t> vec1;
+          for (std::size_t i = 1; i <= 5; i++) { vec1.Push(i); }
 
-          SBOVector<int> vec2;
+          SBOVector<std::size_t> vec2;
           vec2 = vec1;
 
           REQUIRE((vec2.Size() == 5));
-          for (std::size_t i = 0; i < vec2.Size(); ++i) { REQUIRE((vec2.begin()[i] == vec1.begin()[i])); }
+          for (std::size_t i = 0; i < vec2.Size(); i++) { REQUIRE((vec2.begin()[i] == vec1.begin()[i])); }
      }
 }
 
@@ -116,12 +116,12 @@ TEST_CASE("SBOVector - Move semantics", "[utilities][sbo_vector]")
 {
      SECTION("Move inline vector")
      {
-          SBOVector<int> vec1;
+          SBOVector<std::size_t> vec1;
           vec1.Push(1);
           vec1.Push(2);
           vec1.Push(3);
 
-          SBOVector<int> vec2 = std::move(vec1);
+          SBOVector<std::size_t> vec2 = std::move(vec1);
 
           REQUIRE((vec2.Size() == 3));
           REQUIRE((vec2.begin()[0] == 1));
@@ -131,21 +131,21 @@ TEST_CASE("SBOVector - Move semantics", "[utilities][sbo_vector]")
 
      SECTION("Move heap vector")
      {
-          SBOVector<int> vec1;
-          for (int i = 0; i < 100; ++i) { vec1.Push(i); }
+          SBOVector<std::size_t> vec1;
+          for (std::size_t i = 0; i < 100; i++) { vec1.Push(i); }
 
-          SBOVector<int> vec2 = std::move(vec1);
+          SBOVector<std::size_t> vec2 = std::move(vec1);
           REQUIRE((vec2.Size() == 100));
 
-          for (int i = 0; i < 100; ++i) { REQUIRE((vec2.begin()[i] == i)); }
+          for (std::size_t i = 0; i < 100; i++) { REQUIRE((vec2.begin()[i] == i)); }
      }
 
      SECTION("Move assignment")
      {
-          SBOVector<int> vec1;
-          for (int i = 1; i <= 5; ++i) { vec1.Push(i); }
+          SBOVector<std::size_t> vec1;
+          for (std::size_t i = 1; i <= 5; i++) { vec1.Push(i); }
 
-          SBOVector<int> vec2;
+          SBOVector<std::size_t> vec2;
           vec2 = std::move(vec1);
 
           REQUIRE((vec2.Size() == 5));
@@ -154,7 +154,7 @@ TEST_CASE("SBOVector - Move semantics", "[utilities][sbo_vector]")
 
 TEST_CASE("SBOVector - Iterator correctness", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
      vec.Push(10);
      vec.Push(20);
      vec.Push(30);
@@ -163,7 +163,7 @@ TEST_CASE("SBOVector - Iterator correctness", "[utilities][sbo_vector]")
 
      SECTION("Range-based for loop")
      {
-          std::vector<int> values;
+          std::vector<std::size_t> values;
           for (auto val : vec) { values.push_back(val); }
           REQUIRE((values.size() == 5));
           REQUIRE((values[0] == 10));
@@ -181,7 +181,7 @@ TEST_CASE("SBOVector - Iterator correctness", "[utilities][sbo_vector]")
 
 TEST_CASE("SBOVector - Modifiers", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
 
      SECTION("Push")
      {
@@ -207,18 +207,18 @@ TEST_CASE("SBOVector - Modifiers", "[utilities][sbo_vector]")
 
      SECTION("Push many elements")
      {
-          for (int i = 0; i < 50; ++i) { vec.Push(i * 2); }
+          for (std::size_t i = 0; i < 50; i++) { vec.Push(i * 2); }
 
           REQUIRE((vec.Size() == 50));
 
           // Verify elements
-          for (int i = 0; i < 50; ++i) { REQUIRE((vec.begin()[i] == i * 2)); }
+          for (std::size_t i = 0; i < 50; i++) { REQUIRE((vec.begin()[i] == i * 2)); }
      }
 }
 
 TEST_CASE("SBOVector - Element access via iterators", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
      vec.Push(100);
      vec.Push(200);
      vec.Push(300);
@@ -288,7 +288,7 @@ TEST_CASE("SBOVector - Complex types", "[utilities][sbo_vector]")
 
 TEST_CASE("SBOVector - Size tracking", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
 
      SECTION("Size increases with Push")
      {
@@ -300,20 +300,20 @@ TEST_CASE("SBOVector - Size tracking", "[utilities][sbo_vector]")
           vec.Push(2);
           REQUIRE((vec.Size() == 2));
 
-          for (int i = 0; i < 10; ++i) { vec.Push(i); }
+          for (std::size_t i = 0; i < 10; i++) { vec.Push(i); }
           REQUIRE((vec.Size() == 12));
      }
 
      SECTION("Size accurate after construction")
      {
-          SBOVector<int> vec2(25, 42);
+          SBOVector<std::size_t> vec2(25, 42);
           REQUIRE((vec2.Size() == 25));
      }
 }
 
 TEST_CASE("SBOVector - UseSBO flag", "[utilities][sbo_vector]")
 {
-     SBOVector<int> vec;
+     SBOVector<std::size_t> vec;
 
      SECTION("Small vectors use SBO")
      {
@@ -326,7 +326,7 @@ TEST_CASE("SBOVector - UseSBO flag", "[utilities][sbo_vector]")
 
      SECTION("Large vectors don't use SBO")
      {
-          for (int i = 0; i < 200; ++i) { vec.Push(i); }
+          for (std::size_t i = 0; i < 200; i++) { vec.Push(i); }
 
           REQUIRE(!vec.UseSBO());
      }

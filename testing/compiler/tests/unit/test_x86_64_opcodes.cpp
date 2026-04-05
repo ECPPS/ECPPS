@@ -7,14 +7,11 @@
 
 using namespace TestHelpers;
 
-// Helper function for byte-by-byte comparison
-bool AreEqual(const std::vector<std::byte>& a, const std::vector<std::byte>& b) noexcept
+static bool AreEqual(const std::vector<std::byte>& a, const std::vector<std::byte>& b) noexcept
 {
      if (a.size() != b.size()) return false;
      return std::memcmp(a.data(), b.data(), a.size()) == 0;
 }
-
-// Note: operator""_b is provided by TestHelpers.h
 
 namespace x8664 = ecpps::codegen::x86_64;
 

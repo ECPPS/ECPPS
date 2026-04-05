@@ -1,0 +1,23 @@
+{
+  "mappings": [
+    {
+      "source": "dist/clang-release",
+      "patterns": ["ecpps.exe"],
+      "destination": "bin"
+    },
+    {
+      "source": "dist/clang-release",
+      "patterns": ["*.pdb"],
+      "destination": "dbg"
+    },
+    {
+      "source": "dist/clang-release",
+      "patterns": ["*.lib", "*.dll"],
+      "destination": "lib"
+    },
+    {
+      "source": "stdlib/include",
+      "destination": "include/cxx"
+    }
+  ]
+}

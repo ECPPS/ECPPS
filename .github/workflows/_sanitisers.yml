@@ -1,0 +1,67 @@
+name: _sanitisers
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+      enable-ccache:
+        description: "Use ccache compiler cache if available"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  msvc-asan:
+    name: MSVC / ASan
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-msvc-Debug-
+            ccache-${{ runner.os }}-
+
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+          fi
+
+      - name: Configure (ASan)
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset Win64-MSVC-Debug-ASan `
+            -DBUILD_TESTING=ON `
+            -DSANITISE=ON `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build (ASan)
+        shell: pwsh
+        run: |
+          cmake --build build-asan `
+            --preset Win64-MSVC-Debug-ASan-Build `
+            --parallel
+
+      - name: Run tests under ASan
+        shell: pwsh
+        run: |
+          $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
+          ctest --test-dir out/build/Win64-Debug-MSVC-ASan `
+                --output-on-failure `
+                --parallel "$(nproc)"

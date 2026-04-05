@@ -36,7 +36,7 @@ namespace TestHelpers
           INFO("Context: " << context);
           REQUIRE(actual.size() == expected.size());
 
-          for (std::size_t i = 0; i < actual.size(); ++i)
+          for (std::size_t i = 0; i < actual.size(); i++)
           {
                if (actual[i] != expected[i])
                {

@@ -1,5 +1,9 @@
 add_library(utilitieslib STATIC
-    src/SBOVector.cpp include/utilitieslib/SBOVector.h include/utilitieslib/Numbers.h "include/utilitieslib/Queue.h" "include/utilitieslib/RuntimeAssert.h" src/RuntimeAssert.cpp)
+    "src/SBOVector.cpp"
+    "src/RuntimeAssert.cpp"
+)
+
+target_link_libraries(utilitieslib PUBLIC ecpps_defaults)
 
 target_include_directories(utilitieslib PUBLIC "include/utilitieslib")
 

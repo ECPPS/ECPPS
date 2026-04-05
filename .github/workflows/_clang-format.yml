@@ -1,0 +1,47 @@
+name: _clang-format
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+
+jobs:
+  clang-format:
+    name: clang-format
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore LLVM cache
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-${{ inputs.llvm-version }}-windows
+          fail-on-cache-miss: true
+
+      - name: Add LLVM to PATH
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Run clang-format
+        shell: pwsh
+        run: |
+          $files = git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' |
+                  Where-Object { $_ -ne '' }
+
+          if (-not $files) {
+            Write-Host "No C/C++ files found."
+            exit 0
+          }
+
+          $result = & clang-format --style=file --dry-run --Werror @files 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "clang-format violations found:"
+            $result | Write-Host
+            exit 1
+          }
+          Write-Host "All files correctly formatted ($($files.Count) files checked)"

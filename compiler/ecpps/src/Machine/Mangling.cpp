@@ -1,6 +1,7 @@
 #include "Mangling.h"
 #include <string>
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "TypeSystem/TypeBase.h"
 
 // calling conventions
 constexpr std::string_view CallingConventionMsCall = "M";
@@ -38,29 +39,37 @@ std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer ty
      {
           if (const auto* integralType = type->CastTo<typeSystem::IntegralType>())
           {
-               switch (integralType->Size())
+               switch (integralType->Kind())
                {
-               case 1:
+               case ecpps::typeSystem::TypeKind::Char:
                     return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedByte
                                                                                               : UnsignedByte};
-               case 2:
+               case ecpps::typeSystem::TypeKind::Short:
                     return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedWord
                                                                                               : UnsignedWord};
-               case 4:
+               case ecpps::typeSystem::TypeKind::Int:
+                    return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedInt32
+                                                                                              : UnsignedInt32};
+               case ecpps::typeSystem::TypeKind::Long:
                     return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedDword
                                                                                               : UnsignedDword};
-               case 8:
+               case ecpps::typeSystem::TypeKind::LongLong:
                     return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedQword
                                                                                               : UnsignedQword};
-               case 16:
-                    return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedXmmWord
-                                                                                              : UnsignedXmmWord};
-               case 32:
-                    return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedYmmWord
-                                                                                              : UnsignedYmmWord};
-               case 64:
-                    return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedZmmWord
-                                                                                              : UnsignedZmmWord};
+               default:
+                    switch (integralType->Size())
+                    {
+                    case 16:
+                         return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedXmmWord
+                                                                                                   : UnsignedXmmWord};
+                    case 32:
+                         return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedYmmWord
+                                                                                                   : UnsignedYmmWord};
+                    case 64:
+                         return std::string{integralType->Sign() == typeSystem::Signedness::Signed ? SignedZmmWord
+                                                                                                   : UnsignedZmmWord};
+                    }
+                    break;
                }
                return "_";
           }

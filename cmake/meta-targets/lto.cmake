@@ -1,0 +1,17 @@
+add_library(ecpps_lto INTERFACE)
+
+if(ENABLE_LTO)
+    message(STATUS "[LTO] Link-Time Optimisation enabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+    
+    if(MSVC)
+        target_compile_options(ecpps_lto INTERFACE /GL)
+        target_link_options(ecpps_lto INTERFACE /LTCG)
+    else()
+        target_compile_options(ecpps_lto INTERFACE -flto)
+        target_link_options(ecpps_lto INTERFACE -flto)
+    endif()
+else()
+    message(STATUS "[LTO] Link-Time Optimisation disabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+endif()

@@ -1,0 +1,166 @@
+name: _build-windows
+
+on:
+  workflow_call:
+    inputs:
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+      upload-artifacts:
+        description: "Whether to upload build artifacts"
+        required: false
+        type: boolean
+        default: true
+      enable-lto:
+        description: "Enable Link-Time Optimization in Release builds"
+        required: false
+        type: boolean
+        default: true
+      enable-ccache:
+        description: "Use ccache compiler cache if available"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - compiler: MSVC
+            name: msvc
+            build_type: Debug
+            preset_configure: Win64-MSVC-Debug
+            preset_build: Win64-MSVC-Debug-Build
+            needs_msvc_env: true
+            needs_llvm: false
+
+          - compiler: MSVC
+            name: msvc
+            build_type: Release
+            preset_configure: Win64-MSVC-Release
+            preset_build: Win64-MSVC-Release-Build
+            needs_msvc_env: true
+            needs_llvm: false
+
+          - compiler: Clang
+            name: clang20
+            build_type: Debug
+            preset_configure: Win64-Clang-Debug
+            preset_build: Win64-Clang-Debug-Build
+            needs_msvc_env: false
+            needs_llvm: true
+
+          - compiler: Clang
+            name: clang20
+            build_type: Release
+            preset_configure: Win64-Clang-Release
+            preset_build: Win64-Clang-Release-Build
+            needs_msvc_env: false
+            needs_llvm: true
+
+          - compiler: Clang-cl
+            name: clang20-cl
+            build_type: Debug
+            preset_configure: Win64-Clang-cl-Debug
+            preset_build: Win64-Clang-cl-Debug-Build
+            needs_msvc_env: true
+            needs_llvm: true
+
+          - compiler: Clang-cl
+            name: clang20-cl
+            build_type: Release
+            preset_configure: Win64-Clang-cl-Release
+            preset_build: Win64-Clang-cl-Release-Build
+            needs_msvc_env: true
+            needs_llvm: true
+
+    name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore LLVM cache
+        if: matrix.needs_llvm
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\LLVM
+          key: llvm-${{ inputs.llvm-version }}-windows
+          fail-on-cache-miss: true
+
+      - name: Add LLVM to PATH
+        if: matrix.needs_llvm
+        shell: pwsh
+        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Setup MSVC Developer Environment
+        if: matrix.needs_msvc_env
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-
+            ccache-${{ runner.os }}-${{ matrix.name }}-
+            ccache-${{ runner.os }}-
+
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+            echo "[OK] ccache configured (500M limit)"
+          else
+            echo "[WARN] ccache not found - proceeding without cache"
+          fi
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: out/build/${{ matrix.preset_configure }}/_deps
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset ${{ matrix.preset_configure }} `
+            -DBUILD_TESTING=OFF `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} `
+            -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
+
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build build `
+            --preset "${{ matrix.preset_build }}" `
+            --parallel
+
+      - name: Print ccache statistics
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            echo "=== CCACHE STATISTICS ==="
+            ccache --show-stats
+            echo ""
+            ccache --show-log-stats || true
+          fi
+
+      - name: Upload build artifact
+        if: inputs.upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.name }}-${{ matrix.build_type }}
+          path: |
+            out/build
+            out/build/compile_commands.json
+          retention-days: 3
