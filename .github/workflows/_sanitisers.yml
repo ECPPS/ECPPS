@@ -46,7 +46,7 @@ jobs:
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
-            --preset x64-MSVC-Debug-ASan `
+            --preset Win64-MSVC-Debug-ASan `
             -DBUILD_TESTING=ON `
             -DSANITISE=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
@@ -55,7 +55,7 @@ jobs:
         shell: pwsh
         run: |
           cmake --build build-asan `
-            --preset x64-MSVC-Debug-ASan-Build `
+            --preset Win64-MSVC-Debug-ASan-Build `
             --parallel
 
       - name: Run tests under ASan

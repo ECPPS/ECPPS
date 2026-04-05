@@ -33,48 +33,48 @@ jobs:
           - compiler: MSVC
             name: msvc
             build_type: Debug
-            preset_configure: x64-MSVC-Debug
-            preset_build: x64-MSVC-Debug-Build
+            preset_configure: Win64-MSVC-Debug
+            preset_build: Win64-MSVC-Debug-Build
             needs_msvc_env: true
             needs_llvm: false
 
           - compiler: MSVC
             name: msvc
             build_type: Release
-            preset_configure: x64-MSVC-Release
-            preset_build: x64-MSVC-Release-Build
+            preset_configure: Win64-MSVC-Release
+            preset_build: Win64-MSVC-Release-Build
             needs_msvc_env: true
             needs_llvm: false
 
           - compiler: Clang
             name: clang20
             build_type: Debug
-            preset_configure: x64-Clang-Debug
-            preset_build: x64-Clang-Debug-Build
+            preset_configure: Win64-Clang-Debug
+            preset_build: Win64-Clang-Debug-Build
             needs_msvc_env: false
             needs_llvm: true
 
           - compiler: Clang
             name: clang20
             build_type: Release
-            preset_configure: x64-Clang-Release
-            preset_build: x64-Clang-Release-Build
+            preset_configure: Win64-Clang-Release
+            preset_build: Win64-Clang-Release-Build
             needs_msvc_env: false
             needs_llvm: true
 
           - compiler: Clang-cl
             name: clang20-cl
             build_type: Debug
-            preset_configure: x64-Clang-cl-Debug
-            preset_build: x64-Clang-cl-Debug-Build
+            preset_configure: Win64-Clang-cl-Debug
+            preset_build: Win64-Clang-cl-Debug-Build
             needs_msvc_env: true
             needs_llvm: true
 
           - compiler: Clang-cl
             name: clang20-cl
             build_type: Release
-            preset_configure: x64-Clang-cl-Release
-            preset_build: x64-Clang-cl-Release-Build
+            preset_configure: Win64-Clang-cl-Release
+            preset_build: Win64-Clang-cl-Release-Build
             needs_msvc_env: true
             needs_llvm: true
 

@@ -47,14 +47,14 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: out/build/x64-Clang-Release/_deps
+          path: out/build/Win64-Clang-Release/_deps
           key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
 
       - name: Configure (fetch dependencies only)
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
-            --preset x64-Clang-Release `
+            --preset Win64-Clang-Release `
             -DBUILD_TESTING=ON `
             -DCMAKE_BUILD_TYPE=Release
 
@@ -75,6 +75,6 @@ jobs:
                 -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
                 -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
                 -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
-                -I"${GITHUB_WORKSPACE}/out/build/x64-Clang-Release/_deps/catch2" \
+                -I"${GITHUB_WORKSPACE}/out/build/Win64-Clang-Release/_deps/catch2" \
                 -DCLANG_TIDY \
                 -DNOMINMAX

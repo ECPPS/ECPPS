@@ -45,7 +45,7 @@ jobs:
         shell: pwsh
         run: |
           cmake -S . -G Ninja `
-            --preset x64-MSVC-Debug `
+            --preset Win64-MSVC-Debug `
             -DBUILD_TESTING=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
@@ -53,7 +53,7 @@ jobs:
         shell: pwsh
         run: |
           cmake --build build `
-            --preset x64-MSVC-Debug-Build `
+            --preset Win64-MSVC-Debug-Build `
             --parallel
 
       - name: Run tests
