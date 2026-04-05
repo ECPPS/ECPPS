@@ -11,7 +11,7 @@ function(add_compiler_test target_name SOURCES_FILES label)
             "${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
     )
 
-    target_compile_features(${target_name} PUBLIC cxx_std_23)
+    set_target_properties(${target_name} PROPERTIES CXX_STANDARD 23)
     target_precompile_headers(${target_name} PRIVATE "${CMAKE_SOURCE_DIR}/compiler/ecpps/src/Shared/pch.h")
 
     add_test(NAME ${target_name} COMMAND $<TARGET_FILE:${target_name}>)

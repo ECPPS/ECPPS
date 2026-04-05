@@ -13,6 +13,7 @@ if(USE_MIMALLOC)
      set(MI_BUILD_BENCH OFF CACHE BOOL "" FORCE)
      set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
 
+     set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
      FetchContent_MakeAvailable(mimalloc)
 
      if(TARGET mimalloc-static)

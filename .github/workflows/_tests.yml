@@ -1,0 +1,64 @@
+name: _tests
+
+on:
+  workflow_call:
+    inputs:
+      enable-ccache:
+        description: "Use ccache compiler cache if available"
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  build-and-test:
+    name: Build & Run Tests (MSVC Debug)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC Developer Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.LOCALAPPDATA }}\ccache
+          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-msvc-Debug-
+            ccache-${{ runner.os }}-
+
+      - name: Setup ccache (if available)
+        if: inputs.enable-ccache
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            ccache --max-size=500M --set-config=compression=true
+            echo "[OK] ccache configured"
+          else
+            echo "[WARN] ccache not found - proceeding without cache"
+          fi
+
+      - name: Configure with BUILD_TESTING=ON
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset Win64-MSVC-Debug `
+            -DBUILD_TESTING=ON `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build tests
+        shell: pwsh
+        run: |
+          cmake --build build `
+            --preset Win64-MSVC-Debug-Build `
+            --parallel
+
+      - name: Run tests
+        shell: bash
+        run: |
+          ctest --test-dir out/build/Win64-Debug-MSVC \
+                --output-on-failure \
+                --parallel "$(nproc)"
