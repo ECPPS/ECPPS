@@ -62,6 +62,6 @@ jobs:
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
-          ctest --test-dir out/build/Win64-MSVC-Debug-ASan `
+          ctest --test-dir out/build/Win64-Debug-MSVC-ASan `
                 --output-on-failure `
                 --parallel "$(nproc)"
