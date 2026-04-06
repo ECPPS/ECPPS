@@ -3,6 +3,8 @@
 #include <print>
 #include <string>
 
+ecpps::diagnostics::IDiagnosticsBase::~IDiagnosticsBase(void) = default;
+
 std::string ecpps::diagnostics::InternalCompilerError::Message(void) const noexcept
 {
      std::string built = this->_message;

@@ -49,5 +49,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-undefined-reinterpret-cast
           -Wno-switch-enum
           -Wno-unused-macros
+          -Wno-weak-vtables
      )
 endif()

@@ -24,6 +24,7 @@ namespace ecpps
 
      struct TracedException : std::exception
      {
+          ~TracedException(void) override;
           std::string msg;
           std::vector<void*> trace;
           std::shared_ptr<std::exception> inner;

@@ -45,7 +45,7 @@ namespace ecpps::diagnostics
      class IDiagnosticsBase
      {
      public:
-          virtual ~IDiagnosticsBase(void) = default;
+          virtual ~IDiagnosticsBase(void);
 
           [[nodiscard]] virtual std::string Message(void) const noexcept = 0;
           [[nodiscard]] virtual DiagnosticsLevel Level(void) const noexcept = 0;

@@ -22,7 +22,7 @@ namespace ecpps::ast
      {
      public:
           explicit Node(Location location) : _location(location) {}
-          virtual ~Node(void) = default;
+          virtual ~Node(void);
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
 

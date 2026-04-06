@@ -5,6 +5,8 @@
 #include "Emitters/x86_64.h"
 #include "Nodes.h"
 
+ecpps::codegen::CodeEmitter::~CodeEmitter(void) = default;
+
 std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
 {
      std::vector<std::byte> generated{};

@@ -1,4 +1,4 @@
-#include <platformlib.h>
+#include <platformlib/platformlib.h>
 
 #include <RuntimeAssert.h>
 #ifdef _WIN32
@@ -14,7 +14,15 @@ template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platfor
      constexpr static bool IsValid = true;
 };
 #elifdef __linux__
-
+#include <sys/ptrace.h>
+#include <sys/wait.h>
+struct ContextWrapper : ecpps::platformlib::DebuggerContext
+{
+};
+template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platformlib::DebuggerContext, void*>
+{
+     constexpr static bool IsValid = true;
+};
 #endif
 
 #include <cstdint>
@@ -26,11 +34,12 @@ ecpps::platformlib::DebuggerContext& ecpps::platformlib::debugger::New(void)
      CONTEXT* lpContext = new CONTEXT();
      return reinterpret_cast<DebuggerContext&>(*reinterpret_cast<ContextWrapper*>(lpContext));
 #elifdef __linux__
-     throw nullptr;
+     return *new ContextWrapper();
 #endif
 }
 
-std::size_t ecpps::platformlib::debugger::GetRegisterValue(DebuggerContext& context, const std::string& name)
+std::size_t ecpps::platformlib::debugger::GetRegisterValue([[maybe_unused]] DebuggerContext& context,
+                                                           [[maybe_unused]] const std::string& name)
 {
 #ifdef _WIN32
      CONTEXT& ctx = context.As<CONTEXT>();
@@ -57,7 +66,7 @@ std::size_t ecpps::platformlib::debugger::GetRegisterValue(DebuggerContext& cont
 
      return SIZE_MAX;
 }
-std::vector<void*> ecpps::platformlib::debugger::WalkTrace(DebuggerContext* defaultContext)
+std::vector<void*> ecpps::platformlib::debugger::WalkTrace([[maybe_unused]] DebuggerContext* defaultContext)
 {
 #ifdef _WIN32
      HANDLE hProcess = GetCurrentProcess();
@@ -91,6 +100,18 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace(DebuggerContext* defa
      }
      return stack;
 #elifdef __linux__
-     return {};
+     // use ptrace for stack walking
+     pid_t pid = getpid();
+     std::vector<void*> stack;
+     ptrace(PTRACE_ATTACH, pid, nullptr, nullptr);
+     waitpid(pid, nullptr, 0);
+     for (int i = 0; i < 64; ++i)
+     {
+          void* addr = reinterpret_cast<void*>(ptrace(PTRACE_PEEKUSER, pid, sizeof(void*) * (16), nullptr));
+          if (addr == nullptr) break;
+          stack.push_back(addr);
+     }
+     ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
+     return stack;
 #endif
 }

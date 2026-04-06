@@ -7,7 +7,9 @@
 
 #include "Linker/PE.h"
 
-void ecpps::IssueICE(const TracedException& ex)
+ecpps::TracedException::~TracedException(void) = default;
+
+void ecpps::IssueICE([[maybe_unused]] const TracedException& ex)
 {
 #ifdef _WIN32
      HANDLE hProcess = GetCurrentProcess();
@@ -48,7 +50,8 @@ void ecpps::IssueICE(const TracedException& ex)
 #endif
 }
 
-void ecpps::IssueICE(std::string_view message, platformlib::DebuggerContext* defaultContext)
+void ecpps::IssueICE([[maybe_unused]] std::string_view message,
+                     [[maybe_unused]] platformlib::DebuggerContext* defaultContext)
 {
 #ifdef _WIN32
      HANDLE hProcess = GetCurrentProcess();

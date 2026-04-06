@@ -1,5 +1,7 @@
 #include "Entities.h"
 
+ecpps::ir::Entity::~Entity(void) = default;
+
 namespace ecpps::ir
 {
      EntityStatistics& GetEntityStatistics(void)

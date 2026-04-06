@@ -22,6 +22,27 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 
 static void ReleaseMemory(void* address) noexcept { VirtualFree(address, 0, MEM_RELEASE); }
 #elifdef __linux__
+#include <sys/mman.h>
+
+static void* ReserveMemory(std::size_t count) noexcept
+{
+     void* result = mmap(nullptr, count, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+     if (result == MAP_FAILED) return nullptr;
+     return result;
+}
+
+static void CommitMemory(void* address, std::size_t count) noexcept
+{
+     if (mprotect(address, count, PROT_READ | PROT_WRITE) != 0)
+     {
+          runtime_assert(false, std::format("Commit failed: {}", errno));
+     }
+}
+
+static void ReleaseMemory(void* address) noexcept
+{
+     if (munmap(address, 0) != 0) { runtime_assert(false, std::format("Release failed: {}", errno)); }
+}
 #endif
 
 constexpr std::size_t PageSize = 4096;

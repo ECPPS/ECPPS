@@ -15,6 +15,14 @@
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
 
+ecpps::abi::CallingConvention::~CallingConvention(void) = default;
+ecpps::abi::ProcedureStackManager::~ProcedureStackManager(void)
+{
+     if (std::uncaught_exceptions() != 0) return;
+
+     runtime_assert(this->_wasFinished, "You did not call Finish() silly");
+}
+
 using ecpps::abi::ABI;
 
 extern template ecpps::abi::ISA ecpps::abi::Platform::CurrentISA<ecpps::abi::Platform::CurrentVendor()>(void);

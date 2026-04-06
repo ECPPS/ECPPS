@@ -1,5 +1,5 @@
-#include <identify.h>
-#include <platformlib.h>
+#include <platformlib/identify.h>
+#include <platformlib/platformlib.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -8,6 +8,8 @@
 #endif
 
 #include <format>
+
+ecpps::platformlib::NativeException::~NativeException(void) = default;
 
 ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Identify(void)
 {
