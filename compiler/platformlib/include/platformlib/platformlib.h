@@ -10,7 +10,6 @@ namespace ecpps::platformlib
      struct NativeException : std::runtime_error
      {
           explicit NativeException(const std::string& message) : runtime_error(message) {}
-          ~NativeException(void) override;
      };
      template <typename TFrom, typename TTo> struct PointerInterconvertibility
      {

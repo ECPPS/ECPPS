@@ -9,8 +9,6 @@
 
 #include <format>
 
-ecpps::platformlib::NativeException::~NativeException(void) = default;
-
 ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Identify(void)
 {
      ecpps::platformlib::ArchitectureBitness bitness{};
