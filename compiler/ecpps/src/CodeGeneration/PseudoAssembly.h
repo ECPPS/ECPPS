@@ -18,7 +18,7 @@ namespace ecpps::codegen
           std::size_t begin{};
           std::size_t end{};
 
-          [[nodiscard]] std::size_t Size(void) const noexcept { return this->end - this->begin; }
+          [[nodiscard]] constexpr std::size_t Size(void) const noexcept { return this->end - this->begin; }
           [[nodiscard]] constexpr bool operator==(const ByteView& other) const noexcept
           {
                return this->Size() == other.Size() && this->begin == other.begin;
