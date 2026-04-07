@@ -7,8 +7,6 @@
 
 #include "Linker/PE.h"
 
-ecpps::TracedException::~TracedException(void) = default;
-
 void ecpps::IssueICE([[maybe_unused]] const TracedException& ex)
 {
 #ifdef _WIN32
