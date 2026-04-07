@@ -46,7 +46,7 @@ void ecpps::IssueICE([[maybe_unused]] const TracedException& ex)
      SymCleanup(hProcess);
      ExitProcess(~0u);
 #elifdef __linux__
-     _exit(-1);
+     std::exit(-1);
 #endif
 }
 
@@ -102,6 +102,6 @@ void ecpps::IssueICE([[maybe_unused]] std::string_view message,
      SymCleanup(hProcess);
      ExitProcess(~0u);
 #elifdef __linux__
-     _exit(-1);
+     std::exit(-1);
 #endif
 }

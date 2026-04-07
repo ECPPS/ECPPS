@@ -12,13 +12,34 @@
 
 namespace ecpps::codegen
 {
+     using Byte = char8_t;
+     struct ByteView
+     {
+          std::size_t begin{};
+          std::size_t end{};
+
+          [[nodiscard]] std::size_t Size(void) const noexcept { return this->end - this->begin; }
+          [[nodiscard]] constexpr bool operator==(const ByteView& other) const noexcept
+          {
+               return this->Size() == other.Size() && this->begin == other.begin;
+          }
+     };
+} // namespace ecpps::codegen
+
+template <> struct std::hash<ecpps::codegen::ByteView>
+{
+     std::size_t operator()(const ecpps::codegen::ByteView& view) const noexcept
+     {
+          return view.begin ^ (view.end << 1);
+     }
+};
+
+namespace ecpps::codegen
+{
      extern std::unordered_map<std::string, std::string> g_functionImports;
 
      struct AssemblyContext
      {
-          using Byte = char8_t;
-          using ByteView = std::basic_string_view<Byte>;
-
           struct alignas(std::uint64_t) StringEntry
           {
                std::uint32_t length{};
@@ -39,7 +60,7 @@ namespace ecpps::codegen
 
                case StringPooling::Exact:
                {
-                    ByteView probe{value.data(), value.size()};
+                    ByteView probe{static_cast<std::size_t>(value.data() - this->_arena.data()), value.size()};
 
                     if (const auto iterator = _exactLookup.find(probe); iterator != _exactLookup.end())
                     {
@@ -51,13 +72,21 @@ namespace ecpps::codegen
 
                case StringPooling::Substring:
                {
-                    ByteView probe{value.data(), value.size()};
+                    std::basic_string_view<Byte> probe{value.data(), value.size()};
 
                     for (const auto& [view, index] : _exactLookup)
                     {
-                         if (view.size() >= probe.size())
+                         if (view.Size() >= probe.size())
                          {
-                              if (const auto position = view.find(probe); position != ByteView::npos)
+                              // if (const auto position = this->_arena.substr(view.begin, view.Size()).find(probe);
+                              // position != std::basic_string_view<Byte>::npos)
+                              // {
+                              //      return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
+                              // }
+                              if (const auto position =
+                                      std::basic_string_view<Byte>{this->_arena.data() + view.begin, view.Size()}.find(
+                                          probe);
+                                  position != std::basic_string_view<Byte>::npos)
                               {
                                    return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
                               }
@@ -71,7 +100,7 @@ namespace ecpps::codegen
                std::unreachable();
           }
 
-          [[nodiscard]] ByteView GetString(StringIndex index) const noexcept
+          [[nodiscard]] std::basic_string_view<Byte> GetString(StringIndex index) const noexcept
           {
                const auto& entry = _stringTable[index.indexInTable];
                return {this->_arena.data() + entry.offset + index.offset, entry.length};
@@ -110,7 +139,7 @@ namespace ecpps::codegen
 
                _stringTable.emplace_back(static_cast<std::uint32_t>(value.size()), offset);
 
-               ByteView view{_arena.data() + offset, value.size()};
+               ByteView view{offset, value.size()};
                _exactLookup.emplace(view, index);
 
                return {.indexInTable = index, .offset = 0};

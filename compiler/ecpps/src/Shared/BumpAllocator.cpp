@@ -41,7 +41,10 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 
 static void ReleaseMemory(void* address) noexcept
 {
-     if (munmap(address, 0) != 0) { runtime_assert(false, std::format("Release failed: {}", errno)); }
+     if (munmap(address, 2uz * 1024uz * 1024uz * 1024uz * 1024uz) != 0)
+     {
+          runtime_assert(false, std::format("Release failed: {}", errno));
+     }
 }
 #endif
 

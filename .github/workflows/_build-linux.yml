@@ -60,13 +60,13 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh ${{ inputs.llvm-version }} all
 
-      - name: Install GCC 14 (libstdc++)
+      - name: Install GCC 15 (libstdc++)
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14 libstdc++-14-dev
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
 
       - name: Add LLVM to PATH
         if: matrix.needs_llvm

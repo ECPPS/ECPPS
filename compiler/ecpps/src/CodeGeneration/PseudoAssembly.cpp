@@ -2,6 +2,7 @@
 #include <RuntimeAssert.h>
 #include <Shared/Diagnostics.h>
 #include <TypeSystem/TypeBase.h>
+#include <climits>
 #include <iterator>
 #include <ranges>
 #include <stdexcept>
@@ -23,7 +24,8 @@ using ecpps::codegen::Routine;
 #ifdef __clang__
 [[clang::no_sanitize("address")]]
 #endif
-std::unordered_map<std::string, std::string> ecpps::codegen::g_functionImports{};
+std::unordered_map<std::string, std::string>
+    ecpps::codegen::g_functionImports{};
 
 constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
 {
