@@ -25,11 +25,11 @@ jobs:
         run: |
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{ inputs.llvm-version }} all
+          sudo ./llvm.sh 20 all
 
       - name: Add LLVM to PATH
         run: |
-          echo "/usr/lib/llvm-${{ inputs.llvm-version }}/bin" >> $GITHUB_PATH
+          echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
