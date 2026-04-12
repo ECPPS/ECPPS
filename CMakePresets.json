@@ -508,6 +508,7 @@
 			"name": "Linux-GCC-Debug-Test",
 			"configurePreset": "Linux-GCC-Debug"
 		},
+		{
 			"name": "Linux-GCC-Release-Test",
 			"configurePreset": "Linux-GCC-Release"
 		},
