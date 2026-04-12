@@ -1449,8 +1449,8 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseRelationalExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseCompareExpression(context);
      return expression;
@@ -1458,8 +1458,8 @@ NodePointer ecpps::ast::AST::ParseRelationalExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseEqualityExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseRelationalExpression(context);
      return expression;
@@ -1467,8 +1467,8 @@ NodePointer ecpps::ast::AST::ParseEqualityExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseBinaryAndExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseEqualityExpression(context);
      return expression;
@@ -1476,8 +1476,8 @@ NodePointer ecpps::ast::AST::ParseBinaryAndExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseBinaryExclusiveOrExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseBinaryAndExpression(context);
      return expression;
@@ -1485,8 +1485,8 @@ NodePointer ecpps::ast::AST::ParseBinaryExclusiveOrExpression(ASTContext& contex
 
 NodePointer ecpps::ast::AST::ParseBinaryInclusiveOrExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseBinaryExclusiveOrExpression(context);
      return expression;
@@ -1494,8 +1494,8 @@ NodePointer ecpps::ast::AST::ParseBinaryInclusiveOrExpression(ASTContext& contex
 
 NodePointer ecpps::ast::AST::ParseLogicalAndExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseBinaryInclusiveOrExpression(context);
      return expression;
@@ -1503,8 +1503,8 @@ NodePointer ecpps::ast::AST::ParseLogicalAndExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseLogicalOrExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseLogicalAndExpression(context);
      return expression;
@@ -1512,8 +1512,8 @@ NodePointer ecpps::ast::AST::ParseLogicalOrExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseConditionalExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseLogicalOrExpression(context);
      return expression;
@@ -1521,8 +1521,8 @@ NodePointer ecpps::ast::AST::ParseConditionalExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseAssignmentExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseConditionalExpression(context);
      return expression;
@@ -1530,8 +1530,8 @@ NodePointer ecpps::ast::AST::ParseAssignmentExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
 {
-     auto currentToken = this->Peek();
-     auto source = currentToken.location;
+     [[maybe_unused]] auto currentToken = this->Peek();
+     [[maybe_unused]] auto source = currentToken.location;
 
      auto expression = ParseAssignmentExpression(context);
      return expression;

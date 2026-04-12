@@ -241,6 +241,34 @@
 			}
 		},
 		{
+			"name": "Win64-GCC-Debug",
+			"displayName": "Windows x64 / GCC / Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"gcc",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Debug",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Debug"
+			}
+		},
+		{
+			"name": "Win64-GCC-Release",
+			"displayName": "Windows x64 / GCC / Release",
+			"inherits": [
+				"base",
+				"windows",
+				"gcc",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Release",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Release"
+			}
+		},
+		{
 			"name": "Linux-Clang-Debug",
 			"displayName": "Linux / Clang / Debug / UBSan",
 			"inherits": [
@@ -289,13 +317,11 @@
 	"buildPresets": [
 		{
 			"name": "Win64-MSVC-Debug-Build",
-			"configurePreset": "Win64-MSVC-Debug",
-			"jobs": 0
+			"configurePreset": "Win64-MSVC-Debug"
 		},
 		{
 			"name": "Win64-MSVC-Debug-ASan-Build",
-			"configurePreset": "Win64-MSVC-Debug-ASan",
-			"jobs": 0
+			"configurePreset": "Win64-MSVC-Debug-ASan"
 		},
 		{
 			"name": "Win64-MSVC-Release-Build",
@@ -304,38 +330,39 @@
 		},
 		{
 			"name": "Win64-Clang-cl-Debug-Build",
-			"configurePreset": "Win64-Clang-cl-Debug",
-			"jobs": 0
+			"configurePreset": "Win64-Clang-cl-Debug"
 		},
 		{
 			"name": "Win64-Clang-cl-Release-Build",
-			"configurePreset": "Win64-Clang-cl-Release",
-			"jobs": 0
+			"configurePreset": "Win64-Clang-cl-Release"
 		},
 		{
 			"name": "Win64-Clang-Debug-Build",
-			"configurePreset": "Win64-Clang-Debug",
-			"jobs": 0
+			"configurePreset": "Win64-Clang-Debug"
 		},
 		{
 			"name": "Win64-Clang-Release-Build",
-			"configurePreset": "Win64-Clang-Release",
-			"jobs": 0
+			"configurePreset": "Win64-Clang-Release"
+		},
+		{
+			"name": "Win64-GCC-Debug-Build",
+			"configurePreset": "Win64-GCC-Debug"
+		},
+		{
+			"name": "Win64-GCC-Release-Build",
+			"configurePreset": "Win64-GCC-Release"
 		},
 		{
 			"name": "Linux-Clang-Debug-Build",
-			"configurePreset": "Linux-Clang-Debug",
-			"jobs": 0
+			"configurePreset": "Linux-Clang-Debug"
 		},
 		{
 			"name": "Linux-Clang-Release-Build",
-			"configurePreset": "Linux-Clang-Release",
-			"jobs": 0
+			"configurePreset": "Linux-Clang-Release"
 		},
 		{
 			"name": "Linux-GCC-Release-Build",
-			"configurePreset": "Linux-GCC-Release",
-			"jobs": 0
+			"configurePreset": "Linux-GCC-Release"
 		}
 	]
 }
