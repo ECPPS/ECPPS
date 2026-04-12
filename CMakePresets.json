@@ -300,13 +300,27 @@
 			}
 		},
 		{
-			"name": "Linux-GCC-Release",
-			"displayName": "Linux / GCC / RelWithDebInfo",
+			"name": "Linux-GCC-Debug",
+			"displayName": "Linux / GCC / Debug",
 			"inherits": [
 				"base",
 				"linux",
 				"gcc",
-				"relwithdebinfo"
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug"
+			}
+		},
+		{
+			"name": "Linux-GCC-Release",
+			"displayName": "Linux / GCC / Release",
+			"inherits": [
+				"base",
+				"linux",
+				"gcc",
+				"release"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release",
 			"cacheVariables": {
@@ -359,6 +373,10 @@
 		{
 			"name": "Linux-Clang-Release-Build",
 			"configurePreset": "Linux-Clang-Release"
+		},
+		{
+			"name": "Linux-GCC-Debug-Build",
+			"configurePreset": "Linux-GCC-Debug"
 		},
 		{
 			"name": "Linux-GCC-Release-Build",
