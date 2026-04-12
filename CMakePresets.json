@@ -149,11 +149,12 @@
 			"displayName": "Windows x64 / MSVC / Debug",
 			"inherits": [
 				"base",
-				"msvc",
+				"windows",
 				"debug"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Debug-MSVC",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/msvc/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Debug-MSVC",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
 			}
@@ -175,11 +176,12 @@
 			"displayName": "Windows x64 / MSVC / RelWithDebInfo",
 			"inherits": [
 				"base",
-				"msvc",
+				"windows",
 				"relwithdebinfo"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Release-MSVC",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/msvc/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Release-MSVC",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
 			}
@@ -189,11 +191,12 @@
 			"displayName": "Windows x64 / Clang-cl / Debug",
 			"inherits": [
 				"base",
-				"clang-cl",
+				"windows",
 				"debug"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Debug",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang-cl/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Debug"
 			}
 		},
@@ -202,11 +205,12 @@
 			"displayName": "Windows x64 / Clang-cl / RelWithDebInfo",
 			"inherits": [
 				"base",
-				"clang-cl",
+				"windows",
 				"relwithdebinfo"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Release",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang-cl/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Release"
 			}
 		},
@@ -216,13 +220,12 @@
 			"inherits": [
 				"base",
 				"windows",
-				"clang",
 				"debug"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug",
-				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker --stack:10000000"
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug"
 			}
 		},
 		{
@@ -231,13 +234,12 @@
 			"inherits": [
 				"base",
 				"windows",
-				"clang",
 				"relwithdebinfo"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Release",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release",
-				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker --stack:10000000"
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release"
 			}
 		},
 		{
@@ -246,11 +248,11 @@
 			"inherits": [
 				"base",
 				"windows",
-				"gcc",
 				"debug"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Debug",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Debug"
 			}
 		},
@@ -260,11 +262,11 @@
 			"inherits": [
 				"base",
 				"windows",
-				"gcc",
 				"relwithdebinfo"
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Release",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/windows.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Release"
 			}
 		},
@@ -274,14 +276,13 @@
 			"inherits": [
 				"base",
 				"linux",
-				"clang",
 				"debug",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug",
-				"CMAKE_CXX_FLAGS": "-stdlib=libstdc++ --gcc-toolchain=/usr"
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug"
 			}
 		},
 		{
@@ -290,12 +291,12 @@
 			"inherits": [
 				"base",
 				"linux",
-				"clang",
 				"release",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release"
 			}
 		},
@@ -305,11 +306,11 @@
 			"inherits": [
 				"base",
 				"linux",
-				"gcc",
 				"debug"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug"
 			}
 		},
@@ -319,11 +320,11 @@
 			"inherits": [
 				"base",
 				"linux",
-				"gcc",
 				"release"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release"
 			}
 		}
