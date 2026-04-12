@@ -159,7 +159,7 @@ jobs:
         if: inputs.upload-artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.name }}-${{ matrix.build_type }}
+          name: build-windows-${{ matrix.name }}-${{ matrix.build_type }}
           path: |
             out/build
             out/build/compile_commands.json
