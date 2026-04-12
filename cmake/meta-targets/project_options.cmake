@@ -31,4 +31,5 @@ target_link_libraries(ecpps_defaults INTERFACE
     ecpps_lto
     ecpps_pgo
     ecpps_mimalloc
+    ecpps_platform
 )
