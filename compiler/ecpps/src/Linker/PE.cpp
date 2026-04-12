@@ -269,9 +269,7 @@
 // NOLINTEND(cppcoreguidelines-macro-to-enum, modernize-macro-to-enum)
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
-{
-     return (value + alignment - 1) & ~(alignment - 1);
-}
+{ return (value + alignment - 1) & ~(alignment - 1); }
 
 ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t entryPoint, bool isNxCompatible,
                                      bool isRelocatable, PESubsystem subsystem, LinkType linkType,
