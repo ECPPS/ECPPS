@@ -334,12 +334,12 @@
 			"inherits": [
 				"base",
 				"linux",
-				"clang",
 				"debug",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug-ASan-UBSan",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug-ASan-UBSan"
 			}
 		},
@@ -349,12 +349,12 @@
 			"inherits": [
 				"base",
 				"linux",
-				"clang",
 				"release",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release-ASan-UBSan",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release-ASan-UBSan"
 			}
 		},
@@ -364,12 +364,12 @@
 			"inherits": [
 				"base",
 				"linux",
-				"gcc",
 				"debug",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug-ASan-UBSan",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug-ASan-UBSan"
 			}
 		},
@@ -379,12 +379,12 @@
 			"inherits": [
 				"base",
 				"linux",
-				"gcc",
 				"release",
 				"asan-linux"
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release-ASan-UBSan",
 			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release-ASan-UBSan"
 			}
 		}
