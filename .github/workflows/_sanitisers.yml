@@ -73,6 +73,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang lld ninja-build ccache
 
+      - name: Install GCC 15 (libstdc++)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+          export CC=gcc-15
+          export CXX=g++-15
+
       - name: Restore ccache
         if: inputs.enable-ccache
         uses: actions/cache@v4
