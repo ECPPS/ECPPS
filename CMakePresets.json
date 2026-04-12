@@ -339,8 +339,7 @@
 		},
 		{
 			"name": "Win64-MSVC-Release-Build",
-			"configurePreset": "Win64-MSVC-Release",
-			"jobs": 0
+			"configurePreset": "Win64-MSVC-Release"
 		},
 		{
 			"name": "Win64-Clang-cl-Debug-Build",
