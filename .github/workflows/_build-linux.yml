@@ -42,6 +42,19 @@ jobs:
             preset_configure: Linux-Clang-Release
             preset_build: Linux-Clang-Release-Build
             needs_llvm: true
+          - compiler: GCC
+            name: gcc15
+            build_type: Debug
+            preset_configure: Linux-GCC-Debug
+            preset_build: Linux-GCC-Debug-Build
+            needs_llvm: false
+
+          - compiler: GCC
+            name: gcc15
+            build_type: Release
+            preset_configure: Linux-GCC-Release
+            preset_build: Linux-GCC-Release-Build
+            needs_llvm: false
 
     name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
 
@@ -76,9 +89,12 @@ jobs:
 
       - name: Check toolchain
         run: |
-          clang++ --version
-          g++-14 --version
-          ls /usr/lib/gcc/x86_64-linux-gnu/14
+          if [ "${{ matrix.compiler }}" = "Clang" ]; then
+            clang++ --version
+          else
+            g++-15 --version
+            ls /usr/lib/gcc/x86_64-linux-gnu/15
+          fi
 
       - name: Restore ccache
         if: inputs.enable-ccache
