@@ -9,8 +9,60 @@ on:
         default: "20.1.8"
 
 jobs:
-  clang-tidy:
-    name: clang-tidy
+  clang-tidy-ubuntu:
+    name: clang-tidy (Ubuntu)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore LLVM cache
+        uses: actions/cache@v4
+        with:
+          path: /usr/lib/llvm
+          key: llvm-${{ inputs.llvm-version }}-ubuntu
+          fail-on-cache-miss: true
+
+      - name: Add LLVM to PATH
+        run: echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
+
+      - name: Download Clang Release build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-linux-clang20-Release
+          path: out/build
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure (fetch dependencies only)
+        run: |
+          cmake -S . -G Ninja \
+            --preset Linux-Clang-Release \
+            -DBUILD_TESTING=ON \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Verify clang-tidy version
+        run: clang-tidy --version
+
+      - name: Run clang-tidy (parallel, warnings-as-errors)
+        run: |
+          git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
+            | xargs -P "$(nproc)" -I {} clang-tidy {} \
+                --warnings-as-errors='*' \
+                --extra-arg=-std=c++23 \
+                -- \
+                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
+                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
+                -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
+                -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
+                -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
+                -I"${GITHUB_WORKSPACE}/out/build/Linux-Clang-Release/_deps/catch2" \
+                -DCLANG_TIDY \
+                -DNOMINMAX
+
+  clang-tidy-windows:
+    name: clang-tidy (Windows)
     runs-on: windows-latest
 
     steps:
@@ -30,7 +82,7 @@ jobs:
       - name: Download Clang Release build artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-clang20-Release
+          name: build-windows-clang20-Release
           path: out/build
 
       - name: Setup MSVC Developer Environment

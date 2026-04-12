@@ -150,7 +150,7 @@ ecpps::CompilerConfig::CompilerConfig(
 void ecpps::CompilerConfig::PrintVersionAndExit(void)
 {
      std::println("ECPPS C++ Compiler pre-v0.0.1");
-     std::println("Copyright (c) 2025 Tymi. All rights reserved.");
+     std::println("Copyright (c) 2026 Tymi. All rights reserved.");
      std::exit(0);
 }
 
