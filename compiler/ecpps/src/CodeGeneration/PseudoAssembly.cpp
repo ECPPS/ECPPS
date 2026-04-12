@@ -2,6 +2,7 @@
 #include <RuntimeAssert.h>
 #include <Shared/Diagnostics.h>
 #include <TypeSystem/TypeBase.h>
+#include <climits>
 #include <iterator>
 #include <ranges>
 #include <stdexcept>

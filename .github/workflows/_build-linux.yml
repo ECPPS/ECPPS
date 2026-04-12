@@ -1,4 +1,4 @@
-name: _build-windows
+name: _build-linux
 
 on:
   workflow_call:
@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "20"
       upload-artifacts:
         description: "Whether to upload build artifacts"
         required: false
@@ -25,57 +25,22 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
         include:
-          - compiler: MSVC
-            name: msvc
-            build_type: Debug
-            preset_configure: Win64-MSVC-Debug
-            preset_build: Win64-MSVC-Debug-Build
-            needs_msvc_env: true
-            needs_llvm: false
-
-          - compiler: MSVC
-            name: msvc
-            build_type: Release
-            preset_configure: Win64-MSVC-Release
-            preset_build: Win64-MSVC-Release-Build
-            needs_msvc_env: true
-            needs_llvm: false
-
           - compiler: Clang
             name: clang20
             build_type: Debug
-            preset_configure: Win64-Clang-Debug
-            preset_build: Win64-Clang-Debug-Build
-            needs_msvc_env: false
+            preset_configure: Linux-Clang-Debug
+            preset_build: Linux-Clang-Debug-Build
             needs_llvm: true
-
           - compiler: Clang
             name: clang20
             build_type: Release
-            preset_configure: Win64-Clang-Release
-            preset_build: Win64-Clang-Release-Build
-            needs_msvc_env: false
-            needs_llvm: true
-
-          - compiler: Clang-cl
-            name: clang20-cl
-            build_type: Debug
-            preset_configure: Win64-Clang-cl-Debug
-            preset_build: Win64-Clang-cl-Debug-Build
-            needs_msvc_env: true
-            needs_llvm: true
-
-          - compiler: Clang-cl
-            name: clang20-cl
-            build_type: Release
-            preset_configure: Win64-Clang-cl-Release
-            preset_build: Win64-Clang-cl-Release-Build
-            needs_msvc_env: true
+            preset_configure: Linux-Clang-Release
+            preset_build: Linux-Clang-Release-Build
             needs_llvm: true
 
     name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
@@ -83,28 +48,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+
+      - name: Install LLVM
         if: matrix.needs_llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ inputs.llvm-version }} all
+
+      - name: Install GCC 15 (libstdc++)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
 
       - name: Add LLVM to PATH
         if: matrix.needs_llvm
-        shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: |
+          echo "/usr/lib/llvm-${{ inputs.llvm-version }}/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-${{ inputs.llvm-version }}/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
-      - name: Setup MSVC Developer Environment
-        if: matrix.needs_msvc_env
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Check toolchain
+        run: |
+          clang++ --version
+          g++-14 --version
+          ls /usr/lib/gcc/x86_64-linux-gnu/14
 
       - name: Restore ccache
         if: inputs.enable-ccache
         uses: actions/cache@v4
         with:
-          path: ${{ env.LOCALAPPDATA }}\ccache
+          path: ~/.cache/ccache
           key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.sha }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-
@@ -113,7 +93,6 @@ jobs:
 
       - name: Setup ccache (if available)
         if: inputs.enable-ccache
-        shell: bash
         run: |
           if command -v ccache &> /dev/null; then
             ccache --max-size=500M --set-config=compression=true
@@ -129,24 +108,21 @@ jobs:
           key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
 
       - name: Configure
-        shell: pwsh
         run: |
-          cmake -S . -G Ninja `
-            --preset ${{ matrix.preset_configure }} `
-            -DBUILD_TESTING=OFF `
-            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} `
+          cmake -S . -G Ninja \
+            --preset ${{ matrix.preset_configure }} \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} \
             -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
 
       - name: Build
-        shell: pwsh
         run: |
-          cmake --build build `
-            --preset "${{ matrix.preset_build }}" `
+          cmake --build \
+            --preset "${{ matrix.preset_build }}" \
             --parallel
 
       - name: Print ccache statistics
         if: inputs.enable-ccache
-        shell: bash
         run: |
           if command -v ccache &> /dev/null; then
             echo "=== CCACHE STATISTICS ==="
@@ -159,7 +135,7 @@ jobs:
         if: inputs.upload-artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-windows-${{ matrix.name }}-${{ matrix.build_type }}
+          name: build-linux-${{ matrix.name }}-${{ matrix.build_type }}
           path: |
             out/build
             out/build/compile_commands.json

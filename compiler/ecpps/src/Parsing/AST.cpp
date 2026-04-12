@@ -6,6 +6,8 @@
 #include <utility>
 #include "ASTs/Type.h"
 
+ecpps::ast::Node::~Node(void) = default;
+
 using ecpps::ast::NodePointer;
 static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
                                                       "bool",     "short",   "int",      "long",     "signed",

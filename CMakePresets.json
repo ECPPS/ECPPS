@@ -108,7 +108,6 @@
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++",
-				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker -stack:10000000",
 				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
 			}
 		},
@@ -222,7 +221,8 @@
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug",
+				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker --stack:10000000"
 			}
 		},
 		{
@@ -236,7 +236,8 @@
 			],
 			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Release",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release",
+				"CMAKE_EXE_LINKER_FLAGS": "-Xlinker --stack:10000000"
 			}
 		},
 		{
@@ -251,7 +252,23 @@
 			],
 			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug",
 			"cacheVariables": {
-				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug"
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug",
+				"CMAKE_CXX_FLAGS": "-stdlib=libstdc++ --gcc-toolchain=/usr"
+			}
+		},
+		{
+			"name": "Linux-Clang-Release",
+			"displayName": "Linux / Clang / Release / UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"clang",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release"
 			}
 		},
 		{
@@ -308,6 +325,11 @@
 		{
 			"name": "Linux-Clang-Debug-Build",
 			"configurePreset": "Linux-Clang-Debug",
+			"jobs": 0
+		},
+		{
+			"name": "Linux-Clang-Release-Build",
+			"configurePreset": "Linux-Clang-Release",
 			"jobs": 0
 		},
 		{

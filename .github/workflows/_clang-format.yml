@@ -10,24 +10,44 @@ on:
 
 jobs:
   clang-format:
-    name: clang-format
-    runs-on: windows-latest
+    name: clang-format / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
+      - name: Restore LLVM cache (Windows)
+        if: runner.os == 'Windows'
         uses: actions/cache@v4
         with:
           path: C:\Program Files\LLVM
           key: llvm-${{ inputs.llvm-version }}-windows
           fail-on-cache-miss: true
 
-      - name: Add LLVM to PATH
+      - name: Add LLVM to PATH (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
-      - name: Run clang-format
+      - name: Install LLVM (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20 all
+
+      - name: Add LLVM to PATH (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Run clang-format (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $files = git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' |
@@ -45,3 +65,25 @@ jobs:
             exit 1
           }
           Write-Host "All files correctly formatted ($($files.Count) files checked)"
+
+      - name: Run clang-format (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          export PATH="/usr/lib/llvm-20/bin:$PATH"
+          export LD_LIBRARY_PATH="/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH"
+          
+          files=$(git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' | grep -v '^$')
+          
+          if [ -z "$files" ]; then
+            echo "No C/C++ files found."
+            exit 0
+          fi
+          
+          echo "$files" | xargs clang-format --style=file --dry-run --Werror
+          if [ $? -ne 0 ]; then
+            echo "clang-format violations found"
+            exit 1
+          fi
+          
+          file_count=$(echo "$files" | wc -l)
+          echo "All files correctly formatted ($file_count files checked)"

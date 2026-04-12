@@ -85,7 +85,7 @@ namespace ecpps::ir
      }
      struct Entity
      {
-          virtual ~Entity(void) = default;
+          virtual ~Entity(void);
           Entity(const Entity&) = delete;
           Entity(Entity&&) = default;
           Entity& operator=(const Entity&) = delete;

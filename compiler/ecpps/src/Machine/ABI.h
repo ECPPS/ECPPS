@@ -35,12 +35,7 @@ namespace ecpps::abi
 
      struct [[nodiscard]] ProcedureStackManager
      {
-          virtual ~ProcedureStackManager(void)
-          {
-               if (std::uncaught_exceptions() != 0) return;
-
-               runtime_assert(this->_wasFinished, "You did not call Finish() silly");
-          }
+          virtual ~ProcedureStackManager(void);
           void Finish(void)
           {
                runtime_assert(!this->_wasFinished, "finishing up the stack twice is weird");
@@ -112,7 +107,7 @@ namespace ecpps::abi
               : _name(name), _shadowSpace(shadowSpace), _stackAlignment(stackAlignment)
           {
           }
-          virtual ~CallingConvention(void) = default;
+          virtual ~CallingConvention(void);
 
           [[nodiscard]] virtual StorageRef ReturnValueStorage(StorageRequirement storageSize) const = 0;
           [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(

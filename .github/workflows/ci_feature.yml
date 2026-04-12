@@ -17,19 +17,28 @@ jobs:
 
   clang-format:
     name: clang-format
-    needs: setup-llvm
     uses: ./.github/workflows/_clang-format.yml
     with:
       llvm-version: "20.1.8"
 
-  build:
-    name: Build
+  build-windows:
+    name: Build (Windows)
     needs:
       - setup-llvm
       - clang-format
     uses: ./.github/workflows/_build-windows.yml
     with:
       llvm-version: "20.1.8"
+      upload-artifacts: false
+      enable-lto: false
+      enable-ccache: true
+
+  build-linux:
+    name: Build (Linux)
+    needs: clang-format
+    uses: ./.github/workflows/_build-linux.yml
+    with:
+      llvm-version: "20"
       upload-artifacts: false
       enable-lto: false
       enable-ccache: true

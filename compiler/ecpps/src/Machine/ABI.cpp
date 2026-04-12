@@ -1,19 +1,26 @@
 #include "ABI.h"
 #include <RuntimeAssert.h>
+#include <climits>
 #include <cstdint>
 #include <format>
-#include "Machine.h"
-#include "Machine/Machine.h"
-#include "Machine/Storage.h"
-#ifndef NDEBUG
-#endif
 #include <stdexcept>
 #include <vector>
 #include "../CodeGeneration/Nodes.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "Machine.h"
+#include "Machine/Machine.h"
+#include "Machine/Storage.h"
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
+
+ecpps::abi::CallingConvention::~CallingConvention(void) = default;
+ecpps::abi::ProcedureStackManager::~ProcedureStackManager(void)
+{
+     if (std::uncaught_exceptions() != 0) return;
+
+     runtime_assert(this->_wasFinished, "You did not call Finish() silly");
+}
 
 using ecpps::abi::ABI;
 

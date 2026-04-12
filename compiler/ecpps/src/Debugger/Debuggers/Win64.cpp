@@ -353,7 +353,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
 
 #elifdef __linux__
 int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& configuration,
-                                           std::filesystem::path program) const
+                                           [[maybe_unused]] std::filesystem::path program) const
 {
      return -1;
 }

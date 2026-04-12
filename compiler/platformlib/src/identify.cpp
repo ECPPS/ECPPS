@@ -1,5 +1,5 @@
-#include <identify.h>
-#include <platformlib.h>
+#include <platformlib/identify.h>
+#include <platformlib/platformlib.h>
 
 #ifdef _WIN32
 #include <Windows.h>

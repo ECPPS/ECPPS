@@ -367,7 +367,7 @@ namespace ecpps::ir
 
      struct Scope
      {
-          virtual ~Scope(void) = default;
+          virtual ~Scope(void);
 
           Scope* parentScope = nullptr;
           std::unordered_set<typeSystem::NonowningTypePointer, typeSystem::TypePointerHash,
@@ -380,7 +380,7 @@ namespace ecpps::ir
 
      struct ContextBase
      {
-          virtual ~ContextBase(void) = default;
+          virtual ~ContextBase(void);
 
           [[nodiscard]] const Scope& GetScope(void) const noexcept { return *this->_vScope; }
           [[nodiscard]] Scope& GetScope(void) noexcept { return *this->_vScope; }
