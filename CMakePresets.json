@@ -43,7 +43,7 @@
 			"name": "ci-pr",
 			"hidden": true,
 			"description": "CI preset for Pull Requests: disabled LTO for speed",
-			"inherits": ["base"],
+			"inherits": [ "base" ],
 			"cacheVariables": {
 				"ENABLE_LTO": "OFF"
 			}
@@ -52,7 +52,7 @@
 			"name": "ci-release",
 			"hidden": true,
 			"description": "CI preset for Release builds (main/development): enabled LTO",
-			"inherits": ["base"],
+			"inherits": [ "base" ],
 			"cacheVariables": {
 				"ENABLE_LTO": "ON"
 			}
@@ -327,6 +327,66 @@
 				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release"
 			}
+		},
+		{
+			"name": "Linux-Clang-Debug-ASan-UBSan",
+			"displayName": "Linux / Clang / Debug / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"clang",
+				"debug",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-Clang-Release-ASan-UBSan",
+			"displayName": "Linux / Clang / Release / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"clang",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-GCC-Debug-ASan-UBSan",
+			"displayName": "Linux / GCC / Debug / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"gcc",
+				"debug",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-GCC-Release-ASan-UBSan",
+			"displayName": "Linux / GCC / Release / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"gcc",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release-ASan-UBSan"
+			}
 		}
 	],
 	"buildPresets": [
@@ -381,6 +441,22 @@
 		{
 			"name": "Linux-GCC-Release-Build",
 			"configurePreset": "Linux-GCC-Release"
+		},
+		{
+			"name": "Linux-Clang-Debug-ASan-UBSan-Build",
+			"configurePreset": "Linux-Clang-Debug-ASan-UBSan"
+		},
+		{
+			"name": "Linux-Clang-Release-ASan-UBSan-Build",
+			"configurePreset": "Linux-Clang-Release-ASan-UBSan"
+		},
+		{
+			"name": "Linux-GCC-Debug-ASan-UBSan-Build",
+			"configurePreset": "Linux-GCC-Debug-ASan-UBSan"
+		},
+		{
+			"name": "Linux-GCC-Release-ASan-UBSan-Build",
+			"configurePreset": "Linux-GCC-Release-ASan-UBSan"
 		}
 	]
 }

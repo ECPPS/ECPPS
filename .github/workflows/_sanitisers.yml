@@ -8,7 +8,6 @@ on:
         type: string
         default: "20.1.8"
       enable-ccache:
-        description: "Use ccache compiler cache if available"
         required: false
         type: boolean
         default: true
@@ -45,23 +44,105 @@ jobs:
       - name: Configure (ASan)
         shell: pwsh
         run: |
-          cmake -S . -G Ninja `
-            --preset Win64-MSVC-Debug-ASan `
+          cmake --preset Win64-MSVC-Debug-ASan `
             -DBUILD_TESTING=ON `
             -DSANITISE=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
-      - name: Build (ASan)
+      - name: Build
         shell: pwsh
         run: |
-          cmake --build build-asan `
-            --preset Win64-MSVC-Debug-ASan-Build `
-            --parallel
+          cmake --build --preset Win64-MSVC-Debug-ASan-Build --parallel
 
-      - name: Run tests under ASan
+      - name: Run tests
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
-          ctest --test-dir out/build/Win64-Debug-MSVC-ASan `
-                --output-on-failure `
-                --parallel "$(nproc)"
+          ctest --preset Win64-MSVC-Debug-ASan-Test --output-on-failure
+
+
+  linux-clang-asan-ubsan:
+    name: Linux / Clang ASan + UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld ninja-build ccache
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-clang-san-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-clang-san-
+
+      - name: Configure
+        run: |
+          cmake --preset Linux-Clang-Debug-ASan-UBSan \
+            -DBUILD_TESTING=ON \
+            -DSANITISE=ON \
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build
+        run: |
+          cmake --build --preset Linux-Clang-Debug-ASan-UBSan-Build --parallel
+
+      - name: Run tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ctest --preset Linux-Clang-Debug-ASan-UBSan-Test --output-on-failure
+
+
+  linux-gcc-asan-ubsan:
+    name: Linux / GCC ASan + UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common ninja-build
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+          export CC=gcc-15
+          export CXX=g++-15
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-gcc-san-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-gcc-san-
+
+      - name: Configure
+        run: |
+          cmake --preset Linux-GCC-Debug-ASan-UBSan \
+            -DBUILD_TESTING=ON \
+            -DSANITISE=ON \
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build
+        run: |
+          cmake --build --preset Linux-GCC-Debug-ASan-UBSan-Build --parallel
+
+      - name: Run tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ctest --preset Linux-GCC-Debug-ASan-UBSan-Test --output-on-failure
