@@ -16,17 +16,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
-        uses: actions/cache@v4
-        with:
-          path: /usr/lib/llvm
-          key: llvm-${{ inputs.llvm-version }}-ubuntu
-          fail-on-cache-miss: true
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Install LLVM
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ inputs.llvm-version }} all
 
       - name: Add LLVM to PATH
-        run: echo "/usr/lib/llvm/bin" >> $GITHUB_PATH
+        run: |
+          echo "/usr/lib/llvm-${{ inputs.llvm-version }}/bin" >> $GITHUB_PATH
 
-      - name: Download Clang Release build artifact
+      - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: build-linux-clang20-Release
