@@ -77,7 +77,12 @@ jobs:
         run: |
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{ inputs.llvm-version }} all
+          sudo ./llvm.sh 20 all
+
+      - name: Add LLVM to PATH
+        run: |
+          echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
       - name: Install GCC 15 (libstdc++)
         run: |
