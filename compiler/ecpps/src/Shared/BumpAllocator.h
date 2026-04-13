@@ -34,7 +34,7 @@ inline void* operator new(const std::size_t count,
 }
 
 inline void* operator new[](const std::size_t count,
-                          ecpps::BumpAllocator& allocator) noexcept(noexcept(allocator.Allocate(count)))
+                            ecpps::BumpAllocator& allocator) noexcept(noexcept(allocator.Allocate(count)))
 {
      return allocator.Allocate(count);
 }
