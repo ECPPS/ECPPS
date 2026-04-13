@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "20"
       enable-ccache:
         required: false
         type: boolean
