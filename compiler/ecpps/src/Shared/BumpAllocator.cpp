@@ -10,7 +10,9 @@
 #include <Windows.h>
 
 static void* ReserveMemory(std::size_t count) noexcept
-{ return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS); }
+{
+     return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS);
+}
 
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
@@ -19,7 +21,9 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 }
 
 static void ReleaseMemory(void* address, [[maybe_unused]] std::size_t count) noexcept
-{ VirtualFree(address, 0, MEM_RELEASE); }
+{
+     VirtualFree(address, 0, MEM_RELEASE);
+}
 #elifdef __linux__
 #include <sys/mman.h>
 
@@ -75,4 +79,6 @@ std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
 ecpps::BumpAllocator::~BumpAllocator(void) { Release(); }
 
 void ecpps::BumpAllocator::Release(void)
-{ ReleaseMemory(std::exchange(this->_begin, nullptr), static_cast<std::size_t>(this->_capacity - this->_begin)); }
+{
+     ReleaseMemory(std::exchange(this->_begin, nullptr), static_cast<std::size_t>(this->_capacity - this->_begin));
+}
