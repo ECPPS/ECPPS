@@ -10,9 +10,7 @@
 #include <Windows.h>
 
 static void* ReserveMemory(std::size_t count) noexcept
-{
-     return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS);
-}
+{ return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS); }
 
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
@@ -21,16 +19,17 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 }
 
 static void ReleaseMemory(void* address, [[maybe_unused]] std::size_t count) noexcept
-{
-     VirtualFree(address, 0, MEM_RELEASE);
-}
+{ VirtualFree(address, 0, MEM_RELEASE); }
 #elifdef __linux__
 #include <sys/mman.h>
 
 static void* ReserveMemory(std::size_t count) noexcept
 {
      void* result = mmap(nullptr, count, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-     if (result == MAP_FAILED) return nullptr;
+     if (result == MAP_FAILED || !result)
+     {
+          runtime_assert(false, std::format("mmap({}, {:x}) failed: {}", nullptr, count, errno));
+     }
      return result;
 }
 
@@ -38,13 +37,16 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 {
      if (mprotect(address, count, PROT_READ | PROT_WRITE) != 0)
      {
-          runtime_assert(false, std::format("Commit failed: {}", errno));
+          runtime_assert(false, std::format("mprotect({}, {:x}) failed: {}", address, count, errno));
      }
 }
 
 static void ReleaseMemory(void* address, std::size_t count) noexcept
 {
-     if (munmap(address, count) != 0) { runtime_assert(false, std::format("Release failed: {}", errno)); }
+     if (munmap(address, count) != 0)
+     {
+          runtime_assert(false, std::format("munmap({}, {:x}) failed: {}", address, count, errno));
+     }
 }
 #endif
 
@@ -80,5 +82,6 @@ ecpps::BumpAllocator::~BumpAllocator(void) { Release(); }
 
 void ecpps::BumpAllocator::Release(void)
 {
-     ReleaseMemory(std::exchange(this->_begin, nullptr), static_cast<std::size_t>(this->_capacity - this->_begin));
+     const auto length = static_cast<std::size_t>(this->_capacity - this->_begin);
+     ReleaseMemory(std::exchange(this->_begin, nullptr), length);
 }
