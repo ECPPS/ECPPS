@@ -10,9 +10,7 @@
 #include <Windows.h>
 
 static void* ReserveMemory(std::size_t count) noexcept
-{
-     return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS);
-}
+{ return VirtualAlloc(nullptr, count, MEM_RESERVE, PAGE_NOACCESS); }
 
 static void CommitMemory(void* address, std::size_t count) noexcept
 {
@@ -20,7 +18,8 @@ static void CommitMemory(void* address, std::size_t count) noexcept
      runtime_assert(committed == address, std::format("Commit failed: {}", GetLastError()));
 }
 
-static void ReleaseMemory(void* address) noexcept { VirtualFree(address, 0, MEM_RELEASE); }
+static void ReleaseMemory(void* address, [[maybe_unused]] std::size_t count) noexcept
+{ VirtualFree(address, 0, MEM_RELEASE); }
 #elifdef __linux__
 #include <sys/mman.h>
 
@@ -39,12 +38,9 @@ static void CommitMemory(void* address, std::size_t count) noexcept
      }
 }
 
-static void ReleaseMemory(void* address) noexcept
+static void ReleaseMemory(void* address, std::size_t count) noexcept
 {
-     if (munmap(address, 2uz * 1024uz * 1024uz * 1024uz * 1024uz) != 0)
-     {
-          runtime_assert(false, std::format("Release failed: {}", errno));
-     }
+     if (munmap(address, count) != 0) { runtime_assert(false, std::format("Release failed: {}", errno)); }
 }
 #endif
 
@@ -78,4 +74,5 @@ std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
 
 ecpps::BumpAllocator::~BumpAllocator(void) { Release(); }
 
-void ecpps::BumpAllocator::Release(void) { ReleaseMemory(std::exchange(this->_begin, nullptr)); }
+void ecpps::BumpAllocator::Release(void)
+{ ReleaseMemory(std::exchange(this->_begin, nullptr), static_cast<std::size_t>(this->_capacity - this->_begin)); }
