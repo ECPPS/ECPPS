@@ -33,8 +33,18 @@ inline void* operator new(const std::size_t count,
      return allocator.Allocate(count);
 }
 
+inline void* operator new[](const std::size_t count,
+                          ecpps::BumpAllocator& allocator) noexcept(noexcept(allocator.Allocate(count)))
+{
+     return allocator.Allocate(count);
+}
+
 void* operator new(const std::size_t count, const ecpps::BumpAllocator* allocator) = delete;
 
 inline void operator delete([[maybe_unused]] void* address, [[maybe_unused]] ecpps::BumpAllocator& allocator) noexcept
+{
+}
+
+inline void operator delete[]([[maybe_unused]] void* address, [[maybe_unused]] ecpps::BumpAllocator& allocator) noexcept
 {
 }
