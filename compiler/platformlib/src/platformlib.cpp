@@ -40,9 +40,9 @@ ecpps::platformlib::DebuggerContext& ecpps::platformlib::debugger::New(void)
 void ecpps::platformlib::debugger::Delete([[maybe_unused]] DebuggerContext* context)
 {
 #ifdef _WIN32
-     delete &context->As<CONTEXT>();
+     operator delete(&context->As<CONTEXT>());
 #elifdef __linux__
-     delete context;
+     operator delete(context);
 #endif
 }
 
