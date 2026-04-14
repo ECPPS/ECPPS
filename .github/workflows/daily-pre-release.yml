@@ -49,30 +49,39 @@ jobs:
         if: steps.check-commits.outputs.has-new-commits == 'true'
         shell: pwsh
         run: |
-          $response = gh run list `
-            --workflow=ci_development.yml `
-            --branch=development `
-            --status=success `
-            --limit=1 `
-            --json=databaseId `
-            --jq='.[0].databaseId'
-          
-          if ($null -eq $response -or $response -eq "") {
-            Write-Error "No successful development CI runs found"
-            exit 1
-          }
-          
-          $runId = $response
-          Write-Host "Found successful run: $runId"
-          
-          gh run download $runId `
-            --name build-clang20-Release `
-            --dir dist/clang-release
-          
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to download artifacts"
-            exit 1
-          }
+            $response = gh run list `
+              --workflow=ci_development.yml `
+              --branch=development `
+              --status=success `
+              --limit=1 `
+              --json=databaseId `
+              --jq='.[0].databaseId'
+
+            if ($null -eq $response -or $response -eq "") {
+              Write-Error "No successful development CI runs found"
+              exit 1
+            }
+
+            $runId = $response
+            Write-Host "Found successful run: $runId"
+
+            gh run download $runId `
+              --name build-windows-clang20-release `
+              --dir dist/windows
+
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to download Windows artifact"
+              exit 1
+            }
+
+            gh run download $runId `
+              --name build-linux-clang20-release `
+              --dir dist/linux
+
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to download artifacts"
+              exit 1
+            }
         env:
           GH_TOKEN: ${{ github.token }}
 
