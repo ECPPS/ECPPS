@@ -535,7 +535,7 @@ namespace ecpps::ir
                return *this->_locals.lock();
           }
 
-          void SetLocals(std::shared_ptr<std::vector<LocalEntity>> locals) noexcept
+          void SetLocals(std::weak_ptr<std::vector<LocalEntity>> locals) noexcept
           {
                runtime_assert(this->_locals.expired(), "Locals can only be set once");
                this->_locals = std::move(locals);

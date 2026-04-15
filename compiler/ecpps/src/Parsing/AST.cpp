@@ -28,14 +28,14 @@ std::vector<NodePointer> ecpps::ast::AST::Parse(ASTContext& context)
      return nodes;
 }
 
-std::unique_ptr<ecpps::ast::IdentifierNode, ecpps::ast::ASTContext::Deleter> ecpps::ast::AST::ParseIdentifier(
+std::unique_ptr<ecpps::ast::IdentifierNode, ecpps::ast::ASTDeleter> ecpps::ast::AST::ParseIdentifier(
     ASTContext& context)
 {
      if (Peek().type != TokenType::Identifier) return nullptr;
      const auto& identifier = Peek();
      Advance();
      runtime_assert(std::holds_alternative<std::string>(identifier.value), "Identifier was not an identifier");
-     return std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>(
+     return std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>(
          new (context) IdentifierNode(std::get<std::string>(identifier.value), identifier.location));
 }
 
@@ -47,7 +47,7 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool 
      {
           source.endPosition = Peek().location.endPosition;
           Advance();
-          return std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+          return std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
               new (context) BasicType(std::get<std::string>(Peek(-1).value), source, isConst, isVolatile));
      }
      const auto& peek = Peek();
@@ -82,7 +82,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                if (name != nullptr && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
                {
                     Advance();
-                    SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>> aliased{};
+                    SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>> aliased{};
                     while (!AtEnd())
                     {
                          auto nested = ParseIdentifier(context);
@@ -97,11 +97,10 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          return nullptr;
                     }
                     source.endPosition = Peek(-1).location.endPosition;
-                    return std::unique_ptr<NamespaceAliasNode, ecpps::ast::ASTContext::Deleter>(
+                    return std::unique_ptr<NamespaceAliasNode, ecpps::ast::ASTDeleter>(
                         new (context) NamespaceAliasNode(std::move(name), std::move(aliased), source));
                }
-               std::vector<std::pair<std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>, bool>>
-                   nestedNames;
+               std::vector<std::pair<std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>, bool>> nestedNames;
                nestedNames.emplace_back(std::move(name), false);
 
                while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
@@ -139,14 +138,14 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
 
                     auto back = std::move(nestedNames.back());
                     nestedNames.pop_back();
-                    std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter> currentNode =
-                        std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                    std::unique_ptr<NamespaceNode, ecpps::ast::ASTDeleter> currentNode =
+                        std::unique_ptr<NamespaceNode, ecpps::ast::ASTDeleter>(
                             new (context) NamespaceNode(std::move(back.first), std::move(declarations), source));
                     for (auto& nestedName : std::ranges::reverse_view(nestedNames) | std::views::keys)
                     {
                          SBOVector<NodePointer> decls{};
                          decls.Push(std::move(currentNode));
-                         currentNode = std::unique_ptr<NamespaceNode, ecpps::ast::ASTContext::Deleter>(
+                         currentNode = std::unique_ptr<NamespaceNode, ecpps::ast::ASTDeleter>(
                              new (context) NamespaceNode(std::move(nestedName), std::move(decls), source));
                     }
                     return currentNode;
@@ -206,16 +205,15 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
 
                     std::string combinedType = CombineTypeWords(typeWords);
 
-                    targetType = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+                    targetType = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
                         new (context) BasicType(combinedType, source, nextConst, nextVolatile));
                }
                else if (Peek().type == TokenType::Identifier)
                {
                     while (true)
                     {
-                         NodePointer part =
-                             std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(new (context) BasicType(
-                                 std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
+                         NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context) BasicType(
+                             std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
                          Advance();
                          nextConst = false;
                          nextVolatile = false;
@@ -224,9 +222,8 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
                          {
                               // TODO: Implement template arguments parsing
-                              part = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
-                                  new (context) QualifiedType(SBOVector<QualifiedType::Section>{}, std::move(part),
-                                                              Peek().location));
+                              part = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(new (context) QualifiedType(
+                                  SBOVector<QualifiedType::Section>{}, std::move(part), Peek().location));
                               isTemplate = true;
                          }
 
@@ -237,7 +234,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          }
                          else
                          {
-                              targetType = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
+                              targetType = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(
                                   new (context) QualifiedType(std::move(sections), std::move(part), Peek().location));
                               break;
                          }
@@ -263,7 +260,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                               break;
                     }
 
-                    targetType = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+                    targetType = std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(
                         new (context) PointerType(std::move(targetType), source));
                }
 
@@ -275,7 +272,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                }
 
                source.endPosition = Peek(-1).location.endPosition;
-               return std::unique_ptr<TypeAliasNode, ecpps::ast::ASTContext::Deleter>(
+               return std::unique_ptr<TypeAliasNode, ecpps::ast::ASTDeleter>(
                    new (context) TypeAliasNode(std::move(aliasName), std::move(targetType), source));
           }
      }
@@ -315,7 +312,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
           }
      }
 
-     SBOVector<std::unique_ptr<AttributeNode, ecpps::ast::ASTContext::Deleter>> attributes{};
+     SBOVector<std::unique_ptr<AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
      // bool isFriend = false; TODO: Handle
      // bool isInline = false; TODO: Handle
      bool isExtern = false;
@@ -357,7 +354,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
                     }
 
                     attributeSource.endPosition = Peek(-1).location.endPosition;
-                    attributes.EmplaceBack(std::unique_ptr<AttributeNode, ecpps::ast::ASTContext::Deleter>(
+                    attributes.EmplaceBack(std::unique_ptr<AttributeNode, ecpps::ast::ASTDeleter>(
                         new (context) AttributeNode(name, arguments, attributeSource)));
                }
 
@@ -402,8 +399,8 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
           auto typeName = std::get<std::string>(Peek().value);
           auto typeSource = Peek().location;
           Advance();
-          type = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-              new (context) BasicType(typeName, typeSource, false, false));
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context)
+                                                                        BasicType(typeName, typeSource, false, false));
      }
      else
           type = ParseSimpleTypeSpecifier(context); // should generate an error if any
@@ -413,8 +410,8 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
      {
           Advance();
-          type = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
-              new (context) PointerType(std::move(type), source));
+          type =
+              std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(new (context) PointerType(std::move(type), source));
      }
 
      abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
@@ -456,7 +453,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
           if (Match(TokenType::SemiColon))
           {
                source.endPosition = Peek(-1).location.endPosition;
-               return std::unique_ptr<FunctionDeclarationNode, ecpps::ast::ASTContext::Deleter>(
+               return std::unique_ptr<FunctionDeclarationNode, ecpps::ast::ASTDeleter>(
                    new (context) FunctionDeclarationNode(std::move(signature), source));
           }
           return nullptr; // TODO: Error
@@ -471,7 +468,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      }
 
      source.endPosition = Peek(-1).location.endPosition;
-     return std::unique_ptr<FunctionDefinitionNode, ecpps::ast::ASTContext::Deleter>(
+     return std::unique_ptr<FunctionDefinitionNode, ecpps::ast::ASTDeleter>(
          new (context) FunctionDefinitionNode(std::move(signature), std::move(body), source));
 }
 
@@ -716,14 +713,13 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     }
 
                     // Build the base type
-                    NodePointer base =
-                        std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(new (context) BasicType(
-                            combinedType, source, std::exchange(nextConst, false), std::exchange(nextVolatile, false)));
+                    NodePointer base = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context) BasicType(
+                        combinedType, source, std::exchange(nextConst, false), std::exchange(nextVolatile, false)));
 
                     // Wrap it in PointerType layers
                     for (std::size_t i = 0; i < pointerLevel; i++)
                     {
-                         base = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+                         base = std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(
                              new (context) PointerType(std::move(base), source));
                     }
 
@@ -739,9 +735,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           {
                while (true)
                {
-                    NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
-                        new (context)
-                            BasicType(std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
+                    NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context) BasicType(
+                        std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
                     Advance();
                     nextConst = false;
                     nextVolatile = false;
@@ -750,9 +745,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
                     {
                          // TODO: Implement
-                         part = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
-                             new (context)
-                                 QualifiedType(SBOVector<QualifiedType::Section>{}, std::move(part), Peek().location));
+                         part = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(new (context) QualifiedType(
+                             SBOVector<QualifiedType::Section>{}, std::move(part), Peek().location));
                          isTemplate = true;
                     }
 
@@ -763,7 +757,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     }
                     else
                     {
-                         typeSpecifier = std::unique_ptr<QualifiedType, ecpps::ast::ASTContext::Deleter>(
+                         typeSpecifier = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(
                              new (context) QualifiedType(std::move(sections), std::move(part), Peek().location));
                          break;
                     }
@@ -778,7 +772,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
 
                for (std::size_t i = 0; i < pointerLevel; i++)
                {
-                    typeSpecifier = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+                    typeSpecifier = std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(
                         new (context) PointerType(std::move(typeSpecifier), source));
                }
 
@@ -846,7 +840,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           return nullptr;
      }
 
-     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTContext::Deleter>(
+     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTDeleter>(
          new (context) VariableDeclarationNode(std::move(typeSpecifier), std::move(declarators),
                                                /*flags*/
                                                VariableDeclarationNode::Flags{.isTypedef = isTypedef,
@@ -890,22 +884,22 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
           return std::visit(
               OverloadedVisitor{[&currentToken, &context](const bool boolean) -> NodePointer
                                 {
-                                     return std::unique_ptr<BooleanLiteralNode, ecpps::ast::ASTContext::Deleter>(
+                                     return std::unique_ptr<BooleanLiteralNode, ecpps::ast::ASTDeleter>(
                                          new (context) BooleanLiteralNode(boolean, currentToken.location));
                                 },
                                 [&currentToken, &context](const StringLiteral& literal) -> NodePointer
                                 {
-                                     return std::unique_ptr<StringLiteralNode, ecpps::ast::ASTContext::Deleter>(
+                                     return std::unique_ptr<StringLiteralNode, ecpps::ast::ASTDeleter>(
                                          new (context) StringLiteralNode(literal.value, currentToken.location));
                                 },
                                 [&currentToken, &context](const IntegerLiteral& literal) -> NodePointer
                                 {
-                                     return std::unique_ptr<IntegerLiteralNode, ecpps::ast::ASTContext::Deleter>(
+                                     return std::unique_ptr<IntegerLiteralNode, ecpps::ast::ASTDeleter>(
                                          new (context) IntegerLiteralNode(literal.value, currentToken.location));
                                 },
                                 [&currentToken, &context](const char literal) -> NodePointer
                                 {
-                                     return std::unique_ptr<CharacterLiteralNode, ecpps::ast::ASTContext::Deleter>(
+                                     return std::unique_ptr<CharacterLiteralNode, ecpps::ast::ASTDeleter>(
                                          new (context) CharacterLiteralNode(literal, currentToken.location));
                                 },
                                 [](auto&&) static -> NodePointer { return nullptr; }},
@@ -917,8 +911,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
           if (keyword == "this")
           {
                this->Advance();
-               return std::unique_ptr<ThisNode, ecpps::ast::ASTContext::Deleter>(new (context)
-                                                                                     ThisNode(currentToken.location));
+               return std::unique_ptr<ThisNode, ecpps::ast::ASTDeleter>(new (context) ThisNode(currentToken.location));
           }
      }
      break;
@@ -977,7 +970,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
      if (isGlobalScope)
      {
           parts.push_back(
-              std::unique_ptr<GlobalScopeNode, ecpps::ast::ASTContext::Deleter>(new (context) GlobalScopeNode(source)));
+              std::unique_ptr<GlobalScopeNode, ecpps::ast::ASTDeleter>(new (context) GlobalScopeNode(source)));
      }
 
      while (true)
@@ -1041,7 +1034,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
                //                                                  sawTemplateKeyword, currentToken.location));
           }
 
-          parts.push_back(std::unique_ptr<IdentifierNode, ecpps::ast::ASTContext::Deleter>(
+          parts.push_back(std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>(
               new (context) IdentifierNode(identifierName, currentToken.location)));
 
           if (sawTemplateKeyword)
@@ -1076,8 +1069,8 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
 
      if (parts.empty()) return nullptr;
      if (parts.size() == 1) return std::move(parts.front());
-     return std::unique_ptr<QualifiedIdNode, ecpps::ast::ASTContext::Deleter>(
-         new (context) QualifiedIdNode(std::move(parts), source));
+     return std::unique_ptr<QualifiedIdNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                         QualifiedIdNode(std::move(parts), source));
 }
 
 NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext& context)
@@ -1148,7 +1141,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     source.endPosition = currentToken.location.endPosition;
                     Operator operatorId =
                         std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
-                    expression = std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
+                    expression = std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(
                         new (context)
                             UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Postfix, source));
                     continue;
@@ -1161,7 +1154,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     source.endPosition = currentToken.location.endPosition;
                     Operator operatorId =
                         std::get<std::string>(currentToken.value) == "." ? Operator::FullStop : Operator::Arrow;
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
+                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(
                         new (context)
                             BinaryOperatorNode(std::move(expression), operatorId, ParseIdExpression(context), source));
                     continue;
@@ -1179,9 +1172,9 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     return nullptr;
                }
                source.endPosition = currentToken.location.endPosition;
-               expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
-                   new (context) BinaryOperatorNode(std::move(expression), Operator::Subscript,
-                                                    std::move(subscriptExpression), source));
+               expression =
+                   std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                       std::move(expression), Operator::Subscript, std::move(subscriptExpression), source));
                continue;
           }
           if (currentToken.type == TokenType::LeftParenthesis)
@@ -1203,7 +1196,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                }
 
                source.endPosition = currentToken.location.endPosition;
-               expression = std::unique_ptr<CallOperatorNode, ecpps::ast::ASTContext::Deleter>(
+               expression = std::unique_ptr<CallOperatorNode, ecpps::ast::ASTDeleter>(
                    new (context) CallOperatorNode(std::move(expression), std::move(argumentList), source));
 
                continue;
@@ -1227,8 +1220,8 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
                    std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
-               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTContext::Deleter>(new (
-                   context) UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
+               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
+                   operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
      }
      if (currentToken.type == TokenType::Operator)
@@ -1241,8 +1234,8 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
                    std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
-               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTContext::Deleter>(new (
-                   context) UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
+               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
+                   operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
           if (std::get<std::string>(currentToken.value) == "*" || std::get<std::string>(currentToken.value) == "&")
           {
@@ -1252,8 +1245,8 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
                    std::get<std::string>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
-               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTContext::Deleter>(new (
-                   context) UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
+               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
+                   operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
           if (std::get<std::string>(currentToken.value) == "~" || std::get<std::string>(currentToken.value) == "!")
           {
@@ -1263,8 +1256,8 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
                    std::get<std::string>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
-               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTContext::Deleter>(new (
-                   context) UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
+               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
+                   operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
      }
 
@@ -1312,9 +1305,9 @@ NodePointer ecpps::ast::AST::ParsePmExpression(ASTContext& context)
                     const auto operatorId = std::get<std::string>(currentToken.value) == ".*"
                                                 ? Operator::PointerToMemberObject
                                                 : Operator::PointerToMember;
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BinaryOperatorNode(std::move(expression), operatorId,
-                                                         ParseCastExpression(context), source));
+                    expression =
+                        std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                            std::move(expression), operatorId, ParseCastExpression(context), source));
                     continue;
                }
           }
@@ -1344,7 +1337,7 @@ NodePointer ecpps::ast::AST::ParseMultiplicativeExpression(ASTContext& context)
                                             : std::get<std::string>(currentToken.value) == "/" ? Operator::Solidus
                                                                                                : Operator::Percent;
 
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
+                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(
                         new (context)
                             BinaryOperatorNode(std::move(expression), operatorId, ParsePmExpression(context), source));
                     continue;
@@ -1373,9 +1366,9 @@ NodePointer ecpps::ast::AST::ParseAdditiveExpression(ASTContext& context)
                     source.endPosition = currentToken.location.endPosition;
                     const auto operatorId =
                         std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BinaryOperatorNode(std::move(expression), operatorId,
-                                                         ParseMultiplicativeExpression(context), source));
+                    expression =
+                        std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                            std::move(expression), operatorId, ParseMultiplicativeExpression(context), source));
                     continue;
                }
           }
@@ -1403,9 +1396,9 @@ NodePointer ecpps::ast::AST::ParseShiftExpression(ASTContext& context)
                     source.endPosition = currentToken.location.endPosition;
                     const auto operatorId =
                         std::get<std::string>(currentToken.value) == ">>" ? Operator::RightShift : Operator::LeftShift;
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BinaryOperatorNode(std::move(expression), operatorId,
-                                                         ParseAdditiveExpression(context), source));
+                    expression =
+                        std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                            std::move(expression), operatorId, ParseAdditiveExpression(context), source));
                     continue;
                }
           }
@@ -1430,9 +1423,9 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
-                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTContext::Deleter>(
-                        new (context) BinaryOperatorNode(std::move(expression), Operator::Spaceship,
-                                                         ParseShiftExpression(context), source));
+                    expression =
+                        std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                            std::move(expression), Operator::Spaceship, ParseShiftExpression(context), source));
                     continue;
                }
           }
@@ -1548,8 +1541,7 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
      {
           Advance();
           if (Match(TokenType::SemiColon))
-               return std::unique_ptr<ReturnNode, ecpps::ast::ASTContext::Deleter>(new (context)
-                                                                                       ReturnNode(nullptr, source));
+               return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context) ReturnNode(nullptr, source));
           auto value = ParseExpression(context);
           source.endPosition = Peek().location.endPosition;
           if (!Match(TokenType::SemiColon))
@@ -1557,8 +1549,8 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                // TODO: Error
                return nullptr;
           }
-          return std::unique_ptr<ReturnNode, ecpps::ast::ASTContext::Deleter>(new (context)
-                                                                                  ReturnNode(std::move(value), source));
+          return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                         ReturnNode(std::move(value), source));
      }
      if (IsDeclarationStart(context)) return ParseDeclarationStatement(context);
      return ParseExpressionStatement(context);
@@ -1613,7 +1605,7 @@ ecpps::ast::FunctionParameter ecpps::ast::AST::ParseFunctionParameter(ASTContext
           auto typeName = std::get<std::string>(Peek().value);
           auto typeSource = Peek().location;
           Advance();
-          type = std::unique_ptr<BasicType, ecpps::ast::ASTContext::Deleter>(
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
               new (context) BasicType(typeName, typeSource, isConst, isVolatile));
      }
      else
@@ -1625,7 +1617,7 @@ ecpps::ast::FunctionParameter ecpps::ast::AST::ParseFunctionParameter(ASTContext
      while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
      {
           Advance();
-          type = std::unique_ptr<PointerType, ecpps::ast::ASTContext::Deleter>(
+          type = std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(
               new (context) PointerType(std::move(type), Peek().location));
      }
 

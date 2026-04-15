@@ -31,7 +31,8 @@ namespace ecpps::ast
      private:
           Location _location;
      };
-     using NodePointer = std::unique_ptr<Node, ASTContext::Deleter>;
+     using ASTDeleter = BumpAllocator::Deleter<Node>;
+     using NodePointer = std::unique_ptr<Node, ASTDeleter>;
 
      enum struct ConstantExpressionSpecifier : std::uint_fast8_t
      {
@@ -180,7 +181,7 @@ namespace ecpps::ast
 
      struct FunctionParameter
      {
-          SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes{};
+          SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes{};
           ExplicitThisSpecifier explicitThis{};
           NodePointer type{};
           NodePointer name{};
@@ -221,7 +222,7 @@ namespace ecpps::ast
           bool isExtern{};
           std::optional<std::string> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
-          SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes{};
+          SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes{};
           NodePointer name;
           abi::CallingConventionName callingConvention;
           FunctionParameterList parameters{};
@@ -259,8 +260,8 @@ namespace ecpps::ast
 
           explicit FunctionSignature(NodePointer type, bool isFriend, bool isInline,
                                      ConstantExpressionSpecifier constexprSpecifier,
-                                     SBOVector<std::unique_ptr<AttributeNode, ASTContext::Deleter>> attributes,
-                                     NodePointer name, const abi::CallingConventionName callingConvention)
+                                     SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes, NodePointer name,
+                                     const abi::CallingConventionName callingConvention)
               : type(std::move(type)), isFriend(isFriend), isInline(isInline), constexprSpecifier(constexprSpecifier),
                 attributes(std::move(attributes)), name(std::move(name)), callingConvention(callingConvention)
           {
@@ -635,7 +636,7 @@ namespace ecpps::ast
           }
 
           // General
-          std::unique_ptr<IdentifierNode, ASTContext::Deleter> ParseIdentifier(ASTContext& context);
+          std::unique_ptr<IdentifierNode, ASTDeleter> ParseIdentifier(ASTContext& context);
           NodePointer ParseSimpleTypeSpecifier(ASTContext& context, bool isConst = false, bool isVolatile = false);
 
           // Declarations

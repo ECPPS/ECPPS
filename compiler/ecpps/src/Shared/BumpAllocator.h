@@ -11,9 +11,9 @@ namespace ecpps
           BumpAllocator(const BumpAllocator&) = delete;
           BumpAllocator(BumpAllocator&&) = delete;
 
-          struct Deleter
+          template <typename T> struct Deleter
           {
-               static void operator()(void*) noexcept {}
+               static void operator()(T* lpT) noexcept(noexcept(std::declval<T>().~T())) { lpT->~T(); }
           };
           std::byte* Allocate(std::size_t size) noexcept;
           ~BumpAllocator(void);
