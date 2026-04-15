@@ -84,17 +84,32 @@ jobs:
           echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
           echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
+      - name: Cache GCC 15
+        id: cache-gcc
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/lib/gcc
+            /usr/bin/gcc-15
+            /usr/bin/g++-15
+            /usr/include/c++
+          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+
       - name: Install GCC 15 (libstdc++)
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+
+      - name: Configure GCC alternatives
+        run: |
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
-          export CC=gcc-15
-          export CXX=g++-15
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
 
       - name: Restore ccache
         if: inputs.enable-ccache
@@ -131,17 +146,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Cache GCC 15
+        id: cache-gcc
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/lib/gcc
+            /usr/bin/gcc-15
+            /usr/bin/g++-15
+            /usr/include/c++
+          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+
+      - name: Install GCC 15 (libstdc++)
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y software-properties-common ninja-build
+          sudo apt-get install -y software-properties-common
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+
+      - name: Configure GCC alternatives
+        run: |
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
-          export CC=gcc-15
-          export CXX=g++-15
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
 
       - name: Restore ccache
         if: inputs.enable-ccache
