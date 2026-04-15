@@ -565,9 +565,7 @@ namespace ecpps::ir
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept
-     {
-          return static_cast<FunctionScopeBuilderState>(std::to_underlying(lhs) | std::to_underlying(rhs));
-     }
+     { return static_cast<FunctionScopeBuilderState>(std::to_underlying(lhs) | std::to_underlying(rhs)); }
 
      template <FunctionScopeBuilderState TState = FunctionScopeBuilderState::None> struct FunctionScopeBuilder
      {
@@ -590,73 +588,45 @@ namespace ecpps::ir
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
               typeSystem::NonowningTypePointer value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::returnType>(std::move(value));
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::returnType>(std::move(value)); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Parameters> Parameters(
               std::vector<FunctionScope::Parameter> value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::parameters>(std::move(value));
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::parameters>(std::move(value)); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::CallingConvention> CallingConvention(
               abi::CallingConventionName value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::callingConvention>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::callingConvention>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Linkage> Linkage(
               abi::Linkage value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::linkage>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::linkage>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsStatic> IsStatic(
               bool value = true) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::isStatic>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::isStatic>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsInline> IsInline(
               bool value = true) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::isInline>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::isInline>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsFriend> IsFriend(
               bool value = true) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::isFriend>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::isFriend>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsExtern> IsExtern(
               bool value = true) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::isExtern>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::isExtern>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ConstexprSpecifier> ConstexprSpecifier(
               ConstexprType value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::constexprSpecifier>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::constexprSpecifier>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsDllImportExport> IsDllImportExport(
               bool value = true) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::isDllImportExport>(value);
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::isDllImportExport>(value); }
           [[nodiscard]] FunctionScopeBuilder<TState> DllImportName(std::string value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::dllImportName>(std::move(value));
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::dllImportName>(std::move(value)); }
           [[nodiscard]] FunctionScopeBuilder<TState> Source(Location value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::source>(std::move(value));
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::source>(std::move(value)); }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::NamespacePath> NamespacePath(
               std::vector<std::string> value) && noexcept
-          {
-               return std::move(*this).template PropertySetter<&FunctionScope::namespacePath>(std::move(value));
-          }
+          { return std::move(*this).template PropertySetter<&FunctionScope::namespacePath>(std::move(value)); }
 
           [[nodiscard]] std::unique_ptr<FunctionScope> Build(void) && noexcept
                requires(TState == FunctionScopeBuilderState::All)
-          {
-               return std::unique_ptr<FunctionScope>(std::exchange(this->_scope, nullptr));
-          }
+          { return std::unique_ptr<FunctionScope>(std::exchange(this->_scope, nullptr)); }
 
      private:
           template <auto T> [[nodiscard]] FunctionScopeBuilder PropertySetter(auto&& value) &&
