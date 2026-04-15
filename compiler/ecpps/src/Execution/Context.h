@@ -526,23 +526,23 @@ namespace ecpps::ir
 
           [[nodiscard]] std::vector<LocalEntity>& Locals(void) noexcept
           {
-               runtime_assert(this->_locals != nullptr, "Locals pointer cannot be null");
-               return *this->_locals;
+               runtime_assert(!this->_locals.expired(), "Locals pointer cannot be null");
+               return *this->_locals.lock();
           }
           [[nodiscard]] const std::vector<LocalEntity>& Locals(void) const noexcept
           {
-               runtime_assert(this->_locals != nullptr, "Locals pointer cannot be null");
-               return *this->_locals;
+               runtime_assert(!this->_locals.expired(), "Locals pointer cannot be null");
+               return *this->_locals.lock();
           }
 
           void SetLocals(std::shared_ptr<std::vector<LocalEntity>> locals) noexcept
           {
-               runtime_assert(this->_locals == nullptr, "Locals can only be set once");
+               runtime_assert(this->_locals.expired(), "Locals can only be set once");
                this->_locals = std::move(locals);
           }
 
      private:
-          std::shared_ptr<std::vector<LocalEntity>> _locals{};
+          std::weak_ptr<std::vector<LocalEntity>> _locals{};
      };
 
      enum struct FunctionScopeBuilderState : std::uint16_t
