@@ -8,21 +8,19 @@ namespace ecpps::ast
      class NamespaceAliasNode final : public Node
      {
      public:
-          explicit NamespaceAliasNode(
-              std::unique_ptr<IdentifierNode, ASTDeleter> name,
-              SBOVector<std::unique_ptr<IdentifierNode, ASTDeleter>> aliasedNamespace,
-              Location source)
+          explicit NamespaceAliasNode(std::unique_ptr<IdentifierNode, ASTDeleter> name,
+                                      SBOVector<std::unique_ptr<IdentifierNode, ASTDeleter>> aliasedNamespace,
+                                      Location source)
               : Node(source), _aliasName(std::move(name)), _aliasedNamespace(std::move(aliasedNamespace))
           {
           }
 
-          [[nodiscard]] const std::unique_ptr<IdentifierNode, ASTDeleter>& Name(
-              void) const noexcept
+          [[nodiscard]] const std::unique_ptr<IdentifierNode, ASTDeleter>& Name(void) const noexcept
           {
                return this->_aliasName;
           }
-          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode, ASTDeleter>>&
-          AliasedNamespace(void) const noexcept
+          [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode, ASTDeleter>>& AliasedNamespace(
+              void) const noexcept
           {
                return this->_aliasedNamespace;
           }
@@ -49,14 +47,13 @@ namespace ecpps::ast
      class NamespaceNode final : public Node
      {
      public:
-          explicit NamespaceNode(std::unique_ptr<IdentifierNode, ASTDeleter> name,
-                                 SBOVector<NodePointer> declarations, Location source)
+          explicit NamespaceNode(std::unique_ptr<IdentifierNode, ASTDeleter> name, SBOVector<NodePointer> declarations,
+                                 Location source)
               : Node(source), _name(std::move(name)), _declarations(std::move(declarations))
           {
           }
 
-          [[nodiscard]] const std::unique_ptr<IdentifierNode, ASTDeleter>& Name(
-              void) const noexcept
+          [[nodiscard]] const std::unique_ptr<IdentifierNode, ASTDeleter>& Name(void) const noexcept
           {
                return this->_name;
           }
