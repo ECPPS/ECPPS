@@ -149,7 +149,7 @@ namespace ecpps::ir
          : suggestedRequest(std::move(suggestedRequest)), diagnostics(std::move(diagnostics))
      {
      }
-	inline InvalidRequest& InvalidRequest::operator=(const InvalidRequest& other)
+     inline InvalidRequest& InvalidRequest::operator=(const InvalidRequest& other)
      {
           if (this != &other)
           {
@@ -158,7 +158,7 @@ namespace ecpps::ir
           }
           return *this;
      }
-	
+
      struct TypeRequestHash
      {
           using is_transparent = void;
