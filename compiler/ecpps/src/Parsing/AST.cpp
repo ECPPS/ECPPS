@@ -152,7 +152,7 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                          if (isConst) basicType->SetConst(true);
                          if (isVolatile) basicType->SetVolatile(true);
                     }
-                    else if (const auto pointerType = dynamic_cast<PointerType*>(type.get()); pointerType != nullptr)
+                    else if (auto* const pointerType = dynamic_cast<PointerType*>(type.get()); pointerType != nullptr)
                     {
                          if (isConst) pointerType->SetConst(true);
                          if (isVolatile) pointerType->SetVolatile(true);
