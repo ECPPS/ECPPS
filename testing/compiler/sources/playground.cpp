@@ -8,5 +8,4 @@ int main()
 {
      long long x = 1;
      return alignof(char);
-     return x;
 }
