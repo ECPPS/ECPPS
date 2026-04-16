@@ -27,7 +27,8 @@ namespace ecpps::ir
      enum struct TypeKind : std::uint_fast8_t
      {
           Compound,
-          Fundamental
+          Fundamental,
+          Error
      };
      enum struct PlatformIntegerKind : std::uint_fast8_t
      {
@@ -56,11 +57,27 @@ namespace ecpps::ir
           typeSystem::NonowningTypePointer elementType{};
      };
      using VoidRequest = std::monostate;
+     struct TypeRequest;
+     struct InvalidRequest
+     {
+          std::unique_ptr<ecpps::ir::TypeRequest> suggestedRequest{};
+          std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
+
+          InvalidRequest(const InvalidRequest& other);
+
+          InvalidRequest(InvalidRequest&&) noexcept = default;
+
+          InvalidRequest& operator=(const InvalidRequest& other);
+          InvalidRequest& operator=(InvalidRequest&&) noexcept = default;
+
+          explicit InvalidRequest(std::unique_ptr<ecpps::ir::TypeRequest> suggestedRequest,
+                                  std::vector<diagnostics::DiagnosticsMessage> diagnostics);
+     };
 
      struct TypeRequest
      {
           using VarRequest = std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest,
-                                          PointerRequest, PlatformIntegerRequest>;
+                                          PointerRequest, PlatformIntegerRequest, InvalidRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -122,6 +139,26 @@ namespace ecpps::ir
                throw TracedException("Not implemented");
           }
      };
+     inline InvalidRequest::InvalidRequest(const InvalidRequest& other)
+     {
+          this->suggestedRequest =
+              other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+     }
+     inline InvalidRequest::InvalidRequest(std::unique_ptr<TypeRequest> suggestedRequest,
+                                           std::vector<diagnostics::DiagnosticsMessage> diagnostics)
+         : suggestedRequest(std::move(suggestedRequest)), diagnostics(std::move(diagnostics))
+     {
+     }
+     inline InvalidRequest& InvalidRequest::operator=(const InvalidRequest& other)
+     {
+          if (this != &other)
+          {
+               this->suggestedRequest =
+                   other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+          }
+          return *this;
+     }
+
      struct TypeRequestHash
      {
           using is_transparent = void;
@@ -167,10 +204,10 @@ namespace ecpps::ir
                              seed = HashCombine(seed, data.elementType);
                         }
                         else if constexpr (std::is_same_v<T, VoidRequest>) {}
+                        else if constexpr (std::is_same_v<T, InvalidRequest>)
+                             seed = HashCombine(seed, &data);
                         else
-                        {
-                             std::terminate(); // keep consistent with your throw
-                        }
+                             std::terminate();
                    },
                    value.data);
 
@@ -340,6 +377,15 @@ namespace ecpps::ir
                                              })()),
                              request.qualifiers);
                     }
+               }
+               else if (request.kind == TypeKind::Error)
+               {
+                    if (std::holds_alternative<InvalidRequest>(request.data))
+                    {
+                         const auto& data = std::get<InvalidRequest>(request.data);
+                         if (data.suggestedRequest) return CreateType(*data.suggestedRequest);
+                    }
+                    return nullptr;
                }
                else // compound
                {

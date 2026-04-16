@@ -603,6 +603,66 @@ namespace ecpps::ast
           }
      };
 
+     class SizeOfNode final : public Node
+     {
+     public:
+          explicit SizeOfNode(NodePointer node, bool canBeTypeId, Location source)
+              : Node(source), _node(std::move(node)), _canBeTypeId(canBeTypeId)
+          {
+          }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_node; }
+          [[nodiscard]] NodePointer&& Value(void) noexcept { return std::move(this->_node); }
+          [[nodiscard]] bool CanBeTypeId(void) const noexcept { return this->_canBeTypeId; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "sizeof(" +
+                      (this->_node == nullptr ? "__unknown" : this->_node->ToString(0)) + ")";
+          }
+
+     private:
+          NodePointer _node;
+          bool _canBeTypeId;
+     };
+
+     class AlignOfNode final : public Node
+     {
+     public:
+          explicit AlignOfNode(NodePointer node, bool canBeTypeId, Location source)
+              : Node(source), _node(std::move(node)), _canBeTypeId(canBeTypeId)
+          {
+          }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_node; }
+          [[nodiscard]] NodePointer&& Value(void) noexcept { return std::move(this->_node); }
+          [[nodiscard]] bool CanBeTypeId(void) const noexcept { return this->_canBeTypeId; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "alignof(" +
+                      (this->_node == nullptr ? "__unknown" : this->_node->ToString(0)) + ")";
+          }
+
+     private:
+          NodePointer _node;
+          bool _canBeTypeId;
+     };
+
+     /// <summary>
+     /// Keep both operands for error recovery.
+     /// </summary>
+     struct ASTExpected
+     {
+          NodePointer value{};
+          std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
+          bool HasValue(void) const noexcept { return this->value != nullptr; }
+          bool WasSuccessful(void) const noexcept { return this->wasSuccessful; }
+          explicit ASTExpected(NodePointer value) : value(std::move(value)), wasSuccessful(true) {}
+          explicit ASTExpected(NodePointer value, std::vector<diagnostics::DiagnosticsMessage> diagnostics)
+              : value(std::move(value)), diagnostics(std::move(diagnostics)), wasSuccessful(false)
+          {
+          }
+
+     private:
+          bool wasSuccessful{};
+     };
      class AST
      {
      public:
@@ -628,6 +688,8 @@ namespace ecpps::ast
           }
           void Advance(void) noexcept { this->_position++; }
           void Retreat(void) noexcept { this->_position--; }
+          [[nodiscard]] std::size_t CurrentPosition(void) const noexcept { return this->_position; }
+          void SetPosition(const std::size_t newPosition) noexcept { this->_position = newPosition; }
           [[nodiscard]] bool Match(const TokenType type) noexcept
           {
                if (Peek().type != type) return false;
@@ -638,6 +700,7 @@ namespace ecpps::ast
           // General
           std::unique_ptr<IdentifierNode, ASTDeleter> ParseIdentifier(ASTContext& context);
           NodePointer ParseSimpleTypeSpecifier(ASTContext& context, bool isConst = false, bool isVolatile = false);
+          ASTExpected ParseTypeId(ASTContext& context);
 
           // Declarations
           NodePointer ParseDeclaration(ASTContext& context);

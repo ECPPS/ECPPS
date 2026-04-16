@@ -88,11 +88,16 @@ namespace ecpps::ast
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + this->_name;
+               std::string cv{};
+               if (this->_isConst) cv += "const ";
+               if (this->_isVolatile) cv += "volatile ";
+               return std::string(indent * PrettyIndent, ' ') + cv + this->_name;
           }
           [[nodiscard]] const std::string& Value(void) const noexcept { return this->_name; }
           [[nodiscard]] bool IsConst(void) const noexcept { return this->_isConst; }
           [[nodiscard]] bool IsVolatile(void) const noexcept { return this->_isVolatile; }
+          void SetConst(const bool newValue) noexcept { this->_isConst = newValue; }
+          void SetVolatile(const bool newValue) noexcept { this->_isVolatile = newValue; }
 
      private:
           std::string _name;
@@ -103,16 +108,33 @@ namespace ecpps::ast
      class PointerType final : public Node
      {
      public:
-          explicit PointerType(NodePointer baseType, Location source) : Node(source), _baseType(std::move(baseType)) {}
+          explicit PointerType(NodePointer baseType, const bool isConst, const bool isVolatile, Location source)
+              : Node(source), _isConst(isConst), _isVolatile(isVolatile), _baseType(std::move(baseType))
+          {
+          }
+          explicit PointerType(NodePointer baseType, Location source)
+              : Node(source), _isConst(false), _isVolatile(false), _baseType(std::move(baseType))
+          {
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) + "*";
+               std::string cv{};
+               if (this->_isConst) cv += " const";
+               if (this->_isVolatile) cv += " volatile";
+               return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) + "*" + cv;
           }
 
-          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
+          [[nodiscard]] const NodePointer& BaseType(void) const noexcept { return _baseType; }
+
+          [[nodiscard]] bool IsConst(void) const noexcept { return this->_isConst; }
+          [[nodiscard]] bool IsVolatile(void) const noexcept { return this->_isVolatile; }
+          void SetConst(const bool newValue) noexcept { this->_isConst = newValue; }
+          void SetVolatile(const bool newValue) noexcept { this->_isVolatile = newValue; }
 
      private:
+          bool _isConst;
+          bool _isVolatile;
           NodePointer _baseType;
      };
 
