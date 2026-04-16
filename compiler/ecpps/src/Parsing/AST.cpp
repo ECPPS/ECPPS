@@ -147,7 +147,7 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                auto [isConst, isVolatile] = parseCV();
                if (isConst || isVolatile)
                {
-                    if (const auto basicType = dynamic_cast<BasicType*>(type.get()); basicType != nullptr)
+                    if (auto* const basicType = dynamic_cast<BasicType*>(type.get()); basicType != nullptr)
                     {
                          if (isConst) basicType->SetConst(true);
                          if (isVolatile) basicType->SetVolatile(true);
