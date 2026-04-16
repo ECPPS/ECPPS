@@ -7,6 +7,6 @@
 int main()
 {
      long long x = 1;
-     return sizeof(sizeof(int) + sizeof sizeof sizeof sizeof sizeof sizeof sizeof(sizeof ++x));
+     return alignof(char);
      return x;
 }

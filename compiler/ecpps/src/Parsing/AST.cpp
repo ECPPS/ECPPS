@@ -1369,8 +1369,9 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                    operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
      }
-     // sizeof
-     if (currentToken.type == TokenType::Keyword && std::get<std::string>(currentToken.value) == "sizeof")
+     // sizeof / alignof
+     if (currentToken.type == TokenType::Keyword && (std::get<std::string>(currentToken.value) == "sizeof" ||
+                                                     std::get<std::string>(currentToken.value) == "alignof"))
      {
           NodePointer typeOrExpressionInside{};
           bool canHoldTypeId = false;
@@ -1412,6 +1413,10 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                typeOrExpressionInside = ParseUnaryExpression(context);
           auto source = currentToken.location;
           source.endPosition = Peek().location.endPosition;
+          if (std::get<std::string>(currentToken.value) == "alignof")
+               return std::unique_ptr<AlignOfNode, ecpps::ast::ASTDeleter>(
+                   new (context) AlignOfNode(std::move(typeOrExpressionInside), canHoldTypeId, source));
+
           return std::unique_ptr<SizeOfNode, ecpps::ast::ASTDeleter>(
               new (context) SizeOfNode(std::move(typeOrExpressionInside), canHoldTypeId, source));
      }

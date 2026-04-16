@@ -1844,6 +1844,63 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                                                               IntegralNode(size, expression.Value()->Source())};
      return std::make_unique<PRValue>(sizeType, std::move(node), true);
 }
+Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& expression)
+{
+     if (expression.CanBeTypeId())
+     {
+          auto typeRequest = TypeASTToRequest(expression.Value());
+          if (typeRequest.kind != TypeKind::Error)
+          {
+               const auto* type = GetTypeContext().Get(typeRequest);
+               if (type == nullptr)
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Unknown type `{}` in alignof expression", expression.Value()->ToString(0)),
+                            expression.Value()->Source()));
+                    return nullptr;
+               }
+               const auto size = type->Alignment();
+
+               TypeRequest sizeTypeRequest{};
+               sizeTypeRequest.kind = TypeKind::Fundamental;
+               sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
+               const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
+               auto node = std::unique_ptr<IntegralNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
+                                                                        IntegralNode(size, expression.Source()));
+               return std::make_unique<PRValue>(sizeType, std::move(node), true);
+          }
+     }
+     Expression operand{};
+     if (auto* basicTypeNode = dynamic_cast<ast::BasicType*>(expression.Value().get()); basicTypeNode != nullptr)
+     {
+          const auto& identifierName = basicTypeNode->ToString(0);
+          ast::IdentifierNode identifierNode{identifierName, basicTypeNode->Source()};
+          operand = ParseIdExpression(identifierNode);
+     }
+     else
+          operand = ParseExpression(expression.Value());
+
+     if (operand == nullptr) return nullptr;
+
+     const auto& operandType = operand->Type();
+     if (operandType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Cannot determine the type of the operand in an alignof expression", expression.Value()->Source()));
+          return nullptr;
+     }
+     const auto size = operandType->Alignment();
+     TypeRequest sizeTypeRequest{};
+     sizeTypeRequest.kind = TypeKind::Fundamental;
+     sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
+     const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
+     auto node = std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                              IntegralNode(size, expression.Value()->Source())};
+     return std::make_unique<PRValue>(sizeType, std::move(node), true);
+}
+
 Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expression)
 {
      // TODO: Proper name lookup please. Also CONTEXT MATTERS REALLY! Overload resolution! Hello?
@@ -1931,6 +1988,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseStringLiteral(*stringLiteral);
      if (auto* const sizeofNode = dynamic_cast<ast::SizeOfNode*>(expression.get()); sizeofNode != nullptr)
           return this->ParseSizeofExpression(*sizeofNode);
+     if (auto* const alignofNode = dynamic_cast<ast::AlignOfNode*>(expression.get()); alignofNode != nullptr)
+          return this->ParseAlignofExpression(*alignofNode);
 
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(

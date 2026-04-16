@@ -624,6 +624,27 @@ namespace ecpps::ast
           bool _canBeTypeId;
      };
 
+     class AlignOfNode final : public Node
+     {
+     public:
+          explicit AlignOfNode(NodePointer node, bool canBeTypeId, Location source)
+              : Node(source), _node(std::move(node)), _canBeTypeId(canBeTypeId)
+          {
+          }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_node; }
+          [[nodiscard]] NodePointer&& Value(void) noexcept { return std::move(this->_node); }
+          [[nodiscard]] bool CanBeTypeId(void) const noexcept { return this->_canBeTypeId; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "alignof(" +
+                      (this->_node == nullptr ? "__unknown" : this->_node->ToString(0)) + ")";
+          }
+
+     private:
+          NodePointer _node;
+          bool _canBeTypeId;
+     };
+
      /// <summary>
      /// Keep both operands for error recovery.
      /// </summary>

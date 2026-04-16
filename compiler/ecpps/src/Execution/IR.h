@@ -139,6 +139,7 @@ namespace ecpps::ir
           Expression ParseStringLiteral(const ast::StringLiteralNode& expression) const;
           Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseSizeofExpression(const ast::SizeOfNode& expression);
+          Expression ParseAlignofExpression(const ast::AlignOfNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
           [[nodiscard]] TypeRequest TypeASTToRequest(const ast::NodePointer& type);
