@@ -6,6 +6,7 @@
 
 int main()
 {
-     std::puts(STRINGIFY(__LINE__));
-     return 0;
+     long long x = 1;
+     return sizeof(sizeof(int) + sizeof sizeof sizeof sizeof sizeof sizeof sizeof(sizeof ++x));
+     return x;
 }

@@ -1,6 +1,7 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
 #include <format>
+#include <iterator>
 #include <ranges>
 #include <unordered_set>
 #include <utility>
@@ -55,6 +56,114 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool 
          std::format("Expected a simple-type-specifier, found "), peek.location));
      Advance();
      return nullptr; // TODO: Error
+}
+
+ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
+{
+     auto source = this->Peek().location;
+
+     auto parseCV = [this]
+     {
+          bool isConst = false;
+          bool isVolatile = false;
+
+          while (Peek().type == TokenType::Keyword)
+          {
+               const auto& kw = std::get<std::string>(Peek().value);
+               if (kw == "const")
+               {
+                    isConst = true;
+                    Advance();
+               }
+               else if (kw == "volatile")
+               {
+                    isVolatile = true;
+                    Advance();
+               }
+               else
+                    break;
+          }
+
+          return std::pair{isConst, isVolatile};
+     };
+
+     auto [leadConst, leadVolatile] = parseCV();
+
+     NodePointer type = nullptr;
+
+     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+     {
+          std::vector<std::string> typeWords;
+          while (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+          {
+               typeWords.push_back(std::get<std::string>(Peek().value));
+               Advance();
+          }
+
+          std::string combinedType = CombineTypeWords(typeWords);
+
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
+              new (context) BasicType(combinedType, source, leadConst, leadVolatile));
+     }
+     else if (Peek().type == TokenType::Identifier)
+     {
+          const auto& typeName = std::get<std::string>(Peek().value);
+          const auto& peekSource = Peek().location;
+          source.endPosition = peekSource.endPosition;
+          Advance();
+          type = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
+              new (context) BasicType(typeName, source, leadConst, leadVolatile));
+     }
+     else
+          type = ParseSimpleTypeSpecifier(context, leadConst, leadVolatile);
+     while (true)
+     {
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*") // pointer
+          {
+               auto [isConst, isVolatile] = parseCV();
+
+               const auto& peekSource = Peek().location;
+               source.endPosition = peekSource.endPosition;
+
+               type = std::unique_ptr<PointerType, ASTDeleter>(
+                   new (context) PointerType(std::move(type), isConst, isVolatile, source));
+          }
+          else if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "&") // lvalue ref
+          {
+               const auto& peekSource = Peek().location;
+               source.endPosition = peekSource.endPosition;
+               type = std::unique_ptr<ReferenceType, ASTDeleter>(
+                   new (context) ReferenceType(std::move(type), ReferenceType::Kind::LValue, source));
+          }
+          else if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "&&") // rvalue ref
+          {
+               const auto& peekSource = Peek().location;
+               source.endPosition = peekSource.endPosition;
+               type = std::unique_ptr<ReferenceType, ASTDeleter>(
+                   new (context) ReferenceType(std::move(type), ReferenceType::Kind::RValue, source));
+          }
+          else
+          {
+               auto [isConst, isVolatile] = parseCV();
+               if (isConst || isVolatile)
+               {
+                    if (const auto basicType = dynamic_cast<BasicType*>(type.get()); basicType != nullptr)
+                    {
+                         if (isConst) basicType->SetConst(true);
+                         if (isVolatile) basicType->SetVolatile(true);
+                    }
+                    else if (const auto pointerType = dynamic_cast<PointerType*>(type.get()); pointerType != nullptr)
+                    {
+                         if (isConst) pointerType->SetConst(true);
+                         if (isVolatile) pointerType->SetVolatile(true);
+                    }
+               }
+               else
+                    break;
+          }
+     }
+
+     return ASTExpected{std::move(type)};
 }
 
 NodePointer ecpps::ast::AST::ParseDeclaration(ASTContext& context)
@@ -874,7 +983,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
 {
      if (this->AtEnd()) return nullptr;
 
-     const auto currentToken = this->Peek();
+     const auto& currentToken = this->Peek();
 
      switch (currentToken.type)
      {
@@ -983,7 +1092,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
 
           if (AtEnd()) break;
 
-          auto currentToken = Peek();
+          const auto& currentToken = Peek();
           const auto& identifierName = std::get<std::string>(currentToken.value);
           Advance();
 
@@ -1209,7 +1318,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
 
 NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
 {
-     const auto currentToken = this->Peek();
+     const auto& currentToken = this->Peek();
      if (currentToken.type == TokenType::Operator)
      {
           if (std::get<std::string>(currentToken.value) == "++" || std::get<std::string>(currentToken.value) == "--")
@@ -1259,6 +1368,52 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
                    operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
+     }
+     // sizeof
+     if (currentToken.type == TokenType::Keyword && std::get<std::string>(currentToken.value) == "sizeof")
+     {
+          NodePointer typeOrExpressionInside{};
+          bool canHoldTypeId = false;
+          Advance();
+          if (this->Peek().type == TokenType::LeftParenthesis)
+          {
+               const auto currentPosition = CurrentPosition();
+               Advance();
+               canHoldTypeId = true;
+               if (Peek().type == TokenType::Keyword && !SimpleTypes.contains(std::get<std::string>(Peek().value)))
+               {
+                    typeOrExpressionInside = ParseUnaryExpression(context);
+                    canHoldTypeId = false;
+               }
+               else if (Peek().type != TokenType::Literal)
+               {
+                    auto typeId = ParseTypeId(context);
+                    if (!typeId.WasSuccessful())
+                    {
+                         std::vector<diagnostics::DiagnosticsMessage> diagnostics = std::move(typeId.diagnostics);
+
+                         std::ranges::move(diagnostics, this->_diagnostics.get().diagnosticsList.end());
+                    }
+                    typeOrExpressionInside = std::move(typeId.value);
+               }
+               else
+               {
+                    typeOrExpressionInside = ParseUnaryExpression(context);
+                    canHoldTypeId = false;
+               }
+               if (!Match(TokenType::RightParenthesis))
+               {
+                    this->SetPosition(currentPosition);
+                    typeOrExpressionInside = ParseUnaryExpression(context);
+                    canHoldTypeId = false;
+               }
+          }
+          else
+               typeOrExpressionInside = ParseUnaryExpression(context);
+          auto source = currentToken.location;
+          source.endPosition = Peek().location.endPosition;
+          return std::unique_ptr<SizeOfNode, ecpps::ast::ASTDeleter>(
+              new (context) SizeOfNode(std::move(typeOrExpressionInside), canHoldTypeId, source));
      }
 
      // TODO:

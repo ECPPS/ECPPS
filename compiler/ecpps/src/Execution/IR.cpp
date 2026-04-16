@@ -1788,6 +1788,62 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      return std::make_unique<PRValue>(arrayType, std::move(node), true);
 }
 
+Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expression)
+{
+     if (expression.CanBeTypeId())
+     {
+          auto typeRequest = TypeASTToRequest(expression.Value());
+          if (typeRequest.kind != TypeKind::Error)
+          {
+               const auto* type = GetTypeContext().Get(typeRequest);
+               if (type == nullptr)
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                            std::format("Unknown type `{}` in sizeof expression", expression.Value()->ToString(0)),
+                            expression.Value()->Source()));
+                    return nullptr;
+               }
+               const auto size = type->Size();
+
+               TypeRequest sizeTypeRequest{};
+               sizeTypeRequest.kind = TypeKind::Fundamental;
+               sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
+               const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
+               auto node = std::unique_ptr<IntegralNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
+                                                                        IntegralNode(size, expression.Source()));
+               return std::make_unique<PRValue>(sizeType, std::move(node), true);
+          }
+     }
+     Expression operand{};
+     if (auto* basicTypeNode = dynamic_cast<ast::BasicType*>(expression.Value().get()); basicTypeNode != nullptr)
+     {
+          const auto& identifierName = basicTypeNode->ToString(0);
+          ast::IdentifierNode identifierNode{identifierName, basicTypeNode->Source()};
+          operand = ParseIdExpression(identifierNode);
+     }
+     else
+          operand = ParseExpression(expression.Value());
+
+     if (operand == nullptr) return nullptr;
+
+     const auto& operandType = operand->Type();
+     if (operandType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Cannot determine the type of the operand in a sizeof expression", expression.Value()->Source()));
+          return nullptr;
+     }
+     const auto size = operandType->Size();
+     TypeRequest sizeTypeRequest{};
+     sizeTypeRequest.kind = TypeKind::Fundamental;
+     sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
+     const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
+     auto node = std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                              IntegralNode(size, expression.Value()->Source())};
+     return std::make_unique<PRValue>(sizeType, std::move(node), true);
+}
 Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expression)
 {
      // TODO: Proper name lookup please. Also CONTEXT MATTERS REALLY! Overload resolution! Hello?
@@ -1873,6 +1929,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseIdExpression(*identifier);
      if (auto* const stringLiteral = dynamic_cast<ast::StringLiteralNode*>(expression.get()); stringLiteral != nullptr)
           return this->ParseStringLiteral(*stringLiteral);
+     if (auto* const sizeofNode = dynamic_cast<ast::SizeOfNode*>(expression.get()); sizeofNode != nullptr)
+          return this->ParseSizeofExpression(*sizeofNode);
 
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1977,22 +2035,33 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           const bool isShort = has("short");
           const bool isInt = has("int");
           const bool isLong = longCount > 0;
+          const bool isSigned = has("signed");
+          const bool isUnsigned = has("unsigned");
 
-          if (!(isChar || isShort || isInt || isLong))
+          if (!(isChar || isShort || isInt || isLong || isSigned || isUnsigned))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Invalid type specifier: " + value,
-                                                                                   basicType->Source()));
+               signedRequest.signedness = typeSystem::Signedness::Signed;
+               signedRequest.size = typeSystem::TypeKind::Int;
+               request.data = signedRequest;
+
+               std::vector<diagnostics::DiagnosticsMessage> diagnosticsList{};
+               diagnosticsList.push_back(diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                   "Invalid type specifier: " + value, basicType->Source()));
+               TypeRequest fallbackRequest{};
+               fallbackRequest.kind = TypeKind::Error;
+               fallbackRequest.data =
+                   InvalidRequest(std::make_unique<TypeRequest>(request), std::move(diagnosticsList));
+               return fallbackRequest;
           }
 
-          if (has("char") && !has("signed") && !has("unsigned")) { signedRequest.isCharWithoutSign = true; }
+          if (isChar && !isSigned && !isUnsigned) { signedRequest.isCharWithoutSign = true; }
           else
           {
                signedRequest.signedness =
-                   has("unsigned") ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
+                   isUnsigned ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
 
-               if (has("char")) signedRequest.size = typeSystem::TypeKind::Char;
-               else if (has("short"))
+               if (isChar) signedRequest.size = typeSystem::TypeKind::Char;
+               else if (isShort)
                     signedRequest.size = typeSystem::TypeKind::Short;
                else if (longCount == 1)
                     signedRequest.size = typeSystem::TypeKind::Long;
