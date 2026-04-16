@@ -1783,9 +1783,8 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
 
      const auto* arrayType = GetTypeContext().Get(arrayRequest);
 
-     auto node = std::unique_ptr<IntegerArrayNode, ecpps::BumpAllocator::Deleter>(
-         new (*this->GetContext().nodeAllocator)
-             IntegerArrayNode(std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
+     auto node = std::unique_ptr<IntegerArrayNode, IRDeleter>(new (*this->GetContext().nodeAllocator) IntegerArrayNode(
+         std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
      return std::make_unique<PRValue>(arrayType, std::move(node), true);
 }
 

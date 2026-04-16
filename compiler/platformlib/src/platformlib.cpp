@@ -37,6 +37,14 @@ ecpps::platformlib::DebuggerContext& ecpps::platformlib::debugger::New(void)
      return *new ContextWrapper();
 #endif
 }
+void ecpps::platformlib::debugger::Delete([[maybe_unused]] DebuggerContext* context)
+{
+#ifdef _WIN32
+     operator delete(&context->As<CONTEXT>());
+#elifdef __linux__
+     operator delete(context);
+#endif
+}
 
 std::size_t ecpps::platformlib::debugger::GetRegisterValue([[maybe_unused]] DebuggerContext& context,
                                                            [[maybe_unused]] const std::string& name)

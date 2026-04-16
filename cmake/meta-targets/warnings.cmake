@@ -38,6 +38,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-shadow-field-in-constructor
           -Wno-comma
           -Wno-padded # good intentions, but way too many false positives
+		-Wno-interference-size
+		-Wno-unknown-pragmas
 
           # Other
           -Wno-covered-switch-default
@@ -51,4 +53,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-unused-macros
           -Wno-weak-vtables
      )
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	target_compile_options(ecpps_warnings INTERFACE
+		-Wall
+		-Wextra
+		-Werror
+		-pedantic-errors
+		
+		-Wno-interference-size
+		-Wno-unknown-pragmas
+	)
 endif()

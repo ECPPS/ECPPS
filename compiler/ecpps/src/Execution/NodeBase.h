@@ -91,7 +91,7 @@ namespace ecpps::ir
           Location _source;
      };
 
-     using IRDeleter = BumpAllocator::Deleter;
+     using IRDeleter = BumpAllocator::Deleter<NodeBase>;
 
      using NodePointer = std::unique_ptr<NodeBase, IRDeleter>;
 

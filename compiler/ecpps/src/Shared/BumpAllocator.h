@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <utility>
 
 namespace ecpps
 {
@@ -11,9 +12,9 @@ namespace ecpps
           BumpAllocator(const BumpAllocator&) = delete;
           BumpAllocator(BumpAllocator&&) = delete;
 
-          struct Deleter
+          template <typename T> struct Deleter
           {
-               static void operator()(void*) noexcept {}
+               static void operator()(T* lpT) noexcept(noexcept(std::declval<T>().~T())) { lpT->~T(); }
           };
           std::byte* Allocate(std::size_t size) noexcept;
           ~BumpAllocator(void);
@@ -33,8 +34,18 @@ inline void* operator new(const std::size_t count,
      return allocator.Allocate(count);
 }
 
+inline void* operator new[](const std::size_t count,
+                            ecpps::BumpAllocator& allocator) noexcept(noexcept(allocator.Allocate(count)))
+{
+     return allocator.Allocate(count);
+}
+
 void* operator new(const std::size_t count, const ecpps::BumpAllocator* allocator) = delete;
 
 inline void operator delete([[maybe_unused]] void* address, [[maybe_unused]] ecpps::BumpAllocator& allocator) noexcept
+{
+}
+
+inline void operator delete[]([[maybe_unused]] void* address, [[maybe_unused]] ecpps::BumpAllocator& allocator) noexcept
 {
 }

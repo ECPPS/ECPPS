@@ -195,7 +195,8 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose) std::println("Tokens:");
                     if (isExtraVerbose) ecpps::Tokeniser::Print(tokens);
                     ecpps::ast::ASTContext astContext{};
-                    const auto ast = ecpps::ast::AST{tokens, source.diagnostics}.Parse(astContext);
+                    ecpps::ast::AST astParser{tokens, source.diagnostics};
+                    auto ast = astParser.Parse(astContext);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("AST:");
                     if (isExtraVerbose)
@@ -206,6 +207,7 @@ int main(int argc, char* argv[])
                     if (isExtraVerbose) std::println("IR:");
                     if (isExtraVerbose)
                          for (const auto& node : ir) std::println("{}", node->ToString(0));
+                    ast.clear();
                     astContext.Release();
                     ecpps::codegen::Compile(config, source, ir);
 

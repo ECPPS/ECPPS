@@ -20,6 +20,8 @@ if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         /Zc:templateScope
         /EHsc
     )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(ecpps_options INTERFACE stdc++exp)
 endif()
 
 add_library(ecpps_defaults INTERFACE)

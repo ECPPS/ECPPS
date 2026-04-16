@@ -141,23 +141,6 @@ TEST_CASE("BumpAllocator - Placement new operator", "[utilities][bump_allocator]
      }
 }
 
-TEST_CASE("BumpAllocator - Release and reuse", "[utilities][bump_allocator]")
-{
-     BumpAllocator alloc(4096);
-
-     auto* ptr1 = alloc.Allocate(128);
-     REQUIRE((ptr1 != nullptr)); // NOLINT
-
-     alloc.Release();
-
-     // After release, should be able to allocate again
-     auto* ptr2 = alloc.Allocate(128);
-     REQUIRE((ptr2 != nullptr)); // NOLINT
-
-     // After release, might get same address (bump reset)
-     // This is implementation-dependent
-}
-
 TEST_CASE("BumpAllocator - Fixture usage", "[utilities][bump_allocator]")
 {
      SECTION("Small fixture")

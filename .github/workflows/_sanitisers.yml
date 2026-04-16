@@ -6,9 +6,8 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "20"
       enable-ccache:
-        description: "Use ccache compiler cache if available"
         required: false
         type: boolean
         default: true
@@ -45,23 +44,158 @@ jobs:
       - name: Configure (ASan)
         shell: pwsh
         run: |
-          cmake -S . -G Ninja `
-            --preset Win64-MSVC-Debug-ASan `
+          cmake --preset Win64-MSVC-Debug-ASan `
             -DBUILD_TESTING=ON `
             -DSANITISE=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
-      - name: Build (ASan)
+      - name: Build
         shell: pwsh
         run: |
-          cmake --build build-asan `
-            --preset Win64-MSVC-Debug-ASan-Build `
-            --parallel
+          cmake --build --preset Win64-MSVC-Debug-ASan-Build --parallel
 
-      - name: Run tests under ASan
+      - name: Run tests
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
-          ctest --test-dir out/build/Win64-Debug-MSVC-ASan `
-                --output-on-failure `
-                --parallel "$(nproc)"
+          ctest --preset Win64-MSVC-Debug-ASan-Test --output-on-failure
+
+
+  linux-clang-asan-ubsan:
+    name: Linux / Clang ASan + UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build ccache
+
+      - name: Install LLVM
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20 all
+
+      - name: Add LLVM to PATH
+        run: |
+          echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Cache GCC 15
+        id: cache-gcc
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/lib/gcc
+            /usr/bin/gcc-15
+            /usr/bin/g++-15
+            /usr/include/c++
+          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+
+      - name: Install GCC 15 (libstdc++)
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+
+      - name: Configure GCC alternatives
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-clang-san-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-clang-san-
+
+      - name: Configure
+        run: |
+          cmake --preset Linux-Clang-Debug-ASan-UBSan \
+            -DBUILD_TESTING=ON \
+            -DSANITISE=ON \
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build
+        run: |
+          cmake --build --preset Linux-Clang-Debug-ASan-UBSan-Build --parallel
+
+      - name: Run tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ctest --preset Linux-Clang-Debug-ASan-UBSan-Test --output-on-failure
+
+
+  linux-gcc-asan-ubsan:
+    name: Linux / GCC ASan + UBSan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache GCC 15
+        id: cache-gcc
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/lib/gcc
+            /usr/bin/gcc-15
+            /usr/bin/g++-15
+            /usr/include/c++
+          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+
+      - name: Install GCC 15 (libstdc++)
+        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+
+      - name: Configure GCC alternatives
+        run: |
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+          echo "CC=gcc-15" >> $GITHUB_ENV
+          echo "CXX=g++-15" >> $GITHUB_ENV
+
+      - name: Restore ccache
+        if: inputs.enable-ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-gcc-san-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-gcc-san-
+
+      - name: Configure
+        run: |
+          cmake --preset Linux-GCC-Debug-ASan-UBSan \
+            -DBUILD_TESTING=ON \
+            -DSANITISE=ON \
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+
+      - name: Build
+        run: |
+          cmake --build --preset Linux-GCC-Debug-ASan-UBSan-Build --parallel
+
+      - name: Run tests
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          ctest --preset Linux-GCC-Debug-ASan-UBSan-Test --output-on-failure

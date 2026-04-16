@@ -17,11 +17,12 @@ namespace ecpps::platformlib
      };
      struct DebuggerContext
      {
+          explicit DebuggerContext(void) = default;
           explicit DebuggerContext(const DebuggerContext&) = delete;
           explicit DebuggerContext(const DebuggerContext&&) = delete;
           DebuggerContext& operator=(const DebuggerContext&) = delete;
           DebuggerContext& operator=(const DebuggerContext&&) = delete;
-          ~DebuggerContext(void) = default;
+          ~DebuggerContext(void);
 
           template <typename T>
                requires(std::is_base_of_v<DebuggerContext, T> ||
@@ -54,8 +55,6 @@ namespace ecpps::platformlib
           {
                return reinterpret_cast<DebuggerContext&>(other);
           }
-
-          explicit DebuggerContext(void);
      };
      namespace debugger
      {
@@ -65,5 +64,5 @@ namespace ecpps::platformlib
           std::vector<void*> WalkTrace(DebuggerContext* defaultContext);
      } // namespace debugger
 
-     inline ecpps::platformlib::DebuggerContext::DebuggerContext(void) { debugger::Delete(this); }
+     inline ecpps::platformlib::DebuggerContext::~DebuggerContext(void) { debugger::Delete(this); }
 } // namespace ecpps::platformlib

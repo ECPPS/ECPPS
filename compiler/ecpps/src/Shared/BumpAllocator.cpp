@@ -20,14 +20,20 @@ static void CommitMemory(void* address, std::size_t count) noexcept
      runtime_assert(committed == address, std::format("Commit failed: {}", GetLastError()));
 }
 
-static void ReleaseMemory(void* address) noexcept { VirtualFree(address, 0, MEM_RELEASE); }
+static void ReleaseMemory(void* address, [[maybe_unused]] std::size_t count) noexcept
+{
+     VirtualFree(address, 0, MEM_RELEASE);
+}
 #elifdef __linux__
 #include <sys/mman.h>
 
 static void* ReserveMemory(std::size_t count) noexcept
 {
      void* result = mmap(nullptr, count, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-     if (result == MAP_FAILED) return nullptr;
+     if (result == MAP_FAILED || !result)
+     {
+          runtime_assert(false, std::format("mmap({}, {:x}) failed: {}", nullptr, count, errno));
+     }
      return result;
 }
 
@@ -35,15 +41,15 @@ static void CommitMemory(void* address, std::size_t count) noexcept
 {
      if (mprotect(address, count, PROT_READ | PROT_WRITE) != 0)
      {
-          runtime_assert(false, std::format("Commit failed: {}", errno));
+          runtime_assert(false, std::format("mprotect({}, {:x}) failed: {}", address, count, errno));
      }
 }
 
-static void ReleaseMemory(void* address) noexcept
+static void ReleaseMemory(void* address, std::size_t count) noexcept
 {
-     if (munmap(address, 2uz * 1024uz * 1024uz * 1024uz * 1024uz) != 0)
+     if (munmap(address, count) != 0)
      {
-          runtime_assert(false, std::format("Release failed: {}", errno));
+          runtime_assert(false, std::format("munmap({}, {:x}) failed: {}", address, count, errno));
      }
 }
 #endif
@@ -78,4 +84,8 @@ std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
 
 ecpps::BumpAllocator::~BumpAllocator(void) { Release(); }
 
-void ecpps::BumpAllocator::Release(void) { ReleaseMemory(std::exchange(this->_begin, nullptr)); }
+void ecpps::BumpAllocator::Release(void)
+{
+     const auto length = static_cast<std::size_t>(this->_capacity - this->_begin);
+     ReleaseMemory(std::exchange(this->_begin, nullptr), length);
+}

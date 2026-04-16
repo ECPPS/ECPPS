@@ -259,7 +259,7 @@ TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
           ecpps::ir::TypeRequest ptr2Request{.kind = ecpps::ir::TypeKind::Compound,
                                              .qualifiers = Qualifiers::None,
                                              .data = ecpps::ir::PointerRequest{.elementType = intPtr}};
-          const auto* intPtrPtr = ecpps::ir::GetTypeContext().Get(ptr2Request);
+          [[maybe_unused]] const auto* intPtrPtr = ecpps::ir::GetTypeContext().Get(ptr2Request);
 
 #ifdef _WIN64
           REQUIRE((intPtrPtr->Size() == 8));
