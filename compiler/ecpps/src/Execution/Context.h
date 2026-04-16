@@ -60,33 +60,18 @@ namespace ecpps::ir
      struct TypeRequest;
      struct InvalidRequest
      {
-          std::unique_ptr<TypeRequest> suggestedRequest{};
+          std::unique_ptr<ecpps::ir::TypeRequest> suggestedRequest{};
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
-          InvalidRequest(const InvalidRequest& other)
-          {
-               this->suggestedRequest =
-                   other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
-          }
+          InvalidRequest(const InvalidRequest& other);
 
           InvalidRequest(InvalidRequest&&) noexcept = default;
 
-          InvalidRequest& operator=(const InvalidRequest& other)
-          {
-               if (this != &other)
-               {
-                    this->suggestedRequest =
-                        other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
-               }
-               return *this;
-          }
+          InvalidRequest& operator=(const InvalidRequest& other);
           InvalidRequest& operator=(InvalidRequest&&) noexcept = default;
 
-          explicit InvalidRequest(std::unique_ptr<TypeRequest> suggestedRequest,
-                                  std::vector<diagnostics::DiagnosticsMessage> diagnostics)
-              : suggestedRequest(std::move(suggestedRequest)), diagnostics(std::move(diagnostics))
-          {
-          }
+          explicit InvalidRequest(std::unique_ptr<ecpps::ir::TypeRequest> suggestedRequest,
+                                  std::vector<diagnostics::DiagnosticsMessage> diagnostics);
      };
 
      struct TypeRequest
@@ -154,6 +139,26 @@ namespace ecpps::ir
                throw TracedException("Not implemented");
           }
      };
+     inline InvalidRequest::InvalidRequest(const InvalidRequest& other)
+     {
+          this->suggestedRequest =
+              other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+     }
+     inline InvalidRequest::InvalidRequest(std::unique_ptr<TypeRequest> suggestedRequest,
+                                           std::vector<diagnostics::DiagnosticsMessage> diagnostics)
+         : suggestedRequest(std::move(suggestedRequest)), diagnostics(std::move(diagnostics))
+     {
+     }
+	inline InvalidRequest& InvalidRequest::operator=(const InvalidRequest& other)
+     {
+          if (this != &other)
+          {
+               this->suggestedRequest =
+                   other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+          }
+          return *this;
+     }
+	
      struct TypeRequestHash
      {
           using is_transparent = void;

@@ -133,9 +133,9 @@ namespace ecpps::ast
           void SetVolatile(const bool newValue) noexcept { this->_isVolatile = newValue; }
 
      private:
-          NodePointer _baseType;
           bool _isConst;
           bool _isVolatile;
+          NodePointer _baseType;
      };
 
      class ReferenceType final : public Node
