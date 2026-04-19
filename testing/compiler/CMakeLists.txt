@@ -30,8 +30,8 @@ add_compiler_test(test_platform_identify
     tests/unit/test_platform_identify.cpp 
     unit)
 
-add_compiler_test(test_tokenise_comprehensive 
-    tests/unit/parsing/test_tokenise.cpp 
+add_compiler_test(test_preprocessing_tokens
+    tests/unit/parsing/test_pp_tokens.cpp 
     unit)
 
 add_compiler_test(test_unit_legacy 
