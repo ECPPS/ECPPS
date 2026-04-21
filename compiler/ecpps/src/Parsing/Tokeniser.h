@@ -103,28 +103,22 @@ namespace ecpps
 
           [[nodiscard]] const std::string& AsIdentifier(void) const
           {
-               runtime_assert(this->type == TokenType::Identifier);
+               runtime_assert(this->type == TokenType::Identifier, "Token is not an identifier");
                return std::get<std::string>(this->value);
           }
 
           [[nodiscard]] const std::string& AsKeyword(void) const
           {
-               runtime_assert(this->type == TokenType::Keyword);
+               runtime_assert(this->type == TokenType::Keyword, "Token is not a keyword");
                return std::get<std::string>(this->value);
           }
 
           [[nodiscard]] const std::string& AsOperator(void) const
           {
-               runtime_assert(this->type == TokenType::Operator);
+               runtime_assert(this->type == TokenType::Operator, "Token is not an operator");
                return std::get<std::string>(this->value);
           }
           [[nodiscard]] bool IsLiteral(void) const { return this->type == TokenType::Literal; }
-
-          [[nodiscard]] const std::string& TryIdentifier(void) const
-          {
-               runtime_assert(this->type == TokenType::Identifier);
-               return std::get<std::string>(this->value);
-          }
 
           [[nodiscard]] std::optional<std::string> TryIdentifier(void) const
           {
