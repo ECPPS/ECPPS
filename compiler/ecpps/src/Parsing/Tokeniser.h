@@ -1,4 +1,5 @@
 #pragma once
+#include <RuntimeAssert.h>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -98,6 +99,49 @@ namespace ecpps
           explicit Token(const TokenType type, TokenValue value, const Location location)
               : type(type), value(std::move(value)), location(location)
           {
+          }
+
+          [[nodiscard]] const std::string& AsIdentifier(void) const
+          {
+               runtime_assert(this->type == TokenType::Identifier);
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] const std::string& AsKeyword(void) const
+          {
+               runtime_assert(this->type == TokenType::Keyword);
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] const std::string& AsOperator(void) const
+          {
+               runtime_assert(this->type == TokenType::Operator);
+               return std::get<std::string>(this->value);
+          }
+          [[nodiscard]] bool IsLiteral(void) const { return this->type == TokenType::Literal; }
+
+          [[nodiscard]] const std::string& TryIdentifier(void) const
+          {
+               runtime_assert(this->type == TokenType::Identifier);
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::optional<std::string> TryIdentifier(void) const
+          {
+               if (this->type != TokenType::Identifier) return std::nullopt;
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::optional<std::string> TryKeyword(void) const
+          {
+               if (this->type != TokenType::Keyword) return std::nullopt;
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::optional<std::string> TryOperator(void) const
+          {
+               if (this->type != TokenType::Operator) return std::nullopt;
+               return std::get<std::string>(this->value);
           }
      };
 
