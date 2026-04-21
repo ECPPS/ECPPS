@@ -118,7 +118,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
 
                sourceIterator = directiveIt;
-               if (directive == "include")
+               if (directive.empty()) continue;
+			else if (directive == "include")
                {
                     std::string header;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
@@ -240,21 +241,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
                          macroName += *sourceIterator++;
 
-                    bool conditionMet = isIfndef ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
-                                                                        { return m.name == macroName; })
-                                                 : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
-                                                                       { return m.name == macroName; });
+                    bool wasConditionMet = isIfndef
+                                               ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
+                                                                      { return m.name == macroName; })
+                                               : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
+                                                                     { return m.name == macroName; });
 
                     std::vector<PreprocessingToken> branchTokens;
-                    bool inElse = false;
                     std::string builtSource{};
                     const auto previousLine = location.line;
-                    bool wasAnyBranchTaken = conditionMet;
+                    bool wasAnyBranchTaken = wasConditionMet;
+                    bool isCurrentBranch = wasConditionMet;
+
                     while (sourceIterator != source.end())
                     {
                          char c = *sourceIterator;
                          if (c == '#')
                          {
+                              wasConditionMet = false;
                               auto peekIt = sourceIterator;
                               Advance(peekIt);
                               while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
@@ -266,71 +270,74 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                    Advance(peekIt);
                               }
 
-                              if (nextDirective == "else")
+                              bool isDirective =
+                                  (nextDirective == "else" || nextDirective == "endif" || nextDirective == "elif" ||
+                                   nextDirective == "elifdef" || nextDirective == "elifndef");
+                              if (isDirective)
                               {
-                                   inElse = true;
-                                   sourceIterator = peekIt;
-                                   Advance(sourceIterator);
-                                   continue;
-                              }
-                              if (nextDirective == "endif")
-                              {
-                                   sourceIterator = peekIt;
-                                   break;
-                              }
-                              if (nextDirective == "elif")
-                              {
-                                   inElse = false;
-                                   conditionMet = false;
 
-                                   while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
-
-                                   std::string elifCondition;
-                                   while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
-                                        elifCondition += *peekIt++;
-
-                                   if (!elifCondition.empty())
+                                   if (nextDirective == "else")
                                    {
-                                        auto it =
-                                            std::ranges::find_if(macros, [&elifCondition](const MacroReplacement& m)
-                                                                 { return m.name == elifCondition; });
-                                        conditionMet = (it != macros.end());
-                                        if (conditionMet) wasAnyBranchTaken = true;
+                                        wasConditionMet = true;
+                                        sourceIterator = peekIt;
+                                        Advance(sourceIterator);
                                    }
-                                   sourceIterator = peekIt;
-                                   Advance(sourceIterator);
-                                   continue;
-                              }
-                              if (nextDirective == "elifdef" || nextDirective == "elifndef")
-                              {
-                                   inElse = false;
-                                   conditionMet = false;
-
-                                   bool isElifndef = (nextDirective == "elifndef");
-
-                                   while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
-
-                                   std::string elifMacroName;
-                                   while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
-                                        elifMacroName += *peekIt++;
-
-                                   if (!elifMacroName.empty())
+                                   else if (nextDirective == "endif")
                                    {
-                                        auto it =
-                                            std::ranges::find_if(macros, [&elifMacroName](const MacroReplacement& m)
-                                                                 { return m.name == elifMacroName; });
-                                        conditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
-                                        if (conditionMet) wasAnyBranchTaken = true;
+                                        sourceIterator = peekIt;
+                                        break;
                                    }
-                                   sourceIterator = peekIt;
-                                   Advance(sourceIterator);
+                                   else if (nextDirective == "elif")
+                                   {
+                                        while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
+
+                                        std::string elifCondition;
+                                        while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
+                                             elifCondition += *peekIt++;
+
+                                        if (!elifCondition.empty())
+                                        {
+                                             auto it = std::ranges::find_if(macros,
+                                                                            [&elifCondition](const MacroReplacement& m)
+                                                                            { return m.name == elifCondition; });
+                                             wasConditionMet = (it != macros.end());
+                                        }
+                                        sourceIterator = peekIt;
+                                        Advance(sourceIterator);
+                                   }
+                                   else if (nextDirective == "elifdef" || nextDirective == "elifndef")
+                                   {
+                                        wasConditionMet = false;
+                                        bool isElifndef = (nextDirective == "elifndef");
+
+                                        while (peekIt != source.end() && (std::isspace(*peekIt) != 0)) Advance(peekIt);
+
+                                        std::string elifMacroName;
+                                        while (peekIt != source.end() && IsCharacterContinuation(*peekIt))
+                                             elifMacroName += *peekIt++;
+
+                                        if (!elifMacroName.empty())
+                                        {
+                                             auto it = std::ranges::find_if(macros,
+                                                                            [&elifMacroName](const MacroReplacement& m)
+                                                                            { return m.name == elifMacroName; });
+                                             wasConditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
+                                        }
+                                        sourceIterator = peekIt;
+                                        Advance(sourceIterator);
+                                   }
+
+                                   if (wasAnyBranchTaken) isCurrentBranch = false;
+                                   else if (wasConditionMet)
+                                   {
+                                        isCurrentBranch = true;
+                                        wasAnyBranchTaken = true;
+                                   }
                                    continue;
                               }
                          }
 
-                         if (conditionMet && !inElse) builtSource += c;
-                         else if (!wasAnyBranchTaken && inElse)
-                              builtSource += c;
+                         if (isCurrentBranch) builtSource += c;
                          Advance(sourceIterator);
                     }
 
@@ -676,6 +683,13 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                location.endPosition = location.position;
                tokens.emplace_back(PreprocessingTokenType::OperatorOrPunctuator, operatorOrPunctuator, location);
           }
+          else
+          {
+               this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                   std::format("Invalid character '{:x}'",
+                               static_cast<std::uint32_t>(static_cast<unsigned char>(character))),
+                   location));
+          }
      }
 
      return tokens;
@@ -833,7 +847,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
                                                                     const std::vector<ecpps::MacroReplacement>& macros)
 {
      std::vector<ecpps::MacroReplacement> macrosCopy = macros;
-     auto tokens = ecpps::Preprocessor::Parse(expanded, macrosCopy, "");
+     auto tokens = ecpps::Preprocessor{}.Parse(expanded, macrosCopy, "");
      for (std::size_t i = 0; i < tokens.size(); i++)
      {
           tokens[i].source.line = location.line;
@@ -881,7 +895,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                if (i < arguments.size())
                {
                     std::vector<MacroReplacement> macrosCopy = macros;
-                    auto expanded = Preprocessor::Parse(rawParameterMap[parameterName], macrosCopy, "");
+                    auto expanded = Preprocessor{}.Parse(rawParameterMap[parameterName], macrosCopy, "");
 
                     std::string joined;
                     for (std::size_t t = 0; t < expanded.size(); ++t)

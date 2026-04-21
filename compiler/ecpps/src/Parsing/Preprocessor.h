@@ -63,11 +63,12 @@ namespace ecpps
      class Preprocessor
      {
      public:
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(
               const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
               const std::vector<std::string>& includeDirectories = {});
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
+		std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
      private:
           static bool IsDigit(const char ch) { return std::isdigit(ch) != 0; }
           static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) != 0 || ch == '_'; }
