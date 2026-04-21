@@ -30,10 +30,6 @@ add_compiler_test(test_platform_identify
     tests/unit/test_platform_identify.cpp 
     unit)
 
-add_compiler_test(test_preprocessing_tokens
-    tests/unit/parsing/test_pp_tokens.cpp 
-    unit)
-
 add_compiler_test(test_unit_legacy 
     tests/unit/test_tokenise.cpp 
     unit)
@@ -69,3 +65,15 @@ add_compiler_test(test_e2e_legacy
 add_compiler_test(test_pointer_arithmetic_regression 
     tests/regression/test_pointer_arithmetic.cpp 
     regression)
+
+# new tests
+
+
+add_compiler_test(test_preprocessing_tokens
+    tests/unit/parsing/test_pp_tokens.cpp 
+    unit)
+
+
+add_compiler_test(test_tokens
+    tests/unit/parsing/test_tokens.cpp 
+    unit)
