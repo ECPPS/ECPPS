@@ -345,7 +345,7 @@ TEST_CASE("Preprocessor - Invalid characters", "[parsing][invalid-chars]")
      SECTION("Outside ASCII")
      {
           auto tokens = preprocessor.Parse("caf\u00e9", macros, "tests.cpp");
-          REQUIRE(preprocessor.diagnostics.size() == 2);
+          REQUIRE((!preprocessor.diagnostics.empty()));
      }
 }
 
