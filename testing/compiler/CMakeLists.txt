@@ -69,11 +69,15 @@ add_compiler_test(test_pointer_arithmetic_regression
 # new tests
 
 
-add_compiler_test(test_preprocessing_tokens
+add_compiler_test(test_unit_preprocessing_tokens
     tests/unit/parsing/test_pp_tokens.cpp 
     unit)
 
 
-add_compiler_test(test_tokens
+add_compiler_test(test_unit_tokens
     tests/unit/parsing/test_tokens.cpp 
     unit)
+
+add_compiler_test(test_integration_tokens
+    tests/integration/test_tokeniser.cpp 
+    integration)

@@ -137,6 +137,49 @@ namespace ecpps
                if (this->type != TokenType::Operator) return std::nullopt;
                return std::get<std::string>(this->value);
           }
+
+          [[nodiscard]] std::string ToString(void) const
+          {
+               switch (this->type)
+               {
+               case TokenType::Identifier: return std::get<std::string>(this->value);
+               case TokenType::Keyword: return std::get<std::string>(this->value);
+               case TokenType::Operator: return std::get<std::string>(this->value);
+               case TokenType::Literal:
+                    return std::visit(
+                        OverloadedVisitor{
+                            [](const std::monostate&) -> std::string { return std::string{}; },
+                            [](const std::string& str) { return str; }, [](const bool b) -> std::string
+                            { return b ? "true" : "false"; }, [](const StringLiteral& strLit) -> std::string
+                            { return strLit.value; }, [](const char c) { return std::string(1, c); },
+                            [](const IntegerLiteral& intLit) -> std::string { return std::to_string(intLit.value); },
+                            [](const FloatingPointLiteral& floatLit) -> std::string
+                            { return std::to_string(floatLit.value); },
+                            [](const UserDefinedLiteral& udLit) -> std::string
+                            {
+                                 return std::visit(
+                                     OverloadedVisitor{
+                                         [](const StringLiteral& strLit) -> std::string
+                                         { return std::format("\"{}\"", strLit.value); },
+                                         [](const IntegerLiteral& intLit) -> std::string
+                                         { return std::to_string(intLit.value); },
+                                         [](const FloatingPointLiteral& floatLit) -> std::string
+                                         { return std::to_string(floatLit.value); }, [](auto&&) -> std::string
+                                         { runtime_assert(false, "Invalid user-defined literal value"); }},
+                                     udLit.value);
+                            }},
+                        this->value);
+               case TokenType::LeftParenthesis: return "(";
+               case TokenType::RightParenthesis: return ")";
+               case TokenType::LeftBracket: return "[";
+               case TokenType::RightBracket: return "]";
+               case TokenType::LeftBrace: return "{";
+               case TokenType::RightBrace: return "}";
+               case TokenType::SemiColon: return ";";
+               case TokenType::Colon: return ":";
+               default: return "?";
+               }
+          }
      };
 
      class Tokeniser

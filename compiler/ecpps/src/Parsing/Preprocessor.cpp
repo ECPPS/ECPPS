@@ -119,7 +119,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                sourceIterator = directiveIt;
                if (directive.empty()) continue;
-			else if (directive == "include")
+               else if (directive == "include")
                {
                     std::string header;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
@@ -217,6 +217,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          parameters = params;
                          if (sourceIterator != source.end()) ++sourceIterator; // skip ')'
                     }
+                    while (sourceIterator != source.end() && (std::isspace(*sourceIterator) != 0)) ++sourceIterator;
 
                     std::string contents;
                     while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')

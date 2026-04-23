@@ -317,6 +317,23 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
           REQUIRE(tokens[4].value == "errorCode");
           REQUIRE(tokens[5].value == ")");
           REQUIRE(tokens[6].value == ";");
+          macros.pop_back();
+     }
+
+     SECTION("Macro definitions")
+     {
+          auto tokens = preprocessor.Parse("#define M_PI 3.14", macros, "tests.cpp");
+          REQUIRE(tokens.empty());
+          REQUIRE(macros.back().name == "M_PI");
+          REQUIRE(macros.back().contents == "3.14");
+          REQUIRE(!macros.back().parameters.has_value());
+     }
+
+     SECTION("Macro undefinitions")
+     {
+          auto tokens = preprocessor.Parse("#undef M_PI", macros, "tests.cpp");
+          REQUIRE(tokens.empty());
+          REQUIRE((macros.empty() || macros.back().name != "M_PI"));
      }
 }
 
@@ -440,7 +457,6 @@ int d;
               macros, "tests.cpp");
           std::size_t identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          for (const auto& token : tokens) std::println("{}: {}", token.source.line, token.value);
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -465,7 +481,6 @@ int d;
               macros, "tests.cpp");
           std::size_t identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          for (const auto& token : tokens) std::println("{}: {}", token.source.line, token.value);
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -490,7 +505,6 @@ int d;
               macros, "tests.cpp");
           std::size_t identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          for (const auto& token : tokens) std::println("{}: {}", token.source.line, token.value);
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -514,7 +528,6 @@ int b;
               macros, "tests.cpp");
           std::size_t identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          for (const auto& token : tokens) std::println("{}: {}", token.source.line, token.value);
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -538,7 +551,6 @@ int c;
               macros, "tests.cpp");
           std::size_t identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          for (const auto& token : tokens) std::println("{}: {}", token.source.line, token.value);
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
