@@ -750,9 +750,9 @@ static std::string StringifyArg(const std::string& raw)
 {
      std::string collapsed;
      bool lastWasSpace = true;
-     for (unsigned char c : raw)
+     for (const auto c : raw)
      {
-          if (std::isspace(c))
+          if (std::isspace(static_cast<unsigned char>(c)))
           {
                if (!lastWasSpace) collapsed += ' ';
                lastWasSpace = true;

@@ -158,14 +158,17 @@ namespace ecpps
                             [](const UserDefinedLiteral& udLit) -> std::string
                             {
                                  return std::visit(
-                                     OverloadedVisitor{
-                                         [](const StringLiteral& strLit) -> std::string
-                                         { return std::format("\"{}\"", strLit.value); },
-                                         [](const IntegerLiteral& intLit) -> std::string
-                                         { return std::to_string(intLit.value); },
-                                         [](const FloatingPointLiteral& floatLit) -> std::string
-                                         { return std::to_string(floatLit.value); }, [](auto&&) -> std::string
-                                         { runtime_assert(false, "Invalid user-defined literal value"); }},
+                                     OverloadedVisitor{[](const StringLiteral& strLit) -> std::string
+                                                       { return std::format("\"{}\"", strLit.value); },
+                                                       [](const IntegerLiteral& intLit) -> std::string
+                                                       { return std::to_string(intLit.value); },
+                                                       [](const FloatingPointLiteral& floatLit) -> std::string
+                                                       { return std::to_string(floatLit.value); },
+                                                       [](auto&&) -> std::string
+                                                       {
+                                                            runtime_assert(false, "Invalid user-defined literal value");
+                                                            std::terminate();
+                                                       }},
                                      udLit.value);
                             }},
                         this->value);
