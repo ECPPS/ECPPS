@@ -1,4 +1,3 @@
 #include <cstdio>
 
-int main()
-{ std::puts("meow"); }
+int main() { std::puts("meow"); }
