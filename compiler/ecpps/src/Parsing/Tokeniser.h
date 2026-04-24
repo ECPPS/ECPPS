@@ -1,6 +1,7 @@
 #pragma once
 #include <RuntimeAssert.h>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <utility>
