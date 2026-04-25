@@ -1,14 +1,13 @@
 #include "Preprocessor.h"
+#include <FileSystem/SourceScanner.h>
 #include <RuntimeAssert.h>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
 #include <iterator>
 #include <print>
 #include <unordered_map>
 #include <unordered_set>
-
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
                                                                   std::vector<MacroReplacement>& macros,
                                                                   const std::string& fileName,
@@ -91,38 +90,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (sourceIterator != source.end()) ++sourceIterator; // skip closing delimiter
                     }
 
-                    std::filesystem::path resolvedPath;
-                    bool found = false;
+                    std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
+                        fileName, header,
+                        (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
 
-                    auto tryFile = [&](const std::filesystem::path& base)
-                    {
-                         if (found) return;
-                         std::filesystem::path candidate = base / header;
-                         if (std::filesystem::exists(candidate))
-                         {
-                              resolvedPath = std::filesystem::canonical(candidate);
-                              found = true;
-                         }
-                    };
-
-                    if (delimiter == '"') tryFile(std::filesystem::path(fileName).parent_path());
-
-                    if (!found)
-                    {
-                         for (const auto& dir : includeDirectories)
-                         {
-                              tryFile(dir);
-                              if (found) break;
-                         }
-                    }
-                    if (delimiter == '<') tryFile(std::filesystem::path(fileName).parent_path());
-
-                    if (!found) { throw std::runtime_error("include file not found: " + header); }
-
-                    std::ifstream file(resolvedPath, std::ios::binary);
-                    if (!file) { throw std::runtime_error("failed to open include: " + resolvedPath.string()); }
-
-                    std::string includedSource{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+                    const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
                     tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includeDirectories));
                }

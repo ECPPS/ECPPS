@@ -6,6 +6,6 @@
 
 int main()
 {
-     long long x = 1;
-     return alignof(char);
+     std::puts(STRINGIFY(__FILE__));
+     puts(STRINGIFY(__LINE__));
 }

@@ -21,6 +21,7 @@
 #include <CodeGeneration/PseudoAssembly.h>
 #include <Debugger/Debugger.h>
 #include <Execution/IR.h>
+#include <FileSystem/SourceScanner.h>
 #include <Linker/Linker.h>
 #include <Parsing/AST.h>
 #include <Parsing/Preprocessor.h>
@@ -108,6 +109,7 @@ int main(int argc, char* argv[])
           auto startTime = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
+          ecpps::fs::GetSourceScanner().configuration = &config;
           ecpps::SourceMap sources{config};
 
           if (sources.files.empty())
