@@ -65,7 +65,16 @@ namespace ecpps
      public:
           [[nodiscard]] static std::vector<PreprocessingToken> Parse(
               const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
+              std::vector<std::filesystem::path>& includedFiles,
               const std::vector<std::string>& includeDirectories = {});
+          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
+              const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
+              const std::vector<std::string>& includeDirectories = {})
+          {
+               // primarily used for tests
+               std::vector<std::filesystem::path> includedFiles;
+               return Parse(source, macros, fileName, includedFiles, includeDirectories);
+          }
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
      private:
