@@ -119,7 +119,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                sourceIterator = directiveIt;
                if (directive.empty()) continue;
-               else if (directive == "include")
+               if (directive == "include")
                {
                     std::string header;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))

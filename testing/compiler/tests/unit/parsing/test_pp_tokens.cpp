@@ -196,7 +196,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      std::vector<ecpps::MacroReplacement> macros{};
      SECTION("Object-like macros")
      {
-          macros.push_back(ecpps::MacroReplacement("PI", {}, "3.14", false));
+          macros.emplace_back("PI", std::nullopt, "3.14", false);
           auto tokens = preprocessor.Parse("double pi = PI;", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -239,7 +239,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Nested macros")
      {
-          macros.emplace_back("PI", std::vector<std::string>{}, "3.14", false);
+          macros.emplace_back("PI", std::nullopt, "3.14", false);
           macros.emplace_back("CIRCLE_AREA", std::vector<std::string>{"r"}, "(PI * (r) * (r))", false);
           auto tokens = preprocessor.Parse("double area = CIRCLE_AREA(5);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
