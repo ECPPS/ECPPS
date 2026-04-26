@@ -11,7 +11,7 @@
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
                                                                   std::vector<MacroReplacement>& macros,
                                                                   const std::string& fileName,
-                                                                  std::vector<std::filesystem::path>& includedFiles,
+                                                                  std::set<std::filesystem::path>& includedFiles,
                                                                   const std::vector<std::string>& includeDirectories)
 {
      std::vector<ecpps::PreprocessingToken> tokens{};
@@ -86,8 +86,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     if (pragmaContent == "once")
                     {
                          const auto canonicalPath = canonical(std::filesystem::path(fileName));
-                         if (std::ranges::find(includedFiles, canonicalPath) != includedFiles.end()) return tokens;
-                         includedFiles.push_back(canonical(std::filesystem::path(fileName)));
+                         if (includedFiles.contains(canonicalPath)) return tokens;
+                         includedFiles.insert(canonical(std::filesystem::path(fileName)));
                     }
                     else
                          std::println("Warning: Unrecognized pragma '{}'", pragmaContent);
@@ -710,7 +710,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
                                                                     const std::vector<ecpps::MacroReplacement>& macros)
 {
      std::vector<ecpps::MacroReplacement> macrosCopy = macros;
-     std::vector<std::filesystem::path> includedFiles;
+     std::set<std::filesystem::path> includedFiles;
      auto tokens = ecpps::Preprocessor::Parse(expanded, macrosCopy, "", includedFiles);
      for (auto& token : tokens) token.source = location;
      return tokens;
@@ -750,7 +750,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     rawParameterMap[parameterName] = argStr;
 
                     std::vector<ecpps::MacroReplacement> macrosCopy = macros;
-                    std::vector<std::filesystem::path> includedFiles;
+                    std::set<std::filesystem::path> includedFiles;
                     auto expandedTokens = ecpps::Preprocessor::Parse(argStr, macrosCopy, "", includedFiles);
                     std::string expandedArg;
                     for (const auto& tok : expandedTokens) expandedArg += tok.value;

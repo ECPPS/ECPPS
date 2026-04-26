@@ -189,7 +189,7 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version", std::nullopt, "000001", false);
                     macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
-                    std::vector<std::filesystem::path> includedFiles;
+                    std::set<std::filesystem::path> includedFiles;
 
                     const auto ppTokens = ecpps::Preprocessor::Parse(source.contents, macros, source.name,
                                                                      includedFiles, config.includeDirectories);
