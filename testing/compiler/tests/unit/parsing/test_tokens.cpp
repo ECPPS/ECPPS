@@ -30,7 +30,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
           SignedSize identifierCount = std::ranges::count_if(tokens, [](const auto& token)
                                                              { return token.type == ecpps::TokenType::Identifier; });
           REQUIRE(ppTokens.size() == 4);
-          REQUIRE(identifierCount == ppTokens.size());
+          REQUIRE(static_cast<std::size_t>(identifierCount) == ppTokens.size());
           REQUIRE(tokens[0].AsIdentifier() == "variable");
           REQUIRE(tokens[1].AsIdentifier() == "_private");
           REQUIRE(tokens[2].AsIdentifier() == "count123");
@@ -64,7 +64,7 @@ TEST_CASE("Tokeniser - Keywords", "[parsing][tokeniser]")
      SignedSize keywordCount =
          std::ranges::count_if(tokens, [](const auto& token) { return token.type == ecpps::TokenType::Keyword; });
      REQUIRE(ppTokens.size() == 4);
-     REQUIRE(keywordCount == ppTokens.size());
+     REQUIRE(static_cast<std::size_t>(keywordCount) == ppTokens.size());
      REQUIRE(tokens[0].AsKeyword() == "if");
      REQUIRE(tokens[1].AsKeyword() == "else");
      REQUIRE(tokens[2].AsKeyword() == "while");
@@ -81,7 +81,7 @@ TEST_CASE("Tokeniser - Operators", "[parsing][tokeniser]")
           SignedSize operatorCount =
               std::ranges::count_if(tokens, [](const auto& token) { return token.type == ecpps::TokenType::Operator; });
           REQUIRE(ppTokens.size() == 4);
-          REQUIRE(operatorCount == ppTokens.size());
+          REQUIRE(static_cast<std::size_t>(operatorCount) == ppTokens.size());
           REQUIRE(tokens[0].AsOperator() == "+");
           REQUIRE(tokens[1].AsOperator() == "-");
           REQUIRE(tokens[2].AsOperator() == "*");
