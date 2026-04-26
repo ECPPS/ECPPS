@@ -213,7 +213,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Function-like macros")
      {
-          macros.push_back(ecpps::MacroReplacement("SQUARE", std::vector<std::string>{"x"}, "((x) * (x))", false));
+          macros.emplace_back("SQUARE", std::vector<std::string>{"x"}, "((x) * (x))", false);
           auto tokens = preprocessor.Parse("int result = SQUARE(5);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -239,9 +239,8 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Nested macros")
      {
-          macros.push_back(ecpps::MacroReplacement("PI", {}, "3.14", false));
-          macros.push_back(
-              ecpps::MacroReplacement("CIRCLE_AREA", std::vector<std::string>{"r"}, "(PI * (r) * (r))", false));
+          macros.emplace_back("PI", std::vector<std::string>{}, "3.14", false);
+          macros.emplace_back("CIRCLE_AREA", std::vector<std::string>{"r"}, "(PI * (r) * (r))", false);
           auto tokens = preprocessor.Parse("double area = CIRCLE_AREA(5);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -269,7 +268,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Concatenation")
      {
-          macros.push_back(ecpps::MacroReplacement("CONCAT", std::vector<std::string>{"a", "b"}, "a##b", false));
+          macros.emplace_back("CONCAT", std::vector<std::string>{"a", "b"}, "a##b", false);
           auto tokens = preprocessor.Parse("int xy = CONCAT(x, y);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -284,7 +283,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Stringification")
      {
-          macros.push_back(ecpps::MacroReplacement("STRINGIFY", std::vector<std::string>{"x"}, "#x", false));
+          macros.emplace_back("STRINGIFY", std::vector<std::string>{"x"}, "#x", false);
           auto tokens = preprocessor.Parse("const char* str = STRINGIFY(Hello kitten!);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -304,7 +303,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
      SECTION("Variadic macros")
      {
-          macros.push_back(ecpps::MacroReplacement("LOG", std::vector<std::string>{}, "printf(__VA_ARGS__)", true));
+          macros.emplace_back("LOG", std::vector<std::string>{}, "printf(__VA_ARGS__)", true);
           auto tokens = preprocessor.Parse("LOG(\"Error: %d\", errorCode);", macros, "tests.cpp");
           SignedSize identifierCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
@@ -391,7 +390,7 @@ TEST_CASE("Preprocessor - preprocessing directives", "[parsing][directives]")
 {
      ecpps::Preprocessor preprocessor{};
      std::vector<ecpps::MacroReplacement> macros{};
-     macros.push_back(ecpps::MacroReplacement("DEFINED_MACRO", std::nullopt, "1", false));
+     macros.emplace_back("DEFINED_MACRO", std::nullopt, "1", false);
 
      SECTION("ifdef and ifndef")
      {
