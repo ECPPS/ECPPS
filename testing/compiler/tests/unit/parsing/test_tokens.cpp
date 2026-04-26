@@ -28,7 +28,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
               ConstructIdentifier("__internal")};
           auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           SignedSize identifierCount = std::ranges::count_if(tokens, [](const auto& token)
-                                                              { return token.type == ecpps::TokenType::Identifier; });
+                                                             { return token.type == ecpps::TokenType::Identifier; });
           REQUIRE(ppTokens.size() == 4);
           REQUIRE(identifierCount == ppTokens.size());
           REQUIRE(tokens[0].AsIdentifier() == "variable");
@@ -44,7 +44,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
               ConstructIdentifier("_private"),    ConstructOperator("-"),       ConstructIdentifier("__internal")};
           auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           SignedSize identifierCount = std::ranges::count_if(tokens, [](const auto& token)
-                                                              { return token.type == ecpps::TokenType::Identifier; });
+                                                             { return token.type == ecpps::TokenType::Identifier; });
           REQUIRE(ppTokens.size() == 6);
           REQUIRE(identifierCount == 4);
           REQUIRE(tokens[0].AsIdentifier() == "variable123");
@@ -114,7 +114,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
                                                              ConstructOperator("."), ConstructOperator("->")};
           auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           SignedSize semiColonCount = std::ranges::count_if(tokens, [](const auto& token)
-                                                             { return token.type == ecpps::TokenType::SemiColon; });
+                                                            { return token.type == ecpps::TokenType::SemiColon; });
           SignedSize commaCount =
               std::ranges::count_if(tokens, [](const auto& token)
                                     { return token.type == ecpps::TokenType::Operator && token.AsOperator() == ","; });
@@ -133,7 +133,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
                                                              ConstructOperator(".")};
           auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           SignedSize semiColonCount = std::ranges::count_if(tokens, [](const auto& token)
-                                                             { return token.type == ecpps::TokenType::SemiColon; });
+                                                            { return token.type == ecpps::TokenType::SemiColon; });
           SignedSize commaCount =
               std::ranges::count_if(tokens, [](const auto& token)
                                     { return token.type == ecpps::TokenType::Operator && token.AsOperator() == ","; });
@@ -184,7 +184,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
           SignedSize rightParenCount = std::ranges::count_if(
               tokens, [](const auto& token) { return token.type == ecpps::TokenType::RightParenthesis; });
           SignedSize leftBracketCount = std::ranges::count_if(tokens, [](const auto& token)
-                                                               { return token.type == ecpps::TokenType::LeftBracket; });
+                                                              { return token.type == ecpps::TokenType::LeftBracket; });
           REQUIRE(ppTokens.size() == 5);
           REQUIRE(leftParenCount == 1);
           REQUIRE(rightParenCount == 1);
