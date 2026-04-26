@@ -49,8 +49,8 @@ namespace ecpps
           [[nodiscard]] std::vector<PreprocessingToken> ProcessObjectLike(
               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
           [[nodiscard]] std::vector<PreprocessingToken> ProcessFunctionLike(
-              const std::vector<std::vector<PreprocessingToken>>& arguments, const Location& location,
-              const std::vector<ecpps::MacroReplacement>& macros) const;
+              const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
+              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
 
           explicit MacroReplacement(std::string name, std::optional<std::vector<std::string>> parameters,
                                     std::string contents, const bool isVariadic)
@@ -63,10 +63,13 @@ namespace ecpps
      class Preprocessor
      {
      public:
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
-              const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
-              const std::vector<std::string>& includeDirectories = {});
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
+                                                              std::vector<MacroReplacement>& macros,
+                                                              const std::string& fileName,
+                                                              const std::vector<std::string>& includeDirectories = {});
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
+
+          std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
      private:
           static bool IsDigit(const char ch) { return std::isdigit(ch) != 0; }

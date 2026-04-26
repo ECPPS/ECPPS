@@ -430,9 +430,10 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      }
      const auto namespacePath = NamespacePathFromContext();
 
+     const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
      auto functionScope =
          MakeFunctionScope()
-             .Name(node.Signature().name->ToString(0))
+             .Name(name)
              .ReturnType(returnType)
              .CallingConvention(node.Signature().callingConvention)
              .Linkage(linkage)

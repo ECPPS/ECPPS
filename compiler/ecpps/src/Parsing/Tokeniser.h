@@ -1,5 +1,7 @@
 #pragma once
+#include <RuntimeAssert.h>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <string>
 #include <utility>
@@ -98,6 +100,89 @@ namespace ecpps
           explicit Token(const TokenType type, TokenValue value, const Location location)
               : type(type), value(std::move(value)), location(location)
           {
+          }
+
+          [[nodiscard]] const std::string& AsIdentifier(void) const
+          {
+               runtime_assert(this->type == TokenType::Identifier, "Token is not an identifier");
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] const std::string& AsKeyword(void) const
+          {
+               runtime_assert(this->type == TokenType::Keyword, "Token is not a keyword");
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] const std::string& AsOperator(void) const
+          {
+               runtime_assert(this->type == TokenType::Operator, "Token is not an operator");
+               return std::get<std::string>(this->value);
+          }
+          [[nodiscard]] bool IsLiteral(void) const { return this->type == TokenType::Literal; }
+
+          [[nodiscard]] std::optional<std::string> TryIdentifier(void) const
+          {
+               if (this->type != TokenType::Identifier) return std::nullopt;
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::optional<std::string> TryKeyword(void) const
+          {
+               if (this->type != TokenType::Keyword) return std::nullopt;
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::optional<std::string> TryOperator(void) const
+          {
+               if (this->type != TokenType::Operator) return std::nullopt;
+               return std::get<std::string>(this->value);
+          }
+
+          [[nodiscard]] std::string ToString(void) const
+          {
+               switch (this->type)
+               {
+               case TokenType::Identifier: return std::get<std::string>(this->value);
+               case TokenType::Keyword: return std::get<std::string>(this->value);
+               case TokenType::Operator: return std::get<std::string>(this->value);
+               case TokenType::Literal:
+                    return std::visit(
+                        OverloadedVisitor{
+                            [](const std::monostate&) -> std::string { return std::string{}; },
+                            [](const std::string& str) { return str; }, [](const bool b) -> std::string
+                            { return b ? "true" : "false"; }, [](const StringLiteral& strLit) -> std::string
+                            { return strLit.value; }, [](const char c) { return std::string(1, c); },
+                            [](const IntegerLiteral& intLit) -> std::string { return std::to_string(intLit.value); },
+                            [](const FloatingPointLiteral& floatLit) -> std::string
+                            { return std::to_string(floatLit.value); },
+                            [](const UserDefinedLiteral& udLit) -> std::string
+                            {
+                                 return std::visit(
+                                     OverloadedVisitor{[](const StringLiteral& strLit) -> std::string
+                                                       { return std::format("\"{}\"", strLit.value); },
+                                                       [](const IntegerLiteral& intLit) -> std::string
+                                                       { return std::to_string(intLit.value); },
+                                                       [](const FloatingPointLiteral& floatLit) -> std::string
+                                                       { return std::to_string(floatLit.value); },
+                                                       [](auto&&) -> std::string
+                                                       {
+                                                            runtime_assert(false, "Invalid user-defined literal value");
+                                                            std::terminate();
+                                                       }},
+                                     udLit.value);
+                            }},
+                        this->value);
+               case TokenType::LeftParenthesis: return "(";
+               case TokenType::RightParenthesis: return ")";
+               case TokenType::LeftBracket: return "[";
+               case TokenType::RightBracket: return "]";
+               case TokenType::LeftBrace: return "{";
+               case TokenType::RightBrace: return "}";
+               case TokenType::SemiColon: return ";";
+               case TokenType::Colon: return ":";
+               default: return "?";
+               }
           }
      };
 

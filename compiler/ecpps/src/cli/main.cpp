@@ -5,6 +5,7 @@
 #include <Windows.h>
 #endif
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -188,8 +189,10 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
 
+                    ecpps::Preprocessor preprocessor{};
                     const auto ppTokens =
-                        ecpps::Preprocessor::Parse(source.contents, macros, source.name, config.includeDirectories);
+                        preprocessor.Parse(source.contents, macros, source.name, config.includeDirectories);
+                    std::ranges::move(preprocessor.diagnostics, std::back_inserter(source.diagnostics.diagnosticsList));
                     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Tokens:");
