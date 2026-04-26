@@ -1,3 +1,4 @@
+// NOLINTBEGIN(bugprone-chained-comparison)
 #define CATCH_CONFIG_MAIN
 #include <Parsing/Tokeniser.h>
 #include <catch_amalgamated.hpp>
@@ -90,3 +91,4 @@ int CircleArea(float radius)
           REQUIRE(tokens[14].type == ecpps::TokenType::RightBrace);
      }
 }
+// NOLINTEND(bugprone-chained-comparison)
