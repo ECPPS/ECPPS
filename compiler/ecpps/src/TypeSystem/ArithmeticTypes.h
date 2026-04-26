@@ -148,6 +148,24 @@ namespace ecpps::typeSystem
           Kind _kind;
      };
 
+     class BoolType final : public IntegralType
+     {
+     public:
+          explicit BoolType(std::string name, const Qualifiers qualifiers)
+              : IntegralType(Signedness::Unsigned, TypeKind::Bool, std::move(name), qualifiers)
+          {
+          }
+          [[nodiscard]] std::string RawName(void) const noexcept final;
+          [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const final;
+          [[nodiscard]] TypeTraits Traits(void) const noexcept override
+          {
+               return TypeTraits{TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
+                                 TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
+                                 TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                                 TypeTraitEnum::Object,           TypeTraitEnum::Boolean};
+          }
+     };
+
      /// <summary>
      /// Important ones:
      /// No two signed integer types other than char and signed char (if char is signed) have the same rank, even if

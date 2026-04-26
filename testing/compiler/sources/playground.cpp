@@ -6,6 +6,6 @@
 
 int main()
 {
-     long long x = 1;
-     return alignof(char);
+     bool x = true;
+     return x - x;
 }

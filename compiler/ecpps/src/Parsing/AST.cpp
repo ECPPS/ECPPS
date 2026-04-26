@@ -612,6 +612,12 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
                i++;
                break;
           }
+          else if (kw == "void" || kw == "bool" || kw == "char8_t" || kw == "char16_t" || kw == "char32_t" ||
+                   kw == "wchar_t")
+          {
+               hasType = true;
+               i++;
+          }
           else
                break;
 

@@ -1990,6 +1990,20 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseSizeofExpression(*sizeofNode);
      if (auto* const alignofNode = dynamic_cast<ast::AlignOfNode*>(expression.get()); alignofNode != nullptr)
           return this->ParseAlignofExpression(*alignofNode);
+     if (auto* const booleanLiteral = dynamic_cast<ast::BooleanLiteralNode*>(expression.get());
+         booleanLiteral != nullptr)
+     {
+          // request bool
+          TypeRequest boolRequest{};
+          boolRequest.kind = TypeKind::Fundamental;
+          boolRequest.data = BoolRequest{};
+          const auto* boolType = GetTypeContext().Get(boolRequest);
+          return std::make_unique<PRValue>(
+              boolType,
+              std::unique_ptr<ir::IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator) ir::IntegralNode(
+                  booleanLiteral->Value() ? 1 : 0, expression->Source())},
+              true);
+     }
 
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(

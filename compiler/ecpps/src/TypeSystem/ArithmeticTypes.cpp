@@ -20,6 +20,7 @@ std::size_t ecpps::typeSystem::IntegralType::Size(void) const noexcept
      case TypeKind::Int: return std::to_underlying(TypeSizes::Int);
      case TypeKind::Long: return std::to_underlying(TypeSizes::Long);
      case TypeKind::LongLong: return std::to_underlying(TypeSizes::LongLong);
+     case TypeKind::Bool: return 1;
      }
 
      return 0;
@@ -327,4 +328,38 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ReferenceType::Common
 {
      // TODO: Implement
      return nullptr;
+}
+std::string ecpps::typeSystem::BoolType::RawName(void) const noexcept
+{
+     std::string built{};
+     if (this->IsConst()) built += "const ";
+     if (this->IsVolatile()) built += "volatile ";
+     return built + "bool";
+}
+
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::BoolType::CompareTo(NonowningTypePointer other) const
+{
+     if (other == nullptr) return ConversionSequence{std::nullopt};
+     SBOVector<ConversionSequence::ConversionKind> sequence{};
+     if (IsBoolean(other))
+     {
+          const auto* const otherBool = other->CastTo<BoolType>();
+          runtime_assert(otherBool != nullptr,
+                         std::format("Boolean type `{}` was not a boolean type", other->RawName()));
+          if (otherBool->qualifiers() != this->qualifiers())
+               sequence.Push(ConversionSequence::ConversionKind::QualifierConversion);
+          return ConversionSequence{sequence};
+     }
+     if (IsIntegral(other))
+     {
+          const auto* const otherIntegral = other->CastTo<IntegralType>();
+          runtime_assert(otherIntegral != nullptr,
+                         std::format("Integral type `{}` was not an integral type", other->RawName()));
+          if (otherIntegral->Sign() == Signedness::Unsigned)
+               sequence.Push(ConversionSequence::ConversionKind::BooleanConversion);
+          else
+               sequence.Push(ConversionSequence::ConversionKind::IntegralConversion);
+          return ConversionSequence{sequence};
+     }
+     return ConversionSequence{std::nullopt};
 }

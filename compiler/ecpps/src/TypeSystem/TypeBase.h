@@ -20,7 +20,8 @@ namespace ecpps::typeSystem
           Short,
           Int,
           Long,
-          LongLong
+          LongLong,
+          Bool
      };
 
      enum struct TypeTraitEnum : std::uint_fast8_t

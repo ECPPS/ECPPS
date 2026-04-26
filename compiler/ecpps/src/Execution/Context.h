@@ -56,6 +56,9 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer elementType{};
      };
+     struct BoolRequest
+     {
+     };
      using VoidRequest = std::monostate;
      struct TypeRequest;
      struct InvalidRequest
@@ -77,7 +80,7 @@ namespace ecpps::ir
      struct TypeRequest
      {
           using VarRequest = std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest,
-                                          PointerRequest, PlatformIntegerRequest, InvalidRequest>;
+                                          PointerRequest, PlatformIntegerRequest, BoolRequest, InvalidRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -134,6 +137,11 @@ namespace ecpps::ir
                     const auto& otherData = std::get<PlatformIntegerRequest>(other.data);
 
                     return thisData.kind == otherData.kind;
+               }
+
+               if (std::holds_alternative<BoolRequest>(this->data))
+               {
+                    return std::holds_alternative<BoolRequest>(other.data);
                }
 
                throw TracedException("Not implemented");
@@ -204,6 +212,7 @@ namespace ecpps::ir
                              seed = HashCombine(seed, data.elementType);
                         }
                         else if constexpr (std::is_same_v<T, VoidRequest>) {}
+                        else if constexpr (std::is_same_v<T, BoolRequest>) {}
                         else if constexpr (std::is_same_v<T, InvalidRequest>)
                              seed = HashCombine(seed, &data);
                         else
@@ -372,10 +381,15 @@ namespace ecpps::ir
                                                   case typeSystem::TypeKind::Int: return "int";
                                                   case typeSystem::TypeKind::Long: return "long";
                                                   case typeSystem::TypeKind::LongLong: return "long long";
+                                                  case typeSystem::TypeKind::Bool: return "bool";
                                                   }
                                                   return "?";
                                              })()),
                              request.qualifiers);
+                    }
+                    if (std::holds_alternative<BoolRequest>(request.data))
+                    {
+                         return std::make_unique<typeSystem::BoolType>(std::format("{}bool", cv), request.qualifiers);
                     }
                }
                else if (request.kind == TypeKind::Error)
