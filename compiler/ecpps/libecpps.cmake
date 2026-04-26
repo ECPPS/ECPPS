@@ -83,7 +83,7 @@ set_target_properties(libecpps PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(libecpps PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h")
 
-target_link_libraries(libecpps PRIVATE platformlib utilitieslib parserlib
+target_link_libraries(libecpps PUBLIC platformlib utilitieslib parserlib
                       typesystemlib backendlib)
 target_include_directories(libecpps
     PUBLIC

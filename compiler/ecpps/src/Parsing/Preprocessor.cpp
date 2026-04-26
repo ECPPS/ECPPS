@@ -72,7 +72,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                sourceIterator = directiveIt;
                if (directive.empty()) continue;
-               else if (directive == "pragma")
+               if (directive == "pragma")
                {
                     std::string pragmaContent;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
