@@ -65,10 +65,10 @@ namespace ecpps
      class Preprocessor
      {
      public:
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(
               const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
               std::set<std::filesystem::path>& includedFiles, const std::vector<std::string>& includeDirectories = {});
-          [[nodiscard]] static std::vector<PreprocessingToken> Parse(
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(
               const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
               const std::vector<std::string>& includeDirectories = {})
           {

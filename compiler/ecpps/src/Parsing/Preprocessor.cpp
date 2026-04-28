@@ -434,15 +434,6 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         sourceIterator = tempIt; // leave sourceIterator on closing "
                                         break;
                                    }
-                                   else
-                                        currentRawArg += c;
-                                   ++argIt;
-                              }
-                              for (const auto& rawArg : rawArgs)
-                              {
-                                   std::vector<MacroReplacement> macrosCopy = macros;
-                                   auto argTokens = Preprocessor::Parse(rawArg, macrosCopy, "", includedFiles);
-                                   arguments.push_back(std::move(argTokens));
                               }
                               rawContent += *sourceIterator++;
                          }
@@ -854,7 +845,7 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 {
      std::vector<ecpps::MacroReplacement> macrosCopy = macros;
      std::set<std::filesystem::path> includedFiles;
-     auto tokens = ecpps::Preprocessor::Parse(expanded, macrosCopy, "", includedFiles);
+     auto tokens = ecpps::Preprocessor{}.Parse(expanded, macrosCopy, "", includedFiles);
      for (std::size_t i = 0; i < tokens.size(); i++)
      {
           tokens[i].source.line = location.line;
