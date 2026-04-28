@@ -387,6 +387,132 @@
 				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
 				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release-ASan-UBSan"
 			}
+		},
+		{
+			"name": "testing",
+			"hidden": true,
+			"cacheVariables": {
+				"BUILD_TESTING": "ON"
+			}
+		},
+		{
+			"name": "Win64-MSVC-Debug-Tests",
+			"inherits": [
+				"Win64-MSVC-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-MSVC-Release-Tests",
+			"inherits": [
+				"Win64-MSVC-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-Debug-Tests",
+			"inherits": [
+				"Win64-Clang-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-Release-Tests",
+			"inherits": [
+				"Win64-Clang-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-GCC-Debug-Tests",
+			"inherits": [
+				"Win64-GCC-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-GCC-Release-Tests",
+			"inherits": [
+				"Win64-GCC-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-cl-Debug-Tests",
+			"inherits": [
+				"Win64-Clang-cl-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-cl-Release-Tests",
+			"inherits": [
+				"Win64-Clang-cl-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-Clang-Debug-Tests",
+			"inherits": [
+				"Linux-Clang-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-Clang-Release-Tests",
+			"inherits": [
+				"Linux-Clang-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-GCC-Debug-Tests",
+			"inherits": [
+				"Linux-GCC-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-GCC-Release-Tests",
+			"inherits": [
+				"Linux-GCC-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-Clang-Debug-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-Clang-Debug-ASan-UBSan",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-Clang-Release-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-Clang-Release-ASan-UBSan",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-GCC-Debug-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-GCC-Debug-ASan-UBSan",
+				"testing"
+			]
+		},
+		{
+			"name": "Linux-GCC-Release-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-GCC-Release-ASan-UBSan",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-MSVC-Debug-ASan-Tests",
+			"inherits": [
+				"Win64-MSVC-Debug-ASan",
+				"testing"
+			]
 		}
 	],
 	"buildPresets": [
@@ -457,76 +583,116 @@
 		{
 			"name": "Linux-GCC-Release-ASan-UBSan-Build",
 			"configurePreset": "Linux-GCC-Release-ASan-UBSan"
+		},
+		{
+			"name": "Win64-MSVC-Debug-Tests-Build",
+			"configurePreset": "Win64-MSVC-Debug-Tests"
+		},
+		{
+			"name": "Win64-MSVC-Release-Tests-Build",
+			"configurePreset": "Win64-MSVC-Release-Tests"
+		},
+		{
+			"name": "Win64-Clang-Debug-Tests-Build",
+			"configurePreset": "Win64-Clang-Debug-Tests"
+		},
+		{
+			"name": "Win64-Clang-Release-Tests-Build",
+			"configurePreset": "Win64-Clang-Release-Tests"
+		},
+		{
+			"name": "Win64-GCC-Debug-Tests-Build",
+			"configurePreset": "Win64-GCC-Debug-Tests"
+		},
+		{
+			"name": "Win64-GCC-Release-Tests-Build",
+			"configurePreset": "Win64-GCC-Release-Tests"
+		},
+		{
+			"name": "Win64-Clang-cl-Debug-Tests-Build",
+			"configurePreset": "Win64-Clang-cl-Debug-Tests"
+		},
+		{
+			"name": "Win64-Clang-cl-Release-Tests-Build",
+			"configurePreset": "Win64-Clang-cl-Release-Tests"
+		},
+		{
+			"name": "Linux-Clang-Debug-Tests-Build",
+			"configurePreset": "Linux-Clang-Debug-Tests"
+		},
+		{
+			"name": "Linux-Clang-Release-Tests-Build",
+			"configurePreset": "Linux-Clang-Release-Tests"
 		}
 	],
 	"testPresets": [
 		{
 			"name": "Win64-MSVC-Debug-Test",
-			"configurePreset": "Win64-MSVC-Debug"
+			"configurePreset": "Win64-MSVC-Debug-Tests"
 		},
 		{
 			"name": "Win64-MSVC-Debug-ASan-Test",
-			"configurePreset": "Win64-MSVC-Debug-ASan"
+			"configurePreset": "Win64-MSVC-Debug-ASan-Tests"
 		},
 		{
 			"name": "Win64-MSVC-Release-Test",
-			"configurePreset": "Win64-MSVC-Release"
+			"configurePreset": "Win64-MSVC-Release-Tests"
 		},
 		{
 			"name": "Win64-Clang-cl-Debug-Test",
-			"configurePreset": "Win64-Clang-cl-Debug"
+			"configurePreset": "Win64-Clang-cl-Debug-Tests"
 		},
 		{
 			"name": "Win64-Clang-cl-Release-Test",
-			"configurePreset": "Win64-Clang-cl-Release"
+			"configurePreset": "Win64-Clang-cl-Release-Tests"
 		},
 		{
 			"name": "Win64-Clang-Debug-Test",
-			"configurePreset": "Win64-Clang-Debug"
+			"configurePreset": "Win64-Clang-Debug-Tests"
 		},
 		{
 			"name": "Win64-Clang-Release-Test",
-			"configurePreset": "Win64-Clang-Release"
+			"configurePreset": "Win64-Clang-Release-Tests"
 		},
 		{
 			"name": "Win64-GCC-Debug-Test",
-			"configurePreset": "Win64-GCC-Debug"
+			"configurePreset": "Win64-GCC-Debug-Tests"
 		},
 		{
 			"name": "Win64-GCC-Release-Test",
-			"configurePreset": "Win64-GCC-Release"
+			"configurePreset": "Win64-GCC-Release-Tests"
 		},
 		{
 			"name": "Linux-Clang-Debug-Test",
-			"configurePreset": "Linux-Clang-Debug"
+			"configurePreset": "Linux-Clang-Debug-Tests"
 		},
 		{
 			"name": "Linux-Clang-Release-Test",
-			"configurePreset": "Linux-Clang-Release"
+			"configurePreset": "Linux-Clang-Release-Tests"
 		},
 		{
 			"name": "Linux-GCC-Debug-Test",
-			"configurePreset": "Linux-GCC-Debug"
+			"configurePreset": "Linux-GCC-Debug-Tests"
 		},
 		{
 			"name": "Linux-GCC-Release-Test",
-			"configurePreset": "Linux-GCC-Release"
+			"configurePreset": "Linux-GCC-Release-Tests"
 		},
 		{
 			"name": "Linux-Clang-Debug-ASan-UBSan-Test",
-			"configurePreset": "Linux-Clang-Debug-ASan-UBSan"
+			"configurePreset": "Linux-Clang-Debug-ASan-UBSan-Tests"
 		},
 		{
 			"name": "Linux-Clang-Release-ASan-UBSan-Test",
-			"configurePreset": "Linux-Clang-Release-ASan-UBSan"
+			"configurePreset": "Linux-Clang-Release-ASan-UBSan-Tests"
 		},
 		{
 			"name": "Linux-GCC-Debug-ASan-UBSan-Test",
-			"configurePreset": "Linux-GCC-Debug-ASan-UBSan"
+			"configurePreset": "Linux-GCC-Debug-ASan-UBSan-Tests"
 		},
 		{
 			"name": "Linux-GCC-Release-ASan-UBSan-Test",
-			"configurePreset": "Linux-GCC-Release-ASan-UBSan"
+			"configurePreset": "Linux-GCC-Release-ASan-UBSan-Tests"
 		}
 	]
 }
