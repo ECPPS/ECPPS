@@ -65,12 +65,15 @@ namespace ecpps
      class Preprocessor
      {
      public:
-          [[nodiscard]] std::vector<PreprocessingToken> Parse(
-              const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
-              std::set<std::filesystem::path>& includedFiles, const std::vector<std::string>& includeDirectories = {});
-          [[nodiscard]] std::vector<PreprocessingToken> Parse(
-              const std::string& source, std::vector<MacroReplacement>& macros, const std::string& fileName,
-              const std::vector<std::string>& includeDirectories = {})
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
+                                                              std::vector<MacroReplacement>& macros,
+                                                              const std::string& fileName,
+                                                              std::set<std::filesystem::path>& includedFiles,
+                                                              const std::vector<std::string>& includeDirectories = {});
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
+                                                              std::vector<MacroReplacement>& macros,
+                                                              const std::string& fileName,
+                                                              const std::vector<std::string>& includeDirectories = {})
           {
                // primarily used for tests
                std::set<std::filesystem::path> includedFiles;

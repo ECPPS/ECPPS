@@ -192,8 +192,8 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
                     std::set<std::filesystem::path> includedFiles;
                     ecpps::Preprocessor preprocessor{};
-                    const auto ppTokens = preprocessor.Parse(source.contents, macros, source.name,
-                                                                     includedFiles, config.includeDirectories);
+                    const auto ppTokens = preprocessor.Parse(source.contents, macros, source.name, includedFiles,
+                                                             config.includeDirectories);
                     std::ranges::move(preprocessor.diagnostics, std::back_inserter(source.diagnostics.diagnosticsList));
                     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
                     if (isExtraVerbose) std::println();
