@@ -219,6 +219,15 @@ namespace ecpps::codegen
           }
      };
 
+     struct NotInstruction
+     {
+          Operand operand;
+          std::size_t width;
+          explicit NotInstruction(Operand operand, const std::size_t width) : operand(std::move(operand)), width(width)
+          {
+          }
+     };
+
      /// <summary>
      /// Custom-defined instruction by architectures. Has no meaning in the generic code generation context
      /// Can be used for architecture-specific optimisations and intrinsics.
@@ -307,7 +316,7 @@ namespace ecpps::codegen
      using Instruction =
          std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
                       CallInstruction, TakeAddressInstruction,
-                      SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
+                      SubInstruction, NotInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

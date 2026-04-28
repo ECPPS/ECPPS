@@ -132,6 +132,7 @@ namespace ecpps::ir
           [[nodiscard]] Expression ParsePostIncrementExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParsePreDecrementExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParsePostDecrementExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParseLogicalNotExpression(Expression operand, const Location& source) const;
 
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);

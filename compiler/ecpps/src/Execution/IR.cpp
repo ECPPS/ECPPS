@@ -35,6 +35,105 @@ using ecpps::Expression;
 
 namespace
 {
+     const ecpps::typeSystem::TypeBase* UsualArithmeticConversions(Expression& left, Expression& right,
+                                                                   ecpps::BumpAllocator& allocator)
+     {
+          using namespace ecpps::typeSystem;
+
+          const auto* leftType = left->Type();
+          const auto* rightType = right->Type();
+
+          // const auto* leftFloat = leftType->CastTo<FloatingType>();
+          // const auto* rightFloat = rightType->CastTo<FloatingType>();
+
+          // if (leftFloat != nullptr || rightFloat != nullptr)
+          //{
+          //      const FloatingType* target = nullptr;
+
+          //     if (leftFloat != nullptr && rightFloat != nullptr)
+          //          target = leftFloat->Rank() >= rightFloat->Rank() ? leftFloat : rightFloat;
+          //     else if (leftFloat != nullptr)
+          //          target = leftFloat;
+          //     else
+          //          target = rightFloat;
+
+          //     auto promote = [&](Expression& expr, const FloatingType* toFloat)
+          //     {
+          //          if (expr->Type() == toFloat) return;
+          //          const auto src = expr->Value()->Source();
+          //          const bool wasConst = expr->IsConstantExpression();
+          //          expr = std::make_unique<ecpps::PRValue>(
+          //              toFloat,
+          //              std::unique_ptr<ecpps::ir::ConvertNode, ecpps::ir::IRDeleter>{
+          //                  new (allocator) ecpps::ir::ConvertNode(std::move(expr), toFloat, src)},
+          //              wasConst);
+          //     };
+
+          //     promote(left, target);
+          //     promote(right, target);
+          //     return target;
+          //}
+
+          const auto* leftInt = leftType->CastTo<IntegralType>();
+          const auto* rightInt = rightType->CastTo<IntegralType>();
+
+          if (leftInt == nullptr || rightInt == nullptr) return nullptr;
+
+          leftInt = PromoteInteger(leftInt);
+          rightInt = PromoteInteger(rightInt);
+
+          auto applyPromotion = [&](Expression& expr, const IntegralType* promoted)
+          {
+               if (expr->Type() == promoted) return;
+               const auto src = expr->Value()->Source();
+               const bool wasConst = expr->IsConstantExpression();
+               expr = std::make_unique<ecpps::PRValue>(promoted,
+                                                       std::unique_ptr<ecpps::ir::ConvertNode, ecpps::ir::IRDeleter>{
+                                                           new (allocator)
+                                                               ecpps::ir::ConvertNode(std::move(expr), promoted, src)},
+                                                       wasConst);
+          };
+
+          applyPromotion(left, leftInt);
+          applyPromotion(right, rightInt);
+
+          if (leftInt == rightInt) return leftInt;
+
+          if (leftInt->Sign() == rightInt->Sign())
+          {
+               const auto* common = leftInt->Kind() >= rightInt->Kind() ? leftInt : rightInt;
+               applyPromotion(left, common);
+               applyPromotion(right, common);
+               return common;
+          }
+
+          const auto* signedOp = leftInt->Sign() == Signedness::Signed ? leftInt : rightInt;
+          const auto* unsignedOp = leftInt->Sign() == Signedness::Unsigned ? leftInt : rightInt;
+
+          Expression& signedExpr = leftInt->Sign() == Signedness::Signed ? left : right;
+          Expression& unsignedExpr = leftInt->Sign() == Signedness::Signed ? right : left;
+
+          if (unsignedOp->Kind() >= signedOp->Kind())
+          {
+               applyPromotion(signedExpr, unsignedOp);
+               return unsignedOp;
+          }
+
+          if (signedOp->Kind() > unsignedOp->Kind())
+          {
+               applyPromotion(unsignedExpr, signedOp);
+               return signedOp;
+          }
+
+          const auto* common = signedOp->CommonWith(unsignedOp);
+          const auto* commonIntegral = common != nullptr ? common->CastTo<IntegralType>() : nullptr;
+          if (commonIntegral != nullptr)
+          {
+               applyPromotion(left, commonIntegral);
+               applyPromotion(right, commonIntegral);
+          }
+          return common;
+     }
      std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
      {
           std::string signature = func->Name().value_or("__unknown") + "(";
@@ -995,13 +1094,11 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 {
      runtime_assert(operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus, "Invalid additive operator");
 
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
      const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
      const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
 
-     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
-     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
-
-     // E1 = E2 where one is a pointer and one is an integer
      if ((leftPointer != nullptr && rightIntegral != nullptr) || (leftIntegral != nullptr && rightPointer != nullptr))
      {
           const bool isPlus = operator_ == ast::Operator::Plus;
@@ -1022,30 +1119,25 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                std::swap(leftPointer, rightPointer);
           }
 
-          rightIntegral = typeSystem::PromoteInteger(rightIntegral);
-
-          if (right->Type() != rightIntegral)
+          const auto* promoted = typeSystem::PromoteInteger(rightIntegral);
+          if (right->Type() != promoted)
           {
                const auto innerSource = right->Value()->Source();
                const auto wasConstexpr = right->IsConstantExpression();
-
-               right = std::make_unique<PRValue>(rightIntegral,
-                                                 std::unique_ptr<ConvertNode, IRDeleter>{
-                                                     new (*this->GetContext().nodeAllocator)
-                                                         ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                                 wasConstexpr);
+               right = std::make_unique<PRValue>(
+                   promoted,
+                   std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                               ConvertNode(std::move(right), promoted, innerSource)},
+                   wasConstexpr);
           }
 
-          if (!isPlus) // ptr - int
-          {
+          if (!isPlus)
                return std::make_unique<PRValue>(leftPointer,
                                                 std::unique_ptr<SubtractionNode, IRDeleter>{
                                                     new (*this->GetContext().nodeAllocator)
                                                         SubtractionNode(std::move(left), std::move(right), source)},
                                                 false);
-          }
 
-          // ptr + int
           return std::make_unique<PRValue>(
               leftPointer,
               std::unique_ptr<AdditionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
@@ -1061,7 +1153,6 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
                return nullptr;
           }
-
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
@@ -1084,51 +1175,14 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                                            false);
      }
 
-     if (leftIntegral == nullptr || rightIntegral == nullptr)
-     {
-          // TODO: Classes
+     const auto* resultType = UsualArithmeticConversions(left, right, *this->GetContext().nodeAllocator);
 
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                  left->Value()->Source()));
-
-          return nullptr;
-     }
-     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
-     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
-
-     if (left->Type() != leftIntegral) // got promoted
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(
-              leftIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
-              wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral) // got promoted
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(
-              rightIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
-              wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
-                  left->Value()->Source()));
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                  source));
           return nullptr;
      }
 
@@ -1153,54 +1207,14 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
                         operator_ == ast::Operator::Percent,
                     "Operator was not multiplicative in a multiplicative-expression");
 
-     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
-     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* resultType = UsualArithmeticConversions(left, right, *this->GetContext().nodeAllocator);
 
-     if (leftIntegral == nullptr || rightIntegral == nullptr)
-     {
-          // TODO: Classes
-
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                  left->Value()->Source()));
-
-          return nullptr;
-     }
-     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
-     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
-
-     if (left->Type() != leftIntegral) // got promoted
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(
-              leftIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
-              wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral) // got promoted
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(
-              rightIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
-              wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
-                  left->Value()->Source()));
+                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                  source));
           return nullptr;
      }
 
@@ -1501,6 +1515,26 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
      throw TracedException("Not implemented");
 }
 
+Expression ecpps::ir::IR::ParseLogicalNotExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+     const auto& operandType = operand->Type();
+     if (IsScalar(operandType))
+     {
+          TypeRequest boolRequest{};
+          boolRequest.kind = TypeKind::Fundamental;
+          boolRequest.data = BoolRequest{};
+          const auto* boolType = GetTypeContext().Get(boolRequest);
+
+          return std::make_unique<PRValue>(
+              boolType,
+              std::unique_ptr<LogicalNotNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                             LogicalNotNode(std::move(operand), source)},
+              false);
+     }
+     throw TracedException("Not implemented");
+}
+
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
 {
      const auto operator_ = node.Value();
@@ -1521,6 +1555,7 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
                      ? this->ParsePreDecrementExpression(std::move(operand), node.Source())
                      : this->ParsePostDecrementExpression(std::move(operand), node.Source());
+     case ast::Operator::Exclamation: return this->ParseLogicalNotExpression(std::move(operand), node.Source());
      default: throw TracedException(std::logic_error("Invalid unary operator"));
      }
 }

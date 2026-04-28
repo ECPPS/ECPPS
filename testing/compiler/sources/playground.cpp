@@ -7,5 +7,5 @@
 int main()
 {
      bool x = true;
-     return x - x;
+     return !x;
 }

@@ -878,6 +878,20 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
      {
           return ParseExpression(context, code, pointerConversionNode->Operand());
      }
+     if (auto* const logicalNot = dynamic_cast<ecpps::ir::LogicalNotNode*>(value.get()); logicalNot != nullptr)
+     {
+          if (logicalNot->Operand() == nullptr) return ecpps::codegen::ErrorOperand{};
+          const auto operand = ParseExpression(context, code, logicalNot->Operand());
+          if (std::holds_alternative<ecpps::codegen::ErrorOperand>(operand)) return ecpps::codegen::ErrorOperand{};
+          auto& abi = ecpps::abi::ABI::Current();
+          const auto resultStorage = abi.AllocateRegister(ecpps::typeSystem::CharWidth);
+          if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(operand))
+               code.emplace_back(ecpps::codegen::MovInstruction{
+                   operand, ecpps::codegen::RegisterOperand{resultStorage.Ptr()}, ecpps::typeSystem::CharWidth});
+          code.emplace_back(ecpps::codegen::NotInstruction{ecpps::codegen::RegisterOperand{resultStorage.Ptr()},
+                                                           ecpps::typeSystem::CharWidth});
+          return ecpps::codegen::RegisterOperand{resultStorage.Ptr()};
+     }
 
      throw ecpps::TracedException(std::logic_error("Invalid expression"));
 }

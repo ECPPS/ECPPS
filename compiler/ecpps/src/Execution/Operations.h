@@ -194,6 +194,23 @@ namespace ecpps::ir
           std::size_t _increment;
      };
 
+     class LogicalNotNode final : public NodeBase
+     {
+     public:
+          explicit LogicalNotNode(Expression operand, Location source)
+              : NodeBase(NodeKind::LogicalNot, source), _operand(std::move(operand))
+          {
+          }
+          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "__logical_not(" + this->_operand->Value()->ToString(0) + ")";
+          }
+
+     private:
+          Expression _operand;
+     };
+
      class SubtractionNode final : public NodeBase
      {
      public:

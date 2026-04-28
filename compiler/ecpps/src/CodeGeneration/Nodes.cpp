@@ -56,6 +56,15 @@ std::string ecpps::codegen::ToString(const Instruction& instruction)
                   built += ", " + instruction.from.ToString();
                   return built;
              },
+             [](const NotInstruction& instruction)
+             {
+                  std::string built = std::format("not.{}", instruction.width);
+                  built += " " + std::visit(OverloadedVisitor{[](std::monostate) -> std::string { return "?"; },
+                                                              [](const auto& operand) -> std::string
+                                                              { return operand.ToString(); }},
+                                            instruction.operand);
+                  return built;
+             },
              [](const AddInstruction& instruction)
              {
                   std::string built = std::format("add.{}", instruction.width);

@@ -39,7 +39,8 @@ namespace ecpps::ir
           IntegerArrayDecay,
           LoadArrayDecay,
           PointerConversion,
-          IncomingParameter
+          IncomingParameter,
+          LogicalNot
      };
 
      struct ConstantAggregateMap;
