@@ -73,7 +73,8 @@ target_include_directories(backendlib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
 set_target_properties(backendlib PROPERTIES CXX_STANDARD 23)
 target_precompile_headers(backendlib PRIVATE
                           "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h")
-target_link_libraries(backendlib PRIVATE ecpps_defaults utilitieslib parserlib typesystemlib platformlib)
+target_link_libraries(backendlib PRIVATE ecpps_defaults)
+target_link_libraries(backendlib PUBLIC utilitieslib parserlib typesystemlib platformlib)
 
 add_library(libecpps STATIC)
 target_sources(libecpps PUBLIC ${SHARED_SOURCES})
