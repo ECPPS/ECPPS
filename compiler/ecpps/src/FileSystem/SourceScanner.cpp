@@ -1,4 +1,5 @@
 #include "SourceScanner.h"
+#include <fstream>
 
 const std::filesystem::path& ecpps::fs::SourceScanner::ResolveInclude(const std::filesystem::path& currentPath,
                                                                       const std::string& name, IncludeType type)
