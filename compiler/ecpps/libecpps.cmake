@@ -91,7 +91,6 @@ target_precompile_headers(backendlib PRIVATE
 )
 target_precompile_headers(typesystemlib PRIVATE
                           "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h"
-                          "${CMAKE_CURRENT_SOURCE_DIR}/../utilitieslib/src/pch.h"
 )
 target_precompile_headers(libecpps PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h"
@@ -99,7 +98,7 @@ target_precompile_headers(libecpps PRIVATE
 
 # Sources
 
-target_sources(parserlib PUBLIC ${PARSING_SOURCES})
-target_sources(backendlib PUBLIC ${BACKEND_SOURCES})
-target_sources(typesystemlib PUBLIC ${TYPESYSTEM_SOURCES})
-target_sources(libecpps PUBLIC ${SHARED_SOURCES})
+target_sources(parserlib PRIVATE ${PARSING_SOURCES})
+target_sources(backendlib PRIVATE ${BACKEND_SOURCES})
+target_sources(typesystemlib PRIVATE ${TYPESYSTEM_SOURCES})
+target_sources(libecpps PRIVATE ${SHARED_SOURCES})
