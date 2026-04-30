@@ -45,7 +45,8 @@ set(SHARED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/FileSystem/SourceScanner.cpp"
 )
 
-add_library(parserlib STATIC ${PARSING_SOURCES})
+add_library(parserlib STATIC)
+target_sources(parserlib PUBLIC ${PARSING_SOURCES})
 target_include_directories(parserlib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
                            "../utilitieslib/include/utilitieslib"
                            "../platformlib/include")
@@ -54,7 +55,8 @@ target_link_libraries(parserlib PRIVATE ecpps_defaults)
 target_precompile_headers(parserlib PRIVATE
                           "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/pch.h")
 
-add_library(typesystemlib STATIC ${TYPESYSTEM_SOURCES})
+add_library(typesystemlib STATIC)
+target_sources(typesystemlib PUBLIC ${TYPESYSTEM_SOURCES})
 target_include_directories(typesystemlib PUBLIC
                            "${CMAKE_CURRENT_SOURCE_DIR}/src"
                            "../utilitieslib/include/utilitieslib"
