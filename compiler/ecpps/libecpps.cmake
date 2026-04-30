@@ -66,7 +66,8 @@ target_precompile_headers(typesystemlib PRIVATE
                           "${CMAKE_CURRENT_SOURCE_DIR}/../utilitieslib/src/pch.h"
 )
 
-add_library(backendlib STATIC ${BACKEND_SOURCES})
+add_library(backendlib STATIC)
+target_sources(backendlib PUBLIC ${BACKEND_SOURCES})
 target_include_directories(backendlib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
                            "../utilitieslib/include/utilitieslib"
                            "../platformlib/include")
