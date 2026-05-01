@@ -62,7 +62,7 @@ set_target_properties(libecpps PROPERTIES CXX_STANDARD 23)
 
 target_link_libraries(parserlib PRIVATE ecpps_defaults platformlib utilitieslib)
 target_link_libraries(typesystemlib PRIVATE ecpps_defaults platformlib utilitieslib)
-target_link_libraries(backendlib PRIVATE ecpps_defaults platformlib utilitieslib)
+target_link_libraries(backendlib PRIVATE ecpps_defaults platformlib utilitieslib typesystemlib)
 target_link_libraries(libecpps PRIVATE ecpps_defaults platformlib utilitieslib)
 
 target_link_libraries(libecpps PUBLIC platformlib utilitieslib parserlib
