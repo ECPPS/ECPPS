@@ -8,7 +8,7 @@ if(MSVC)
 else()
     target_compile_options(ecpps_optimisations INTERFACE
 	     $<$<CONFIG:Debug>:-Og>
-        $<$<CONFIG:Release>:-O3 -fdevirtualize-speculatively -fdevirtualize-at-ltrans>
-        $<$<CONFIG:RelWithDebInfo>:-O3 -fdevirtualize-speculatively -fdevirtualize-at-ltrans>
+        $<$<CONFIG:Release>:-O3 -march=x86-64-v3>
+        $<$<CONFIG:RelWithDebInfo>:-O3 -march=x86-64-v3>
     )
 endif()
