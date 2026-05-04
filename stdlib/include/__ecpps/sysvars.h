@@ -1,3 +1,4 @@
+#pragma once
 // NOLINTBEGIN
 
 using _INT8 = signed char;

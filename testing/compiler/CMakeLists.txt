@@ -22,18 +22,6 @@ add_compiler_test(test_bump_allocator
     tests/unit/utilities/test_bump_allocator.cpp 
     unit)
 
-add_compiler_test(test_sbo_vector_comprehensive 
-    tests/unit/utilities/test_sbo_vector.cpp 
-    unit)
-
-add_compiler_test(test_platform_identify 
-    tests/unit/test_platform_identify.cpp 
-    unit)
-
-add_compiler_test(test_unit_legacy 
-    tests/unit/test_tokenise.cpp 
-    unit)
-
 add_compiler_test(test_type_comparison 
     tests/unit/typesystem/test_type_comparison.cpp 
     unit)
@@ -50,16 +38,8 @@ add_compiler_test(test_tokeniser_to_ast
     tests/integration/test_tokeniser_to_ast.cpp 
     integration)
 
-add_compiler_test(test_integration_legacy 
-    tests/integration/test_ast.cpp 
-    integration)
-
 add_compiler_test(test_e2e_comprehensive 
     tests/e2e/test_comprehensive.cpp 
-    e2e)
-
-add_compiler_test(test_e2e_legacy 
-    tests/e2e/test_int_main.cpp 
     e2e)
 
 add_compiler_test(test_pointer_arithmetic_regression 

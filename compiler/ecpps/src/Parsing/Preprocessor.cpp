@@ -1,9 +1,9 @@
 #include "Preprocessor.h"
+#include <FileSystem/SourceScanner.h>
 #include <RuntimeAssert.h>
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
 #include <iterator>
 #include <print>
 #include <unordered_map>
@@ -59,6 +59,7 @@ static std::string ReadEscapedLiteral(std::string::const_iterator& it, const std
 std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::string& source,
                                                                   std::vector<MacroReplacement>& macros,
                                                                   const std::string& fileName,
+                                                                  std::set<std::filesystem::path>& includedFiles,
                                                                   const std::vector<std::string>& includeDirectories)
 {
      std::vector<ecpps::PreprocessingToken> tokens{};
@@ -119,7 +120,27 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                sourceIterator = directiveIt;
                if (directive.empty()) continue;
-               if (directive == "include")
+               if (directive == "pragma")
+               {
+                    std::string pragmaContent;
+                    while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
+                         ++sourceIterator;
+
+                    while (sourceIterator != source.end() && *sourceIterator != '\n' && *sourceIterator != '\r')
+                    {
+                         pragmaContent += *sourceIterator;
+                         Advance(sourceIterator);
+                    }
+                    if (pragmaContent == "once")
+                    {
+                         const auto canonicalPath = canonical(std::filesystem::path(fileName));
+                         if (includedFiles.contains(canonicalPath)) return tokens;
+                         includedFiles.insert(canonical(std::filesystem::path(fileName)));
+                    }
+                    else
+                         std::println("Warning: Unrecognized pragma '{}'", pragmaContent);
+               }
+               else if (directive == "include")
                {
                     std::string header;
                     while (sourceIterator != source.end() && (*sourceIterator == ' ' || *sourceIterator == '\t'))
@@ -139,40 +160,16 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (sourceIterator != source.end()) ++sourceIterator; // skip closing delimiter
                     }
 
-                    std::filesystem::path resolvedPath;
-                    bool found = false;
-
-                    auto tryFile = [&](const std::filesystem::path& base)
+                    std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
+                        fileName, header,
+                        (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
+                    if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
                     {
-                         if (found) return;
-                         std::filesystem::path candidate = base / header;
-                         if (std::filesystem::exists(candidate))
-                         {
-                              resolvedPath = std::filesystem::canonical(candidate);
-                              found = true;
-                         }
-                    };
+                         const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
-                    if (delimiter == '"') tryFile(std::filesystem::path(fileName).parent_path());
-
-                    if (!found)
-                    {
-                         for (const auto& dir : includeDirectories)
-                         {
-                              tryFile(dir);
-                              if (found) break;
-                         }
+                         tokens.append_range(
+                             Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
                     }
-                    if (delimiter == '<') tryFile(std::filesystem::path(fileName).parent_path());
-
-                    if (!found) { throw std::runtime_error("include file not found: " + header); }
-
-                    std::ifstream file(resolvedPath, std::ios::binary);
-                    if (!file) { throw std::runtime_error("failed to open include: " + resolvedPath.string()); }
-
-                    std::string includedSource{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-
-                    tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includeDirectories));
                }
                else if (directive == "define")
                {
@@ -341,8 +338,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (isCurrentBranch) builtSource += c;
                          Advance(sourceIterator);
                     }
-
-                    auto parsed = Parse(builtSource, macros, fileName, includeDirectories);
+                    auto parsed = Parse(builtSource, macros, fileName, includedFiles, includeDirectories);
                     for (auto& token : parsed) token.source.line += previousLine - 1;
 
                     tokens.reserve(tokens.size() + parsed.size());
@@ -848,7 +844,8 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
                                                                     const std::vector<ecpps::MacroReplacement>& macros)
 {
      std::vector<ecpps::MacroReplacement> macrosCopy = macros;
-     auto tokens = ecpps::Preprocessor{}.Parse(expanded, macrosCopy, "");
+     std::set<std::filesystem::path> includedFiles;
+     auto tokens = ecpps::Preprocessor{}.Parse(expanded, macrosCopy, "", includedFiles);
      for (std::size_t i = 0; i < tokens.size(); i++)
      {
           tokens[i].source.line = location.line;
@@ -884,6 +881,18 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
 
                if (i < rawArgs.size())
                {
+                    // std::string argStr;
+                    // for (const auto& token : arguments[i]) argStr += token.value;
+
+                    // rawParameterMap[parameterName] = argStr;
+
+                    // std::vector<ecpps::MacroReplacement> macrosCopy = macros;
+                    // std::set<std::filesystem::path> includedFiles;
+                    // auto expandedTokens = ecpps::Preprocessor::Parse(argStr, macrosCopy, "", includedFiles);
+                    // std::string expandedArg;
+                    // for (const auto& tok : expandedTokens) expandedArg += tok.value;
+
+                    // parameterMap[parameterName] = expandedArg;
                     const std::string& raw = rawArgs[i];
                     auto rf = raw.find_first_not_of(" \t\n\r");
                     auto rl = raw.find_last_not_of(" \t\n\r");

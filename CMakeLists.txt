@@ -27,6 +27,9 @@ if (SANITISE)
     include(meta-targets/Sanitisers)
 endif()
 
+message("-- CXX Flags: ${CMAKE_CXX_FLAGS}")
+message("-- CXX Link : ${CMAKE_CXX_LINKER_FLAGS}")
+
 add_subdirectory(compiler)
 add_subdirectory(stdlib)
 

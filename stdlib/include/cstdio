@@ -1,3 +1,4 @@
+#pragma once
 #include "__ecpps/sysvars.h"
 
 // int putc(_In_ int _Character, _Inout_ FILE* _Stream);

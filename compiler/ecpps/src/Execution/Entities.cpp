@@ -2,11 +2,8 @@
 
 ecpps::ir::Entity::~Entity(void) = default;
 
-namespace ecpps::ir
+ecpps::ir::EntityStatistics& ecpps::ir::GetEntityStatistics(void)
 {
-     EntityStatistics& GetEntityStatistics(void)
-     {
-          static EntityStatistics statistics{};
-          return statistics;
-     }
-} // namespace ecpps::ir
+     static EntityStatistics statistics{};
+     return statistics;
+}

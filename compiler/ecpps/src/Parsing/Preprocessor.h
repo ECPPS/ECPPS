@@ -1,7 +1,9 @@
 #pragma once
 #include <cctype>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -66,7 +68,17 @@ namespace ecpps
           [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
                                                               std::vector<MacroReplacement>& macros,
                                                               const std::string& fileName,
+                                                              std::set<std::filesystem::path>& includedFiles,
                                                               const std::vector<std::string>& includeDirectories = {});
+          [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
+                                                              std::vector<MacroReplacement>& macros,
+                                                              const std::string& fileName,
+                                                              const std::vector<std::string>& includeDirectories = {})
+          {
+               // primarily used for tests
+               std::set<std::filesystem::path> includedFiles;
+               return Parse(source, macros, fileName, includedFiles, includeDirectories);
+          }
           static void Print(const std::vector<PreprocessingToken>& ppTokens);
 
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
