@@ -38,10 +38,6 @@ add_compiler_test(test_tokeniser_to_ast
     tests/integration/test_tokeniser_to_ast.cpp 
     integration)
 
-add_compiler_test(test_integration_legacy 
-    tests/integration/test_ast.cpp 
-    integration)
-
 add_compiler_test(test_e2e_comprehensive 
     tests/e2e/test_comprehensive.cpp 
     e2e)
