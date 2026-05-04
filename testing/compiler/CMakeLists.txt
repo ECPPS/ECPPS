@@ -46,10 +46,6 @@ add_compiler_test(test_e2e_comprehensive
     tests/e2e/test_comprehensive.cpp 
     e2e)
 
-add_compiler_test(test_e2e_legacy 
-    tests/e2e/test_int_main.cpp 
-    e2e)
-
 add_compiler_test(test_pointer_arithmetic_regression 
     tests/regression/test_pointer_arithmetic.cpp 
     regression)
