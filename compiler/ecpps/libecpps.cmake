@@ -101,4 +101,4 @@ target_precompile_headers(libecpps PRIVATE
 target_sources(parserlib PRIVATE ${PARSING_SOURCES})
 target_sources(backendlib PRIVATE ${BACKEND_SOURCES})
 target_sources(typesystemlib PRIVATE ${TYPESYSTEM_SOURCES})
-target_sources(libecpps PRIVATE ${SHARED_SOURCES})
+target_sources(libecpps PUBLIC ${SHARED_SOURCES})
