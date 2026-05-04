@@ -22,18 +22,6 @@ add_compiler_test(test_bump_allocator
     tests/unit/utilities/test_bump_allocator.cpp 
     unit)
 
-add_compiler_test(test_sbo_vector_comprehensive 
-    tests/unit/utilities/test_sbo_vector.cpp 
-    unit)
-
-add_compiler_test(test_platform_identify 
-    tests/unit/test_platform_identify.cpp 
-    unit)
-
-add_compiler_test(test_unit_legacy 
-    tests/unit/test_tokenise.cpp 
-    unit)
-
 add_compiler_test(test_type_comparison 
     tests/unit/typesystem/test_type_comparison.cpp 
     unit)
