@@ -6,50 +6,126 @@
 
 // NOLINTBEGIN(readability-identifier-length)
 
-std::vector<std::byte> ecpps::codegen::x86_64::GenerateUD2(void) { return {std::byte{0x0f}, std::byte{0x0b}}; }
+inline namespace detail
+{
+     constexpr auto MakePusher(auto&& vector)
+          requires std::ranges::output_range<decltype(vector), std::byte>
+     {
+          return [&vector](std::byte b) { vector.push_back(b); };
+     }
+     template <typename T>
+     concept IsPushByteFunctor = requires(T t, std::byte b) {
+          { t(b) } -> std::same_as<void>;
+     };
+     static void Emit(IsPushByteFunctor auto&& push, std::integral auto b) { push(static_cast<std::byte>(b)); }
+     static void Rex(IsPushByteFunctor auto&& push, bool w, bool r, bool x, bool b)
+     {
+          std::uint8_t rex = 0x40u;
+          if (w) rex |= 0x08u;
+          if (r) rex |= 0x04u;
+          if (x) rex |= 0x02u;
+          if (b) rex |= 0x01u;
+          if (rex != 0x40u || w) push(static_cast<std::byte>(rex));
+     }
+     [[maybe_unused]] static void RexOpt(IsPushByteFunctor auto&& push, bool r, bool x, bool b)
+     {
+          std::uint8_t rex = 0x40u;
+          if (r) rex |= 0x04u;
+          if (x) rex |= 0x02u;
+          if (b) rex |= 0x01u;
+          if (rex != 0x40u) push(static_cast<std::byte>(rex));
+     }
+     [[maybe_unused]] static void ModRM(IsPushByteFunctor auto&& push, std::uint8_t mod, std::uint8_t reg,
+                                        std::uint8_t rm)
+     {
+          push(static_cast<std::byte>(((mod & 3u) << 6u) | ((reg & 7u) << 3u) | (rm & 7u)));
+     }
+     static void Sib(IsPushByteFunctor auto&& push, std::uint8_t scale, std::uint8_t index, std::uint8_t base)
+     {
+          push(static_cast<std::byte>(((scale & 3u) << 6u) | ((index & 7u) << 3u) | (base & 7u)));
+     }
+     static void Imm16(IsPushByteFunctor auto&& push, std::uint16_t v)
+     {
+          Emit(push, static_cast<std::uint8_t>(v));
+          Emit(push, static_cast<std::uint8_t>(v >> 8u));
+     }
+     static void Imm32(IsPushByteFunctor auto&& push, std::uint32_t v)
+     {
+          Emit(push, static_cast<std::uint8_t>(v));
+          Emit(push, static_cast<std::uint8_t>(v >> 8u));
+          Emit(push, static_cast<std::uint8_t>(v >> 16u));
+          Emit(push, static_cast<std::uint8_t>(v >> 24u));
+     }
+     static void Imm64(IsPushByteFunctor auto&& push, std::uint64_t v)
+     {
+          Imm32(push, static_cast<std::uint32_t>(v));
+          Imm32(push, static_cast<std::uint32_t>(v >> 32u));
+     }
+     static std::uint8_t DispMod(std::uint8_t base, std::int32_t disp)
+     {
+          if (disp == 0 && (base & 7u) != 5u) return 0x00u; // [base]
+          if (disp >= -128 && disp <= 127) return 0x01u;    // [base+disp8]
+          return 0x02u;                                     // [base+disp32]
+     }
+     static void EmitDisp(IsPushByteFunctor auto&& push, std::uint8_t mod, std::int32_t disp)
+     {
+          if (mod == 0x01u) Emit(push, static_cast<std::uint8_t>(static_cast<std::int8_t>(disp)));
+          else if (mod == 0x02u)
+               Imm32(push, static_cast<std::uint32_t>(disp));
+     }
+     static void ModRMMemory(IsPushByteFunctor auto&& push, std::uint8_t regField, std::uint8_t memReg,
+                             std::int32_t disp)
+     {
+          std::uint8_t mod = DispMod(memReg, disp);
+
+          if ((memReg & 7u) == 4u) // RSP/R12 base → need SIB
+          {
+               ModRM(push, mod, regField & 7u, 4u); // rm=100 → SIB follows
+               Sib(push, 0u, 4u, memReg & 7u);      // index=100 (no index), base=RSP
+               EmitDisp(push, mod, disp);
+               return;
+          }
+
+          ModRM(push, mod, regField & 7u, memReg & 7u);
+          EmitDisp(push, mod, disp);
+     }
+} // namespace detail
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateUD2(void)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0xf);
+     Emit(MakePusher(binary), 0xb);
+     return binary;
+}
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg64(std::size_t reg, const std::uint64_t imm)
 {
      std::vector<std::byte> binary{};
-     binary.reserve(10);
-
-     if (reg < R8) binary.push_back(static_cast<std::byte>(0x48));
-     else
+     const bool isExtendedRegister = reg >= R8;
+     reg &= 7;
+     Rex(MakePusher(binary), true, isExtendedRegister, false, false);
+     if (imm <= std::numeric_limits<std::uint32_t>::max())
      {
-          reg -= 8;
-          binary.push_back(static_cast<std::byte>(0x49));
-     }
-     if (imm <= 0x7fffffff) // encode more efficiently
-     {
-          binary.push_back(static_cast<std::byte>(0xC7));
-          binary.push_back(static_cast<std::byte>(0xC0 + reg));
+          Emit(MakePusher(binary), 0xc7);
+          ModRM(MakePusher(binary), 0b11, 0, static_cast<std::uint8_t>(reg));
+          Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
 
-          for (std::size_t i = 0; i < 4; i++) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+          return binary;
      }
-     else
-     {
-          binary.push_back(static_cast<std::byte>(0xB8 + reg));
-          for (std::size_t i = 0; i < 8; i++) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
-     }
-
+     Emit(MakePusher(binary), 0xb8 | reg);
+     Imm64(MakePusher(binary), imm);
      return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg32(std::size_t reg, const std::uint32_t imm)
 {
      std::vector<std::byte> binary{};
-     binary.reserve(6);
-
-     if (reg >= R8)
-     {
-          binary.push_back(static_cast<std::byte>(0x41));
-          reg -= 8;
-     }
-
-     binary.push_back(static_cast<std::byte>(0xB8 + reg));
-
-     for (std::size_t i = 0; i < 4; i++) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
-
+     const bool isExtendedRegister = reg >= R8;
+     reg &= 7;
+     Rex(MakePusher(binary), false, isExtendedRegister, false, false);
+     Emit(MakePusher(binary), 0xb8 | reg);
+     Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
      return binary;
 }
 
@@ -57,17 +133,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg16(std::size_t
 {
      std::vector<std::byte> binary{};
      binary.reserve(5);
-     binary.push_back(static_cast<std::byte>(0x66));
+     Emit(MakePusher(binary), 0x66);
+     const bool isExtendedRegister = reg >= R8;
+     reg &= 7;
+     Rex(MakePusher(binary), false, isExtendedRegister, false, false);
 
-     if (reg >= R8)
-     {
-          binary.push_back(static_cast<std::byte>(0x41));
-          reg -= 8;
-     }
-
-     binary.push_back(static_cast<std::byte>(0xB8 + reg));
-
-     for (std::size_t i = 0; i < 2; i++) binary.push_back(static_cast<std::byte>((imm >> (i * 8)) & 0xFF));
+     Emit(MakePusher(binary), 0xB8 | reg);
+     Imm16(MakePusher(binary), imm);
 
      return binary;
 }
@@ -75,15 +147,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg16(std::size_t
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg8(std::size_t reg, const std::uint8_t imm)
 {
      std::vector<std::byte> binary{};
-     binary.reserve(3);
+     binary.reserve(5);
+     const bool isExtendedRegister = reg >= R8;
+     reg &= 7;
+     Rex(MakePusher(binary), false, isExtendedRegister, false, false);
 
-     if (reg >= R8)
-     {
-          binary.push_back(static_cast<std::byte>(0x41));
-          reg -= 8;
-     }
-     binary.push_back(static_cast<std::byte>(0xB0 + reg));
-     binary.push_back(static_cast<std::byte>(imm));
+     Emit(MakePusher(binary), 0xB0 | reg);
+     Emit(MakePusher(binary), imm);
 
      return binary;
 }
