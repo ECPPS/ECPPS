@@ -90,11 +90,6 @@ inline namespace detail
           ModRM(push, mod, regField & 7u, memReg & 7u);
           EmitDisp(push, mod, disp);
      }
-
-     static std::uint8_t ModFromOffset(std::integral auto offset)
-     {
-          return static_cast<std::uint8_t>(offset == 0 ? 0b00 : offset <= 0x7f ? 0b01 : 0xb10);
-     }
 } // namespace detail
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUD2(void)
