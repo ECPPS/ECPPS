@@ -683,7 +683,11 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
           const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destinationOperand);
 
           if (fromSize == toSize) [[unlikely]]
-               return self->EmitMov(mov);
+          {
+               auto newMov = mov;
+               newMov.isConversion = false;
+               return self->EmitMov(newMov);
+          }
 
           switch (static_cast<std::size_t>(toSize < fromSize))
           {
