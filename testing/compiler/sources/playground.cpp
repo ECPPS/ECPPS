@@ -1,34 +1,10 @@
-using LL = long long;
-LL a1()
+#include <cstdio>
+int main()
 {
-     char x = 0;
-     return x;
-}
-int a2()
-{
-     char x = 0;
-     return x;
-}
-short a3()
-{
-     char x = 0;
-     return x;
-}
-
-LL a4()
-{
-     short x = 0;
-     return x;
-}
-
-int a5()
-{
-     short x = 0;
-     return x;
-}
-
-LL a6()
-{
-     int x = 0;
-     return x;
+     char meow[] = "gbyrgfreytfg7yrefyregfyurefyuryufreyufrvyufvyrfvyrfvyru";
+     std::puts("meow");
+     std::puts(&"meow"[0] + 1);
+     std::puts(&"meow"[2]);
+     std::puts(&"meow"[2] - 2 + 2 - 2);
+     std::puts(meow);
 }

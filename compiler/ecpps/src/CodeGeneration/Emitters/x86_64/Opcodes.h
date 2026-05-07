@@ -54,18 +54,6 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      [[nodiscard]] std::vector<std::byte> GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
 
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg64(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg32(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg16(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg8(std::size_t destinationRegister,
-                                                               std::size_t sourceOffset);
-
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg64(std::size_t destinationRegister,
                                                                 std::size_t sourceOffset, std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg32(std::size_t destinationRegister,
