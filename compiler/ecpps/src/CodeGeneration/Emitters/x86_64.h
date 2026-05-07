@@ -74,6 +74,7 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitMul(const MulInstruction& mul) override;
           [[nodiscard]] std::vector<std::byte> EmitDiv(const DivInstruction& div) override;
           [[nodiscard]] std::vector<std::byte> EmitLea(const TakeAddressInstruction& lea) override;
+          [[nodiscard]] std::vector<std::byte> EmitNot(const NotInstruction& nott) override;
           [[nodiscard]] std::vector<std::byte> EmitCall(const CallInstruction& call) override;
           [[nodiscard]] std::vector<std::byte> EmitReturn(void) override;
 

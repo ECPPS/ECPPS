@@ -41,6 +41,7 @@ std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitInstruction(const Instru
              [this](const MulInstruction& mul) { return this->EmitMul(mul); }, [this](const DivInstruction& div)
              { return this->EmitDiv(div); }, [this](const CallInstruction& call) { return this->EmitCall(call); },
              [this](const TakeAddressInstruction& lea) { return this->EmitLea(lea); },
+             [this](const NotInstruction& nott) { return this->EmitNot(nott); },
              [this](const ReturnInstruction&) { return this->EmitReturn(); },
              [](auto&&) -> std::vector<std::byte> { throw TracedException("invalid instruction"); }},
          instruction);

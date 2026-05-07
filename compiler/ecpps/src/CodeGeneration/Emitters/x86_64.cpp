@@ -336,6 +336,15 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const Tak
                            { throw ecpps::TracedException(std::logic_error("Invalid address-of operation")); }},
          lea.to);
 }
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitNot(const NotInstruction& nott)
+{
+     return std::visit(
+         OverloadedVisitor{[&lea, this](const RegisterOperand&)
+                           { return this->EmitSpecificLea<OperandCombination::MemoryToRegister>(lea); },
+                           [](auto&&) -> std::vector<std::byte>
+                           { throw ecpps::TracedException(std::logic_error("Invalid address-of operation")); }},
+         nott.operand);
+}
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(const CallInstruction& call)
 {
