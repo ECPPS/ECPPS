@@ -1,7 +1,8 @@
-using L = long long;
-
-char f1() { return 0; }
-short f2() { return 0; }
-int f3() { return 0; }
-long f4() { return 0; }
-L f5() { return 0; }
+int main()
+{
+     int x = 0;
+     char a = x + 1;
+     short b = x + 1;
+     int c = x + 1;
+     long long d = x + 1;
+}
