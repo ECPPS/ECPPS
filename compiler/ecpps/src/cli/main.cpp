@@ -5,6 +5,7 @@
 #include <Windows.h>
 #endif
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <filesystem>
@@ -21,6 +22,7 @@
 #include <CodeGeneration/PseudoAssembly.h>
 #include <Debugger/Debugger.h>
 #include <Execution/IR.h>
+#include <FileSystem/SourceScanner.h>
 #include <Linker/Linker.h>
 #include <Parsing/AST.h>
 #include <Parsing/Preprocessor.h>
@@ -108,6 +110,7 @@ int main(int argc, char* argv[])
           auto startTime = std::chrono::steady_clock::now();
 
           ecpps::CompilerConfig config{argc, argv};
+          ecpps::fs::GetSourceScanner().configuration = &config;
           ecpps::SourceMap sources{config};
 
           if (sources.files.empty())
@@ -187,9 +190,11 @@ int main(int argc, char* argv[])
                     macros.emplace_back("__ecpps_version", std::nullopt, "000001", false);
                     macros.emplace_back("__ecpps_version_minor", std::nullopt, "0", false);
                     macros.emplace_back("__ecpps_version_patch", std::nullopt, "1", false);
-
-                    const auto ppTokens =
-                        ecpps::Preprocessor::Parse(source.contents, macros, source.name, config.includeDirectories);
+                    std::set<std::filesystem::path> includedFiles;
+                    ecpps::Preprocessor preprocessor{};
+                    const auto ppTokens = preprocessor.Parse(source.contents, macros, source.name, includedFiles,
+                                                             config.includeDirectories);
+                    std::ranges::move(preprocessor.diagnostics, std::back_inserter(source.diagnostics.diagnosticsList));
                     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
                     if (isExtraVerbose) std::println();
                     if (isExtraVerbose) std::println("Tokens:");
