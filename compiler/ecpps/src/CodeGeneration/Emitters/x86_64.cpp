@@ -393,8 +393,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
                return x86_64::GenerateMovImmToMem32(destinationRegister, destinationDisplacement,
                                                     static_cast<std::uint32_t>(sourceImmediate));
           case ecpps::abi::qwordSize:
-               return x86_64::GenerateMovImmToMem64(destinationRegister, destinationDisplacement,
-                                                    static_cast<std::uint32_t>(sourceImmediate));
+               return x86_64::GenerateMovImmToMem64(destinationRegister, destinationDisplacement, sourceImmediate);
           default: throw TracedException(std::logic_error("Invalid mov operation"));
           }
      }
@@ -684,7 +683,11 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
           const auto destinationRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destinationOperand);
 
           if (fromSize == toSize) [[unlikely]]
-               return self->EmitMov(mov);
+          {
+               auto newMov = mov;
+               newMov.isConversion = false;
+               return self->EmitMov(newMov);
+          }
 
           switch (static_cast<std::size_t>(toSize < fromSize))
           {

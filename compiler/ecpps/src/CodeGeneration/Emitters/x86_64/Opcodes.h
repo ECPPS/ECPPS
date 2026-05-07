@@ -35,7 +35,7 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToReg16(std::size_t reg, std::uint16_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToReg8(std::size_t reg, std::uint8_t imm);
 
-     [[nodiscard]] std::vector<std::byte> GenerateMovImmToMem64(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateMovImmToMem64(std::size_t reg, std::size_t offset, std::uint64_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
@@ -53,18 +53,6 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
                                                                 std::size_t sourceRegister);
      [[nodiscard]] std::vector<std::byte> GenerateMovRegToMem8(std::size_t destination, std::size_t destinationOffset,
                                                                std::size_t sourceRegister);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg64(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg32(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg16(std::size_t destinationRegister,
-                                                                std::size_t sourceOffset);
-
-     [[nodiscard]] std::vector<std::byte> GenerateMovRspToReg8(std::size_t destinationRegister,
-                                                               std::size_t sourceOffset);
 
      [[nodiscard]] std::vector<std::byte> GenerateMovMemToReg64(std::size_t destinationRegister,
                                                                 std::size_t sourceOffset, std::size_t sourceRegister);
