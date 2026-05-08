@@ -455,6 +455,13 @@ namespace ecpps::ast
           NodePointer _targetType;
      };
 
+     enum struct InitialisationType : std::uint8_t
+     {
+          ParenthesisedExpressionList,
+          BracedInitialiser,
+          EqualInitialiser
+     };
+
      class VariableDeclarationNode final : public Node
      {
      public:
@@ -462,10 +469,12 @@ namespace ecpps::ast
           {
                NodePointer name;
                NodePointer initialiser;
+               InitialisationType initialiserType;
                std::vector<NodePointer> arrayLevels;
-               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr,
-                                   std::vector<NodePointer> arrayLevels = {})
-                   : name(std::move(name)), initialiser(std::move(initialiser)), arrayLevels(std::move(arrayLevels))
+               explicit Declarator(NodePointer name, InitialisationType initialiserType,
+                                   NodePointer initialiser = nullptr, std::vector<NodePointer> arrayLevels = {})
+                   : name(std::move(name)), initialiser(std::move(initialiser)), initialiserType(initialiserType),
+                     arrayLevels(std::move(arrayLevels))
                {
                }
           };

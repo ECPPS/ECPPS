@@ -28,6 +28,12 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      constexpr std::vector<std::byte> GenerateRet(void) { return {std::byte{0xC3}}; }
      constexpr std::vector<std::byte> GenerateNop(void) { return {std::byte{0x90}}; }
      std::vector<std::byte> GenerateUD2(void);
+     std::vector<std::byte> GenerateCwd(void);
+     std::vector<std::byte> GenerateCqo(void);
+     std::vector<std::byte> GenerateCdq(void);
+     std::vector<std::byte> GenerateCbw(void);
+     std::vector<std::byte> GenerateCwde(void);
+     std::vector<std::byte> GenerateCdqe(void);
 
      // mov
      [[nodiscard]] std::vector<std::byte> GenerateMovImmToReg64(std::size_t reg, std::uint64_t imm);
@@ -269,5 +275,24 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      // lea
      [[nodiscard]] std::vector<std::byte> GenerateLeaToReg(std::size_t sourceRegister, std::size_t sourceDisplacement,
                                                            std::size_t destinationRegister);
+
+     // sar
+     [[nodiscard]] std::vector<std::byte> GenerateSignedSarImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedSarImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedSarImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedSarImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     // shr
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg64(std::size_t reg, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg32(std::size_t reg, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg16(std::size_t reg, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg8(std::size_t reg, std::uint8_t imm);
+
+     // neg
+
+     [[nodiscard]] std::vector<std::byte> GenerateNegReg8(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateNegReg16(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateNegReg32(std::size_t reg);
+     [[nodiscard]] std::vector<std::byte> GenerateNegReg64(std::size_t reg);
 
 } // namespace ecpps::codegen::x86_64

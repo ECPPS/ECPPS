@@ -99,6 +99,44 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUD2(void)
      Emit(MakePusher(binary), 0xb);
      return binary;
 }
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCwd(void)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0x99);
+     return binary;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCqo(void)
+{
+     std::vector<std::byte> binary{};
+     Rex(MakePusher(binary), true, false, false, false);
+     Emit(MakePusher(binary), 0x99);
+     return binary;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCdq(void)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0x99);
+     return binary;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCbw(void)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0x98);
+     return binary;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCwde(void)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0x98);
+     return binary;
+}
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateCdqe(void)
+{
+     std::vector<std::byte> binary{};
+     Rex(MakePusher(binary), true, false, false, false);
+     Emit(MakePusher(binary), 0x98);
+     return binary;
+}
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg64(std::size_t reg, const std::uint64_t imm)
 {
@@ -161,7 +199,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(std::size_t
      if (imm > std::numeric_limits<std::uint32_t>::max())
      {
           binary.append_range(GenerateMovImmToMem32(
-              reg, offset, static_cast<std::uint32_t>(imm & (std::numeric_limits<std::uint32_t>::max() - 1))));
+              reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
           binary.append_range(GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
           return binary;
      }
@@ -1710,6 +1748,242 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateLeaToReg(std::size_t sour
      Emit(MakePusher(binary), 0x8D);
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
                  static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceDisplacement));
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg64(std::size_t reg, std::uint64_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), true, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg32(std::size_t reg, std::uint32_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg16(std::size_t reg, std::uint16_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Emit(MakePusher(binary), 0x66);
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg8(std::size_t reg, std::uint8_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd0);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc0);
+          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg64(std::size_t reg, std::uint64_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), true, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg32(std::size_t reg, std::uint32_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg16(std::size_t reg, std::uint16_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Emit(MakePusher(binary), 0x66);
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc1);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg8(std::size_t reg, std::uint8_t imm)
+{
+     std::vector<std::byte> binary{};
+
+     const bool rexB = reg >= 8;
+
+     Rex(MakePusher(binary), false, false, false, rexB);
+
+     if (imm == 1)
+     {
+          Emit(MakePusher(binary), 0xd0);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+     }
+     else
+     {
+          Emit(MakePusher(binary), 0xc0);
+          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+     }
+
+     return binary;
+}
+
+[[nodiscard]] std::vector<std::byte> ecpps::codegen::x86_64::GenerateNegReg8(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     const bool isRegisterExtended = reg >= 8;
+     reg &= 7;
+     Rex(MakePusher(binary), false, isRegisterExtended, false, false);
+     Emit(MakePusher(binary), 0xf6);
+     ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
+     return binary;
+}
+[[nodiscard]] std::vector<std::byte> ecpps::codegen::x86_64::GenerateNegReg16(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     const bool isRegisterExtended = reg >= 8;
+     reg &= 7;
+     Emit(MakePusher(binary), 0x66);
+     Rex(MakePusher(binary), false, isRegisterExtended, false, false);
+     Emit(MakePusher(binary), 0xf7);
+     ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
+     return binary;
+}
+[[nodiscard]] std::vector<std::byte> ecpps::codegen::x86_64::GenerateNegReg32(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     const bool isRegisterExtended = reg >= 8;
+     reg &= 7;
+     Rex(MakePusher(binary), false, isRegisterExtended, false, false);
+     Emit(MakePusher(binary), 0xf7);
+     ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
+     return binary;
+}
+[[nodiscard]] std::vector<std::byte> ecpps::codegen::x86_64::GenerateNegReg64(std::size_t reg)
+{
+     std::vector<std::byte> binary{};
+     const bool isRegisterExtended = reg >= 8;
+     reg &= 7;
+     Rex(MakePusher(binary), true, isRegisterExtended, false, false);
+     Emit(MakePusher(binary), 0xf7);
+     ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
      return binary;
 }
 

@@ -68,8 +68,7 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                    abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<2>(reg, offset, value);
-               ++rangeIterator;
-               ++rangeIterator;
+               rangeIterator += 2;
                offset += 2;
           }
           while (!IsAligned(offset, 8) && std::distance(rangeIterator, range.Values().end()) >= 4)
@@ -78,10 +77,7 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                    abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<4>(reg, offset, value);
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
+               rangeIterator += 4;
                offset += 4;
           }
 
@@ -91,14 +87,7 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                    abi.ConvertEndian<8, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<8>(reg, offset, value);
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
+               rangeIterator += 8;
                offset += 8;
           }
 
@@ -108,10 +97,7 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                    abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<4>(reg, offset, value);
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
-               ++rangeIterator;
+               rangeIterator += 4;
                offset += 4;
           }
 
@@ -121,8 +107,7 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                    abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<2>(reg, offset, value);
-               ++rangeIterator;
-               ++rangeIterator;
+               rangeIterator += 2;
                offset += 2;
           }
 

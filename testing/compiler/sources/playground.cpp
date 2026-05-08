@@ -1,2 +1,10 @@
 #include <cstdio>
-int main() { return 0; }
+int main()
+{
+     int y;
+     int* x = &y;
+     int* z(x);
+     int* a(&y);
+     int** b(&a);
+     int* c(b);
+}

@@ -142,6 +142,18 @@ namespace ecpps::ir
           Expression ParseAlignofExpression(const ast::AlignOfNode& expression);
           Expression ParseExpression(const ast::NodePointer& expression);
 
+          // initialisers
+          Expression PickInitialiser(const ast::NodePointer& expression, typeSystem::NonowningTypePointer desiredType,
+                                     ast::InitialisationType type);
+          Expression ParseDirectInitialisation(const ast::NodePointer& expression,
+                                               typeSystem::NonowningTypePointer desiredType);
+          Expression ParseCopyInitialisation(const ast::NodePointer& expression,
+                                             typeSystem::NonowningTypePointer desiredType);
+          Expression ParseListInitialisation(const ast::NodePointer& expression,
+                                             typeSystem::NonowningTypePointer desiredType);
+          Expression ParseDefaultInitialisation(typeSystem::NonowningTypePointer desiredType);
+          Expression ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType);
+
           [[nodiscard]] TypeRequest TypeASTToRequest(const ast::NodePointer& type);
           [[nodiscard]] typeSystem::NonowningTypePointer ParseType(const ast::NodePointer& type);
           [[nodiscard]] Expression ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const;

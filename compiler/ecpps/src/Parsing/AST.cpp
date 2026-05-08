@@ -904,6 +904,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
      do
      {
           // clang-format on
+          InitialisationType initialisationType{};
           NodePointer id = ParseIdExpression(context);
           if (!id) return nullptr;
 
@@ -935,12 +936,24 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           if (Peek().type == TokenType::Operator &&
               std::get<std::string>(Peek().value) == "=") // brace-or-equal-initialiser
           {
+               initialisationType = InitialisationType::EqualInitialiser;
                Advance();
                initialiser = ParseLogicalOrExpression(context);
                if (!initialiser) return nullptr;
           }
+          else if (Match(TokenType::LeftParenthesis)) // ( expression-list )
+          {
+               initialisationType = InitialisationType::ParenthesisedExpressionList;
+               initialiser = ParseExpression(context);
+               if (!initialiser) return nullptr;
+               if (!Match(TokenType::RightParenthesis))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                        std::make_unique<diagnostics::SyntaxError>("Expected )", Peek().location));
+               }
+          }
 
-          declarators.emplace_back(std::move(id), std::move(initialiser), std::move(arrayLevels));
+          declarators.emplace_back(std::move(id), initialisationType, std::move(initialiser), std::move(arrayLevels));
      } while ((Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") && (Advance(), true));
 
      if (!Match(TokenType::SemiColon))
