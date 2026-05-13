@@ -1,10 +1,7 @@
 #include <cstdio>
 int main()
 {
-     int y;
-     int* x = &y;
-     int* z(x);
-     int* a(&y);
-     int** b(&a);
-     int* c(b);
+     char rawray[]("kitten");
+     std::puts(rawray);
+     return 0;
 }

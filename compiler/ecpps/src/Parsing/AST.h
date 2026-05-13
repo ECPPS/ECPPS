@@ -358,9 +358,7 @@ namespace ecpps::ast
      public:
           explicit ThisNode(Location source) : Node(source) {}
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * PrettyIndent, ' ') + "this";
-          }
+          { return std::string(indent * PrettyIndent, ' ') + "this"; }
      };
 
      enum struct UnaryOperatorType : std::uint_fast8_t
@@ -459,7 +457,9 @@ namespace ecpps::ast
      {
           ParenthesisedExpressionList,
           BracedInitialiser,
-          EqualInitialiser
+          EqualInitialiser,
+          Error,
+          Default
      };
 
      class VariableDeclarationNode final : public Node
@@ -504,9 +504,7 @@ namespace ecpps::ast
           [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept { return this->_declarators; }
           [[nodiscard]] const Flags& GetFlags(void) const noexcept { return this->_flags; }
           [[nodiscard]] const std::optional<NodePointer>& ExplicitSpecifier(void) const noexcept
-          {
-               return this->_explicitSpecifier;
-          }
+          { return this->_explicitSpecifier; }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -552,9 +550,7 @@ namespace ecpps::ast
           explicit BooleanLiteralNode(const bool value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] bool Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false");
-          }
+          { return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false"); }
 
      private:
           bool _value;
@@ -565,9 +561,7 @@ namespace ecpps::ast
           explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value)) {}
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
-          }
+          { return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\""; }
           [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
 
      private:
@@ -580,9 +574,7 @@ namespace ecpps::ast
           explicit IntegerLiteralNode(const unsigned long long value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] unsigned long long Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
-          }
+          { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
 
      private:
           unsigned long long _value;
@@ -594,9 +586,7 @@ namespace ecpps::ast
           explicit CharacterLiteralNode(const char value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] char Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
-          }
+          { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
 
      private:
           char _value;
@@ -654,6 +644,31 @@ namespace ecpps::ast
           bool _canBeTypeId;
      };
 
+     class InitialiserListNode final : public Node
+     {
+     public:
+          explicit InitialiserListNode(std::vector<NodePointer> initialisers, Location source)
+              : Node(source), _initialisers(std::move(initialisers))
+          {
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Initialisers(void) const noexcept
+          { return this->_initialisers; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built = std::string(indent * PrettyIndent, ' ') + "{";
+               for (const auto& init : this->_initialisers)
+                    built += (init == nullptr ? std::string(indent * PrettyIndent + PrettyIndent, ' ') + "__unknown"
+                                              : init->ToString(indent + 1)) +
+                             ",";
+               if (!this->_initialisers.empty()) built.pop_back(); // trailing comma
+               built += "}";
+               return built;
+          }
+
+     private:
+          std::vector<NodePointer> _initialisers;
+     };
+
      /// <summary>
      /// Keep both operands for error recovery.
      /// </summary>
@@ -688,13 +703,9 @@ namespace ecpps::ast
 
           [[nodiscard]] bool AtEnd(void) const { return this->_position >= this->_tokens.size(); }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
-          {
-               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
-          }
+          { return this->_tokens[this->_position + static_cast<std::size_t>(offset)]; }
           [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0)
-          {
-               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
-          }
+          { return this->_tokens[this->_position + static_cast<std::size_t>(offset)]; }
           void Advance(void) noexcept { this->_position++; }
           void Retreat(void) noexcept { this->_position--; }
           [[nodiscard]] std::size_t CurrentPosition(void) const noexcept { return this->_position; }
@@ -718,6 +729,10 @@ namespace ecpps::ast
           NodePointer ParseFunctionDefinition(ASTContext& context);
           bool IsDeclarationStart(ASTContext& context);
 
+          NodePointer ParseInitialiserClause(ASTContext& context);
+          NodePointer ParseInitialiserList(ASTContext& context);
+          std::tuple<NodePointer, InitialisationType> ParseInitialiser(ASTContext& context);
+
           // simple-declaration
           NodePointer ParseSimpleDeclaration(ASTContext& context);               // simple-declaration
           static NodePointer TryParseDeclSpecifier(ASTContext& context);         // decl-specifier
@@ -726,7 +741,6 @@ namespace ecpps::ast
           static NodePointer TryParseDeclarator(ASTContext& context);            // declarator
           static NodePointer TryParsePtrDeclarator(ASTContext& context);         // ptr-declarator
           static NodePointer TryParseNoPtrDeclarator(ASTContext& context);       // no-ptr-declarator
-          static NodePointer ParseInitialiser(ASTContext& context);              // initialiser
 
           // Expressions
           [[nodiscard]] NodePointer ParsePrimaryExpression(ASTContext& context);
