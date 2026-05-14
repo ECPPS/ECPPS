@@ -704,7 +704,9 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
          new (context) InitialiserListNode(std::move(initialisers), Peek(-1).location));
 }
 NodePointer ecpps::ast::AST::ParseInitialiserClause(ASTContext& context)
-{ return Peek().type == TokenType::LeftBrace ? ParseInitialiserList(context) : ParseAssignmentExpression(context); }
+{
+     return Peek().type == TokenType::LeftBrace ? ParseInitialiserList(context) : ParseAssignmentExpression(context);
+}
 NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
 {
      Location source = Peek().location;

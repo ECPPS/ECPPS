@@ -358,7 +358,9 @@ namespace ecpps::ast
      public:
           explicit ThisNode(Location source) : Node(source) {}
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          { return std::string(indent * PrettyIndent, ' ') + "this"; }
+          {
+               return std::string(indent * PrettyIndent, ' ') + "this";
+          }
      };
 
      enum struct UnaryOperatorType : std::uint_fast8_t
@@ -504,7 +506,9 @@ namespace ecpps::ast
           [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept { return this->_declarators; }
           [[nodiscard]] const Flags& GetFlags(void) const noexcept { return this->_flags; }
           [[nodiscard]] const std::optional<NodePointer>& ExplicitSpecifier(void) const noexcept
-          { return this->_explicitSpecifier; }
+          {
+               return this->_explicitSpecifier;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -550,7 +554,9 @@ namespace ecpps::ast
           explicit BooleanLiteralNode(const bool value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] bool Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          { return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false"); }
+          {
+               return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false");
+          }
 
      private:
           bool _value;
@@ -561,7 +567,9 @@ namespace ecpps::ast
           explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value)) {}
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          { return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\""; }
+          {
+               return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
+          }
           [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
 
      private:
@@ -574,7 +582,9 @@ namespace ecpps::ast
           explicit IntegerLiteralNode(const unsigned long long value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] unsigned long long Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
+          {
+               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
+          }
 
      private:
           unsigned long long _value;
@@ -586,7 +596,9 @@ namespace ecpps::ast
           explicit CharacterLiteralNode(const char value, Location source) : Node(source), _value(value) {}
           [[nodiscard]] char Value(void) const noexcept { return this->_value; }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          { return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value); }
+          {
+               return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
+          }
 
      private:
           char _value;
@@ -652,7 +664,9 @@ namespace ecpps::ast
           {
           }
           [[nodiscard]] const std::vector<NodePointer>& Initialisers(void) const noexcept
-          { return this->_initialisers; }
+          {
+               return this->_initialisers;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built = std::string(indent * PrettyIndent, ' ') + "{";
@@ -703,9 +717,13 @@ namespace ecpps::ast
 
           [[nodiscard]] bool AtEnd(void) const { return this->_position >= this->_tokens.size(); }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
-          { return this->_tokens[this->_position + static_cast<std::size_t>(offset)]; }
+          {
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+          }
           [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0)
-          { return this->_tokens[this->_position + static_cast<std::size_t>(offset)]; }
+          {
+               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+          }
           void Advance(void) noexcept { this->_position++; }
           void Retreat(void) noexcept { this->_position--; }
           [[nodiscard]] std::size_t CurrentPosition(void) const noexcept { return this->_position; }

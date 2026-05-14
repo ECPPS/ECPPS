@@ -52,7 +52,9 @@ namespace ecpps::ir
           bool isValid = false;
 
           [[nodiscard]] bool IsExactMatch(void) const noexcept
-          { return this->isValid && this->typeSequence.SameAs() && this->refKind == RefBindingKind::None; }
+          {
+               return this->isValid && this->typeSequence.SameAs() && this->refKind == RefBindingKind::None;
+          }
 
           explicit ImplicitConversion(ecpps::typeSystem::ConversionSequence typeSequence, const RefBindingKind refKind,
                                       const bool isValid)
@@ -71,18 +73,30 @@ namespace ecpps::ir
 
      constexpr bool operator!(const MatchingScore score) { return score == MatchingScore::NotMatching; }
      constexpr auto operator<=>(const MatchingScore left, const MatchingScore right)
-     { return std::to_underlying(left) <=> std::to_underlying(right); }
+     {
+          return std::to_underlying(left) <=> std::to_underlying(right);
+     }
      constexpr MatchingScore& operator++(MatchingScore& score)
-     { return score = static_cast<MatchingScore>(std::to_underlying(score) + 1); }
+     {
+          return score = static_cast<MatchingScore>(std::to_underlying(score) + 1);
+     }
      constexpr MatchingScore& operator--(MatchingScore& score)
-     { return score = static_cast<MatchingScore>(std::to_underlying(score) - 1); }
+     {
+          return score = static_cast<MatchingScore>(std::to_underlying(score) - 1);
+     }
      constexpr MatchingScore& operator+=(MatchingScore& score, const std::size_t value)
-     { return score = static_cast<MatchingScore>(std::to_underlying(score) + value); }
+     {
+          return score = static_cast<MatchingScore>(std::to_underlying(score) + value);
+     }
      constexpr MatchingScore& operator-=(MatchingScore& score, const std::size_t value)
-     { return score = static_cast<MatchingScore>(std::to_underlying(score) - value); }
+     {
+          return score = static_cast<MatchingScore>(std::to_underlying(score) - value);
+     }
 
      constexpr MatchingScore& operator+=(MatchingScore& destination, const MatchingScore other)
-     { return destination += std::to_underlying(other); }
+     {
+          return destination += std::to_underlying(other);
+     }
 
      class IR
      {

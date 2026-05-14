@@ -1545,7 +1545,9 @@ struct CompareByPriority
 {
      bool operator()(const std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>& a,
                      const std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>& b) const
-     { return a.first < b.first; }
+     {
+          return a.first < b.first;
+     }
 };
 
 Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
@@ -2111,7 +2113,9 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
 
 bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& expression,
                                           [[maybe_unused]] typeSystem::NonowningTypePointer toType) const
-{ return false; }
+{
+     return false;
+}
 
 [[nodiscard]] ecpps::ir::TypeRequest ecpps::ir::IR::TypeASTToRequest(const ast::NodePointer& type)
 {
@@ -2399,7 +2403,9 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
 }
 
 bool ecpps::ir::IR::IsEligibleForStringLiteralInitialisation(typeSystem::NonowningTypePointer type) const
-{ return IsCharacter(type); }
+{
+     return IsCharacter(type);
+}
 
 Expression ecpps::ir::IR::ConvertIntegral(Expression expression, const typeSystem::IntegralType* type) const
 {

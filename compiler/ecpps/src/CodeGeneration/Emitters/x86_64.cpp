@@ -1253,8 +1253,10 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
           UnsignedT deltaThreshold{};
 
-          do
-          {
+          // clang-format off
+		do
+		{
+               // clang-format on
                shiftCounter++;
 
                quotientEstimateForAdjustedThreshold <<= 1;
