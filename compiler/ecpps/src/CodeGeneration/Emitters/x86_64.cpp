@@ -3,6 +3,7 @@
 #include "x86_64.h"
 #include <cmath>
 #include <format>
+#include <mutex>
 #include <stdexcept>
 #include "../../CodeGeneration/PseudoAssembly.h"
 #include "../../Parsing/Tokeniser.h"
