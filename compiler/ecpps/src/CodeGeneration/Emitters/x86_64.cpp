@@ -1237,19 +1237,21 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
           constexpr auto BitCount = sizeof(UnsignedT) * 8;
 
-          const SignedT absoluteDivisor = divisor < 0 ? -divisor : divisor;
+          const SignedT absoluteDivisor = divisor < 0 ? static_cast<SignedT>(-divisor) : divisor;
           const UnsignedT twoToThe31 = UnsignedT(1) << (BitCount - 1);
 
           UnsignedT initialThreshold = twoToThe31 + (UnsignedT(divisor) >> (BitCount - 1));
-          UnsignedT adjustedThreshold = initialThreshold - 1 - initialThreshold % absoluteDivisor;
+          UnsignedT adjustedThreshold =
+              initialThreshold - 1 - (initialThreshold % static_cast<UnsignedT>(absoluteDivisor));
 
           UnsignedT shiftCounter = BitCount - 1;
           UnsignedT quotientEstimateForAdjustedThreshold = twoToThe31 / adjustedThreshold;
           UnsignedT remainderEstimateForAdjustedThreshold =
-              twoToThe31 - quotientEstimateForAdjustedThreshold * adjustedThreshold;
+              twoToThe31 - (quotientEstimateForAdjustedThreshold * adjustedThreshold);
 
-          UnsignedT quotientEstimateForDivisor = twoToThe31 / absoluteDivisor;
-          UnsignedT remainderEstimateForDivisor = twoToThe31 - quotientEstimateForDivisor * absoluteDivisor;
+          UnsignedT quotientEstimateForDivisor = twoToThe31 / static_cast<UnsignedT>(absoluteDivisor);
+          UnsignedT remainderEstimateForDivisor =
+              twoToThe31 - (quotientEstimateForDivisor * static_cast<UnsignedT>(absoluteDivisor));
 
           UnsignedT deltaThreshold{};
 
@@ -1274,17 +1276,17 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                if (remainderEstimateForDivisor >= static_cast<UnsignedT>(absoluteDivisor))
                {
                     quotientEstimateForDivisor++;
-                    remainderEstimateForDivisor -= absoluteDivisor;
+                    remainderEstimateForDivisor -= static_cast<UnsignedT>(absoluteDivisor);
                }
 
-               deltaThreshold = absoluteDivisor - remainderEstimateForDivisor;
+               deltaThreshold = static_cast<UnsignedT>(absoluteDivisor) - remainderEstimateForDivisor;
           } while (
               quotientEstimateForAdjustedThreshold < deltaThreshold ||
               (quotientEstimateForAdjustedThreshold == deltaThreshold && remainderEstimateForAdjustedThreshold == 0));
 
           SignedT magicMultiplier = static_cast<SignedT>(quotientEstimateForDivisor + 1);
 
-          if (divisor < 0) magicMultiplier = -magicMultiplier;
+          if (divisor < 0) magicMultiplier = static_cast<SignedT>(-magicMultiplier);
 
           return {.magic = magicMultiplier, .shift = static_cast<std::uint32_t>(shiftCounter - BitCount)};
      }
@@ -1315,7 +1317,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
           case ecpps::abi::byteSize: info = ComputeMagic(static_cast<std::int8_t>(divisor)); break;
           case ecpps::abi::wordSize: info = ComputeMagic(static_cast<std::int16_t>(divisor)); break;
           case ecpps::abi::dwordSize: info = ComputeMagic(static_cast<std::int32_t>(divisor)); break;
-          case ecpps::abi::qwordSize: info = ComputeMagic(static_cast<std::int64_t>(divisor)); break;
+          case ecpps::abi::qwordSize: info = ComputeMagic(divisor); break;
           default: throw TracedException(std::logic_error("Unsupported division width"));
           }
 
@@ -1362,14 +1364,14 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
                case ecpps::abi::qwordSize:
                {
-                    auto bytes = x86_64::GenerateSignedSarImmToReg64(destReg, shift);
+                    auto bytes = x86_64::GenerateSignedSarImmToReg64(destReg, static_cast<std::uint64_t>(shift));
 
                     code.append_range(bytes);
                     break;
                }
                }
 
-               if (divisor < 0)
+               if (static_cast<std::int64_t>(divisor) < 0)
                {
                     switch (div.width)
                     {
@@ -1398,7 +1400,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
                return code;
           }
-          const auto& magic = GetMagic(divisor, div.width);
+          const auto& magic = GetMagic(static_cast<std::int64_t>(divisor), div.width);
 
           switch (div.width)
           {
@@ -1409,7 +1411,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                code.append_range(x86_64::GenerateSignedSarImmToReg32(x86_64::Rcx, 31));
                code.append_range(x86_64::GenerateMovZeroExtendReg16ToReg32(x86_64::Rax, destReg));
                code.append_range(
-                   x86_64::GenerateSignedMulImmToReg64(x86_64::Rax, static_cast<std::int32_t>(magic.magic)));
+                   x86_64::GenerateSignedMulImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
                code.append_range(x86_64::GenerateSignedShrImmToReg64(x86_64::Rax, 32));
 
                if (magic.shift) { code.append_range(x86_64::GenerateSignedSarImmToReg32(x86_64::Rax, magic.shift)); }
@@ -1421,7 +1423,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
           case ecpps::abi::qwordSize:
           {
-               code.append_range(x86_64::GenerateMovImmToReg64(x86_64::Rax, static_cast<std::int64_t>(magic.magic)));
+               code.append_range(x86_64::GenerateMovImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
 
                code.append_range(x86_64::GenerateSignedMulRegToReg64(x86_64::Rax, destReg));
 

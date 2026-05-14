@@ -2000,9 +2000,18 @@ Expression ecpps::ir::IR::PickInitialiser(const ast::NodePointer& expression,
      {
           return this->ParseCopyInitialisation(expression, desiredType);
      }
+     case ast::InitialisationType::Default:
+     {
+          // TODO: Implement
      }
-
-     throw TracedException("not implemented");
+     break;
+     default:
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Unknown initialisation type",
+                                                                              expression->Source()));
+          break;
+     }
+     throw TracedException(std::logic_error("Unknown initialisation type"));
 }
 
 Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointer& expression,
@@ -2076,7 +2085,7 @@ Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePoin
 Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expression,
                                                   typeSystem::NonowningTypePointer desiredType)
 {
-     const auto initialiserListNode = dynamic_cast<const ast::InitialiserListNode*>(expression.get());
+     const auto* initialiserListNode = dynamic_cast<const ast::InitialiserListNode*>(expression.get());
      if (initialiserListNode == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
