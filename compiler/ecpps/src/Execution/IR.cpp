@@ -830,7 +830,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
           else if (decl.initialiser)
           {
-               auto initExpr = ParseExpression(decl.initialiser);
+               auto initExpr = PickInitialiser(decl.initialiser, variableType, decl.initialiserType);
                if (initExpr == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
@@ -890,19 +890,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     }
                }
 
-               auto converted = ConvertTo(std::move(initExpr), declaredType);
-               if (converted == nullptr)
-               {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            "Cannot convert initialiser to variable type for '" + varName + "'",
-                            decl.initialiser->Source()));
-                    continue;
-               }
-
                this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
                    new (*this->GetContext().nodeAllocator)
-                       ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(converted),
+                       ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(initExpr),
                                      decl.initialiser->Source())});
           }
           else
@@ -1998,6 +1988,144 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 
      return nullptr;
 }
+Expression ecpps::ir::IR::PickInitialiser(const ast::NodePointer& expression,
+                                          typeSystem::NonowningTypePointer desiredType, ast::InitialisationType type)
+{
+     switch (type)
+     {
+     case ast::InitialisationType::ParenthesisedExpressionList:
+          return this->ParseDirectInitialisation(expression, desiredType);
+     case ast::InitialisationType::BracedInitialiser: return this->ParseListInitialisation(expression, desiredType);
+     case ast::InitialisationType::EqualInitialiser:
+     {
+          return this->ParseCopyInitialisation(expression, desiredType);
+     }
+     case ast::InitialisationType::Default:
+     {
+          // TODO: Implement
+     }
+     break;
+     default:
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Unknown initialisation type",
+                                                                              expression->Source()));
+          break;
+     }
+     throw TracedException(std::logic_error("Unknown initialisation type"));
+}
+
+Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointer& expression,
+                                                    ecpps::typeSystem::NonowningTypePointer desiredType)
+{
+     auto operand = ParseExpression(expression);
+     if (IsBoolean(desiredType))
+     {
+          // TODO: nullptr
+          if (IsBoolean(operand->Type())) return operand;
+     }
+     auto converted = ConvertTo(std::move(operand), desiredType);
+     if (converted == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                  expression->Source()));
+     }
+     return converted;
+}
+Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer& expression,
+                                                  ecpps::typeSystem::NonowningTypePointer desiredType)
+{
+     runtime_assert(desiredType != nullptr, "Invalid variable type");
+     auto operand = ParseExpression(expression);
+
+     auto converted = ConvertTo(std::move(operand), desiredType);
+     if (converted == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                  expression->Source()));
+     }
+     return converted;
+}
+
+Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType)
+{
+     if (IsScalar(desiredType))
+     {
+          if (IsIntegral(desiredType))
+          {
+               return std::make_unique<PRValue>(
+                   desiredType,
+                   std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                IntegralNode(0, Location{0, 0, 0})},
+                   true);
+          }
+          /*        if (IsPointer(desiredType))
+                  {
+                       return std::make_unique<PRValue>(desiredType,
+                                                        std::unique_ptr<NullPointerNode, IRDeleter>{new (
+                                                            *this->GetContext().nodeAllocator)
+             NullPointerNode(Location{})}, true);
+                  }*/
+     }
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+             "Zero initialisation is not supported for this type", Location{0, 0, 0}));
+     return nullptr;
+}
+Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType)
+{
+     // TODO: Classes
+     // TODO: Arrays
+     return ParseZeroInitialisation(desiredType);
+}
+
+Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expression,
+                                                  typeSystem::NonowningTypePointer desiredType)
+{
+     const auto* initialiserListNode = dynamic_cast<const ast::InitialiserListNode*>(expression.get());
+     if (initialiserListNode == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                  "Expected an initialiser list for list initialisation", expression->Source()));
+          return nullptr;
+     }
+     std::vector<Expression> initialisers{};
+     for (const auto& init : initialiserListNode->Initialisers())
+     {
+          auto parsedInit = ParseExpression(init);
+          if (parsedInit == nullptr) return nullptr;
+          initialisers.push_back(std::move(parsedInit));
+     }
+     if (initialisers.empty()) { return ParseValueInitialisation(desiredType); }
+     if (initialisers.size() == 1 && !IsReference(desiredType))
+     {
+          auto initialiserExpression = std::move(initialisers.front());
+          if (IsNarrowingConversion(initialiserExpression, desiredType))
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                       "Narrowing conversion from '" + initialiserExpression->Type()->Name() + "' to '" +
+                           desiredType->Name() + "' is not allowed in list initialisation",
+                       expression->Source()));
+          }
+          return ConvertTo(std::move(initialiserExpression), desiredType);
+     }
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+             "List initialisation with multiple initialisers is not supported yet", expression->Source()));
+     return nullptr;
+}
+
+bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& expression,
+                                          [[maybe_unused]] typeSystem::NonowningTypePointer toType) const
+{
+     return false;
+}
+
 [[nodiscard]] ecpps::ir::TypeRequest ecpps::ir::IR::TypeASTToRequest(const ast::NodePointer& type)
 {
      auto& typeContext = GetTypeContext();

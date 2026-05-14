@@ -645,7 +645,68 @@ std::string CombineTypeWords(const std::vector<std::string>& words)
      }
      return result;
 }
+std::tuple<NodePointer, ecpps::ast::InitialisationType> ecpps::ast::AST::ParseInitialiser(ASTContext& context)
+{
+     InitialisationType initialisationType = InitialisationType::Default;
+     NodePointer initialiser = nullptr;
+     if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=") // brace-or-equal-initialiser
+     {
+          initialisationType = InitialisationType::EqualInitialiser;
+          Advance();
+          initialiser = ParseLogicalOrExpression(context);
+          if (!initialiser) return {nullptr, InitialisationType::Error};
+     }
+     else if (Match(TokenType::LeftParenthesis)) // ( expression-list )
+     {
+          initialisationType = InitialisationType::ParenthesisedExpressionList;
+          initialiser = ParseExpression(context);
+          if (!initialiser) return {nullptr, InitialisationType::Error};
+          if (!Match(TokenType::RightParenthesis))
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                   std::make_unique<diagnostics::SyntaxError>("Expected )", Peek().location));
+          }
+     }
+     else if (Peek().type == TokenType::LeftBrace) // braced-init-list
+     {
+          initialisationType = InitialisationType::BracedInitialiser;
+          initialiser = ParseInitialiserList(context);
+     }
 
+     return {std::move(initialiser), initialisationType};
+}
+NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
+{
+     if (!Match(TokenType::LeftBrace))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+              std::make_unique<diagnostics::SyntaxError>("Expected {", Peek().location));
+          return nullptr;
+     }
+
+     std::vector<NodePointer> initialisers{};
+     // TODO: designated initialisers
+     while (!AtEnd() && Peek().type != TokenType::RightBrace)
+     {
+          auto initialiser = ParseInitialiserClause(context);
+          initialisers.push_back(std::move(initialiser));
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") { Advance(); }
+          else
+               break;
+     }
+     if (!Match(TokenType::RightBrace))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+              std::make_unique<diagnostics::SyntaxError>("Expected }", Peek().location));
+          return nullptr;
+     }
+     return std::unique_ptr<InitialiserListNode, ecpps::ast::ASTDeleter>(
+         new (context) InitialiserListNode(std::move(initialisers), Peek(-1).location));
+}
+NodePointer ecpps::ast::AST::ParseInitialiserClause(ASTContext& context)
+{
+     return Peek().type == TokenType::LeftBrace ? ParseInitialiserList(context) : ParseAssignmentExpression(context);
+}
 NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
 {
      Location source = Peek().location;
@@ -931,16 +992,9 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                Advance();
           }
 
-          NodePointer initialiser = nullptr;
-          if (Peek().type == TokenType::Operator &&
-              std::get<std::string>(Peek().value) == "=") // brace-or-equal-initialiser
-          {
-               Advance();
-               initialiser = ParseLogicalOrExpression(context);
-               if (!initialiser) return nullptr;
-          }
+          auto [initialiser, initialisationType] = ParseInitialiser(context);
 
-          declarators.emplace_back(std::move(id), std::move(initialiser), std::move(arrayLevels));
+          declarators.emplace_back(std::move(id), initialisationType, std::move(initialiser), std::move(arrayLevels));
      } while ((Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") && (Advance(), true));
 
      if (!Match(TokenType::SemiColon))
@@ -976,8 +1030,6 @@ NodePointer ecpps::ast::AST::TryParseDeclarator([[maybe_unused]] ASTContext& con
 NodePointer ecpps::ast::AST::TryParsePtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
 
 NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
-
-NodePointer ecpps::ast::AST::ParseInitialiser([[maybe_unused]] ASTContext& context) { return {}; }
 
 NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext& context)
 {

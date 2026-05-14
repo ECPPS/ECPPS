@@ -455,6 +455,15 @@ namespace ecpps::ast
           NodePointer _targetType;
      };
 
+     enum struct InitialisationType : std::uint8_t
+     {
+          ParenthesisedExpressionList,
+          BracedInitialiser,
+          EqualInitialiser,
+          Error,
+          Default
+     };
+
      class VariableDeclarationNode final : public Node
      {
      public:
@@ -462,10 +471,12 @@ namespace ecpps::ast
           {
                NodePointer name;
                NodePointer initialiser;
+               InitialisationType initialiserType;
                std::vector<NodePointer> arrayLevels;
-               explicit Declarator(NodePointer name, NodePointer initialiser = nullptr,
-                                   std::vector<NodePointer> arrayLevels = {})
-                   : name(std::move(name)), initialiser(std::move(initialiser)), arrayLevels(std::move(arrayLevels))
+               explicit Declarator(NodePointer name, InitialisationType initialiserType,
+                                   NodePointer initialiser = nullptr, std::vector<NodePointer> arrayLevels = {})
+                   : name(std::move(name)), initialiser(std::move(initialiser)), initialiserType(initialiserType),
+                     arrayLevels(std::move(arrayLevels))
                {
                }
           };
@@ -645,6 +656,33 @@ namespace ecpps::ast
           bool _canBeTypeId;
      };
 
+     class InitialiserListNode final : public Node
+     {
+     public:
+          explicit InitialiserListNode(std::vector<NodePointer> initialisers, Location source)
+              : Node(source), _initialisers(std::move(initialisers))
+          {
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Initialisers(void) const noexcept
+          {
+               return this->_initialisers;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built = std::string(indent * PrettyIndent, ' ') + "{";
+               for (const auto& init : this->_initialisers)
+                    built += (init == nullptr ? std::string(indent * PrettyIndent + PrettyIndent, ' ') + "__unknown"
+                                              : init->ToString(indent + 1)) +
+                             ",";
+               if (!this->_initialisers.empty()) built.pop_back(); // trailing comma
+               built += "}";
+               return built;
+          }
+
+     private:
+          std::vector<NodePointer> _initialisers;
+     };
+
      /// <summary>
      /// Keep both operands for error recovery.
      /// </summary>
@@ -709,6 +747,10 @@ namespace ecpps::ast
           NodePointer ParseFunctionDefinition(ASTContext& context);
           bool IsDeclarationStart(ASTContext& context);
 
+          NodePointer ParseInitialiserClause(ASTContext& context);
+          NodePointer ParseInitialiserList(ASTContext& context);
+          std::tuple<NodePointer, InitialisationType> ParseInitialiser(ASTContext& context);
+
           // simple-declaration
           NodePointer ParseSimpleDeclaration(ASTContext& context);               // simple-declaration
           static NodePointer TryParseDeclSpecifier(ASTContext& context);         // decl-specifier
@@ -717,7 +759,6 @@ namespace ecpps::ast
           static NodePointer TryParseDeclarator(ASTContext& context);            // declarator
           static NodePointer TryParsePtrDeclarator(ASTContext& context);         // ptr-declarator
           static NodePointer TryParseNoPtrDeclarator(ASTContext& context);       // no-ptr-declarator
-          static NodePointer ParseInitialiser(ASTContext& context);              // initialiser
 
           // Expressions
           [[nodiscard]] NodePointer ParsePrimaryExpression(ASTContext& context);

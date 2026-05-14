@@ -1,7 +1,9 @@
 // NOLINT(readability-identifier-length)
 
 #include "x86_64.h"
+#include <cmath>
 #include <format>
+#include <mutex>
 #include <stdexcept>
 #include "../../CodeGeneration/PseudoAssembly.h"
 #include "../../Parsing/Tokeniser.h"
@@ -1223,64 +1225,218 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 template <>
 struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
 {
+     struct MagicInfo
+     {
+          std::int64_t magic{};
+          std::uint32_t shift{};
+     };
+
+     static MagicInfo ComputeMagic(std::signed_integral auto divisor)
+     {
+          using SignedT = decltype(divisor);
+          using UnsignedT = std::make_unsigned_t<SignedT>;
+
+          constexpr auto BitCount = sizeof(UnsignedT) * 8;
+
+          const SignedT absoluteDivisor = divisor < 0 ? static_cast<SignedT>(-divisor) : divisor;
+          const UnsignedT twoToThe31 = UnsignedT(1) << (BitCount - 1);
+
+          UnsignedT initialThreshold = twoToThe31 + (UnsignedT(divisor) >> (BitCount - 1));
+          UnsignedT adjustedThreshold =
+              initialThreshold - 1 - (initialThreshold % static_cast<UnsignedT>(absoluteDivisor));
+
+          UnsignedT shiftCounter = BitCount - 1;
+          UnsignedT quotientEstimateForAdjustedThreshold = twoToThe31 / adjustedThreshold;
+          UnsignedT remainderEstimateForAdjustedThreshold =
+              twoToThe31 - (quotientEstimateForAdjustedThreshold * adjustedThreshold);
+
+          UnsignedT quotientEstimateForDivisor = twoToThe31 / static_cast<UnsignedT>(absoluteDivisor);
+          UnsignedT remainderEstimateForDivisor =
+              twoToThe31 - (quotientEstimateForDivisor * static_cast<UnsignedT>(absoluteDivisor));
+
+          UnsignedT deltaThreshold{};
+
+          // clang-format off
+		do
+		{
+               // clang-format on
+               shiftCounter++;
+
+               quotientEstimateForAdjustedThreshold <<= 1;
+               remainderEstimateForAdjustedThreshold <<= 1;
+
+               if (remainderEstimateForAdjustedThreshold >= adjustedThreshold)
+               {
+                    quotientEstimateForAdjustedThreshold++;
+                    remainderEstimateForAdjustedThreshold -= adjustedThreshold;
+               }
+
+               quotientEstimateForDivisor <<= 1;
+               remainderEstimateForDivisor <<= 1;
+
+               if (remainderEstimateForDivisor >= static_cast<UnsignedT>(absoluteDivisor))
+               {
+                    quotientEstimateForDivisor++;
+                    remainderEstimateForDivisor -= static_cast<UnsignedT>(absoluteDivisor);
+               }
+
+               deltaThreshold = static_cast<UnsignedT>(absoluteDivisor) - remainderEstimateForDivisor;
+          } while (
+              quotientEstimateForAdjustedThreshold < deltaThreshold ||
+              (quotientEstimateForAdjustedThreshold == deltaThreshold && remainderEstimateForAdjustedThreshold == 0));
+
+          SignedT magicMultiplier = static_cast<SignedT>(quotientEstimateForDivisor + 1);
+
+          if (divisor < 0) magicMultiplier = static_cast<SignedT>(-magicMultiplier);
+
+          return {.magic = magicMultiplier, .shift = static_cast<std::uint32_t>(shiftCounter - BitCount)};
+     }
+
+     static const MagicInfo& GetMagic(std::int64_t divisor, std::size_t width)
+     {
+          struct Key
+          {
+               std::int64_t divisor;
+               std::size_t width;
+
+               auto operator<=>(const Key&) const = default;
+          };
+
+          static std::mutex mutex{};
+          static std::unordered_map<std::uint64_t, MagicInfo> cache{};
+
+          const std::uint64_t key = (static_cast<std::uint64_t>(width) << 56) ^ std::bit_cast<std::uint64_t>(divisor);
+
+          std::scoped_lock lock(mutex);
+
+          if (auto it = cache.find(key); it != cache.end()) return it->second;
+
+          MagicInfo info{};
+
+          switch (width)
+          {
+          case ecpps::abi::byteSize: info = ComputeMagic(static_cast<std::int8_t>(divisor)); break;
+          case ecpps::abi::wordSize: info = ComputeMagic(static_cast<std::int16_t>(divisor)); break;
+          case ecpps::abi::dwordSize: info = ComputeMagic(static_cast<std::int32_t>(divisor)); break;
+          case ecpps::abi::qwordSize: info = ComputeMagic(divisor); break;
+          default: throw TracedException(std::logic_error("Unsupported division width"));
+          }
+
+          return cache.emplace(key, info).first->second;
+     }
+
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const DivInstruction& div)
      {
+          constexpr auto Absolute = [](std::signed_integral auto number) constexpr noexcept
+          { return number >= 0 ? number : -number; };
           const auto& source = std::get<IntegerOperand>(div.from);
           const auto& destination = std::get<RegisterOperand>(div.to);
-
-          const auto sourceImmediate = source.Value();
+          const auto divisor = source.Value();
           const auto destReg = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination);
-
           std::vector<std::byte> code{};
 
-          // mov dividend immediate -> RAX/AX/AL
+          if (std::has_single_bit(std::uint64_t(Absolute(static_cast<std::int64_t>(divisor)))))
+          {
+               const auto shift = std::countr_zero(std::uint64_t(Absolute(static_cast<std::int64_t>(divisor))));
+
+               switch (div.width)
+               {
+               case ecpps::abi::byteSize:
+               {
+                    auto bytes = x86_64::GenerateSignedSarImmToReg8(destReg, static_cast<std::uint8_t>(shift));
+
+                    code.append_range(bytes);
+                    break;
+               }
+               case ecpps::abi::wordSize:
+               {
+                    auto bytes = x86_64::GenerateSignedSarImmToReg16(destReg, static_cast<std::uint16_t>(shift));
+
+                    code.append_range(bytes);
+                    break;
+               }
+               case ecpps::abi::dwordSize:
+               {
+                    auto bytes = x86_64::GenerateSignedSarImmToReg32(destReg, static_cast<std::uint32_t>(shift));
+
+                    code.append_range(bytes);
+                    break;
+               }
+
+               case ecpps::abi::qwordSize:
+               {
+                    auto bytes = x86_64::GenerateSignedSarImmToReg64(destReg, static_cast<std::uint64_t>(shift));
+
+                    code.append_range(bytes);
+                    break;
+               }
+               }
+
+               if (static_cast<std::int64_t>(divisor) < 0)
+               {
+                    switch (div.width)
+                    {
+                    case ecpps::abi::byteSize:
+                    {
+                         code.append_range(x86_64::GenerateNegReg8(destReg));
+                    }
+                    break;
+                    case ecpps::abi::wordSize:
+                    {
+                         code.append_range(x86_64::GenerateNegReg16(destReg));
+                    }
+                    break;
+                    case ecpps::abi::dwordSize:
+                    {
+                         code.append_range(x86_64::GenerateNegReg32(destReg));
+                    }
+                    break;
+                    case ecpps::abi::qwordSize:
+                    {
+                         code.append_range(x86_64::GenerateNegReg64(destReg));
+                    }
+                    break;
+                    }
+               }
+
+               return code;
+          }
+          const auto& magic = GetMagic(static_cast<std::int64_t>(divisor), div.width);
+
           switch (div.width)
           {
-          case ecpps::abi::byteSize:
-          {
-               auto movBytes = x86_64::GenerateMovImmToReg8(0, static_cast<std::uint8_t>(sourceImmediate));
-               code.insert(code.end(), movBytes.begin(), movBytes.end());
-               auto movRdxBytes = x86_64::GenerateXorReg64(2, 2);
-               code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
-               break;
-          }
-          case ecpps::abi::wordSize:
-          {
-               auto movBytes = x86_64::GenerateMovImmToReg16(0, static_cast<std::uint16_t>(sourceImmediate));
-               code.insert(code.end(), movBytes.begin(), movBytes.end());
-               auto movDxBytes = x86_64::GenerateXorReg16(2, 2);
-               code.insert(code.end(), movDxBytes.begin(), movDxBytes.end());
-               break;
-          }
           case ecpps::abi::dwordSize:
           {
-               auto movBytes = x86_64::GenerateMovImmToReg32(0, static_cast<std::uint32_t>(sourceImmediate));
-               code.insert(code.end(), movBytes.begin(), movBytes.end());
-               auto movEdxBytes = x86_64::GenerateXorReg32(2, 2);
-               code.insert(code.end(), movEdxBytes.begin(), movEdxBytes.end());
+               code.append_range(x86_64::GenerateMovRegToReg32(x86_64::Rcx, destReg));
+
+               code.append_range(x86_64::GenerateSignedSarImmToReg32(x86_64::Rcx, 31));
+               code.append_range(x86_64::GenerateMovZeroExtendReg16ToReg32(x86_64::Rax, destReg));
+               code.append_range(
+                   x86_64::GenerateSignedMulImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
+               code.append_range(x86_64::GenerateSignedShrImmToReg64(x86_64::Rax, 32));
+
+               if (magic.shift) { code.append_range(x86_64::GenerateSignedSarImmToReg32(x86_64::Rax, magic.shift)); }
+               code.append_range(x86_64::GenerateSubRegToReg32(x86_64::Rax, x86_64::Rcx));
+               code.append_range(x86_64::GenerateMovRegToReg32(destReg, x86_64::Rax));
+
                break;
-          }
-          case ecpps::abi::qwordSize:
-          {
-               auto movBytes = x86_64::GenerateMovImmToReg64(0, static_cast<std::uint64_t>(sourceImmediate));
-               code.insert(code.end(), movBytes.begin(), movBytes.end());
-               auto movRdxBytes = x86_64::GenerateXorReg64(2, 2);
-               code.insert(code.end(), movRdxBytes.begin(), movRdxBytes.end());
-               break;
-          }
-          default: throw ecpps::TracedException(std::logic_error("Invalid div width"));
           }
 
-          // emit div instruction with divisor in register (destReg)
-          std::vector<std::byte> divBytes{};
-          switch (div.width)
+          case ecpps::abi::qwordSize:
           {
-          case ecpps::abi::byteSize: divBytes = x86_64::GenerateSignedDiv8(destReg); break;
-          case ecpps::abi::wordSize: divBytes = x86_64::GenerateSignedDiv16(destReg); break;
-          case ecpps::abi::dwordSize: divBytes = x86_64::GenerateSignedDiv32(destReg); break;
-          case ecpps::abi::qwordSize: divBytes = x86_64::GenerateSignedDiv64(destReg); break;
+               code.append_range(x86_64::GenerateMovImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
+
+               code.append_range(x86_64::GenerateSignedMulRegToReg64(x86_64::Rax, destReg));
+
+               code.append_range(x86_64::GenerateSignedSarImmToReg64(x86_64::Rax, magic.shift));
+
+               code.append_range(x86_64::GenerateMovRegToReg64(destReg, x86_64::Rax));
+
+               break;
           }
-          code.insert(code.end(), divBytes.begin(), divBytes.end());
+
+          default: throw TracedException(std::logic_error("Magic division not implemented for this width"));
+          }
 
           return code;
      }
