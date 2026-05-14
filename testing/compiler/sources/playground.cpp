@@ -1,7 +1,2 @@
 #include <cstdio>
-int main()
-{
-     char rawray[]("kitten");
-     std::puts(rawray);
-     return 0;
-}
+int main() { return 0; }
