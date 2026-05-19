@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "Machine/Encoders/Context.h"
 
 namespace ecpps
 {
@@ -112,6 +113,8 @@ namespace ecpps
           StringPooling stringPooling = StringPooling::Exact;
           std::vector<char8_t> stringArray{};
           OptimisationFeatureSets optimisations{};
+
+          abi::encoding::CompilationId currentTarget;
 
           Size sizeSize{};
           Size ptrdiffSize{};
