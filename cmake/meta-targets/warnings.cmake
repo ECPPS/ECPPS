@@ -15,6 +15,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           # Initial
           -Weverything
           -Werror
+		-Wno-error=deprecated
 
           # Useless compatibility warnings
           -Wno-c++98-compat
@@ -61,8 +62,9 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		-Wextra
 		-Werror
 		-pedantic-errors
-		
+
 		-Wno-interference-size
 		-Wno-unknown-pragmas
+          -Wno-potentially-evaluated-expression
 	)
 endif()
