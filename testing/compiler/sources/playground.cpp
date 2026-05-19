@@ -1,5 +1,6 @@
-#include <cstdio>
-int main()
+void test()
 {
-     return 0;
+     int x = 0;
+     int y = 1;
+     x + y;
 }

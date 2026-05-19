@@ -19,18 +19,18 @@ ecpps::CompilerConfig::CompilerConfig(
 
      if (argc <= 1) PrintVersionAndExit();
 
-     ecpps::abi::SimdFeatures simd{};
-     switch (abi::ABI::Current().Isa())
-     {
-     case ecpps::abi::ISA::x86_32:
-     case ecpps::abi::ISA::x86_64:
-          simd = ecpps::abi::SimdFeatures::SSE; // default for SSE for x86
-          break;
-     case ecpps::abi::ISA::ARM32:
-     case ecpps::abi::ISA::ARM64:
-          simd = ecpps::abi::SimdFeatures::NEON; // default for NEON for ARM
-          break;
-     }
+     // ecpps::abi::ArchitectureExtensionFeatures simd{};
+     // switch (abi::ABI::Current().Isa())
+     // {
+     // case ecpps::abi::ISA::x86_32:
+     // case ecpps::abi::ISA::x86_64:
+     //      simd = ecpps::abi::ArchitectureExtensionFeatures::SSE; // default for SSE for x86
+     //      break;
+     // case ecpps::abi::ISA::ARM32:
+     // case ecpps::abi::ISA::ARM64:
+     //      simd = ecpps::abi::ArchitectureExtensionFeatures::NEON; // default for NEON for ARM
+     //      break;
+     // }
 
      for (std::size_t i = 1; std::cmp_less(i, argc); i++)
      {
@@ -155,8 +155,6 @@ ecpps::CompilerConfig::CompilerConfig(
           if (this->outputImage.empty()) this->outputImage = "out";
           break;
      }
-
-     abi::ABI::Current().PushSIMDRegisters(simd);
 }
 
 void ecpps::CompilerConfig::PrintVersionAndExit(void)
