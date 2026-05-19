@@ -2,7 +2,7 @@
 
 #include <RuntimeAssert.h>
 #include <cstdint>
-#include <variant>
+#include <optional>
 #include "../Parsing/AST.h"
 #include "Context.h"
 #include "Expressions.h"
@@ -12,10 +12,10 @@ namespace ecpps::ir
 {
      enum struct BinaryOperationLevel : std::uint_fast8_t
      {
-          None,         // +            => add tmp
-          Atomic,       // (atomic) +   => lock add tmp
-          Assign,       // +=           => add
-          AtomicAssign, // (atomic) +=  => lock add
+          None,
+          Atomic,
+          Assign,
+          AtomicAssign,
      };
 
      enum struct MemoryOrdering : std::uint_fast8_t
@@ -26,561 +26,35 @@ namespace ecpps::ir
           Sequenced,
      };
 
-     /// <summary>
-     /// add 2 (hopefully) integral operands. No checking as I can't predict them really, the optimiser might clash 2
-     /// classes with that btw, if they are layout compatible, have an overloaded operator+= that adds all members 1:1
-     /// to each other and each of them is possible to add using that node Example: struct C
-     /// {
-     ///      C& operator+(const C& other)
-     ///      {
-     ///           this->a += other.a;
-     ///           this->b += other.b;
-     ///           return *this;
-     ///      }
-     ///
-     ///      int a;
-     ///      int b;
-     /// };
-     ///
-     /// This function supports vectorisation
-     /// </summary>
-     class AdditionNode final : public NodeBase
+     class SSARegisterReferenceNode final : public NodeBase
      {
      public:
-          explicit AdditionNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
+          explicit SSARegisterReferenceNode(const SingleAssignRegisterNode* reg, Location source)
+              : NodeBase(NodeKind::Load, source), _reg(reg)
           {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
+               runtime_assert(this->_reg != nullptr, "Register reference cannot be null");
+
+               this->_reg->Use();
           }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] const SingleAssignRegisterNode& Reg() const noexcept
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " + " +
-                      this->_right->Value()->ToString(0);
+               return *this->_reg;
           }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_reg->ToString(0);
+          }
+
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
           {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!leftConstexpr.has_value())
-               {
-                    leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the addition did not evaluate to a constant expression",
-                         this->Source()));
-                    return leftConstexpr;
-               }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!rightConstexpr.has_value())
-               {
-                    rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the addition did not evaluate to a constant expression",
-                         this->Source()));
-                    return rightConstexpr;
-               }
-               if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the addition did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The right hand side of the addition did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
-               const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
-
-               return ConstantEvaluatedResult{leftValue + rightValue, this->Source()};
+               return NodeBase::TryConstantEvaluate(evaluationContext);
           }
 
      private:
-          Expression _left;
-          Expression _right;
-     };
-
-     class AdditionAssignNode final : public NodeBase
-     {
-     public:
-          explicit AdditionAssignNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) +
-                      " += " + this->_right->Value()->ToString(0);
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-     class SubtractionAssignNode final : public NodeBase
-     {
-     public:
-          explicit SubtractionAssignNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) +
-                      " -= " + this->_right->Value()->ToString(0);
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-     class PostIncrementNode final : public NodeBase
-     {
-     public:
-          explicit PostIncrementNode(Expression operand, std::size_t increment, Location source)
-              : NodeBase(NodeKind::Addition, source), _operand(std::move(operand)), _increment(increment)
-          {
-          }
-          [[nodiscard]] const Expression& Operand(void) const noexcept
-          {
-               return this->_operand;
-          }
-          [[nodiscard]] std::size_t IncrementValue(void) const noexcept
-          {
-               return this->_increment;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_operand->Value()->ToString(0) + " ++ " +
-                      std::to_string(this->_increment);
-          }
-
-     private:
-          Expression _operand;
-          std::size_t _increment;
-     };
-     class PostDecrementNode final : public NodeBase
-     {
-     public:
-          explicit PostDecrementNode(Expression operand, std::size_t decrement, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _operand(std::move(operand)), _increment(decrement)
-          {
-          }
-          [[nodiscard]] const Expression& Operand(void) const noexcept
-          {
-               return this->_operand;
-          }
-          [[nodiscard]] std::size_t IncrementValue(void) const noexcept
-          {
-               return this->_increment;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_operand->Value()->ToString(0) + " -- " +
-                      std::to_string(this->_increment);
-          }
-
-     private:
-          Expression _operand;
-          std::size_t _increment;
-     };
-
-     class SubtractionNode final : public NodeBase
-     {
-     public:
-          explicit SubtractionNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " - " +
-                      this->_right->Value()->ToString(0);
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!leftConstexpr.has_value())
-               {
-                    leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the subtraction did not evaluate to a constant expression",
-                         this->Source()));
-                    return leftConstexpr;
-               }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!rightConstexpr.has_value())
-               {
-                    rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the subtraction did not evaluate to a constant expression",
-                         this->Source()));
-                    return rightConstexpr;
-               }
-               if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the subtraction did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The right hand side of the subtraction did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
-               const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
-
-               return ConstantEvaluatedResult{leftValue - rightValue, this->Source()};
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-
-     class MultiplicationNode final : public NodeBase
-     {
-     public:
-          explicit MultiplicationNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " * " +
-                      this->_right->Value()->ToString(0);
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!leftConstexpr.has_value())
-               {
-                    leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the multiplication did not evaluate to a constant expression",
-                         this->Source()));
-                    return leftConstexpr;
-               }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!rightConstexpr.has_value())
-               {
-                    rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the multiplication did not evaluate to a constant expression",
-                         this->Source()));
-                    return rightConstexpr;
-               }
-               if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the multiplication did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The right hand side of the multiplication did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
-               const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
-
-               return ConstantEvaluatedResult{leftValue * rightValue, this->Source()};
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-
-     class DivideNode final : public NodeBase
-     {
-
-     public:
-          explicit DivideNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " / " +
-                      this->_right->Value()->ToString(0);
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!leftConstexpr.has_value())
-               {
-                    leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the division did not evaluate to a constant expression",
-                         this->Source()));
-                    return leftConstexpr;
-               }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!rightConstexpr.has_value())
-               {
-                    rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the division did not evaluate to a constant expression",
-                         this->Source()));
-                    return rightConstexpr;
-               }
-               if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the division did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The right hand side of the division did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
-               const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
-               if (rightValue == 0)
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(
-                         std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
-                    return result;
-               }
-
-               return ConstantEvaluatedResult{leftValue / rightValue, this->Source()};
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-
-     class ModuloNode final : public NodeBase
-     {
-
-     public:
-          explicit ModuloNode(Expression left, Expression right, Location source)
-              : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
-          {
-          }
-          [[nodiscard]] const Expression& Left(void) const noexcept
-          {
-               return this->_left;
-          }
-          [[nodiscard]] const Expression& Right(void) const noexcept
-          {
-               return this->_right;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " % " +
-                      this->_right->Value()->ToString(0);
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!leftConstexpr.has_value())
-               {
-                    leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
-                    return leftConstexpr;
-               }
-               auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!rightConstexpr.has_value())
-               {
-                    rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
-                    return rightConstexpr;
-               }
-               if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The left hand side of the modulo did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "The right hand side of the modulo did not evaluate to an integral or floating-point "
-                         "result",
-                         this->Source()));
-                    return result;
-               }
-               const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
-               const auto rightValue = std::get<std::uint64_t>(rightConstexpr->variant);
-               if (rightValue == 0)
-               {
-                    auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-                    result.error().push(
-                         std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
-                    return result;
-               }
-
-               return ConstantEvaluatedResult{leftValue / rightValue, this->Source()};
-          }
-
-     private:
-          Expression _left;
-          Expression _right;
-     };
-
-     class CompareExchangeNode final : public NodeBase
-     {
-     public:
-          explicit CompareExchangeNode(Expression address, Expression expected, Expression replacement, bool isWeak,
-                                       MemoryOrdering ordering, Location source)
-              : NodeBase(NodeKind::CompareExchange, source), _address(std::move(address)),
-                _expected(std::move(expected)), _replacement(std::move(replacement)), _isWeak(isWeak),
-                _ordering(ordering)
-          {
-          }
-
-          [[nodiscard]] const Expression& Address(void) const noexcept
-          {
-               return _address;
-          }
-          [[nodiscard]] const Expression& Expected(void) const noexcept
-          {
-               return _expected;
-          }
-          [[nodiscard]] const Expression& Replacement(void) const noexcept
-          {
-               return _replacement;
-          }
-          [[nodiscard]] bool IsWeak(void) const noexcept
-          {
-               return _isWeak;
-          }
-          [[nodiscard]] MemoryOrdering OrderingMode(void) const noexcept
-          {
-               return _ordering;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + "__cmpxchg(...)";
-          }
-
-     private:
-          Expression _address;
-          Expression _expected;
-          Expression _replacement;
-          bool _isWeak;
-          MemoryOrdering _ordering;
+          const SingleAssignRegisterNode* _reg;
      };
 
      class LoadNode final : public NodeBase
@@ -605,126 +79,621 @@ namespace ecpps::ir
           std::string _address;
      };
 
-     class ParameterNode final : public NodeBase
+     class SSALoadNode final : public NodeBase
      {
      public:
-          explicit ParameterNode(std::uint64_t index, Location source)
-              : NodeBase(NodeKind::IncomingParameter, source), _index(index)
+          explicit SSALoadNode(SSAPointer result, const SingleAssignRegisterNode* address, Location source)
+              : NodeBase(NodeKind::Load, source), _result(std::move(result)), _address(address)
           {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_address != nullptr, "Invalid SSA address");
+
+               this->_address->Use();
           }
 
-          [[nodiscard]] std::uint64_t Index(void) const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
           {
-               return this->_index;
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Address() const noexcept
+          {
+               return *this->_address;
           }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + std::format("__param#{}", this->_index);
+               return std::format("{: <{}}{} = __load({})", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_address->ToString(0));
           }
 
      private:
-          std::uint64_t _index;
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _address;
      };
 
-     class StoreNode final : public NodeBase
+     class SSAAddNode final : public NodeBase
      {
      public:
-          explicit StoreNode(std::string address, Expression value, Location source)
-              : NodeBase(NodeKind::Store, source), _address(std::move(address)), _value(std::move(value))
+          explicit SSAAddNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                              const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Addition, source), _result(std::move(result)), _left(left), _right(right)
           {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
           }
 
-          [[nodiscard]] const std::string& Address(void) const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
           {
-               return this->_address;
+               return *this->_result;
           }
-          [[nodiscard]] const Expression& Value(void) const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} + {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+
+     class SSASubNode final : public NodeBase
+     {
+     public:
+          explicit SSASubNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                              const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Subtraction, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} - {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+
+     class SSAMulNode final : public NodeBase
+     {
+     public:
+          explicit SSAMulNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                              const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Multiplication, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} * {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+
+     class SSADivNode final : public NodeBase
+     {
+     public:
+          explicit SSADivNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                              const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Division, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} / {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+
+     class SSAModNode final : public NodeBase
+     {
+     public:
+          explicit SSAModNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                              const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Modulo, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} % {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+
+     class SSAImmNode final : public NodeBase
+     {
+     public:
+          explicit SSAImmNode(SSAPointer result, std::uint64_t value, Location source)
+              : NodeBase(NodeKind::Integer, source), _result(std::move(result)), _value(value)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] std::uint64_t Value() const noexcept
           {
                return this->_value;
           }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + this->_address + " = " +
-                      this->_value->Value()->ToString(0);
+               return std::format("{: <{}}{} = {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_value);
           }
 
      private:
-          std::string _address;
-          Expression _value;
+          SSAPointer _result;
+          std::uint64_t _value;
      };
 
-     class AddressOfNode final : public NodeBase
+     class SSAConvertNode final : public NodeBase
      {
      public:
-          explicit AddressOfNode(Expression operand, Location source)
-              : NodeBase(NodeKind::AddressOf, source), _operand(std::move(operand))
+          explicit SSAConvertNode(SSAPointer result, const SingleAssignRegisterNode* src,
+                                  ecpps::typeSystem::NonowningTypePointer targetType, Location source)
+              : NodeBase(NodeKind::Convert, source), _result(std::move(result)), _src(src), _targetType(targetType)
           {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
+
+               this->_src->Use();
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          {
+               return *this->_src;
+          }
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType() const noexcept
+          {
+               return this->_targetType;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = __convert<{}>({}) ", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_targetType->RawName(), this->_src->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _src;
+          ecpps::typeSystem::NonowningTypePointer _targetType;
+     };
+
+     class SSAPointerConvertNode final : public NodeBase
+     {
+     public:
+          explicit SSAPointerConvertNode(SSAPointer result, const SingleAssignRegisterNode* src,
+                                         ecpps::typeSystem::NonowningTypePointer targetType, Location source)
+              : NodeBase(NodeKind::PointerConversion, source), _result(std::move(result)), _src(src),
+                _targetType(targetType)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
+
+               this->_src->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          {
+               return *this->_src;
+          }
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType() const noexcept
+          {
+               return this->_targetType;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = __pointer_cast<{}>({}) ", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_targetType->RawName(), this->_src->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _src;
+          ecpps::typeSystem::NonowningTypePointer _targetType;
+     };
+
+     class SSAPointerConvertFromDecayNode final : public NodeBase
+     {
+     public:
+          explicit SSAPointerConvertFromDecayNode(SSAPointer result, NodePointer decayNode,
+                                                  ecpps::typeSystem::NonowningTypePointer targetType, Location source)
+              : NodeBase(NodeKind::PointerConversion, source), _result(std::move(result)),
+                _decayNode(std::move(decayNode)), _targetType(targetType)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_decayNode != nullptr, "Invalid decay node");
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const NodeBase& DecayNode() const noexcept
+          {
+               return *this->_decayNode;
+          }
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType() const noexcept
+          {
+               return this->_targetType;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = __pointer_cast<{}>({}) ", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_targetType->RawName(),
+                                  this->_decayNode->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          NodePointer _decayNode;
+          ecpps::typeSystem::NonowningTypePointer _targetType;
+     };
+
+     class SSAStoreNode final : public NodeBase
+     {
+     public:
+          explicit SSAStoreNode(const SingleAssignRegisterNode* target, const SingleAssignRegisterNode* src,
+                                Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+          {
+               runtime_assert(this->_target != nullptr, "Invalid SSA target");
+               runtime_assert(this->_src != nullptr, "Invalid SSA source");
+
+               this->_target->Use();
+               this->_src->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
+          {
+               return *this->_target;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          {
+               return *this->_src;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}store {} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
+                                  this->_src->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
+          const SingleAssignRegisterNode* _src;
+     };
+     class SSAStoreIntegerNode final : public NodeBase
+     {
+     public:
+          explicit SSAStoreIntegerNode(const SingleAssignRegisterNode* target, std::size_t src, Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+          {
+               runtime_assert(this->_target != nullptr, "Invalid SSA target");
+
+               this->_target->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Target(void) const noexcept
+          {
+               return *this->_target;
+          }
+          [[nodiscard]] std::size_t Src(void) const noexcept
+          {
+               return this->_src;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}store {} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
+                                  this->_src);
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
+          std::size_t _src;
+     };
+
+     class SSAArrayStoreNode final : public NodeBase
+     {
+     public:
+          explicit SSAArrayStoreNode(const SingleAssignRegisterNode* target, NodePointer arrayNode, Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _arrayNode(std::move(arrayNode))
+          {
+               runtime_assert(this->_target != nullptr, "Invalid SSA target");
+               runtime_assert(this->_arrayNode != nullptr, "Invalid array node");
+
+               this->_target->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
+          {
+               return *this->_target;
+          }
+          [[nodiscard]] const NodeBase& ArrayNode() const noexcept
+          {
+               return *this->_arrayNode;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}store {} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
+                                  this->_arrayNode->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
+          NodePointer _arrayNode;
+     };
+
+     class SSAAddressOfNode final : public NodeBase
+     {
+     public:
+          explicit SSAAddressOfNode(SSAPointer result, const SingleAssignRegisterNode* operand, Location source)
+              : NodeBase(NodeKind::AddressOf, source), _result(std::move(result)), _operand(operand)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_operand != nullptr, "Invalid SSA operand");
+
+               this->_operand->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Operand() const noexcept
+          {
+               return *this->_operand;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = __address_of({})", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_operand->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _operand;
+     };
+
+     class SSADerefNode final : public NodeBase
+     {
+     public:
+          explicit SSADerefNode(SSAPointer result, const SingleAssignRegisterNode* ptr, Location source)
+              : NodeBase(NodeKind::Dereference, source), _result(std::move(result)), _ptr(ptr)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_ptr != nullptr, "Invalid SSA pointer operand");
+
+               this->_ptr->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Ptr() const noexcept
+          {
+               return *this->_ptr;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = __deref({})", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_ptr->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _ptr;
+     };
+
+     class SSACallNode final : public NodeBase
+     {
+     public:
+          explicit SSACallNode(std::optional<SSAPointer> result, const FunctionScope* function,
+                               std::vector<const SingleAssignRegisterNode*> arguments, Location source)
+              : NodeBase(NodeKind::Call, source), _result(std::move(result)), _function(function),
+                _arguments(std::move(arguments))
+          {
+               runtime_assert(this->_function != nullptr, "Invalid function scope");
+
+               for (const auto& argument : arguments) argument->Use();
+          }
+
+          [[nodiscard]] bool HasResult() const noexcept
+          {
+               return this->_result.has_value();
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result.value();
+          }
+          [[nodiscard]] const FunctionScope& Function() const noexcept
+          {
+               return *this->_function;
+          }
+          [[nodiscard]] const std::vector<const SingleAssignRegisterNode*>& Arguments() const noexcept
+          {
+               return this->_arguments;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               std::string args;
+               bool first = true;
+               for (const auto* arg : this->_arguments)
+               {
+                    if (!first) args += ", ";
+                    first = false;
+                    args += arg->ToString(0);
+               }
+               const std::string call = std::format("{}({})", this->_function->Name().value_or("__unknown"), args);
+               if (this->_result.has_value())
+                    return std::format("{: <{}}{} = {}", ' ', indent * ast::PrettyIndent,
+                                       this->_result.value()->ToString(0), call);
+               return std::format("{: <{}}{}", ' ', indent * ast::PrettyIndent, call);
+          }
+
+     private:
+          std::optional<SSAPointer> _result;
+          const FunctionScope* _function;
+          std::vector<const SingleAssignRegisterNode*> _arguments;
+     };
+
+     class SSAReturnNode final : public NodeBase
+     {
+     public:
+          explicit SSAReturnNode(const SingleAssignRegisterNode* operand, Location source)
+              : NodeBase(NodeKind::Return, source), _operand(operand)
+          {
+               if (this->_operand != nullptr) this->_operand->Use();
+          }
+
+          [[nodiscard]] bool HasOperand() const noexcept
+          {
+               return this->_operand != nullptr;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode* Operand() const noexcept
           {
                return this->_operand;
           }
 
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "__address_of(" +
-                      this->_operand->Value()->ToString(0) + ")";
+               if (this->_operand == nullptr) return std::format("{: <{}}return", ' ', indent * ast::PrettyIndent);
+               return std::format("{: <{}}return {}", ' ', indent * ast::PrettyIndent, this->_operand->ToString(0));
           }
 
      private:
-          Expression _operand;
-     };
-
-     class DereferenceNode final : public NodeBase
-     {
-     public:
-          explicit DereferenceNode(Expression operand, Location source)
-              : NodeBase(NodeKind::Dereference, source), _operand(std::move(operand))
-          {
-          }
-
-          [[nodiscard]] const Expression& Operand(void) const noexcept
-          {
-               return this->_operand;
-          }
-
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
-          {
-               return std::string(indent * ast::PrettyIndent, ' ') + "__dereference(" +
-                      this->_operand->Value()->ToString(0) + ")";
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-
-               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!operandConstexpr.has_value())
-               {
-                    operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "Indirected operand did not evaluate to a constant expression", this->Source()));
-                    return operandConstexpr;
-               }
-               if (std::holds_alternative<ConstantAggregateArray>(operandConstexpr->variant))
-               {
-                    const auto& value = std::get<ConstantAggregateArray>(operandConstexpr->variant);
-                    return ConstantEvaluatedResult{value.members[0], this->Source()};
-               }
-
-               auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
-               result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                    "The operand did not evaluate to an an operand eligible for indirection", this->Source()));
-               return result;
-          }
-
-     private:
-          Expression _operand;
+          const SingleAssignRegisterNode* _operand;
      };
 
      class TemporaryIntegerArrayDecayNode final : public NodeBase
@@ -737,17 +706,18 @@ namespace ecpps::ir
                runtime_assert(this->_referencedArray != nullptr,
                               "array decay conversion was not supplied with an array");
           }
-          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
                return std::string(indent * ast::PrettyIndent, ' ') +
                       std::format("__decay({})", this->_referencedArray->ToString(0));
           }
 
-          [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept
+          [[nodiscard]] const std::vector<std::uint32_t>& Values() const noexcept
           {
                return this->_referencedArray->Values();
           }
-          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept
+          [[nodiscard]] const typeSystem::IntegralType* Type() const noexcept
           {
                return this->_referencedArray->Type();
           }
@@ -778,122 +748,131 @@ namespace ecpps::ir
      {
      public:
           explicit LoadArrayDecayNode(Expression operand, Location source)
-              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand)),
-                _loadNode(dynamic_cast<LoadNode*>(this->_operand->Value().get()))
+              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand)), _allocReg(nullptr)
           {
-               runtime_assert(this->_loadNode != nullptr, "load array decay supplied with a non-load operand");
+               if (const auto* ref = dynamic_cast<const SSARegisterReferenceNode*>(this->_operand->Value().get()))
+                    _allocReg = &ref->Reg();
+               runtime_assert(this->_allocReg != nullptr, "load array decay supplied with a non-register operand");
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__decay({})", this->_allocReg->ToString(0));
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode* GetAllocReg() const noexcept
+          {
+               return this->_allocReg;
+          }
+          [[nodiscard]] const Expression& GetOperand() const noexcept
+          {
+               return this->_operand;
+          }
+
+     private:
+          Expression _operand;
+          const SingleAssignRegisterNode* _allocReg;
+     };
+
+     class CompareExchangeNode final : public NodeBase
+     {
+     public:
+          explicit CompareExchangeNode(Expression address, Expression expected, Expression replacement, bool isWeak,
+                                       MemoryOrdering ordering, Location source)
+              : NodeBase(NodeKind::CompareExchange, source), _address(std::move(address)),
+                _expected(std::move(expected)), _replacement(std::move(replacement)), _isWeak(isWeak),
+                _ordering(ordering)
+          {
+          }
+
+          [[nodiscard]] const Expression& Address() const noexcept
+          {
+               return _address;
+          }
+          [[nodiscard]] const Expression& Expected() const noexcept
+          {
+               return _expected;
+          }
+          [[nodiscard]] const Expression& Replacement() const noexcept
+          {
+               return _replacement;
+          }
+          [[nodiscard]] bool IsWeak() const noexcept
+          {
+               return _isWeak;
+          }
+          [[nodiscard]] MemoryOrdering OrderingMode() const noexcept
+          {
+               return _ordering;
           }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') +
-                      std::format("__decay({})", this->_loadNode->ToString(0));
-          }
-
-          [[nodiscard]] const LoadNode* GetLoadNode(void) const noexcept
-          {
-               return this->_loadNode;
-          }
-          [[nodiscard]] const Expression& GetOperand(void) const noexcept
-          {
-               return this->_operand;
+               return std::string(indent * ast::PrettyIndent, ' ') + "__cmpxchg(...)";
           }
 
      private:
-          Expression _operand;
-          LoadNode* _loadNode;
+          Expression _address;
+          Expression _expected;
+          Expression _replacement;
+          bool _isWeak;
+          MemoryOrdering _ordering;
      };
 
-     class PointerConversionNode final : public NodeBase
+     class AllocationNode final : public NodeBase
      {
      public:
-          PointerConversionNode(Expression operand, ecpps::typeSystem::NonowningTypePointer targetType, Location source)
-              : NodeBase(NodeKind::PointerConversion, source), _operand(std::move(operand)), _targetType(targetType)
+          explicit AllocationNode(std::size_t size, std::size_t alignment,
+                                  std::unique_ptr<SingleAssignRegisterNode, IRDeleter> ssa, Location source)
+              : NodeBase(NodeKind::Allocate, source), _size(size), _alignment(alignment), _ssa(std::move(ssa))
           {
-          }
-
-          [[nodiscard]] const Expression& Operand(void) const noexcept
-          {
-               return this->_operand;
-          }
-          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
-          {
-               return this->_targetType;
+               runtime_assert(this->_ssa != nullptr, "Invalid SSA node");
           }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "__pointer_cast<" + _targetType->RawName() + ">(" +
-                      _operand->Value()->ToString(0) + ")";
+               return std::format("{} = alloc[size={}, align={}]", this->_ssa->ToString(indent), this->_size,
+                                  this->_alignment);
           }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
+          [[nodiscard]] std::size_t Size() const noexcept
           {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!operandConstexpr.has_value())
-               {
-                    operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "Converted operand did not evaluate to a constant expression", this->Source()));
-                    return operandConstexpr;
-               }
-               const auto& operand = *operandConstexpr;
-
-               return operand;
+               return this->_size;
+          }
+          [[nodiscard]] std::size_t Alignment() const noexcept
+          {
+               return this->_alignment;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Node() const noexcept
+          {
+               return *this->_ssa;
           }
 
      private:
-          Expression _operand;
-          ecpps::typeSystem::NonowningTypePointer _targetType;
+          std::size_t _size;
+          std::size_t _alignment;
+          std::unique_ptr<SingleAssignRegisterNode, IRDeleter> _ssa;
      };
 
-     class ConvertNode final : public NodeBase
+     class ParameterNode final : public NodeBase
      {
      public:
-          ConvertNode(Expression operand, ecpps::typeSystem::NonowningTypePointer targetType, Location source)
-              : NodeBase(NodeKind::Convert, source), _operand(std::move(operand)), _targetType(targetType)
+          explicit ParameterNode(std::uint64_t index, Location source)
+              : NodeBase(NodeKind::IncomingParameter, source), _index(index)
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept
+          [[nodiscard]] std::uint64_t Index() const noexcept
           {
-               return this->_operand;
-          }
-          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
-          {
-               return this->_targetType;
+               return this->_index;
           }
 
-          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + "__convert<" + _targetType->RawName() + ">(" +
-                      _operand->Value()->ToString(0) + ")";
-          }
-          [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
-          TryConstantEvaluate(const EvaluationContext& evaluationContext) const override
-          {
-               if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth <
-                   evaluationContext.currentDepth)
-                    return NodeBase::TryConstantEvaluate(evaluationContext);
-               auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
-               if (!operandConstexpr.has_value())
-               {
-                    operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                         "Converted operand did not evaluate to a constant expression", this->Source()));
-                    return operandConstexpr;
-               }
-               const auto& operand = *operandConstexpr;
-
-               return operand;
+               return std::string(indent * ast::PrettyIndent, ' ') + std::format("__param#{}", this->_index);
           }
 
      private:
-          Expression _operand;
-          ecpps::typeSystem::NonowningTypePointer _targetType;
+          std::uint64_t _index;
      };
-
 } // namespace ecpps::ir

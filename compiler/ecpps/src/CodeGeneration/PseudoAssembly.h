@@ -7,8 +7,13 @@
 #include <vector>
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
+#include "AbstractNodes.h"
+#include "CodeGeneration/Nodes.h"
+#include "Execution/Operations.h"
+#include "Machine/Encoders/API/Target.h"
 #include "Machine/Storage.h"
 #include "Shared/Config.h"
+#include "Shared/Error.h"
 
 namespace ecpps::codegen
 {
@@ -41,6 +46,24 @@ namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
 
+     struct ParsingContext
+     {
+          std::vector<ir::abstract::Instruction> instructions;
+          ir::abstract::VirtualRegisterMap registerMap;
+          ecpps::abi::ABI* abi;
+          std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
+          abi::api::Target* target;
+
+          void ParseNode(const ir::NodeBase* node);
+
+          void ParseAllocateNode(const ir::AllocationNode& node);
+          void ParseReturnNode(const ir::SSAReturnNode& node);
+          void ParseStoreNode(const ir::SSAStoreNode& node);
+          void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
+          void ParseAddNode(const ir::SSAAddNode& node);
+          explicit ParsingContext(ecpps::abi::ABI& abi);
+     };
+
      struct AssemblyContext
      {
           struct alignas(std::uint64_t) StringEntry
@@ -65,7 +88,8 @@ namespace ecpps::codegen
 
                case StringPooling::Exact:
                {
-                    ByteView probe{static_cast<std::size_t>(value.data() - this->_arena.data()), value.size()};
+                    ByteView probe{.begin = static_cast<std::size_t>(value.data() - this->_arena.data()),
+                                   .end = value.size()};
 
                     if (const auto iterator = _exactLookup.find(probe); iterator != _exactLookup.end())
                     {
@@ -125,11 +149,6 @@ namespace ecpps::codegen
           {
                this->_patches.emplace_back(index, instructionOffset, patchType);
           }
-
-          std::stack<std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>>
-               symbolTables;
-          std::vector<ecpps::abi::StorageRef> functionParameters{};
-          std::size_t stackFrameAdjustment = 0;
 
           [[nodiscard]] auto& Patches(void) noexcept
           {
