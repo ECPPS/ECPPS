@@ -557,8 +557,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                                             ParameterNode(paramIndex++, node.Source())),
               false);
 
-          ir._built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-              new (*this->GetContext().nodeAllocator) ir::StoreNode(param.name, std::move(paramNode), node.Source())});
+          ir._built.push_back(std::unique_ptr<ir::LegacyDoNotUseStoreNode, IRDeleter>{
+              new (*this->GetContext().nodeAllocator)
+                  ir::LegacyDoNotUseStoreNode(param.name, std::move(paramNode), node.Source())});
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
@@ -812,10 +813,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          auto initialiserExpression =
                              std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
-                         this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                             new (*this->GetContext().nodeAllocator)
-                                 ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
-                                               std::move(initialiserExpression), decl.initialiser->Source())});
+                         this->_built.push_back(std::unique_ptr<ir::LegacyDoNotUseStoreNode, IRDeleter>{
+                             new (*this->GetContext().nodeAllocator) ir::LegacyDoNotUseStoreNode(
+                                 registeredVar.Name().value_or("__unknown_local_variable"),
+                                 std::move(initialiserExpression), decl.initialiser->Source())});
                     }
                }
                if (inferLastArrayFromInitialiser)
@@ -881,19 +882,19 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                               auto initialiserExpression =
                                   std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
-                              this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                                  new (*this->GetContext().nodeAllocator)
-                                      ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
-                                                    std::move(initialiserExpression), decl.initialiser->Source())});
+                              this->_built.push_back(std::unique_ptr<ir::LegacyDoNotUseStoreNode, IRDeleter>{
+                                  new (*this->GetContext().nodeAllocator) ir::LegacyDoNotUseStoreNode(
+                                      registeredVar.Name().value_or("__unknown_local_variable"),
+                                      std::move(initialiserExpression), decl.initialiser->Source())});
                          }
                          continue;
                     }
                }
 
-               this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
+               this->_built.push_back(std::unique_ptr<ir::LegacyDoNotUseStoreNode, IRDeleter>{
                    new (*this->GetContext().nodeAllocator)
-                       ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(initExpr),
-                                     decl.initialiser->Source())});
+                       ir::LegacyDoNotUseStoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
+                                                   std::move(initExpr), decl.initialiser->Source())});
           }
           else
           {

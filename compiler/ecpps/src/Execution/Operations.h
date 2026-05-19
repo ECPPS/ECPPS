@@ -552,10 +552,10 @@ namespace ecpps::ir
           std::uint64_t _index;
      };
 
-     class StoreNode final : public NodeBase
+     class LegacyDoNotUseStoreNode final : public NodeBase
      {
      public:
-          explicit StoreNode(std::string address, Expression value, Location source)
+          explicit LegacyDoNotUseStoreNode(std::string address, Expression value, Location source)
               : NodeBase(NodeKind::Store, source), _address(std::move(address)), _value(std::move(value))
           {
           }
@@ -571,6 +571,29 @@ namespace ecpps::ir
 
      private:
           std::string _address;
+          Expression _value;
+     };
+
+     class StoreNode final : public NodeBase
+     {
+     public:
+          explicit StoreNode(const SingleAssignRegisterNode* target, Expression value, Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _value(std::move(value))
+          {
+               runtime_assert(this->_target != nullptr, "Invalid target");
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Address(void) const noexcept { return *this->_target; }
+          [[nodiscard]] const Expression& Value(void) const noexcept { return this->_value; }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::format("{: <{}} store {} = {}", ' ', indent, this->_target->ToString(0),
+                                  this->_value->Value()->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
           Expression _value;
      };
 
@@ -793,6 +816,31 @@ namespace ecpps::ir
      private:
           Expression _operand;
           ecpps::typeSystem::NonowningTypePointer _targetType;
+     };
+
+     class AllocationNode final : public NodeBase
+     {
+     public:
+          explicit AllocationNode(std::size_t size, std::size_t alignment,
+                                  std::unique_ptr<SingleAssignRegisterNode> ssa, Location source)
+              : NodeBase(NodeKind::Allocate, source), _size(size), _alignment(alignment), _ssa(std::move(ssa))
+          {
+               runtime_assert(this->_ssa != nullptr, "Invalid SSA node");
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{} = alloc[size={}, align={}]", this->_ssa->ToString(indent), this->_size,
+                                  this->_alignment);
+          }
+          [[nodiscard]] std::size_t Size(void) const noexcept { return this->_size; }
+          [[nodiscard]] std::size_t Alignment(void) const noexcept { return this->_alignment; }
+          [[nodiscard]] const SingleAssignRegisterNode& Node(void) const noexcept { return *this->_ssa; }
+
+     private:
+          std::size_t _size;
+          std::size_t _alignment;
+          std::unique_ptr<SingleAssignRegisterNode> _ssa;
      };
 
 } // namespace ecpps::ir

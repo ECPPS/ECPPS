@@ -45,6 +45,8 @@ _BOOL __WriteConsoleA(_HANDLE __hConsole, const char* __lpBuffer, _DWORD __nNumb
 _DLLIMPORT(ReadConsoleA)
 _BOOL __ReadConsoleA(_HANDLE __hConsole, char* __lpBuffer, _DWORD __nNumberOfCharsToRead, _DWORD* __lpNumberOfCharsRead,
                      _QWORD q);
+_DLLIMPORT(HeapAlloc) void* __HeapAlloc(_HANDLE, _DWORD, _QWORD);
+_DLLIMPORT(HeapFree) _BOOL __HeapFree(_HANDLE, _DWORD, void* __lpMem);
 
 _HANDLE __std_stdin_handle() { return __GetStdHandle(0 - 10); }
 _HANDLE __std_stdout_handle() { return __GetStdHandle(0 - 11); }
@@ -70,6 +72,16 @@ int __std_cwrite(const char* __buffer)
      _HANDLE __hConsole = __std_stdout_handle();
      _DWORD __length = __std_strlen(__buffer);
      return __std_console_write(__hConsole, __buffer, __length);
+}
+void* __std_malloc(_QWORD __size)
+{
+     _HANDLE __hHeap = __GetStdHandle(0 - 1);
+     return __HeapAlloc(__hHeap, 0, __size);
+}
+void __std_free(void* __ptr)
+{
+     _HANDLE __hHeap = __GetStdHandle(0 - 1);
+     __HeapFree(__hHeap, 0, __ptr);
 }
 
 // stub

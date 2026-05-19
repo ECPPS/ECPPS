@@ -39,7 +39,9 @@ namespace ecpps::ir
           IntegerArrayDecay,
           LoadArrayDecay,
           PointerConversion,
-          IncomingParameter
+          IncomingParameter,
+          SSA,
+          Allocate
      };
 
      struct ConstantAggregateMap;
@@ -145,5 +147,30 @@ namespace ecpps::ir
      private:
           std::vector<std::uint32_t> _values;
           const typeSystem::IntegralType* _type;
+     };
+
+     class SingleAssignRegisterNode final : public NodeBase
+     {
+     public:
+          explicit SingleAssignRegisterNode(std::size_t index, Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index)
+          {
+          }
+          explicit SingleAssignRegisterNode(std::size_t index, std::string name, Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _optionalName(std::move(name))
+          {
+          }
+          [[nodiscard]] std::size_t Index(void) const noexcept { return this->_index; }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               if (this->_optionalName.empty())
+                    return std::string(indent * ast::PrettyIndent, ' ') + std::format("__register({})", this->_index);
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__register({}, \"{}\")", this->_index, this->_optionalName);
+          }
+
+     private:
+          std::size_t _index;
+          std::string _optionalName;
      };
 } // namespace ecpps::ir

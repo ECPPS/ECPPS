@@ -904,7 +904,7 @@ static void ScanNodeForFunctionCalls(const ecpps::ir::NodeBase* node,
      {
           if (returnNode->HasValue()) ScanNodeForFunctionCalls(returnNode->Value()->Value().get(), foundCalls);
      }
-     else if (const auto* store = dynamic_cast<const ecpps::ir::StoreNode*>(node); store != nullptr)
+     else if (const auto* store = dynamic_cast<const ecpps::ir::LegacyDoNotUseStoreNode*>(node); store != nullptr)
      {
           ScanNodeForFunctionCalls(store->Value()->Value().get(), foundCalls);
      }
@@ -1113,7 +1113,8 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                         function.dllImportName.empty() ? functionName : function.dllImportName;
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
-          else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)
+          else if (const auto* const store = dynamic_cast<const ecpps::ir::LegacyDoNotUseStoreNode*>(line.get());
+                   store != nullptr)
           {
                runtime_assert(symbolTable.contains(store->Address()), "Invalid symbol");
 
