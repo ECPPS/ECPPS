@@ -149,15 +149,61 @@ namespace ecpps::ir
           const typeSystem::IntegralType* _type;
      };
 
+     // The register class is used to determinate the priority of the said register
+     // to a bounded register. Certain registers will however have the same priority, but they should still be assigned
+     // to a unique class code. Each priority class is a multiple of 16 (to allow up to 16 said classes per priority
+     // level). 0 (>> 4) is the lowest priority (most likely to be spilled), and higher values are higher priority (less
+     // likely to be spilled). Additionally, 0xfff is registered to the fixed class
+
+#define COMPOSE_CLASS(priority, classCode) ((static_cast<std::uint_least16_t>(priority) << 4) | (classCode))
+
+     enum struct RegisterClass : std::uint_least16_t
+     {
+          // variables
+          LocalVariable = COMPOSE_CLASS(0, 0),     // variables
+          ParameterVariable = COMPOSE_CLASS(0, 1), // parameters (they are also variables, special class anyway)
+
+          // computation temporaries
+          ArithmeticTemporary = COMPOSE_CLASS(3, 0), // built-in arithmetic operations on integers and floats
+          ConditionTemporary = COMPOSE_CLASS(3, 1),  // condition results (id est the result of a == b, a < b, etc.)
+          AddressTemporary = COMPOSE_CLASS(3, 2),    // the result of an address-of operation (id est &a)
+
+          ConversionResult = COMPOSE_CLASS(6, 0), // result of any arithmetic conversion
+
+          Fixed1 = 0xfff0,
+          Fixed2 = 0xfff1,
+          Fixed3 = 0xfff2,
+          Fixed4 = 0xfff3,
+          Fixed5 = 0xfff4,
+          Fixed6 = 0xfff5,
+          Fixed7 = 0xfff6,
+          Fixed8 = 0xfff7,
+          Fixed9 = 0xfff8,
+          Fixed10 = 0xfff9,
+          Fixed11 = 0xfffa,
+          Fixed12 = 0xfffb,
+          Fixed13 = 0xfffc,
+          Fixed14 = 0xfffd,
+          Fixed15 = 0xfffe,
+          Fixed16 = 0xffff
+     };
+     struct RegisterPriorityInfo
+     {
+          RegisterClass regClass;
+          std::uint32_t useCount;
+          std::uint32_t depth;
+     };
+
      class SingleAssignRegisterNode final : public NodeBase
      {
      public:
-          explicit SingleAssignRegisterNode(std::size_t index, Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index)
+          explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info)
           {
           }
-          explicit SingleAssignRegisterNode(std::size_t index, std::string name, Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index), _optionalName(std::move(name))
+          explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, std::string name,
+                                            Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _optionalName(std::move(name))
           {
           }
           [[nodiscard]] std::size_t Index(void) const noexcept { return this->_index; }
@@ -168,9 +214,11 @@ namespace ecpps::ir
                return std::string(indent * ast::PrettyIndent, ' ') +
                       std::format("__register({}, \"{}\")", this->_index, this->_optionalName);
           }
+          [[nodiscard]] const RegisterPriorityInfo& PriorityInfo(void) const noexcept { return this->_priorityInfo; }
 
      private:
           std::size_t _index;
+          RegisterPriorityInfo _priorityInfo;
           std::string _optionalName;
      };
 } // namespace ecpps::ir

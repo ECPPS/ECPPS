@@ -775,7 +775,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           auto& registeredVarLocal = fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
           auto& registeredVar = std::get<Variable>(registeredVarLocal.local);
-
+          // auto ssaNode = std::unique_ptr<ir::SingleAssignRegisterNode>{new (*this->GetContext().nodeAllocator)
+          //                                                                  ir::SingleAssignRegisterNode()};
+          // TOOD: implement
           if (inferLastArrayFromInitialiser)
           {
                if (decl.initialiser == nullptr)
