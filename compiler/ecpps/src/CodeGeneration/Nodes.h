@@ -40,6 +40,20 @@ namespace ecpps::codegen
           std::shared_ptr<abi::VirtualRegister> _index;
      };
 
+     struct VirtualRegisterOperand : OperandBase<VirtualRegisterOperand>
+     {
+          explicit VirtualRegisterOperand(const std::size_t index, const std::size_t width)
+              : OperandBase(width), _index(index)
+          {
+          }
+          [[nodiscard]] std::string ToString(void) const;
+
+          [[nodiscard]] std::size_t Index(void) const noexcept { return this->_index; }
+
+     private:
+          std::size_t _index;
+     };
+
      struct IntegerOperand : OperandBase<IntegerOperand>
      {
           explicit IntegerOperand(const std::size_t value, const std::size_t width) : OperandBase(width), _value(value)
@@ -94,7 +108,7 @@ namespace ecpps::codegen
      };
 
      using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand,
-                                  IntegerRangeOperand>;
+                                  VirtualRegisterOperand, IntegerRangeOperand>;
 
      enum struct InstructionAlignment : std::uint_fast8_t
      {

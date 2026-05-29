@@ -7,8 +7,11 @@
 #include <vector>
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
+#include "CodeGeneration/Nodes.h"
+#include "Execution/Operations.h"
 #include "Machine/Storage.h"
 #include "Shared/Config.h"
+#include "Shared/Error.h"
 
 namespace ecpps::codegen
 {
@@ -37,6 +40,29 @@ template <> struct std::hash<ecpps::codegen::ByteView>
 namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
+
+     struct ParsingContext
+     {
+          struct VirtualRegisterAllocator;
+
+          std::vector<Instruction>* instructions;
+          ecpps::abi::ABI* abi;
+          std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
+          VirtualRegisterAllocator* allocator;
+
+          void ParseNode(const Expression& expression);
+
+          void ParseAllocateNode(const Expression& expression, const ir::AllocationNode& node);
+          void ParseReturnNode(const Expression& expression, const ir::SSAReturnNode& node);
+          void ParseStoreNode(const Expression& expression, const ir::SSAStoreNode& node);
+          void ParseStoreIntNode(const Expression& expression, const ir::SSAStoreIntegerNode& node);
+          void ParseAddNode(const Expression& expression, const ir::SSAAddNode& node);
+          explicit ParsingContext(std::vector<Instruction>& instructions, ecpps::abi::ABI& abi);
+
+     private:
+          void RegisterUnboundedToVirtual(const ir::SingleAssignRegisterNode& reg, std::size_t width);
+          [[nodiscard]] VirtualRegisterOperand GetVirtualFromUnbounded(const ir::SingleAssignRegisterNode& reg) const;
+     };
 
      struct AssemblyContext
      {

@@ -1,6 +1,8 @@
 #include "NodeBase.h"
 #include "Context.h"
 
+bool ecpps::ir::SingleAssignRegisterNode::_usageIsDecrement = false;
+
 std::expected<ecpps::ir::ConstantEvaluatedResult, std::stack<ecpps::diagnostics::DiagnosticsMessage>> ecpps::ir::
     NodeBase::TryConstantEvaluate(const ecpps::ir::EvaluationContext& evaluationContext) const
 {

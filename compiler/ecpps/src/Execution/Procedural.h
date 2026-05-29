@@ -98,6 +98,7 @@ namespace ecpps::ir
 
           [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept { return this->_function; }
           [[nodiscard]] const std::vector<Expression>& Arguments(void) const noexcept { return this->_arguments; }
+          [[nodiscard]] std::vector<Expression>& MoveArguments(void) noexcept { return this->_arguments; }
 
      private:
           std::shared_ptr<FunctionScope> _function;

@@ -110,6 +110,10 @@ namespace ecpps::ir
           Context* _context;
           [[nodiscard]] Context& GetContext(void) const noexcept { return *this->_context; }
 
+          const ecpps::ir::SingleAssignRegisterNode* LowerExpression(Expression expression,
+                                                                     std::vector<NodePointer>& built);
+          [[nodiscard]] const ecpps::ir::SingleAssignRegisterNode* ResolveAllocReg(const std::string& name) const;
+
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);

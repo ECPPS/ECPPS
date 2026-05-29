@@ -3,11 +3,13 @@
 #include <SBOVector.h>
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <ranges>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -15,6 +17,7 @@
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Entities.h"
+#include "Execution/NodeBase.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
 #include "TypeSystem/ArithmeticTypes.h"
@@ -450,6 +453,7 @@ namespace ecpps::ir
           typeSystem::NonowningTypePointer returnType;
           std::string name;
           std::vector<typeSystem::NonowningTypePointer> parameters;
+          std::uint32_t nextRegisterIndex = 0;
 
           explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention,
                                    [[maybe_unused]] typeSystem::NonowningTypePointer returnType, std::string name,
@@ -458,6 +462,28 @@ namespace ecpps::ir
                 name(std::move(name)), parameters(std::move(parameters))
           {
           }
+
+          void RegisterAllocReg(std::string name, const ir::SingleAssignRegisterNode* node);
+          void RegisterParamAllocReg(std::string name, const ir::SingleAssignRegisterNode* node);
+          [[nodiscard]] const ir::SingleAssignRegisterNode* GetParameterRegister(std::uint64_t index) const;
+          [[nodiscard]] const ir::SingleAssignRegisterNode* GetAllocRegForName(const std::string& name) const;
+          [[nodiscard]] std::size_t GetNextRegisterIndex(void) noexcept { return this->nextRegisterIndex++; }
+
+     private:
+          enum struct NodeType : std::uint_fast8_t
+          {
+               Local,
+               Parameter
+          };
+          struct SSANode
+          {
+               const ir::SingleAssignRegisterNode* pointer;
+               NodeType type;
+               std::uint64_t key;
+          };
+
+          std::unordered_map<std::string, SSANode> _nameToSSAMapping{};
+          std::unordered_map<std::uint64_t, const ir::SingleAssignRegisterNode*> _indexToSSAMapping{};
      };
      struct ClassContext final : ContextBase
      {

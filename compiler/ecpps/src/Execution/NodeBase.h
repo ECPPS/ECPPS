@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <print>
 #include <stack>
 #include <string>
 #include <utility>
@@ -41,7 +42,8 @@ namespace ecpps::ir
           PointerConversion,
           IncomingParameter,
           SSA,
-          Allocate
+          Allocate,
+          Annotation
      };
 
      struct ConstantAggregateMap;
@@ -167,6 +169,7 @@ namespace ecpps::ir
           ArithmeticTemporary = COMPOSE_CLASS(3, 0), // built-in arithmetic operations on integers and floats
           ConditionTemporary = COMPOSE_CLASS(3, 1),  // condition results (id est the result of a == b, a < b, etc.)
           AddressTemporary = COMPOSE_CLASS(3, 2),    // the result of an address-of operation (id est &a)
+          Temporary = COMPOSE_CLASS(3, 3),           // any other
 
           ConversionResult = COMPOSE_CLASS(6, 0), // result of any arithmetic conversion
 
@@ -189,9 +192,9 @@ namespace ecpps::ir
      };
      struct RegisterPriorityInfo
      {
-          RegisterClass regClass;
-          std::uint32_t useCount;
-          std::uint32_t depth;
+          RegisterClass regClass{};
+          std::uint32_t useCount{};
+          std::uint32_t depth{};
      };
 
      class SingleAssignRegisterNode final : public NodeBase
@@ -216,9 +219,25 @@ namespace ecpps::ir
           }
           [[nodiscard]] const RegisterPriorityInfo& PriorityInfo(void) const noexcept { return this->_priorityInfo; }
 
+          [[nodiscard]] std::size_t UseCount(void) const noexcept { return this->_useCount; }
+          // In lower mode: returns true if the node is no longer used; otherwise always true
+          bool Use(void) const noexcept
+          {
+               if (_usageIsDecrement) return --this->_useCount == 0;
+
+               this->_useCount++;
+               return true;
+          }
+
+          static void SwitchToLower(void) noexcept { _usageIsDecrement = true; }
+
      private:
           std::size_t _index;
           RegisterPriorityInfo _priorityInfo;
           std::string _optionalName;
+          mutable std::size_t _useCount{};
+
+          static bool _usageIsDecrement;
      };
+     using SSAPointer = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>;
 } // namespace ecpps::ir
