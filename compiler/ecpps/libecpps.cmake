@@ -20,6 +20,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Nodes.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/PseudoAssembly.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/virtualAllocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/AbstractNodes.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Vendor/aARM/ISA.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Vendor/ax86/ISA.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/ABI.cpp"
