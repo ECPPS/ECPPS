@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <format>
 #include <string>
+#include "Shared/Diagnostics.h"
+
 std::string ecpps::ir::abstract::ToString(const InstructionDescription& description)
 {
      using std::operator""s;
@@ -26,6 +28,7 @@ std::string ecpps::ir::abstract::ToString(const InstructionDescription& descript
                                                                   case DescribedOperandType::Input: return "in";
                                                                   case DescribedOperandType::Output: return "out";
                                                                   }
+                                                                  throw ecpps::TracedException("unreachable");
                                                              }());
                                      });
      return built;
