@@ -10,7 +10,7 @@ namespace ecpps::abi
           ARM
      };
 
-     enum struct ISA : std::uint_fast8_t
+     enum struct ISA : std::uint16_t // NOLINT(performance-enum-size)
      {
           x86_32,
           x86_64,
@@ -24,7 +24,7 @@ namespace ecpps::abi
           Big
      };
 
-     enum struct SimdFeatures : std::uint_fast32_t
+     enum struct ArchitectureExtensionFeatures : std::uint64_t // NOLINT(performance-enum-size)
      {
           None = 0,
 
@@ -57,25 +57,24 @@ namespace ecpps::abi
           FP16 = 1 << 7,
           DOTPROD = 1 << 8
      };
-     constexpr bool operator&(const SimdFeatures features, const SimdFeatures other)
-     {
-          return (std::to_underlying(features) & std::to_underlying(other)) != 0;
-     }
-     constexpr SimdFeatures operator|(const SimdFeatures features, const SimdFeatures other)
-     {
-          return static_cast<SimdFeatures>(std::to_underlying(features) | std::to_underlying(other));
-     }
+     constexpr bool operator&(const ArchitectureExtensionFeatures features, const ArchitectureExtensionFeatures other)
+     { return (std::to_underlying(features) & std::to_underlying(other)) != 0; }
+     constexpr ArchitectureExtensionFeatures operator|(const ArchitectureExtensionFeatures features,
+                                                       const ArchitectureExtensionFeatures other)
+     { return static_cast<ArchitectureExtensionFeatures>(std::to_underlying(features) | std::to_underlying(other)); }
 
-     constexpr SimdFeatures& operator|=(SimdFeatures& features, const SimdFeatures other)
-     {
-          return features = features | other;
-     }
+     constexpr ArchitectureExtensionFeatures& operator|=(ArchitectureExtensionFeatures& features,
+                                                         const ArchitectureExtensionFeatures other)
+     { return features = features | other; }
 
      struct CPUFeatures
      {
           ISA isa;
-          SimdFeatures features;
+          ArchitectureExtensionFeatures features;
 
-          explicit CPUFeatures(const ISA isa, const SimdFeatures features) : isa(isa), features(features) {}
+          explicit CPUFeatures(const ISA isa, const ArchitectureExtensionFeatures features)
+              : isa(isa), features(features)
+          {
+          }
      };
 } // namespace ecpps::abi

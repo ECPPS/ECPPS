@@ -7,8 +7,10 @@
 #include <vector>
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
+#include "AbstractNodes.h"
 #include "CodeGeneration/Nodes.h"
 #include "Execution/Operations.h"
+#include "Machine/Encoders/API/Target.h"
 #include "Machine/Storage.h"
 #include "Shared/Config.h"
 #include "Shared/Error.h"
@@ -23,18 +25,14 @@ namespace ecpps::codegen
 
           [[nodiscard]] constexpr std::size_t Size(void) const noexcept { return this->end - this->begin; }
           [[nodiscard]] constexpr bool operator==(const ByteView& other) const noexcept
-          {
-               return this->Size() == other.Size() && this->begin == other.begin;
-          }
+          { return this->Size() == other.Size() && this->begin == other.begin; }
      };
 } // namespace ecpps::codegen
 
 template <> struct std::hash<ecpps::codegen::ByteView>
 {
      std::size_t operator()(const ecpps::codegen::ByteView& view) const noexcept
-     {
-          return view.begin ^ (view.end << 1);
-     }
+     { return view.begin ^ (view.end << 1); }
 };
 
 namespace ecpps::codegen
@@ -43,25 +41,20 @@ namespace ecpps::codegen
 
      struct ParsingContext
      {
-          struct VirtualRegisterAllocator;
-
-          std::vector<Instruction>* instructions;
+          std::vector<ir::abstract::Instruction> instructions;
+          ir::abstract::VirtualRegisterMap registerMap;
           ecpps::abi::ABI* abi;
           std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
-          VirtualRegisterAllocator* allocator;
+          abi::api::Target* target;
 
-          void ParseNode(const Expression& expression);
+          void ParseNode(const ir::NodeBase* node);
 
-          void ParseAllocateNode(const Expression& expression, const ir::AllocationNode& node);
-          void ParseReturnNode(const Expression& expression, const ir::SSAReturnNode& node);
-          void ParseStoreNode(const Expression& expression, const ir::SSAStoreNode& node);
-          void ParseStoreIntNode(const Expression& expression, const ir::SSAStoreIntegerNode& node);
-          void ParseAddNode(const Expression& expression, const ir::SSAAddNode& node);
-          explicit ParsingContext(std::vector<Instruction>& instructions, ecpps::abi::ABI& abi);
-
-     private:
-          void RegisterUnboundedToVirtual(const ir::SingleAssignRegisterNode& reg, std::size_t width);
-          [[nodiscard]] VirtualRegisterOperand GetVirtualFromUnbounded(const ir::SingleAssignRegisterNode& reg) const;
+          void ParseAllocateNode(const ir::AllocationNode& node);
+          void ParseReturnNode(const ir::SSAReturnNode& node);
+          void ParseStoreNode(const ir::SSAStoreNode& node);
+          void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
+          void ParseAddNode(const ir::SSAAddNode& node);
+          explicit ParsingContext(ecpps::abi::ABI& abi);
      };
 
      struct AssemblyContext
@@ -86,7 +79,8 @@ namespace ecpps::codegen
 
                case StringPooling::Exact:
                {
-                    ByteView probe{static_cast<std::size_t>(value.data() - this->_arena.data()), value.size()};
+                    ByteView probe{.begin = static_cast<std::size_t>(value.data() - this->_arena.data()),
+                                   .end = value.size()};
 
                     if (const auto iterator = _exactLookup.find(probe); iterator != _exactLookup.end())
                     {
@@ -140,14 +134,7 @@ namespace ecpps::codegen
           [[nodiscard]] const auto& GetStringSection(void) const noexcept { return this->_arena; }
 
           void AddStringPatch(std::uint32_t instructionOffset, InstructionPatchType patchType, StringIndex index)
-          {
-               this->_patches.emplace_back(index, instructionOffset, patchType);
-          }
-
-          std::stack<std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>>
-              symbolTables;
-          std::vector<ecpps::abi::StorageRef> functionParameters{};
-          std::size_t stackFrameAdjustment = 0;
+          { this->_patches.emplace_back(index, instructionOffset, patchType); }
 
           [[nodiscard]] auto& Patches(void) noexcept { return this->_patches; }
 

@@ -26,6 +26,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/ABI.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Machine.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Mangling.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Machine/Encoders/InstructionEncoder.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/CoffLinker.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/dllHelp.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/Linker.cpp"
@@ -36,6 +37,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Entities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Context.cpp"
 )
+include(src/Machine/Encoders/Backends/sources.cmake)
 
 set(SHARED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/BumpAllocator.cpp"

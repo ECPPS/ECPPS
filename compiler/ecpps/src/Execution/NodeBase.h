@@ -1,6 +1,7 @@
 #pragma once
 #include <TypeSystem/ArithmeticTypes.h>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <memory>
@@ -200,13 +201,15 @@ namespace ecpps::ir
      class SingleAssignRegisterNode final : public NodeBase
      {
      public:
-          explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info)
+          explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, std::size_t width,
+                                            Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _width(width)
           {
           }
           explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, std::string name,
-                                            Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _optionalName(std::move(name))
+                                            std::size_t width, Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _optionalName(std::move(name)),
+                _width(width)
           {
           }
           [[nodiscard]] std::size_t Index(void) const noexcept { return this->_index; }
@@ -220,6 +223,7 @@ namespace ecpps::ir
           [[nodiscard]] const RegisterPriorityInfo& PriorityInfo(void) const noexcept { return this->_priorityInfo; }
 
           [[nodiscard]] std::size_t UseCount(void) const noexcept { return this->_useCount; }
+          [[nodiscard]] std::size_t Width(void) const noexcept { return this->_width; }
           // In lower mode: returns true if the node is no longer used; otherwise always true
           bool Use(void) const noexcept
           {
@@ -236,6 +240,7 @@ namespace ecpps::ir
           RegisterPriorityInfo _priorityInfo;
           std::string _optionalName;
           mutable std::size_t _useCount{};
+          std::size_t _width; // TODO: Complex layout, not width+alignment
 
           static bool _usageIsDecrement;
      };

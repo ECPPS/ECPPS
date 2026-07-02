@@ -12,8 +12,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -36,8 +36,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -60,8 +60,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -83,8 +83,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -106,8 +106,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -131,12 +131,10 @@ namespace ecpps::ir::high
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
           [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
-          {
-               return this->_targetType;
-          }
+          { return this->_targetType; }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
@@ -157,12 +155,10 @@ namespace ecpps::ir::high
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
           [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
-          {
-               return this->_targetType;
-          }
+          { return this->_targetType; }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
@@ -183,7 +179,7 @@ namespace ecpps::ir::high
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
@@ -204,7 +200,7 @@ namespace ecpps::ir::high
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
@@ -223,8 +219,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -246,8 +242,8 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const& noexcept { return this->_left; }
+          [[nodiscard]] const Expression& Right(void) const& noexcept { return this->_right; }
 
           [[nodiscard]] Expression Left(void) && noexcept { return std::move(this->_left); }
           [[nodiscard]] Expression Right(void) && noexcept { return std::move(this->_right); }
@@ -270,7 +266,7 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _operand(std::move(operand)), _increment(increment)
           {
           }
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
           [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
 
@@ -292,7 +288,7 @@ namespace ecpps::ir::high
               : NodeBase(NodeKind::Addition, source), _operand(std::move(operand)), _increment(increment)
           {
           }
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept { return this->_operand; }
           [[nodiscard]] Expression Operand(void) && noexcept { return std::move(this->_operand); }
           [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
 

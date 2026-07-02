@@ -31,17 +31,3 @@ std::unique_ptr<ecpps::codegen::CodeEmitter> ecpps::codegen::CodeEmitter::New(ab
      default: throw TracedException(std::runtime_error("Emitter for the selected ISA does not exist"));
      }
 }
-
-std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitInstruction(const Instruction& instruction)
-{
-     return std::visit(
-         OverloadedVisitor{
-             [this](const MovInstruction& mov) { return this->EmitMov(mov); }, [this](const AddInstruction& add)
-             { return this->EmitAdd(add); }, [this](const SubInstruction& sub) { return this->EmitSub(sub); },
-             [this](const MulInstruction& mul) { return this->EmitMul(mul); }, [this](const DivInstruction& div)
-             { return this->EmitDiv(div); }, [this](const CallInstruction& call) { return this->EmitCall(call); },
-             [this](const TakeAddressInstruction& lea) { return this->EmitLea(lea); },
-             [this](const ReturnInstruction&) { return this->EmitReturn(); },
-             [](auto&&) -> std::vector<std::byte> { throw TracedException("invalid instruction"); }},
-         instruction);
-}
