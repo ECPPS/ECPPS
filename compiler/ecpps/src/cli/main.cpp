@@ -96,11 +96,10 @@ static void EnableVirtualProcessing(void)
 }
 #endif
 
-
 static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& config, bool isExtraVerbose,
-                          std::vector<std::byte>& generatedMachineCode, bool& hadErrors,
-                          std::vector<std::pair<std::string, std::size_t>>& functions,
-                          ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset) noexcept
+                            std::vector<std::byte>& generatedMachineCode, bool& hadErrors,
+                            std::vector<std::pair<std::string, std::size_t>>& functions,
+                            ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
 {
      g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
@@ -117,7 +116,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
           std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(now)};
           macros.emplace_back("__DATE__", std::nullopt, std::format("\"{:%b %e %Y}\"", ymd), false);
           std::chrono::hh_mm_ss hms{
-               std::chrono::floor<std::chrono::seconds>(now - std::chrono::floor<std::chrono::days>(now))};
+              std::chrono::floor<std::chrono::seconds>(now - std::chrono::floor<std::chrono::days>(now))};
           macros.emplace_back("__TIME__", std::nullopt, std::format("\"{:%T}\"", hms), false);
           // TODO: __STDC_HOSTED__
           // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
@@ -138,7 +137,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
           std::set<std::filesystem::path> includedFiles;
           ecpps::Preprocessor preprocessor{};
           const auto ppTokens =
-               preprocessor.Parse(source.contents, macros, source.name, includedFiles, config.includeDirectories);
+              preprocessor.Parse(source.contents, macros, source.name, includedFiles, config.includeDirectories);
           std::ranges::move(preprocessor.diagnostics, std::back_inserter(source.diagnostics.diagnosticsList));
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           if (isExtraVerbose) std::println();
@@ -217,14 +216,14 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
                     std::size_t start = std::min(routineOffset, generatedMachineCode.size());
                     std::size_t end = (i + 1 < ordered.size())
-                                             ? std::min(ordered[i + 1].second, generatedMachineCode.size())
-                                             : generatedMachineCode.size();
+                                          ? std::min(ordered[i + 1].second, generatedMachineCode.size())
+                                          : generatedMachineCode.size();
 
                     if (start >= end) continue;
 
                     auto machineCode =
-                         std::ranges::subrange(generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(start),
-                                                  generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(end));
+                        std::ranges::subrange(generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(start),
+                                              generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(end));
 
                     constexpr std::size_t RowSize = 8; // in bytes
                     const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
@@ -239,9 +238,8 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                               const auto byteOffset = offset + column;
                               if (byteOffset >= machineCode.size()) std::print("   ");
                               else
-                                   std::print("{:02x} ",
-                                                  static_cast<std::size_t>(
-                                                  machineCode[static_cast<std::ptrdiff_t>(byteOffset)]));
+                                   std::print("{:02x} ", static_cast<std::size_t>(
+                                                             machineCode[static_cast<std::ptrdiff_t>(byteOffset)]));
                          }
                          std::println("|");
                     }
@@ -253,7 +251,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
                if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                    (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                   (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                     break;
                hadErrors = true;
           }
@@ -268,8 +266,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                         (!config.warningsAreErrors ||
-                         diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
                     hadErrors = true;
                }
@@ -285,7 +282,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
           ecpps::IssueICE(traceException);
 
-		std::exit(-1);
+          std::exit(-1);
      }
      catch (const std::exception& e)
      {
@@ -298,8 +295,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                         (!config.warningsAreErrors ||
-                         diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
                     hadErrors = true;
                }
@@ -315,7 +311,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
           ecpps::IssueICE(e.what(), nullptr);
 
-		std::exit(-1);      
+          std::exit(-1);
      }
      catch (...)
      {
@@ -327,8 +323,7 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                         (!config.warningsAreErrors ||
-                         diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
+                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
                     hadErrors = true;
                }
@@ -406,20 +401,11 @@ int main(int argc, char* argv[])
 
           g_diagnosticsReferences.reserve(sources.files.size());
 
-		
-		for (ecpps::SourceFile &source : sources.files)
-		{
-               DoFileIteration(
-				source,
-				config,
-				isExtraVerbose,
-				generatedMachineCode,
-				hadErrors,
-				functions,
-				*emitter,
-				mainOffset
-			);
-		}
+          for (ecpps::SourceFile& source : sources.files)
+          {
+               DoFileIteration(source, config, isExtraVerbose, generatedMachineCode, hadErrors, functions, *emitter,
+                               mainOffset);
+          }
 
           if (hadErrors)
           {
