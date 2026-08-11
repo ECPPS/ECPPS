@@ -7,7 +7,6 @@
 
 #include "Linker/PE.h"
 
-
 void ecpps::IssueICE([[maybe_unused]] const TracedException& ex)
 {
 #ifdef _WIN32
