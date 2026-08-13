@@ -173,7 +173,7 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          cmake --build build `
+          cmake --build `
             --preset "${{ matrix.preset_build }}" `
             --parallel
 
