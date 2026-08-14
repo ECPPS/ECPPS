@@ -102,6 +102,13 @@ enum struct FileIterationStatus : bool
      Failure = false
 };
 
+[[nodiscard]] static bool IsDiagnosticsCritical(const ecpps::diagnostics::DiagnosticsMessage& diagnostic,
+                                                const ecpps::CompilerConfig& config)
+{
+     return diagnostic->Level() == ecpps::diagnostics::DiagnosticsLevel::Error ||
+            (config.warningsAreErrors && diagnostic->Level() == ecpps::diagnostics::DiagnosticsLevel::Warning);
+}
+
 [[nodiscard]] static FileIterationStatus DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& config,
                                                          bool isExtraVerbose,
                                                          std::vector<std::byte>& generatedMachineCode,
@@ -254,14 +261,11 @@ enum struct FileIterationStatus : bool
           }
 
           bool shouldFail = false;
-          for (const auto& diag : source.diagnostics.diagnosticsList)
+          for (const auto& diagnostic : source.diagnostics.diagnosticsList)
           {
-               ecpps::diagnostics::PrintDiagnostic(source.name, diag);
+               ecpps::diagnostics::PrintDiagnostic(source.name, diagnostic);
 
-               if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                   (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-                    continue;
-               shouldFail = true;
+               if (IsDiagnosticsCritical(diagnostic, config)) shouldFail = true;
           }
           if (shouldFail) return FileIterationStatus::Failure;
      }
@@ -270,13 +274,7 @@ enum struct FileIterationStatus : bool
           try
           {
                for (const auto& diag : source.diagnostics.diagnosticsList)
-               {
                     ecpps::diagnostics::PrintDiagnostic(source.name, diag);
-
-                    if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-                         break;
-               }
           }
           catch (const ecpps::TracedException& nestedTraceException)
           {
@@ -296,13 +294,7 @@ enum struct FileIterationStatus : bool
           try
           {
                for (const auto& diag : source.diagnostics.diagnosticsList)
-               {
                     ecpps::diagnostics::PrintDiagnostic(source.name, diag);
-
-                    if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-                         break;
-               }
           }
           catch (const ecpps::TracedException& nestedTraceException)
           {
@@ -321,14 +313,8 @@ enum struct FileIterationStatus : bool
      {
           try
           {
-               for (const auto& diag : source.diagnostics.diagnosticsList)
-               {
-                    ecpps::diagnostics::PrintDiagnostic(source.name, diag);
-
-                    if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
-                        (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-                         break;
-               }
+               for (const auto& diagnostic : source.diagnostics.diagnosticsList)
+                    ecpps::diagnostics::PrintDiagnostic(source.name, diagnostic);
           }
           catch (const ecpps::TracedException& nestedTraceException)
           {
