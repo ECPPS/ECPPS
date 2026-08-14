@@ -96,10 +96,17 @@ static void EnableVirtualProcessing(void)
 }
 #endif
 
-static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& config, bool isExtraVerbose,
-                            std::vector<std::byte>& generatedMachineCode, bool& hadErrors,
-                            std::vector<std::pair<std::string, std::size_t>>& functions,
-                            ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
+enum struct FileIterationStatus : bool
+{
+     Success = true,
+     Failure = false
+};
+
+[[nodiscard]] static FileIterationStatus DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& config,
+                                                         bool isExtraVerbose,
+                                                         std::vector<std::byte>& generatedMachineCode,
+                                                         std::vector<std::pair<std::string, std::size_t>>& functions,
+                                                         ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
 {
      g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
@@ -246,19 +253,20 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                }
           }
 
+          bool shouldFail = false;
           for (const auto& diag : source.diagnostics.diagnosticsList)
           {
                ecpps::diagnostics::PrintDiagnostic(source.name, diag);
 
                if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
                    (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
-                    break;
-               hadErrors = true;
+                    continue;
+               shouldFail = true;
           }
+          if (shouldFail) return FileIterationStatus::Failure;
      }
      catch (const ecpps::TracedException& traceException)
      {
-          hadErrors = true;
           try
           {
                for (const auto& diag : source.diagnostics.diagnosticsList)
@@ -268,7 +276,6 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
                         (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
-                    hadErrors = true;
                }
           }
           catch (const ecpps::TracedException& nestedTraceException)
@@ -282,12 +289,10 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
           ecpps::IssueICE(traceException);
 
-          std::exit(-1);
+          return FileIterationStatus::Failure;
      }
      catch (const std::exception& e)
      {
-          hadErrors = true;
-
           try
           {
                for (const auto& diag : source.diagnostics.diagnosticsList)
@@ -297,7 +302,6 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
                         (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
-                    hadErrors = true;
                }
           }
           catch (const ecpps::TracedException& nestedTraceException)
@@ -311,11 +315,10 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
           ecpps::IssueICE(e.what(), nullptr);
 
-          std::exit(-1);
+          return FileIterationStatus::Failure;
      }
      catch (...)
      {
-          hadErrors = true;
           try
           {
                for (const auto& diag : source.diagnostics.diagnosticsList)
@@ -325,7 +328,6 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
                     if (diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Error &&
                         (!config.warningsAreErrors || diag->Level() != ecpps::diagnostics::DiagnosticsLevel::Warning))
                          break;
-                    hadErrors = true;
                }
           }
           catch (const ecpps::TracedException& nestedTraceException)
@@ -339,8 +341,9 @@ static void DoFileIteration(ecpps::SourceFile& source, ecpps::CompilerConfig& co
 
           ecpps::IssueICE("unknown", nullptr);
 
-          std::exit(-1);
+          return FileIterationStatus::Failure;
      }
+     return FileIterationStatus::Success;
 }
 
 int main(int argc, char* argv[])
@@ -403,8 +406,8 @@ int main(int argc, char* argv[])
 
           for (ecpps::SourceFile& source : sources.files)
           {
-               DoFileIteration(source, config, isExtraVerbose, generatedMachineCode, hadErrors, functions, *emitter,
-                               mainOffset);
+               hadErrors |= DoFileIteration(source, config, isExtraVerbose, generatedMachineCode, functions, *emitter,
+                                            mainOffset) == FileIterationStatus::Failure;
           }
 
           if (hadErrors)
