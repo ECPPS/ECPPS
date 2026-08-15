@@ -260,7 +260,9 @@ static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
 
 static void LinuxFatalSignalHandler([[maybe_unused]] int signalNumber, siginfo_t* action,
                                     [[maybe_unused]] void* oldAction) noexcept
-{ ecpps::IssueICE("Unhandled Linux signal", action); }
+{
+     ecpps::IssueICE("Unhandled Linux signal", action);
+}
 
 [[noreturn]] void ecpps::IssueICE(std::string_view message, [[maybe_unused]] void* implementationDefined)
 {
