@@ -1,5 +1,6 @@
 #include "ABI.h"
 #include <RuntimeAssert.h>
+#include <array>
 #include <climits>
 #include <cstdint>
 #include <format>
