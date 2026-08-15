@@ -84,13 +84,9 @@ namespace ecpps::codegen
      struct ErrorOperand
      {
           [[nodiscard]] std::size_t Size(void) const noexcept
-          {
-               return 0;
-          } // NOLINT(readability-convert-member-functions-to-static)
+          { return 0; } // NOLINT(readability-convert-member-functions-to-static)
           [[nodiscard]] std::string ToString(void) const
-          {
-               return "";
-          } // NOLINT(readability-convert-member-functions-to-static)
+          { return ""; } // NOLINT(readability-convert-member-functions-to-static)
      };
 
      using Operand = std::variant<std::monostate, ErrorOperand, RegisterOperand, IntegerOperand, MemoryLocationOperand,
@@ -331,14 +327,10 @@ namespace ecpps::codegen
           }
 
           static Routine WhileLoop(std::vector<Instruction>&& instructions, const RoutineCondition condition)
-          {
-               return Routine{std::move(instructions), RoutineCondition::Procedure, condition};
-          }
+          { return Routine{std::move(instructions), RoutineCondition::Procedure, condition}; }
 
           static Routine Branch(std::vector<Instruction>&& instructions, const RoutineCondition condition)
-          {
-               return Routine{std::move(instructions), condition, RoutineCondition::Procedure};
-          }
+          { return Routine{std::move(instructions), condition, RoutineCondition::Procedure}; }
 
      private:
           explicit Routine(std::vector<Instruction> instructions, const RoutineCondition skipCondition,
