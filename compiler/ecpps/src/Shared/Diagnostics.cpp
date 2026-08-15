@@ -6,8 +6,9 @@
 std::unordered_map<std::string, ecpps::Diagnostics*> ecpps::g_diagnosticsReferences{};
 
 #ifdef _WIN32
-#include <dbghelp.h>
 #include <windows.h>
+
+#include <dbghelp.h>
 
 #pragma comment(lib, "dbghelp.lib")
 
