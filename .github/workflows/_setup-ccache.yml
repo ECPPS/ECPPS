@@ -1,0 +1,90 @@
+name: _setup-ccache
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: false
+        type: string
+        default: "windows-latest"
+      cache-key-suffix:
+        required: false
+        type: string
+        default: ""
+      max-size:
+        required: false
+        type: string
+        default: "500M"
+    outputs:
+      enabled:
+        description: "Whether ccache is available and enabled"
+        value: ${{ jobs.setup.outputs.enabled }}
+
+jobs:
+  setup:
+    runs-on: ${{ inputs.os }}
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+
+    steps:
+      - name: Install ccache (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache
+
+      - name: Install ccache (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ccache -y
+          # Add to PATH
+          echo "C:\ProgramData\chocolatey\bin" >> $env:GITHUB_PATH
+
+      - name: Check ccache
+        id: check
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            echo "ccache found"
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+            echo "ccache not found - proceeding without cache"
+          fi
+
+      - name: Setup ccache directory
+        if: steps.check.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "CCACHE_DIR=$LOCALAPPDATA/ccache" >> $GITHUB_ENV
+          else
+            echo "CCACHE_DIR=$HOME/.cache/ccache" >> $GITHUB_ENV
+          fi
+
+      - name: Configure ccache
+        if: steps.check.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          ccache --max-size=${{ inputs.max-size }} --set-config=compression=true
+          ccache --set-config=compression_level=6
+          echo "ccache configured with max size ${{ inputs.max-size }}"
+
+      - name: Restore ccache cache
+        if: steps.check.outputs.enabled == 'true'
+        uses: actions/cache@v4
+        id: ccache-cache
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}${{ inputs.cache-key-suffix }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}${{ inputs.cache-key-suffix }}-
+            ccache-${{ runner.os }}-
+
+      - name: Show ccache stats (restored)
+        if: steps.check.outputs.enabled == 'true' && steps.ccache-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          echo "=== CCACHE CACHE RESTORED ==="
+          ccache --show-stats

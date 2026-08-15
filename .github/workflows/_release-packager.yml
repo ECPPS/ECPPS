@@ -1,0 +1,95 @@
+name: _release-packager
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+      release-tag:
+        required: true
+        type: string
+      release-name:
+        required: true
+        type: string
+      is-prerelease:
+        required: false
+        type: boolean
+        default: false
+      body:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  package:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: dist/build
+
+      - name: Package release
+        shell: pwsh
+        id: package
+        run: |
+          $archive = "ecpps-${{ inputs.release-tag }}.zip"
+
+          if (-not (Test-Path "dist/build")) {
+            Write-Error "No build artifacts found in dist/build"
+            exit 1
+          }
+
+          $sourceMap = if (Test-Path ".github/workflows/.release-sourcemap.json") {
+            Get-Content ".github/workflows/.release-sourcemap.json" | ConvertFrom-Json
+          } else { $null }
+
+          if ($sourceMap) {
+            $packageDir = "ecpps-package"
+            New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+
+            foreach ($mapping in $sourceMap.mappings) {
+              $source = Join-Path "dist/build" $mapping.source
+              $destination = Join-Path $packageDir $mapping.destination
+              New-Item -ItemType Directory -Path $destination -Force | Out-Null
+
+              if ($mapping.patterns) {
+                foreach ($pattern in $mapping.patterns) {
+                  Get-ChildItem -Recurse $source -Include $pattern | ForEach-Object {
+                    Copy-Item $_.FullName -Destination $destination
+                  }
+                }
+              } else {
+                if (Test-Path $source) {
+                  Copy-Item -Path "$source/*" -Destination $destination -Recurse -Force
+                }
+              }
+            }
+
+            Compress-Archive -Path "$packageDir/*" -DestinationPath $archive -Force
+            Remove-Item -Recurse -Force $packageDir
+          } else {
+            Compress-Archive -Path "dist/build/*" -DestinationPath $archive -Force
+          }
+
+          echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release-tag }}
+          name: ${{ inputs.release-name }}
+          body: ${{ inputs.body }}
+          prerelease: ${{ inputs.is-prerelease }}
+          files: ${{ env.ARCHIVE }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
