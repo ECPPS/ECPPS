@@ -31,61 +31,7 @@
 #include <Shared/Config.h>
 #include <Shared/Diagnostics.h>
 
-#ifdef min
-#undef min
-#undef max
-#endif
-
-static std::unordered_map<std::string, ecpps::Diagnostics*> g_diagnosticsReferences{};
-
 #ifdef _WIN32
-
-template <> struct ecpps::platformlib::PointerInterconvertibility<ecpps::platformlib::DebuggerContext, CONTEXT>
-{
-     constexpr static bool IsValid = true;
-};
-
-static void IssueDiagnostics(void)
-{
-     for (const auto& [sourceName, lpDiagnostics] : g_diagnosticsReferences)
-     {
-          const auto& diagnostics = *lpDiagnostics;
-
-          for (const auto& diag : diagnostics.diagnosticsList) ecpps::diagnostics::PrintDiagnostic(sourceName, diag);
-     }
-}
-
-static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
-{
-     IssueDiagnostics();
-
-     switch (exceptionInfo->ExceptionRecord->ExceptionCode)
-     {
-     case EXCEPTION_ACCESS_VIOLATION:
-     {
-          void* faultingAddress = reinterpret_cast<void*>(exceptionInfo->ExceptionRecord->ExceptionInformation[1]);
-          bool isWrite = exceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1;
-          std::string built;
-          if (isWrite) built = std::format("Access violation writing to {}", faultingAddress);
-          else
-               built = std::format("Access violation reading {}", faultingAddress);
-
-          ecpps::IssueICE(built, &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
-     }
-     break;
-     case EXCEPTION_INT_DIVIDE_BY_ZERO:
-          ecpps::IssueICE("Divide by zero", &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
-          break;
-     default:
-          ecpps::IssueICE(
-              std::format("Unhandled exception has occurred: {}", exceptionInfo->ExceptionRecord->ExceptionCode),
-              &ecpps::platformlib::DebuggerContext::From(*exceptionInfo->ContextRecord));
-          break;
-     }
-
-     return EXCEPTION_EXECUTE_HANDLER;
-}
-
 static void EnableVirtualProcessing(void)
 {
      auto* const hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -115,7 +61,7 @@ enum struct FileIterationStatus : bool
                                                          std::vector<std::pair<std::string, std::size_t>>& functions,
                                                          ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
 {
-     g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
+     ecpps::g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
      try
      {
@@ -282,12 +228,10 @@ enum struct FileIterationStatus : bool
           }
           catch (const std::exception& nestedException)
           {
-               ecpps::IssueICE(nestedException.what(), nullptr);
+               ecpps::IssueICE(nestedException.what());
           }
 
           ecpps::IssueICE(traceException);
-
-          return FileIterationStatus::Failure;
      }
      catch (const std::exception& e)
      {
@@ -302,12 +246,10 @@ enum struct FileIterationStatus : bool
           }
           catch (const std::exception& nestedException)
           {
-               ecpps::IssueICE(nestedException.what(), nullptr);
+               ecpps::IssueICE(nestedException.what());
           }
 
-          ecpps::IssueICE(e.what(), nullptr);
-
-          return FileIterationStatus::Failure;
+          ecpps::IssueICE(e.what());
      }
      catch (...)
      {
@@ -322,12 +264,10 @@ enum struct FileIterationStatus : bool
           }
           catch (const std::exception& nestedException)
           {
-               ecpps::IssueICE(nestedException.what(), nullptr);
+               ecpps::IssueICE(nestedException.what());
           }
 
-          ecpps::IssueICE("unknown", nullptr);
-
-          return FileIterationStatus::Failure;
+          ecpps::IssueICE("unknown");
      }
      return FileIterationStatus::Success;
 }
@@ -336,8 +276,8 @@ int main(int argc, char* argv[])
 {
 #ifdef _WIN32
      EnableVirtualProcessing();
-     SetUnhandledExceptionFilter(WinExceptionHandler);
 #endif
+     ecpps::RegisterErrorCallbacks();
 
      try
      {
@@ -388,7 +328,7 @@ int main(int argc, char* argv[])
                                  config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
           const bool isExtraVerbose = config.verboseStatus == ecpps::VerboseStatus::ExtraVerbose;
 
-          g_diagnosticsReferences.reserve(sources.files.size());
+          ecpps::g_diagnosticsReferences.reserve(sources.files.size());
 
           for (ecpps::SourceFile& source : sources.files)
           {
@@ -539,11 +479,10 @@ int main(int argc, char* argv[])
      }
      catch (const std::exception& e)
      {
-          ecpps::IssueICE(e.what(), nullptr);
+          ecpps::IssueICE(e.what());
      }
      catch (...)
      {
-          ecpps::IssueICE("unknown", nullptr);
-          return -1;
+          ecpps::IssueICE("unknown");
      }
 }

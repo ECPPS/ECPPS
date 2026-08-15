@@ -2280,7 +2280,6 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
                if (dynamic_cast<const ast::BasicType*>(unqualified))
                     return TypeASTToRequest(qualifiedType->UnqualifiedType());
           }
-
           throw TracedException("Qualified types with namespaces not yet implemented");
      }
 
