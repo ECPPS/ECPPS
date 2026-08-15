@@ -563,8 +563,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const std::string functionName = ecpps::abi::ABI::MangleName(
               function.linkage, function.Name().value_or("__unknown"), function.callingConvention, function.returnType,
               function.parameters |
-                  std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                        { return parameter.type; }) |
+                  std::views::transform(
+                      [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                      {
+                           return parameter.type;
+                      }) |
                   std::ranges::to<std::vector>(),
               function.namespacePath);
           auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
@@ -575,11 +578,13 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto callAbi = callingConvention.PrepareForCall(code);
 
           const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
-          const auto parameterSizes =
-              function.parameters |
-              std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                    { return callingConvention.GetRequirementsForType(parameter.type); }) |
-              std::ranges::to<std::vector>();
+          const auto parameterSizes = function.parameters |
+                                      std::views::transform(
+                                          [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                          {
+                                               return callingConvention.GetRequirementsForType(parameter.type);
+                                          }) |
+                                      std::ranges::to<std::vector>();
 
           const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
           auto argumentIterator = call->Arguments().begin();
@@ -994,7 +999,10 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      auto stackManager = parentCallingConvention.BeginStack(instructions);
 
      std::vector<const ecpps::ir::FunctionCallNode*> allFunctionCalls;
-     for (const auto& line : node.Body()) { ScanNodeForFunctionCalls(line.get(), allFunctionCalls); }
+     for (const auto& line : node.Body())
+     {
+          ScanNodeForFunctionCalls(line.get(), allFunctionCalls);
+     }
 
      std::size_t maxArgumentStackSpace = 0;
      for (const auto* call : allFunctionCalls)
@@ -1002,11 +1010,13 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           const auto& function = *call->Function();
           const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
           const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
-          const auto parameterSizes =
-              function.parameters |
-              std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                    { return callingConvention.GetRequirementsForType(parameter.type); }) |
-              std::ranges::to<std::vector>();
+          const auto parameterSizes = function.parameters |
+                                      std::views::transform(
+                                          [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                          {
+                                               return callingConvention.GetRequirementsForType(parameter.type);
+                                          }) |
+                                      std::ranges::to<std::vector>();
 
           const std::size_t callStackSpace =
               callingConvention.CalculateArgumentStackSpace(returnTypeSize, parameterSizes);
@@ -1060,20 +1070,26 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           {
                const auto& function = *call->Function();
 
-               const std::string functionName = ecpps::abi::ABI::MangleName(
-                   function.linkage, function.Name().value_or("__unknown"), function.callingConvention,
-                   function.returnType,
-                   function.parameters |
-                       std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                             { return parameter.type; }) |
-                       std::ranges::to<std::vector>(),
-                   function.namespacePath);
+               const std::string functionName =
+                   ecpps::abi::ABI::MangleName(function.linkage, function.Name().value_or("__unknown"),
+                                               function.callingConvention, function.returnType,
+                                               function.parameters |
+                                                   std::views::transform(
+                                                       [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                       {
+                                                            return parameter.type;
+                                                       }) |
+                                                   std::ranges::to<std::vector>(),
+                                               function.namespacePath);
                const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
                const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
                const auto parameterSizes =
                    function.parameters |
-                   std::views::transform([&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                         { return callingConvention.GetRequirementsForType(parameter.type); }) |
+                   std::views::transform(
+                       [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                       {
+                            return callingConvention.GetRequirementsForType(parameter.type);
+                       }) |
                    std::ranges::to<std::vector>();
 
                const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
@@ -1184,8 +1200,11 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
          std::move(instructions),
          ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
                                      node.ParameterList() |
-                                         std::views::transform([](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                                               { return parameter.type; }) |
+                                         std::views::transform(
+                                             [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                             {
+                                                  return parameter.type;
+                                             }) |
                                          std::ranges::to<std::vector>(),
                                      node.NamespacePath()));
 }

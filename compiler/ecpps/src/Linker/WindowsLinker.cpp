@@ -23,7 +23,10 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
      std::vector<std::pair<ByteOffset, codegen::Relocation>> sortedRelocations(relocationMap.begin(),
                                                                                relocationMap.end());
      std::ranges::sort(sortedRelocations,
-                       [](const auto& a, const auto& b) { return a.first.Value() > b.first.Value(); });
+                       [](const auto& a, const auto& b)
+                       {
+                            return a.first.Value() > b.first.Value();
+                       });
 
      std::size_t cumulativeShift = 0;
 
@@ -67,7 +70,10 @@ void ecpps::linker::win::WindowsLinker::ImportFunction(const std::string& symbol
      this->_importNameMap[symbolName] = importName;
 }
 
-void ecpps::linker::win::WindowsLinker::AddSection(const PESection& value) { this->_sections.emplace_back(value); }
+void ecpps::linker::win::WindowsLinker::AddSection(const PESection& value)
+{
+     this->_sections.emplace_back(value);
+}
 
 void ecpps::linker::win::WindowsLinker::ExportAt(const std::string& name, std::uint32_t address)
 {

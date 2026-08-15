@@ -81,7 +81,9 @@ namespace ecpps::linker
      {
           LinkerBitness bitness;
 
-          explicit LinkerOptions(const LinkerBitness bitness) : bitness(bitness) {}
+          explicit LinkerOptions(const LinkerBitness bitness) : bitness(bitness)
+          {
+          }
      };
 
      class LinkerBase

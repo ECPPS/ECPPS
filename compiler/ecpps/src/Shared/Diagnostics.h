@@ -30,9 +30,18 @@ namespace ecpps
           {
           }
 
-          [[nodiscard]] const char* what(void) const noexcept override { return this->_message.c_str(); }
-          [[nodiscard]] const std::stacktrace& Trace(void) const noexcept { return this->_trace; }
-          [[nodiscard]] const std::exception_ptr& Inner(void) const noexcept { return this->_inner; }
+          [[nodiscard]] const char* what(void) const noexcept override
+          {
+               return this->_message.c_str();
+          }
+          [[nodiscard]] const std::stacktrace& Trace(void) const noexcept
+          {
+               return this->_trace;
+          }
+          [[nodiscard]] const std::exception_ptr& Inner(void) const noexcept
+          {
+               return this->_inner;
+          }
 
      private:
           std::string _message;

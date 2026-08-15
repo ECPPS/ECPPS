@@ -364,7 +364,10 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     while (Peek().type == TokenType::Keyword)
                     {
                          const auto& qual = std::get<std::string>(Peek().value);
-                         if (qual == "const" || qual == "volatile") { Advance(); }
+                         if (qual == "const" || qual == "volatile")
+                         {
+                              Advance();
+                         }
                          else
                               break;
                     }
@@ -397,7 +400,10 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(ASTContext& context)
      {
           const auto& keyword = std::get<std::string>(Peek().value);
 
-          if (keyword == "using" || keyword == "namespace") { return ParseBlockDeclaration(context); }
+          if (keyword == "using" || keyword == "namespace")
+          {
+               return ParseBlockDeclaration(context);
+          }
 
           if (keyword == "typedef" || keyword == "const" || keyword == "volatile" || keyword == "static" ||
               keyword == "inline" || keyword == "constexpr" || keyword == "consteval" || keyword == "constinit" ||
@@ -605,7 +611,10 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
                if (hasSignedness) break;
                hasSignedness = true;
           }
-          else if (kw == "short" || kw == "long") { hasLong = true; }
+          else if (kw == "short" || kw == "long")
+          {
+               hasLong = true;
+          }
           else if (kw == "int" || kw == "char" || kw == "float" || kw == "double")
           {
                hasType = true;
@@ -690,7 +699,10 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
      {
           auto initialiser = ParseInitialiserClause(context);
           initialisers.push_back(std::move(initialiser));
-          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") { Advance(); }
+          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
+          {
+               Advance();
+          }
           else
                break;
      }
@@ -1019,17 +1031,35 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                                                std::move(optExplicitSpecifier), source));
 }
 
-NodePointer ecpps::ast::AST::TryParseDeclSpecifier([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDeclSpecifier([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
-NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDefiningTypeSpecifier([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
-NodePointer ecpps::ast::AST::ParseInitDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::ParseInitDeclarator([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
-NodePointer ecpps::ast::AST::TryParseDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseDeclarator([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
-NodePointer ecpps::ast::AST::TryParsePtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParsePtrDeclarator([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
-NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator([[maybe_unused]] ASTContext& context) { return {}; }
+NodePointer ecpps::ast::AST::TryParseNoPtrDeclarator([[maybe_unused]] ASTContext& context)
+{
+     return {};
+}
 
 NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext& context)
 {
@@ -1063,7 +1093,10 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
                                      return std::unique_ptr<CharacterLiteralNode, ecpps::ast::ASTDeleter>(
                                          new (context) CharacterLiteralNode(literal, currentToken.location));
                                 },
-                                [](auto&&) static -> NodePointer { return nullptr; }},
+                                [](auto&&) static -> NodePointer
+                                {
+                                     return nullptr;
+                                }},
               currentToken.value);
      }
      case TokenType::Keyword:
@@ -1093,7 +1126,10 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
           if (std::get<std::string>(currentToken.value) == "::")
           {
                auto idExpr = ParseIdExpression(context);
-               if (!idExpr) { return nullptr; }
+               if (!idExpr)
+               {
+                    return nullptr;
+               }
                return idExpr;
           }
           break;
@@ -1104,7 +1140,8 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
      }
      default:
           this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-              std::format("Expected a primary expression (literal, identifier, 'this', or parenthesized expression), "
+              std::format("Expected a primary expression (literal, identifier, "
+                          "'this', or parenthesized expression), "
                           "but found an unexpected token"),
               currentToken.location));
           Advance();
@@ -1191,8 +1228,10 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
                    std::format("Template syntax is not yet supported: '{}<...>'", identifierName),
                    currentToken.location));
                return nullptr;
-               // parts.push_back(std::make_unique<TemplateIdNode>(identifierName, std::move(templateArguments),
-               //                                                  sawTemplateKeyword, currentToken.location));
+               // parts.push_back(std::make_unique<TemplateIdNode>(identifierName,
+               // std::move(templateArguments),
+               //                                                  sawTemplateKeyword,
+               //                                                  currentToken.location));
           }
 
           parts.push_back(std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>(
@@ -1201,9 +1240,10 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
           if (sawTemplateKeyword)
           {
                // TODO: Implement template keyword disambiguation
-               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-                   std::format("The 'template' keyword for dependent name disambiguation is not yet supported"),
-                   currentToken.location));
+               this->_diagnostics.get().diagnosticsList.push_back(
+                   std::make_unique<diagnostics::SyntaxError>(std::format("The 'template' keyword for dependent name "
+                                                                          "disambiguation is not yet supported"),
+                                                              currentToken.location));
                return nullptr;
           }
 
@@ -1280,8 +1320,9 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     }
 
                     // TODO: Error
-                    // "Cannot perform an explicit type conversion using a functional notation on `" + built + "`, as it
-                    // is not a simple-type-specifier as mandated in [expr.type.conv]. See [expr.post.general] and
+                    // "Cannot perform an explicit type conversion using a functional
+                    // notation on `" + built + "`, as it is not a simple-type-specifier as
+                    // mandated in [expr.type.conv]. See [expr.post.general] and
                     // [dcl.type.general] for the grammar."
                     return nullptr;
                }

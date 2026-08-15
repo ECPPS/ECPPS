@@ -160,15 +160,30 @@ TEST_CASE("ArithmeticTypes - Type traits", "[typesystem][arithmetic_types]")
      const auto* intType = ecpps::ir::GetTypeContext().Get(request);
      auto traits = intType->Traits();
 
-     SECTION("Has Arithmetic trait") { REQUIRE(traits.Has(TypeTraitEnum::Arithmetic)); }
+     SECTION("Has Arithmetic trait")
+     {
+          REQUIRE(traits.Has(TypeTraitEnum::Arithmetic));
+     }
 
-     SECTION("Has Integral trait") { REQUIRE(traits.Has(TypeTraitEnum::Integral)); }
+     SECTION("Has Integral trait")
+     {
+          REQUIRE(traits.Has(TypeTraitEnum::Integral));
+     }
 
-     SECTION("Has Scalar trait") { REQUIRE(traits.Has(TypeTraitEnum::Scalar)); }
+     SECTION("Has Scalar trait")
+     {
+          REQUIRE(traits.Has(TypeTraitEnum::Scalar));
+     }
 
-     SECTION("Does not have FloatingPoint trait") { REQUIRE_FALSE(traits.Has(TypeTraitEnum::FloatingPoint)); }
+     SECTION("Does not have FloatingPoint trait")
+     {
+          REQUIRE_FALSE(traits.Has(TypeTraitEnum::FloatingPoint));
+     }
 
-     SECTION("Does not have Pointer trait") { REQUIRE_FALSE(traits.Has(TypeTraitEnum::Pointer)); }
+     SECTION("Does not have Pointer trait")
+     {
+          REQUIRE_FALSE(traits.Has(TypeTraitEnum::Pointer));
+     }
 }
 
 TEST_CASE("ArithmeticTypes - Character types", "[typesystem][arithmetic_types]")

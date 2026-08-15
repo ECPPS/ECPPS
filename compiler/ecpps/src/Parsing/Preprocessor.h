@@ -84,9 +84,18 @@ namespace ecpps
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
      private:
-          static bool IsDigit(const char ch) { return std::isdigit(ch) != 0; }
-          static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) != 0 || ch == '_'; }
-          static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) != 0 || ch == '_'; }
+          static bool IsDigit(const char ch)
+          {
+               return std::isdigit(ch) != 0;
+          }
+          static bool IsCharacterBeginning(const char ch)
+          {
+               return std::isalpha(ch) != 0 || ch == '_';
+          }
+          static bool IsCharacterContinuation(const char ch)
+          {
+               return std::isalnum(ch) != 0 || ch == '_';
+          }
           static bool IsOperatorOrPunctuator(const std::string& string);
           static bool IsOperatorOrPunctuatorBeginning(char ch);
 

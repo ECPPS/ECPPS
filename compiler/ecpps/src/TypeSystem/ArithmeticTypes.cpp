@@ -209,9 +209,15 @@ const ecpps::typeSystem::IntegralType* ecpps::typeSystem::PromoteInteger(const I
      return integer;
 }
 
-std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
-std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(NonowningTypePointer other) const
 {
@@ -303,7 +309,10 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWi
      return nullptr;
 }
 
-std::size_t ecpps::typeSystem::ReferenceType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::ReferenceType::Size(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
 std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 {

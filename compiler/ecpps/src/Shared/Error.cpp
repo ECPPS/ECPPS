@@ -12,16 +12,28 @@ std::string ecpps::diagnostics::InternalCompilerError::Message(void) const noexc
      return built;
 }
 
-std::string ecpps::diagnostics::TypeError::Message(void) const noexcept { return this->_message; }
-std::string ecpps::diagnostics::ConstantEvaluationError::Message(void) const noexcept { return this->_message; }
-std::string ecpps::diagnostics::ConstantEvaluationWarning::Message(void) const noexcept { return this->_message; }
+std::string ecpps::diagnostics::TypeError::Message(void) const noexcept
+{
+     return this->_message;
+}
+std::string ecpps::diagnostics::ConstantEvaluationError::Message(void) const noexcept
+{
+     return this->_message;
+}
+std::string ecpps::diagnostics::ConstantEvaluationWarning::Message(void) const noexcept
+{
+     return this->_message;
+}
 
 std::string ecpps::diagnostics::UnresolvedSymbolError::Message(void) const noexcept
 {
      return "Unresolved symbol " + this->_symbol + ": " + this->_message;
 }
 
-std::string ecpps::diagnostics::SyntaxError::Message(void) const noexcept { return this->_message; }
+std::string ecpps::diagnostics::SyntaxError::Message(void) const noexcept
+{
+     return this->_message;
+}
 
 void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const DiagnosticsMessage& diagnostic,
                                          std::size_t indent, std::size_t lastPrintedLine)

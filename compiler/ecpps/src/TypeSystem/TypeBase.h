@@ -72,9 +72,18 @@ namespace ecpps::typeSystem
                 _rejectionReason(std::move(rejectionReason))
           {
           }
-          [[nodiscard]] bool IsValid(void) const noexcept { return this->_isValid; }
-          [[nodiscard]] const SBOVector<ConversionKind>& Sequence(void) const noexcept { return this->_sequence; }
-          [[nodiscard]] bool SameAs(void) const noexcept { return this->_isValid && this->_sequence.Size() == 0; }
+          [[nodiscard]] bool IsValid(void) const noexcept
+          {
+               return this->_isValid;
+          }
+          [[nodiscard]] const SBOVector<ConversionKind>& Sequence(void) const noexcept
+          {
+               return this->_sequence;
+          }
+          [[nodiscard]] bool SameAs(void) const noexcept
+          {
+               return this->_isValid && this->_sequence.Size() == 0;
+          }
 
      private:
           bool _isValid;
@@ -93,8 +102,14 @@ namespace ecpps::typeSystem
           {
                return this->_traits.test(static_cast<std::size_t>(trait));
           }
-          void Set(const TypeTraitEnum trait) { this->_traits.set(static_cast<std::size_t>(trait)); }
-          void Remove(const TypeTraitEnum trait) { this->_traits.reset(static_cast<std::size_t>(trait)); }
+          void Set(const TypeTraitEnum trait)
+          {
+               this->_traits.set(static_cast<std::size_t>(trait));
+          }
+          void Remove(const TypeTraitEnum trait)
+          {
+               this->_traits.reset(static_cast<std::size_t>(trait));
+          }
 
      private:
           std::bitset<static_cast<std::size_t>(TypeTraitEnum::Count)> _traits{};
@@ -113,7 +128,9 @@ namespace ecpps::typeSystem
      class TypeBase : ir::Entity
      {
      public:
-          explicit TypeBase(std::string name) : ir::Entity(ir::EntityKind::Type, std::move(name)) {}
+          explicit TypeBase(std::string name) : ir::Entity(ir::EntityKind::Type, std::move(name))
+          {
+          }
           [[nodiscard]] const std::string& Name(void) const noexcept
           {
                runtime_assert(this->ir::Entity::Name().has_value(), "Nameless types don't exist");
@@ -208,7 +225,10 @@ namespace ecpps::typeSystem
           {
                return std::hash<std::string>{}(ptr->RawName());
           }
-          std::size_t operator()(const std::string& str) const noexcept { return std::hash<std::string>{}(str); }
+          std::size_t operator()(const std::string& str) const noexcept
+          {
+               return std::hash<std::string>{}(str);
+          }
      };
      struct TypePointerEqual
      {
@@ -304,8 +324,14 @@ namespace ecpps::typeSystem
                return TypeTraits{TypeTraitEnum::Incomplete};
           }
 
-          [[nodiscard]] std::size_t Size(void) const noexcept override { return 0; }
-          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return 0; }
+          [[nodiscard]] std::size_t Size(void) const noexcept override
+          {
+               return 0;
+          }
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override
+          {
+               return 0;
+          }
 
           [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override
           {

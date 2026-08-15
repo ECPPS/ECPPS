@@ -76,6 +76,8 @@ namespace ecpps::abi
           ISA isa;
           SimdFeatures features;
 
-          explicit CPUFeatures(const ISA isa, const SimdFeatures features) : isa(isa), features(features) {}
+          explicit CPUFeatures(const ISA isa, const SimdFeatures features) : isa(isa), features(features)
+          {
+          }
      };
 } // namespace ecpps::abi

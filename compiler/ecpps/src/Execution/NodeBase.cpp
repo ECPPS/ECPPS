@@ -20,11 +20,13 @@ std::expected<ecpps::ir::ConstantEvaluatedResult, std::stack<ecpps::diagnostics:
      if (ecpps::ir::GetTypeContext().optimisations.maxConstantEvaluationDepth < evaluationContext.currentDepth)
           return NodeBase::TryConstantEvaluate(evaluationContext);
 
-     return ConstantEvaluatedResult{
-         ConstantAggregateArray{
-             this->_values |
-             std::views::transform([](const std::uint32_t value)
-                                   { return ConstantEvaluatedVariant{static_cast<std::uint64_t>(value)}; }) |
-             std::ranges::to<std::vector>()},
-         this->Source()};
+     return ConstantEvaluatedResult{ConstantAggregateArray{this->_values |
+                                                           std::views::transform(
+                                                               [](const std::uint32_t value)
+                                                               {
+                                                                    return ConstantEvaluatedVariant{
+                                                                        static_cast<std::uint64_t>(value)};
+                                                               }) |
+                                                           std::ranges::to<std::vector>()},
+                                    this->Source()};
 }

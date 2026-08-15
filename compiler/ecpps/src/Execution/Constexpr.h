@@ -16,7 +16,10 @@ namespace ecpps::ir
      {
           return std::visit(
               OverloadedVisitor{
-                  [type](std::monostate) -> std::unique_ptr<T> { return std::make_unique<T>(type, nullptr, true); },
+                  [type](std::monostate) -> std::unique_ptr<T>
+                  {
+                       return std::make_unique<T>(type, nullptr, true);
+                  },
                   [type, &allocator, &result](const std::uint64_t value) -> std::unique_ptr<T>
                   {
                        return std::make_unique<PRValue>(
@@ -53,7 +56,10 @@ namespace ecpps::ir
                                new (allocator) IntegerArrayNode(allHoldInts, intElementType, result.source)),
                            true);
                   },
-                  [](const auto&) -> std::unique_ptr<T> { throw[]{}; }},
+                  [](const auto&) -> std::unique_ptr<T>
+                  {
+                       throw[]{};
+                  }},
               result.variant);
      }
 } // namespace ecpps::ir

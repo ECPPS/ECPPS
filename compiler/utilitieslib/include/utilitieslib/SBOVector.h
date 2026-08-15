@@ -52,8 +52,14 @@ template <typename T> void UFillN(T&& value, T* to, std::size_t size)
 }
 #endif
 #else
-template <typename T> void UCopyN(const T* from, T* to, std::size_t size) { std::uninitialized_copy_n(from, size, to); }
-template <typename T> void UMoveN(T* from, T* to, std::size_t size) { std::uninitialized_move_n(from, size, to); }
+template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
+{
+     std::uninitialized_copy_n(from, size, to);
+}
+template <typename T> void UMoveN(T* from, T* to, std::size_t size)
+{
+     std::uninitialized_move_n(from, size, to);
+}
 template <typename T> void UFillN(const T& value, T* to, std::size_t size)
 {
      std::uninitialized_fill_n(to, size, value);
@@ -91,12 +97,19 @@ namespace ecpps
                std::byte sbo[sizeof(TElement) * SBOSize]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
                NoSBO noSbo;
 
-               explicit BufferUnion(void) {} // NOLINT(cppcoreguidelines-pro-type-member-init)
-               ~BufferUnion(void) {}
+               explicit BufferUnion(void)
+               {
+               } // NOLINT(cppcoreguidelines-pro-type-member-init)
+               ~BufferUnion(void)
+               {
+               }
           };
 
      public:
-          explicit SBOVector(void) { new (this->_buffer.sbo) std::byte[sizeof(TElement) * SBOSize]; }
+          explicit SBOVector(void)
+          {
+               new (this->_buffer.sbo) std::byte[sizeof(TElement) * SBOSize];
+          }
 
           SBOVector(std::size_t count, const TElement& value = TElement{}) : _size(count)
           {
@@ -276,7 +289,10 @@ namespace ecpps
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
                          UMoveN(this->_buffer.noSbo.begin, newBuf, index);
-                         for (std::size_t i = 0; i < index; i++) { std::destroy_at(this->_buffer.noSbo.begin + i); }
+                         for (std::size_t i = 0; i < index; i++)
+                         {
+                              std::destroy_at(this->_buffer.noSbo.begin + i);
+                         }
                          allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
                          this->_buffer.noSbo.capacity = newCap;
                     }
@@ -338,8 +354,14 @@ namespace ecpps
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + index, std::move(value));
           }
 
-          constexpr std::size_t Size(void) const noexcept { return this->_size; }
-          constexpr bool UseSBO(void) const noexcept { return this->_size <= SBOSize; }
+          constexpr std::size_t Size(void) const noexcept
+          {
+               return this->_size;
+          }
+          constexpr bool UseSBO(void) const noexcept
+          {
+               return this->_size <= SBOSize;
+          }
 
      private:
           BufferUnion _buffer;

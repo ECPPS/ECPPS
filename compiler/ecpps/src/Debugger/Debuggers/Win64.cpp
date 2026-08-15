@@ -36,7 +36,10 @@ static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
      std::string moduleName;
 
      DWORD64 modBase = SymGetModuleBase64(process, addr);
-     if (modBase != 0 && SymGetModuleInfo64(process, modBase, &modInfo) != 0) { moduleName = modInfo.ModuleName; }
+     if (modBase != 0 && SymGetModuleInfo64(process, modBase, &modInfo) != 0)
+     {
+          moduleName = modInfo.ModuleName;
+     }
 
      if (SymFromAddr(process, addr, nullptr, symbol) != 0)
      {
@@ -44,7 +47,10 @@ static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
                              addr - symbol->Address);
      }
 
-     if (!moduleName.empty()) { return std::format("{}!0x{:016X}", moduleName, addr); }
+     if (!moduleName.empty())
+     {
+          return std::format("{}!0x{:016X}", moduleName, addr);
+     }
 
      return std::format("0x{:016X}", addr);
 }
@@ -83,7 +89,10 @@ static void Disassemble(HANDLE process, std::uintptr_t address, std::size_t size
 
      std::println("At {}:", ResolveSymbol(process, address));
      std::print("  ");
-     for (std::size_t i = 0; i < bytesRead; i++) { std::print("{:02X} ", std::to_integer<unsigned char>(bytes[i])); }
+     for (std::size_t i = 0; i < bytesRead; i++)
+     {
+          std::print("{:02X} ", std::to_integer<unsigned char>(bytes[i]));
+     }
      std::println("; <no disasm>");
 }
 

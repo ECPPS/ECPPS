@@ -76,13 +76,21 @@ namespace ecpps::ir
      class NodeBase
      {
      public:
-          explicit NodeBase(const NodeKind kind, const Location& source) : _kind(kind), _source(source) {}
+          explicit NodeBase(const NodeKind kind, const Location& source) : _kind(kind), _source(source)
+          {
+          }
           virtual ~NodeBase(void) = default;
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
 
-          [[nodiscard]] NodeKind Kind(void) const noexcept { return this->_kind; }
-          [[nodiscard]] const Location& Source(void) const noexcept { return this->_source; }
+          [[nodiscard]] NodeKind Kind(void) const noexcept
+          {
+               return this->_kind;
+          }
+          [[nodiscard]] const Location& Source(void) const noexcept
+          {
+               return this->_source;
+          }
           [[nodiscard]] virtual std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const;
 
@@ -103,7 +111,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] std::uint64_t Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] std::uint64_t Value(void) const noexcept
+          {
+               return this->_value;
+          }
           [[nodiscard]] std::uint64_t Value(const std::uint64_t newValue) noexcept
           {
                return std::exchange(this->_value, newValue);
@@ -132,8 +143,14 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept { return this->_values; }
-          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept { return this->_type; }
+          [[nodiscard]] const std::vector<std::uint32_t>& Values(void) const noexcept
+          {
+               return this->_values;
+          }
+          [[nodiscard]] const typeSystem::IntegralType* Type(void) const noexcept
+          {
+               return this->_type;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {

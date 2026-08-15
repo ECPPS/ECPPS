@@ -217,12 +217,18 @@ void ecpps::abi::ABI::PushSIMDRegisters(const SimdFeatures simd)
      }
 }
 
-ABI& ecpps::abi::ABI::Current(void) { return ABI::_current; }
+ABI& ecpps::abi::ABI::Current(void)
+{
+     return ABI::_current;
+}
 
 template <std::size_t TTo, std::size_t TFrom>
 std::size_t ecpps::abi::ABI::ConvertEndian(std::size_t value) const noexcept
 {
-     if constexpr (TFrom == 1) { return value & ((std::size_t{1} << CHAR_BIT) - 1); }
+     if constexpr (TFrom == 1)
+     {
+          return value & ((std::size_t{1} << CHAR_BIT) - 1);
+     }
 
      std::size_t result = 0;
 
@@ -447,7 +453,10 @@ std::vector<ecpps::abi::StorageRef> ecpps::abi::MicrosoftX64CallingConvention::L
                     auto allocatedReg =
                         ABI::Current().AllocateRegister(widthInBits, registerName, abi::RegisterAllocation::Priority);
 
-                    if (allocatedReg.Ptr() != nullptr) { storage = StorageRef{std::move(allocatedReg)}; }
+                    if (allocatedReg.Ptr() != nullptr)
+                    {
+                         storage = StorageRef{std::move(allocatedReg)};
+                    }
                }
 
                if (std::holds_alternative<std::monostate>(storage.value))
@@ -479,7 +488,10 @@ ecpps::abi::StorageRequirement ecpps::abi::MicrosoftX64CallingConvention::GetReq
           return StorageRequirement{integralType->Size(), integralType->Alignment(), RequiredStorageKind::Integer};
      }
 
-     if (IsPointer(type)) { return StorageRequirement{8, 8, RequiredStorageKind::Integer}; }
+     if (IsPointer(type))
+     {
+          return StorageRequirement{8, 8, RequiredStorageKind::Integer};
+     }
      if (IsFloatingPoint(type))
      {
           // TODO: Implement floating-point types
@@ -495,7 +507,10 @@ std::size_t ecpps::abi::MicrosoftX64CallingConvention::CalculateArgumentStackSpa
      if (parameters.size() <= 4) return 0;
 
      std::size_t stackSpace = 0;
-     for (std::size_t i = 4; i < parameters.size(); i++) { stackSpace += std::max<std::size_t>(parameters[i].size, 8); }
+     for (std::size_t i = 4; i < parameters.size(); i++)
+     {
+          stackSpace += std::max<std::size_t>(parameters[i].size, 8);
+     }
 
      return stackSpace;
 }
@@ -527,7 +542,9 @@ struct Microsoftx64StackManager final : ecpps::abi::ProcedureStackManager
      {
           return (((this->_currentStackSize) + 15uz) & ~15uz) + 16uz;
      }
-     void AfterParameters(void) const override {}
+     void AfterParameters(void) const override
+     {
+     }
      void ReserveCallArgumentSpace(std::size_t argumentStackSpace) final
      {
           this->_maxCallArgumentSpace = std::max(this->_maxCallArgumentSpace, argumentStackSpace);

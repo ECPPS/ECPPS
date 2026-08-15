@@ -12,13 +12,19 @@ inline namespace detail
      constexpr auto MakePusher(auto&& vector)
           requires std::ranges::output_range<decltype(vector), std::byte>
      {
-          return [&vector](std::byte b) { vector.push_back(b); };
+          return [&vector](std::byte b)
+          {
+               vector.push_back(b);
+          };
      }
      template <typename T>
      concept IsPushByteFunctor = requires(T t, std::byte b) {
           { t(b) } -> std::same_as<void>;
      };
-     static void Emit(IsPushByteFunctor auto&& push, std::integral auto b) { push(static_cast<std::byte>(b)); }
+     static void Emit(IsPushByteFunctor auto&& push, std::integral auto b)
+     {
+          push(static_cast<std::byte>(b));
+     }
      static void Rex(IsPushByteFunctor auto&& push, bool w, bool r, bool x, bool b)
      {
           std::uint8_t rex = 0x40u;

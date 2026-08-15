@@ -18,7 +18,10 @@ namespace ecpps::codegen
           std::size_t begin{};
           std::size_t end{};
 
-          [[nodiscard]] constexpr std::size_t Size(void) const noexcept { return this->end - this->begin; }
+          [[nodiscard]] constexpr std::size_t Size(void) const noexcept
+          {
+               return this->end - this->begin;
+          }
           [[nodiscard]] constexpr bool operator==(const ByteView& other) const noexcept
           {
                return this->Size() == other.Size() && this->begin == other.begin;
@@ -46,7 +49,9 @@ namespace ecpps::codegen
                std::uint32_t offset{};
           };
 
-          explicit AssemblyContext(CompilerConfig& config) : _config(std::ref(config)) {}
+          explicit AssemblyContext(CompilerConfig& config) : _config(std::ref(config))
+          {
+          }
           AssemblyContext(const AssemblyContext&) = delete;
           AssemblyContext(AssemblyContext&&) = delete;
           AssemblyContext& operator=(const AssemblyContext&) = delete;
@@ -111,7 +116,10 @@ namespace ecpps::codegen
                const auto& entry = _stringTable[index.indexInTable];
                return entry.offset + index.offset;
           }
-          [[nodiscard]] const auto& GetStringSection(void) const noexcept { return this->_arena; }
+          [[nodiscard]] const auto& GetStringSection(void) const noexcept
+          {
+               return this->_arena;
+          }
 
           void AddStringPatch(std::uint32_t instructionOffset, InstructionPatchType patchType, StringIndex index)
           {
@@ -123,7 +131,10 @@ namespace ecpps::codegen
           std::vector<ecpps::abi::StorageRef> functionParameters{};
           std::size_t stackFrameAdjustment = 0;
 
-          [[nodiscard]] auto& Patches(void) noexcept { return this->_patches; }
+          [[nodiscard]] auto& Patches(void) noexcept
+          {
+               return this->_patches;
+          }
 
      private:
           static std::uint32_t ReserveNextStringEntry(void) noexcept;

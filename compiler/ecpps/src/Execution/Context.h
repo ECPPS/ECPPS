@@ -203,7 +203,9 @@ namespace ecpps::ir
                         {
                              seed = HashCombine(seed, data.elementType);
                         }
-                        else if constexpr (std::is_same_v<T, VoidRequest>) {}
+                        else if constexpr (std::is_same_v<T, VoidRequest>)
+                        {
+                        }
                         else if constexpr (std::is_same_v<T, InvalidRequest>)
                              seed = HashCombine(seed, &data);
                         else
@@ -253,13 +255,18 @@ namespace ecpps::ir
                    .first->second.typePointer.get();
           }
 
-          [[nodiscard]] std::size_t Count(void) const noexcept { return this->_typeDatabase.size(); }
+          [[nodiscard]] std::size_t Count(void) const noexcept
+          {
+               return this->_typeDatabase.size();
+          }
           [[nodiscard]] std::vector<NonownedNode> List(void) const noexcept
           {
                return this->_typeDatabase | std::views::values |
                       std::views::transform(
                           [](const Node& node)
-                          { return NonownedNode{.typePointer = node.typePointer.get(), .hitCount = node.hitCount}; }) |
+                          {
+                               return NonownedNode{.typePointer = node.typePointer.get(), .hitCount = node.hitCount};
+                          }) |
                       std::ranges::to<std::vector>();
           }
 
@@ -428,12 +435,23 @@ namespace ecpps::ir
      {
           virtual ~ContextBase(void);
 
-          [[nodiscard]] const Scope& GetScope(void) const noexcept { return *this->_vScope; }
-          [[nodiscard]] Scope& GetScope(void) noexcept { return *this->_vScope; }
-          template <typename U> [[nodiscard]] U& GetScope(void) noexcept { return *static_cast<U*>(this->_vScope); }
+          [[nodiscard]] const Scope& GetScope(void) const noexcept
+          {
+               return *this->_vScope;
+          }
+          [[nodiscard]] Scope& GetScope(void) noexcept
+          {
+               return *this->_vScope;
+          }
+          template <typename U> [[nodiscard]] U& GetScope(void) noexcept
+          {
+               return *static_cast<U*>(this->_vScope);
+          }
 
      protected:
-          explicit ContextBase(Scope* vScope) : _vScope(vScope) {}
+          explicit ContextBase(Scope* vScope) : _vScope(vScope)
+          {
+          }
 
      private:
           Scope* _vScope;
@@ -464,7 +482,9 @@ namespace ecpps::ir
      };
      struct NamespaceContext final : ContextBase
      {
-          explicit NamespaceContext(Scope* vScope) : ContextBase(vScope) {}
+          explicit NamespaceContext(Scope* vScope) : ContextBase(vScope)
+          {
+          }
      };
 
      enum struct ConstexprType : std::uint_fast8_t
@@ -484,7 +504,9 @@ namespace ecpps::ir
      struct TemplateNonTypeParameter final : TemplateParameter
      {
           typeSystem::NonowningTypePointer type;
-          explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type) {}
+          explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type)
+          {
+          }
      };
      struct Variable final : ir::Entity
      {
@@ -542,7 +564,10 @@ namespace ecpps::ir
                     {
                          return std::get<Variable>(this->local).Name().value_or("<anonymous>");
                     }
-                    if (std::holds_alternative<ThisTag>(this->local)) { return "*this"; }
+                    if (std::holds_alternative<ThisTag>(this->local))
+                    {
+                         return "*this";
+                    }
                     return "__unknown_local";
                }
           };
@@ -550,7 +575,9 @@ namespace ecpps::ir
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
           std::vector<std::string> namespacePath{};
 
-          explicit FunctionScope(void) : ir::Entity(ir::EntityKind::Function, std::nullopt) {}
+          explicit FunctionScope(void) : ir::Entity(ir::EntityKind::Function, std::nullopt)
+          {
+          }
 
           using ir::Entity::SetName;
 
@@ -710,13 +737,18 @@ namespace ecpps::ir
                this->_scope->*T = std::forward<std::remove_reference_t<decltype(value)>>(value);
                return std::move(*this);
           }
-          explicit FunctionScopeBuilder(FunctionScope* scope) : _scope(scope) {}
+          explicit FunctionScopeBuilder(FunctionScope* scope) : _scope(scope)
+          {
+          }
           FunctionScope* _scope;
 
           template <FunctionScopeBuilderState> friend struct FunctionScopeBuilder;
           friend inline FunctionScopeBuilder<> MakeFunctionScope(void);
      };
-     inline FunctionScopeBuilder<> MakeFunctionScope(void) { return FunctionScopeBuilder{new FunctionScope{}}; }
+     inline FunctionScopeBuilder<> MakeFunctionScope(void)
+     {
+          return FunctionScopeBuilder{new FunctionScope{}};
+     }
 
      struct ClassScope final : Scope
      {
@@ -731,7 +763,9 @@ namespace ecpps::ir
           bool isInline = false;
           std::vector<std::unique_ptr<NamespaceScope>> subNamespaces{};
           std::vector<std::unique_ptr<ClassScope>> classes{};
-          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {}
+          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt)
+          {
+          }
           explicit NamespaceScope(std::string name, bool isInline = false)
               : ir::Entity(ir::EntityKind::Namespace, std::move(name)), isInline(isInline)
           {

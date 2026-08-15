@@ -23,12 +23,19 @@ namespace ecpps
                     std::size_t capacity{};
                } noSbo;
 
-               explicit BufferUnion(void) noexcept {} // NOLINT(cppcoreguidelines-pro-type-member-init)
-               ~BufferUnion(void) noexcept {}
+               explicit BufferUnion(void) noexcept
+               {
+               } // NOLINT(cppcoreguidelines-pro-type-member-init)
+               ~BufferUnion(void) noexcept
+               {
+               }
           };
 
      public:
-          SBOQueue(void) noexcept { new (_buffer.sbo) std::byte[sizeof(T) * SBOSize]; }
+          SBOQueue(void) noexcept
+          {
+               new (_buffer.sbo) std::byte[sizeof(T) * SBOSize];
+          }
 
           ~SBOQueue(void)
           {
@@ -41,8 +48,14 @@ namespace ecpps
                }
           }
 
-          void Push(const T& value) { Emplace(value); }
-          void Push(T&& value) { Emplace(std::move(value)); }
+          void Push(const T& value)
+          {
+               Emplace(value);
+          }
+          void Push(T&& value)
+          {
+               Emplace(std::move(value));
+          }
 
           void Pop(void)
           {
@@ -52,14 +65,32 @@ namespace ecpps
                this->_size--;
           }
 
-          T& Front(void) { return *FrontPtr(); }
-          const T& Front(void) const { return *FrontPtr(); }
+          T& Front(void)
+          {
+               return *FrontPtr();
+          }
+          const T& Front(void) const
+          {
+               return *FrontPtr();
+          }
 
-          T& Back(void) { return *BackPtr(); }
-          const T& Back(void) const { return *BackPtr(); }
+          T& Back(void)
+          {
+               return *BackPtr();
+          }
+          const T& Back(void) const
+          {
+               return *BackPtr();
+          }
 
-          std::size_t Size(void) const noexcept { return this->_size; }
-          bool Empty(void) const noexcept { return this->_size == 0; }
+          std::size_t Size(void) const noexcept
+          {
+               return this->_size;
+          }
+          bool Empty(void) const noexcept
+          {
+               return this->_size == 0;
+          }
 
           class iterator // NOLINT
           {
@@ -70,10 +101,18 @@ namespace ecpps
                using pointer = T*;
                using iterator_category = std::bidirectional_iterator_tag;
 
-               iterator(SBOQueue* queue, const std::size_t index) : _queue(queue), _index(index) {}
+               iterator(SBOQueue* queue, const std::size_t index) : _queue(queue), _index(index)
+               {
+               }
 
-               reference operator*(void) const { return (*this->_queue)[this->_index]; }
-               pointer operator->(void) const { return &(*this->_queue)[this->_index]; }
+               reference operator*(void) const
+               {
+                    return (*this->_queue)[this->_index];
+               }
+               pointer operator->(void) const
+               {
+                    return &(*this->_queue)[this->_index];
+               }
 
                iterator& operator++(void)
                {
@@ -107,7 +146,10 @@ namespace ecpps
                {
                     return a._queue == b._queue && a._index == b._index;
                }
-               friend bool operator!=(const iterator& a, const iterator& b) { return !(a == b); }
+               friend bool operator!=(const iterator& a, const iterator& b)
+               {
+                    return !(a == b);
+               }
 
           private:
                SBOQueue* _queue;
@@ -119,7 +161,10 @@ namespace ecpps
                if (this->_size == 0) return end();
                return iterator(this, this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
           }
-          iterator end(void) { return iterator(this, this->_head == 0 ? Capacity() - 1 : this->_head - 1); } // NOLINT
+          iterator end(void)
+          {
+               return iterator(this, this->_head == 0 ? Capacity() - 1 : this->_head - 1);
+          } // NOLINT
 
           SBOQueue(const SBOQueue& other)
           {
@@ -179,8 +224,14 @@ namespace ecpps
                return *this;
           }
 
-          void Emplace(const T& value) { EmplaceImpl(value); }
-          void Emplace(T&& value) { EmplaceImpl(std::move(value)); }
+          void Emplace(const T& value)
+          {
+               EmplaceImpl(value);
+          }
+          void Emplace(T&& value)
+          {
+               EmplaceImpl(std::move(value));
+          }
 
           template <typename U> void EmplaceImpl(U&& value)
           {
@@ -235,13 +286,28 @@ namespace ecpps
                           : _buffer.noSbo.begin;
           }
 
-          T& operator[](std::size_t index) { return *(StoragePtr() + index); }
-          const T& operator[](std::size_t index) const { return *(StoragePtr() + index); }
+          T& operator[](std::size_t index)
+          {
+               return *(StoragePtr() + index);
+          }
+          const T& operator[](std::size_t index) const
+          {
+               return *(StoragePtr() + index);
+          }
 
-          T* FrontPtr(void) noexcept { return StoragePtr() + this->_head; }
-          const T* FrontPtr(void) const noexcept { return StoragePtr() + this->_head; }
+          T* FrontPtr(void) noexcept
+          {
+               return StoragePtr() + this->_head;
+          }
+          const T* FrontPtr(void) const noexcept
+          {
+               return StoragePtr() + this->_head;
+          }
 
-          T* BackPtr(void) noexcept { return StoragePtr() + (this->_tail == 0 ? Capacity() - 1 : this->_tail - 1); }
+          T* BackPtr(void) noexcept
+          {
+               return StoragePtr() + (this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
+          }
           const T* BackPtr(void) const noexcept
           {
                return StoragePtr() + (this->_tail == 0 ? Capacity() - 1 : this->_tail - 1);
@@ -252,7 +318,10 @@ namespace ecpps
                return UseSBO() ? SBOSize : this->_buffer.noSbo.capacity;
           }
 
-          [[nodiscard]] bool UseSBO(void) const noexcept { return this->_size <= SBOSize; }
+          [[nodiscard]] bool UseSBO(void) const noexcept
+          {
+               return this->_size <= SBOSize;
+          }
 
      private:
           BufferUnion _buffer;

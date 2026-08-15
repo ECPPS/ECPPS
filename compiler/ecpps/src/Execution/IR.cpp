@@ -47,7 +47,10 @@ namespace
                if (!param.name.empty()) signature += " " + param.name;
           }
           signature += ")";
-          if (func->returnType) { signature += " -> " + func->returnType->Name(); }
+          if (func->returnType)
+          {
+               signature += " -> " + func->returnType->Name();
+          }
           return signature;
      }
 
@@ -136,7 +139,11 @@ namespace
                }
           }
 
-          std::ranges::sort(similar, [](const auto& a, const auto& b) { return a.second < b.second; });
+          std::ranges::sort(similar,
+                            [](const auto& a, const auto& b)
+                            {
+                                 return a.second < b.second;
+                            });
 
           return similar;
      }
@@ -178,7 +185,11 @@ namespace
                }
           }
 
-          std::ranges::sort(similar, [](const auto& a, const auto& b) { return a.second < b.second; });
+          std::ranges::sort(similar,
+                            [](const auto& a, const auto& b)
+                            {
+                                 return a.second < b.second;
+                            });
 
           return similar;
      }
@@ -527,12 +538,15 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
              .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
-     auto functionContext = std::make_shared<FunctionContext>(
-         functionScope.get(), node.Signature().callingConvention, returnType, name,
-         parameters |
-             std::views::transform([](const FunctionScope::Parameter& parameter) -> decltype(auto)
-                                   { return parameter.type; }) |
-             std::ranges::to<std::vector>());
+     auto functionContext =
+         std::make_shared<FunctionContext>(functionScope.get(), node.Signature().callingConvention, returnType, name,
+                                           parameters |
+                                               std::views::transform(
+                                                   [](const FunctionScope::Parameter& parameter) -> decltype(auto)
+                                                   {
+                                                        return parameter.type;
+                                                   }) |
+                                               std::ranges::to<std::vector>());
 
      ir.GetContext() = this->GetContext();
      auto* vFunctionScope = functionScope.get();
@@ -929,7 +943,10 @@ std::vector<std::string> ecpps::ir::IR::NamespacePathFromContext(void) const
 void ecpps::ir::IR::ParseNamespace(const ast::NamespaceNode& node)
 {
      std::string namespaceName;
-     if (node.Name() != nullptr) { namespaceName = node.Name()->ToString(0); }
+     if (node.Name() != nullptr)
+     {
+          namespaceName = node.Name()->ToString(0);
+     }
 
      auto& parentScope = this->GetContext().contextSequence.back()->GetScope();
      auto* parentNamespace = dynamic_cast<NamespaceScope*>(&parentScope);
@@ -1556,7 +1573,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      std::vector<std::string> qualifiers;
      bool isFromGlobalNamespace = false;
 
-     if (auto* id = dynamic_cast<ast::IdentifierNode*>(node.Function().get())) { identifierFunction = id; }
+     if (auto* id = dynamic_cast<ast::IdentifierNode*>(node.Function().get()))
+     {
+          identifierFunction = id;
+     }
      else if (auto* qid = dynamic_cast<ast::QualifiedIdNode*>(node.Function().get()))
      {
           const auto& parts = qid->Path();
@@ -1622,7 +1642,9 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
                     auto it = std::ranges::find_if(namespaceScope->subNamespaces,
                                                    [&qualifier](const std::unique_ptr<ecpps::ir::NamespaceScope>& ns)
-                                                   { return ns->Name() == qualifier; });
+                                                   {
+                                                        return ns->Name() == qualifier;
+                                                   });
                     if (it == namespaceScope->subNamespaces.end())
                     {
                          matchesQualifiers = false;
@@ -1635,8 +1657,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           }
 
           std::vector<Expression> arguments = node.Arguments() |
-                                              std::views::transform([this](const ast::NodePointer& argument)
-                                                                    { return this->ParseExpression(argument); }) |
+                                              std::views::transform(
+                                                  [this](const ast::NodePointer& argument)
+                                                  {
+                                                       return this->ParseExpression(argument);
+                                                  }) |
                                               std::ranges::to<std::vector>();
 
           for (const auto& candidate : scope->functions)
@@ -1674,10 +1699,13 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
      std::string errorMessage = "Unresolved function " + name;
 
-     std::vector<Expression> argumentsForAnalysis =
-         node.Arguments() |
-         std::views::transform([this](const ast::NodePointer& argument) { return this->ParseExpression(argument); }) |
-         std::ranges::to<std::vector>();
+     std::vector<Expression> argumentsForAnalysis = node.Arguments() |
+                                                    std::views::transform(
+                                                        [this](const ast::NodePointer& argument)
+                                                        {
+                                                             return this->ParseExpression(argument);
+                                                        }) |
+                                                    std::ranges::to<std::vector>();
 
      auto exactMatches = CollectExactMatches(name, this->GetContext().contextSequence);
      if (!exactMatches.empty())
@@ -2100,7 +2128,10 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           if (parsedInit == nullptr) return nullptr;
           initialisers.push_back(std::move(parsedInit));
      }
-     if (initialisers.empty()) { return ParseValueInitialisation(desiredType); }
+     if (initialisers.empty())
+     {
+          return ParseValueInitialisation(desiredType);
+     }
      if (initialisers.size() == 1 && !IsReference(desiredType))
      {
           auto initialiserExpression = std::move(initialisers.front());
@@ -2215,7 +2246,10 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
                }
           }
 
-          const auto has = [&](std::string_view t) { return std::ranges::contains(tokens, t); };
+          const auto has = [&](std::string_view t)
+          {
+               return std::ranges::contains(tokens, t);
+          };
 
           const auto longCount = std::ranges::count(tokens, "long");
 
@@ -2242,7 +2276,10 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
                return fallbackRequest;
           }
 
-          if (isChar && !isSigned && !isUnsigned) { signedRequest.isCharWithoutSign = true; }
+          if (isChar && !isSigned && !isUnsigned)
+          {
+               signedRequest.isCharWithoutSign = true;
+          }
           else
           {
                signedRequest.signedness =

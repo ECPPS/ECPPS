@@ -239,11 +239,16 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
                          macroName += *sourceIterator++;
 
-                    bool wasConditionMet = isIfndef
-                                               ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
-                                                                      { return m.name == macroName; })
-                                               : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
-                                                                     { return m.name == macroName; });
+                    bool wasConditionMet = isIfndef ? std::ranges::none_of(macros,
+                                                                           [&macroName](const MacroReplacement& m)
+                                                                           {
+                                                                                return m.name == macroName;
+                                                                           })
+                                                    : std::ranges::any_of(macros,
+                                                                          [&macroName](const MacroReplacement& m)
+                                                                          {
+                                                                               return m.name == macroName;
+                                                                          });
 
                     std::vector<PreprocessingToken> branchTokens;
                     std::string builtSource{};
@@ -297,7 +302,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         {
                                              auto it = std::ranges::find_if(macros,
                                                                             [&elifCondition](const MacroReplacement& m)
-                                                                            { return m.name == elifCondition; });
+                                                                            {
+                                                                                 return m.name == elifCondition;
+                                                                            });
                                              wasConditionMet = (it != macros.end());
                                         }
                                         sourceIterator = peekIt;
@@ -318,7 +325,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         {
                                              auto it = std::ranges::find_if(macros,
                                                                             [&elifMacroName](const MacroReplacement& m)
-                                                                            { return m.name == elifMacroName; });
+                                                                            {
+                                                                                 return m.name == elifMacroName;
+                                                                            });
                                              wasConditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
                                         }
                                         sourceIterator = peekIt;
@@ -357,8 +366,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          location.position++;
                     }
 
-                    auto it = std::ranges::find_if(macros, [&macroName](const MacroReplacement& m)
-                                                   { return m.name == macroName; });
+                    auto it = std::ranges::find_if(macros,
+                                                   [&macroName](const MacroReplacement& m)
+                                                   {
+                                                        return m.name == macroName;
+                                                   });
                     if (it != macros.end()) macros.erase(it);
                }
                else if (directive == "error")
@@ -454,8 +466,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                {
 
                     location.endPosition = location.position;
-                    auto it = std::ranges::find_if(macros, [&identifier](const MacroReplacement& m)
-                                                   { return m.name == identifier; });
+                    auto it = std::ranges::find_if(macros,
+                                                   [&identifier](const MacroReplacement& m)
+                                                   {
+                                                        return m.name == identifier;
+                                                   });
 
                     if (it != macros.end())
                     {

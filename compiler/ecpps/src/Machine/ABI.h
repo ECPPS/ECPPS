@@ -75,7 +75,10 @@ namespace ecpps::abi
 
      struct CallTemporaryProxy
      {
-          virtual ~CallTemporaryProxy(void) { runtime_assert(this->_hasFinished, "Finish() was not called"); }
+          virtual ~CallTemporaryProxy(void)
+          {
+               runtime_assert(this->_hasFinished, "Finish() was not called");
+          }
 
           void Finish(std::vector<ecpps::codegen::Instruction>& instructions)
           {
@@ -93,7 +96,9 @@ namespace ecpps::abi
 
      struct WindowsABICallProxy final : CallTemporaryProxy
      {
-          explicit WindowsABICallProxy(const std::bitset<4> savedRegisters) : _savedRegisters(savedRegisters) {}
+          explicit WindowsABICallProxy(const std::bitset<4> savedRegisters) : _savedRegisters(savedRegisters)
+          {
+          }
           void End(std::vector<ecpps::codegen::Instruction>& instructions) override;
 
      private:
@@ -115,9 +120,18 @@ namespace ecpps::abi
           [[nodiscard]] virtual StorageRequirement GetRequirementsForType(
               typeSystem::NonowningTypePointer type) const = 0;
 
-          [[nodiscard]] CallingConventionName Name(void) const noexcept { return this->_name; }
-          [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept { return this->_shadowSpace; }
-          [[nodiscard]] std::size_t StackAlignment(void) const noexcept { return this->_stackAlignment; }
+          [[nodiscard]] CallingConventionName Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::size_t ShadowSpaceSize(void) const noexcept
+          {
+               return this->_shadowSpace;
+          }
+          [[nodiscard]] std::size_t StackAlignment(void) const noexcept
+          {
+               return this->_stackAlignment;
+          }
           [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(
               std::vector<ecpps::codegen::Instruction>&) const = 0;
           [[nodiscard]] virtual std::unique_ptr<CallTemporaryProxy> PrepareForCall(
@@ -166,7 +180,10 @@ namespace ecpps::abi
 
           static ABI& Current(void);
 
-          [[nodiscard]] ISA Isa(void) const noexcept { return this->_isa; }
+          [[nodiscard]] ISA Isa(void) const noexcept
+          {
+               return this->_isa;
+          }
           [[nodiscard]] AllocatedRegister AllocateRegister(std::size_t width);
           [[nodiscard]] AllocatedRegister AllocateRegister(std::size_t width, const std::string& name,
                                                            RegisterAllocation allocation);
@@ -202,11 +219,26 @@ namespace ecpps::abi
           {
                return this->_registers;
           }
-          [[nodiscard]] std::size_t PointerSize(void) const noexcept { return this->_pointerSize; }
-          [[nodiscard]] typeSystem::TypeKind SizeSize(void) const noexcept { return this->sizeSize; }
-          [[nodiscard]] typeSystem::TypeKind PtrDiffSize(void) const noexcept { return this->ptrdiffSize; }
-          [[nodiscard]] typeSystem::TypeKind IntPtrSize(void) const noexcept { return this->intptrSize; }
-          [[nodiscard]] typeSystem::TypeKind BoolSize(void) const noexcept { return this->boolSize; }
+          [[nodiscard]] std::size_t PointerSize(void) const noexcept
+          {
+               return this->_pointerSize;
+          }
+          [[nodiscard]] typeSystem::TypeKind SizeSize(void) const noexcept
+          {
+               return this->sizeSize;
+          }
+          [[nodiscard]] typeSystem::TypeKind PtrDiffSize(void) const noexcept
+          {
+               return this->ptrdiffSize;
+          }
+          [[nodiscard]] typeSystem::TypeKind IntPtrSize(void) const noexcept
+          {
+               return this->intptrSize;
+          }
+          [[nodiscard]] typeSystem::TypeKind BoolSize(void) const noexcept
+          {
+               return this->boolSize;
+          }
 
           template <std::size_t TTo, std::size_t TFrom>
           [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;

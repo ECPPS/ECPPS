@@ -401,7 +401,11 @@ int main(int argc, char* argv[])
               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,
               emitter->_stringRelocation, 4,
               config.stringArray |
-                  std::views::transform([](const char8_t character) { return static_cast<std::byte>(character); }) |
+                  std::views::transform(
+                      [](const char8_t character)
+                      {
+                           return static_cast<std::byte>(character);
+                      }) |
                   std::ranges::to<std::vector>());
 
           if (imageBytes.empty())

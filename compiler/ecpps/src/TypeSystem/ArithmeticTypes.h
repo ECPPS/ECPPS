@@ -31,9 +31,15 @@ namespace ecpps::typeSystem
           {
           }
 
-          [[nodiscard]] Signedness Sign(void) const noexcept { return this->_sign; }
+          [[nodiscard]] Signedness Sign(void) const noexcept
+          {
+               return this->_sign;
+          }
           [[nodiscard]] std::size_t Size(void) const noexcept final;
-          [[nodiscard]] std::size_t Alignment(void) const noexcept final { return Size(); }
+          [[nodiscard]] std::size_t Alignment(void) const noexcept final
+          {
+               return Size();
+          }
 
           [[nodiscard]] std::string RawName(void) const override;
 
@@ -49,7 +55,10 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] ConversionSequence CompareTo(ecpps::typeSystem::NonowningTypePointer other) const override;
-          [[nodiscard]] TypeKind Kind(void) const noexcept { return this->_kind; }
+          [[nodiscard]] TypeKind Kind(void) const noexcept
+          {
+               return this->_kind;
+          }
 
           [[nodiscard]] NonowningTypePointer CommonWith(ecpps::typeSystem::NonowningTypePointer other) const final;
 
@@ -97,13 +106,19 @@ namespace ecpps::typeSystem
           {
           }
 
-          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept { return this->_baseType; }
+          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept
+          {
+               return this->_baseType;
+          }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
 
           [[nodiscard]] std::size_t Alignment(void) const noexcept override;
 
-          [[nodiscard]] std::string RawName(void) const override { return this->_baseType->RawName() + "*"; }
+          [[nodiscard]] std::string RawName(void) const override
+          {
+               return this->_baseType->RawName() + "*";
+          }
 
           [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override;
 
@@ -128,8 +143,14 @@ namespace ecpps::typeSystem
           {
           }
 
-          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept { return this->_baseType; }
-          [[nodiscard]] Kind GetKind(void) const noexcept { return this->_kind; }
+          [[nodiscard]] NonowningTypePointer BaseType(void) const noexcept
+          {
+               return this->_baseType;
+          }
+          [[nodiscard]] Kind GetKind(void) const noexcept
+          {
+               return this->_kind;
+          }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
           [[nodiscard]] std::size_t Alignment(void) const noexcept override;

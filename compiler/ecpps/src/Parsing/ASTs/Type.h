@@ -57,7 +57,10 @@ namespace ecpps::ast
           {
                return this->_name;
           }
-          [[nodiscard]] const SBOVector<NodePointer>& Declarations(void) const noexcept { return this->_declarations; }
+          [[nodiscard]] const SBOVector<NodePointer>& Declarations(void) const noexcept
+          {
+               return this->_declarations;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -93,11 +96,26 @@ namespace ecpps::ast
                if (this->_isVolatile) cv += "volatile ";
                return std::string(indent * PrettyIndent, ' ') + cv + this->_name;
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept { return this->_name; }
-          [[nodiscard]] bool IsConst(void) const noexcept { return this->_isConst; }
-          [[nodiscard]] bool IsVolatile(void) const noexcept { return this->_isVolatile; }
-          void SetConst(const bool newValue) noexcept { this->_isConst = newValue; }
-          void SetVolatile(const bool newValue) noexcept { this->_isVolatile = newValue; }
+          [[nodiscard]] const std::string& Value(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] bool IsConst(void) const noexcept
+          {
+               return this->_isConst;
+          }
+          [[nodiscard]] bool IsVolatile(void) const noexcept
+          {
+               return this->_isVolatile;
+          }
+          void SetConst(const bool newValue) noexcept
+          {
+               this->_isConst = newValue;
+          }
+          void SetVolatile(const bool newValue) noexcept
+          {
+               this->_isVolatile = newValue;
+          }
 
      private:
           std::string _name;
@@ -125,12 +143,27 @@ namespace ecpps::ast
                return std::string(indent * PrettyIndent, ' ') + _baseType->ToString(0) + "*" + cv;
           }
 
-          [[nodiscard]] const NodePointer& BaseType(void) const noexcept { return _baseType; }
+          [[nodiscard]] const NodePointer& BaseType(void) const noexcept
+          {
+               return _baseType;
+          }
 
-          [[nodiscard]] bool IsConst(void) const noexcept { return this->_isConst; }
-          [[nodiscard]] bool IsVolatile(void) const noexcept { return this->_isVolatile; }
-          void SetConst(const bool newValue) noexcept { this->_isConst = newValue; }
-          void SetVolatile(const bool newValue) noexcept { this->_isVolatile = newValue; }
+          [[nodiscard]] bool IsConst(void) const noexcept
+          {
+               return this->_isConst;
+          }
+          [[nodiscard]] bool IsVolatile(void) const noexcept
+          {
+               return this->_isVolatile;
+          }
+          void SetConst(const bool newValue) noexcept
+          {
+               this->_isConst = newValue;
+          }
+          void SetVolatile(const bool newValue) noexcept
+          {
+               this->_isVolatile = newValue;
+          }
 
      private:
           bool _isConst;
@@ -158,8 +191,14 @@ namespace ecpps::ast
                       (_kind == Kind::LValue ? "&" : "&&");
           }
 
-          [[nodiscard]] const NodePointer& BaseType() const noexcept { return _baseType; }
-          [[nodiscard]] Kind GetKind() const noexcept { return _kind; }
+          [[nodiscard]] const NodePointer& BaseType() const noexcept
+          {
+               return _baseType;
+          }
+          [[nodiscard]] Kind GetKind() const noexcept
+          {
+               return _kind;
+          }
 
      private:
           NodePointer _baseType;
@@ -173,7 +212,9 @@ namespace ecpps::ast
           {
                NodePointer node;
                bool isTemplate;
-               explicit Section(NodePointer node, bool isTemplate) : node(std::move(node)), isTemplate(isTemplate) {}
+               explicit Section(NodePointer node, bool isTemplate) : node(std::move(node)), isTemplate(isTemplate)
+               {
+               }
           };
 
           explicit QualifiedType(SBOVector<Section> sections, NodePointer unqualified, Location source)
@@ -189,8 +230,14 @@ namespace ecpps::ast
 
                return built + this->_unqualifiedType->ToString(0);
           }
-          [[nodiscard]] const SBOVector<Section>& Sections(void) const noexcept { return this->_sections; }
-          [[nodiscard]] const NodePointer& UnqualifiedType(void) const noexcept { return this->_unqualifiedType; }
+          [[nodiscard]] const SBOVector<Section>& Sections(void) const noexcept
+          {
+               return this->_sections;
+          }
+          [[nodiscard]] const NodePointer& UnqualifiedType(void) const noexcept
+          {
+               return this->_unqualifiedType;
+          }
 
      private:
           SBOVector<Section> _sections;

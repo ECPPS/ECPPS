@@ -270,28 +270,54 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           {
                colour = "\x1b[32m";
                value = std::visit(
-                   OverloadedVisitor{
-                       [](const bool& boolean) -> std::string { return boolean ? "true" : "false"; },
-                       [](const StringLiteral& literal) -> std::string { return "\"" + literal.value + "\""; },
-                       [](const IntegerLiteral& literal) -> std::string { return std::to_string(literal.value); },
-                       [](const char literal) -> std::string { return "'"s + literal + "'"; },
-                       [](const FloatingPointLiteral& literal) -> std::string { return std::to_string(literal.value); },
-                       [](const UserDefinedLiteral& udl) -> std::string
-                       {
-                            return std::visit(
-                                       OverloadedVisitor{
-                                           [](const StringLiteral& literal) -> std::string
-                                           { return "\"" + literal.value + "\""; },
-                                           [](const IntegerLiteral& literal) -> std::string
-                                           { return std::to_string(literal.value); },
-                                           [](const char& literal) -> std::string { return "'"s + literal + "'"; },
-                                           [](const FloatingPointLiteral& literal) -> std::string
-                                           { return std::to_string(literal.value); },
-                                       },
-                                       udl.value) +
-                                   udl.name;
-                       },
-                       [](auto&&) -> std::string { return "?"; }},
+                   OverloadedVisitor{[](const bool& boolean) -> std::string
+                                     {
+                                          return boolean ? "true" : "false";
+                                     },
+                                     [](const StringLiteral& literal) -> std::string
+                                     {
+                                          return "\"" + literal.value + "\"";
+                                     },
+                                     [](const IntegerLiteral& literal) -> std::string
+                                     {
+                                          return std::to_string(literal.value);
+                                     },
+                                     [](const char literal) -> std::string
+                                     {
+                                          return "'"s + literal + "'";
+                                     },
+                                     [](const FloatingPointLiteral& literal) -> std::string
+                                     {
+                                          return std::to_string(literal.value);
+                                     },
+                                     [](const UserDefinedLiteral& udl) -> std::string
+                                     {
+                                          return std::visit(
+                                                     OverloadedVisitor{
+                                                         [](const StringLiteral& literal) -> std::string
+                                                         {
+                                                              return "\"" + literal.value + "\"";
+                                                         },
+                                                         [](const IntegerLiteral& literal) -> std::string
+                                                         {
+                                                              return std::to_string(literal.value);
+                                                         },
+                                                         [](const char& literal) -> std::string
+                                                         {
+                                                              return "'"s + literal + "'";
+                                                         },
+                                                         [](const FloatingPointLiteral& literal) -> std::string
+                                                         {
+                                                              return std::to_string(literal.value);
+                                                         },
+                                                     },
+                                                     udl.value) +
+                                                 udl.name;
+                                     },
+                                     [](auto&&) -> std::string
+                                     {
+                                          return "?";
+                                     }},
                    token.value);
           }
           break;

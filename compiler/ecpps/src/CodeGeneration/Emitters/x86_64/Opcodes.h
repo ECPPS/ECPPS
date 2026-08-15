@@ -25,8 +25,14 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
 
      constexpr std::size_t Rip = 16;
 
-     constexpr std::vector<std::byte> GenerateRet(void) { return {std::byte{0xC3}}; }
-     constexpr std::vector<std::byte> GenerateNop(void) { return {std::byte{0x90}}; }
+     constexpr std::vector<std::byte> GenerateRet(void)
+     {
+          return {std::byte{0xC3}};
+     }
+     constexpr std::vector<std::byte> GenerateNop(void)
+     {
+          return {std::byte{0x90}};
+     }
      std::vector<std::byte> GenerateUD2(void);
      std::vector<std::byte> GenerateCwd(void);
      std::vector<std::byte> GenerateCqo(void);

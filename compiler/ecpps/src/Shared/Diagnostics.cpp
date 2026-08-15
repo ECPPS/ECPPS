@@ -53,9 +53,18 @@ static void ReportICE(std::string_view message, const std::stacktrace& trace)
      {
           std::print("  0x{:016x}", frame.instruction);
 
-          if (!frame.function.empty()) { std::print(" {}+0x{:x}", frame.function, frame.displacement); }
-          if (!frame.sourceFile.empty()) { std::print(" ({}:{})", frame.sourceFile, frame.sourceLine); }
-          if (!frame.module.empty()) { std::print(" [{}]", frame.module); }
+          if (!frame.function.empty())
+          {
+               std::print(" {}+0x{:x}", frame.function, frame.displacement);
+          }
+          if (!frame.sourceFile.empty())
+          {
+               std::print(" ({}:{})", frame.sourceFile, frame.sourceLine);
+          }
+          if (!frame.module.empty())
+          {
+               std::print(" [{}]", frame.module);
+          }
 
           std::println("");
      }
@@ -65,7 +74,10 @@ static void ReportICE(std::string_view message, const std::stacktrace& trace)
 
 #ifdef _WIN32
 
-static HANDLE GetCurrentProcessHandle(void) noexcept { return ::GetCurrentProcess(); }
+static HANDLE GetCurrentProcessHandle(void) noexcept
+{
+     return ::GetCurrentProcess();
+}
 
 static bool InitialiseSymbols(void)
 {
@@ -285,7 +297,10 @@ ecpps::TracedException::TracedException(std::string message, const std::exceptio
      TerminatePostICE();
 }
 
-[[noreturn]] void ecpps::IssueICE(std::string_view message) { IssueICE(message, std::stacktrace::current(1)); }
+[[noreturn]] void ecpps::IssueICE(std::string_view message)
+{
+     IssueICE(message, std::stacktrace::current(1));
+}
 
 [[noreturn]] void ecpps::IssueICE(std::string_view message, const std::stacktrace& trace)
 {

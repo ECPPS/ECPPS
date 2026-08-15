@@ -14,8 +14,14 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] bool HasValue(void) const noexcept { return this->_value != nullptr; }
-          [[nodiscard]] const Expression& Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] bool HasValue(void) const noexcept
+          {
+               return this->_value != nullptr;
+          }
+          [[nodiscard]] const Expression& Value(void) const noexcept
+          {
+               return this->_value;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {

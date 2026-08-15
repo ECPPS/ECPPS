@@ -82,7 +82,10 @@ std::byte* ecpps::BumpAllocator::Allocate(std::size_t size) noexcept
      return address;
 }
 
-ecpps::BumpAllocator::~BumpAllocator(void) { Release(); }
+ecpps::BumpAllocator::~BumpAllocator(void)
+{
+     Release();
+}
 
 void ecpps::BumpAllocator::Release(void)
 {

@@ -14,7 +14,10 @@ namespace ecpps
 
           template <typename T> struct Deleter
           {
-               static void operator()(T* lpT) noexcept(noexcept(std::declval<T>().~T())) { lpT->~T(); }
+               static void operator()(T* lpT) noexcept(noexcept(std::declval<T>().~T()))
+               {
+                    lpT->~T();
+               }
           };
           std::byte* Allocate(std::size_t size) noexcept;
           ~BumpAllocator(void);

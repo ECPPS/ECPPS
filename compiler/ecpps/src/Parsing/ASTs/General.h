@@ -5,8 +5,13 @@ namespace ecpps::ast
      class IdentifierNode final : public Node
      {
      public:
-          explicit IdentifierNode(std::string value, Location where) : Node(where), _value(std::move(value)) {}
-          [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
+          explicit IdentifierNode(std::string value, Location where) : Node(where), _value(std::move(value))
+          {
+          }
+          [[nodiscard]] const std::string& Value(void) const noexcept
+          {
+               return this->_value;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + this->_value;
@@ -19,9 +24,14 @@ namespace ecpps::ast
      class OperatorFunctionId final : Node
      {
      public:
-          explicit OperatorFunctionId(Operator op, Location where) : Node(where), _operator(op) {}
+          explicit OperatorFunctionId(Operator op, Location where) : Node(where), _operator(op)
+          {
+          }
 
-          [[nodiscard]] Operator GetOperator(void) const noexcept { return this->_operator; }
+          [[nodiscard]] Operator GetOperator(void) const noexcept
+          {
+               return this->_operator;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "operator" + ecpps::ast::ToString(this->_operator);
@@ -49,7 +59,10 @@ namespace ecpps::ast
                return std::string(indent * PrettyIndent, ' ') + built;
           }
 
-          [[nodiscard]] const std::vector<NodePointer>& Path(void) const noexcept { return this->_path; }
+          [[nodiscard]] const std::vector<NodePointer>& Path(void) const noexcept
+          {
+               return this->_path;
+          }
 
      private:
           std::vector<NodePointer> _path;
