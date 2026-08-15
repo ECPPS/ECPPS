@@ -92,7 +92,7 @@ jobs:
           key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
 
       - name: Configure
-        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: |
           cmake -S . -G Ninja `
             --preset ${{ matrix.preset_configure }} `
@@ -100,7 +100,7 @@ jobs:
             -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
 
       - name: Build
-        shell: ${{ inputs.os == 'windows-latest' && 'pwsh' || 'bash' }}
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: |
           cmake --build --preset "${{ matrix.preset_build }}" --parallel
 
