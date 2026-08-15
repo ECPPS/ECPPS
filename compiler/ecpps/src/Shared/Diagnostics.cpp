@@ -252,8 +252,6 @@ static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
               std::format("Unhandled exception has occurred: {}", exceptionInfo->ExceptionRecord->ExceptionCode),
               exceptionInfo->ContextRecord);
      }
-
-     return EXCEPTION_EXECUTE_HANDLER;
 }
 
 #elifdef __linux__ // ^^^ _WIN32 / __linux__ vvv
