@@ -4,6 +4,7 @@
 #include <exception>
 #include <stacktrace>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "Error.h"
 
