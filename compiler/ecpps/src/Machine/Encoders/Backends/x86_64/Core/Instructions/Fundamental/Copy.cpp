@@ -69,7 +69,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      const auto& [virtualDestination, virtualSource] = copyValue.parameters;
      runtime_assert(this->_virtualRegisterMap->IsMaterialised(virtualSource), "Source must be materialised");
-     const auto& source = this->_virtualRegisterMap->GetMaterialisation(virtualSource);
+     [[maybe_unused]] const auto& source = this->_virtualRegisterMap->GetMaterialisation(virtualSource);
      runtime_assert(source.has_value() && source->type == ir::abstract::StateType::Allocation,
                     "Source must be materialised");
      mov.destination = RegisterOperand{RegisterIndex::Rax};
