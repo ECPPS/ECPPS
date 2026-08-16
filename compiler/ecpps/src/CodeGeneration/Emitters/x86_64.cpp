@@ -866,8 +866,8 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
                                 : throw TracedException(std::logic_error(
                                        std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                case qwordSize:
-                    return fromSize == byteSize   ? x86_64::GenerateMovZeroExtendMem8ToReg64(
-                                                         destinationRegister, sourceRegisterOffset, sourceRegister)
+                    return fromSize == byteSize ? x86_64::GenerateMovZeroExtendMem8ToReg64(
+                                                       destinationRegister, sourceRegisterOffset, sourceRegister)
                            : fromSize == wordSize ? x86_64::GenerateMovZeroExtendMem16ToReg64(
                                                          destinationRegister, sourceRegisterOffset, sourceRegister)
                            : fromSize == dwordSize
