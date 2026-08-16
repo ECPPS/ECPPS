@@ -51,8 +51,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -67,39 +73,39 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the addition did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the addition did not evaluate to a constant expression",
+                         this->Source()));
                     return leftConstexpr;
                }
                auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the addition did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the addition did not evaluate to a constant expression",
+                         this->Source()));
                     return rightConstexpr;
                }
                if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the addition did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The left hand side of the addition did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The right hand side of the addition did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The right hand side of the addition did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
@@ -120,8 +126,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Addition, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -140,8 +152,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -160,8 +178,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Addition, source), _operand(std::move(operand)), _increment(increment)
           {
           }
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
-          [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
+          [[nodiscard]] std::size_t IncrementValue(void) const noexcept
+          {
+               return this->_increment;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -180,8 +204,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _operand(std::move(operand)), _increment(decrement)
           {
           }
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
-          [[nodiscard]] std::size_t IncrementValue(void) const noexcept { return this->_increment; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
+          [[nodiscard]] std::size_t IncrementValue(void) const noexcept
+          {
+               return this->_increment;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -201,8 +231,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -217,39 +253,39 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the subtraction did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the subtraction did not evaluate to a constant expression",
+                         this->Source()));
                     return leftConstexpr;
                }
                auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the subtraction did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the subtraction did not evaluate to a constant expression",
+                         this->Source()));
                     return rightConstexpr;
                }
                if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the subtraction did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The left hand side of the subtraction did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The right hand side of the subtraction did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The right hand side of the subtraction did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
@@ -270,8 +306,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -286,39 +328,39 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the multiplication did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the multiplication did not evaluate to a constant expression",
+                         this->Source()));
                     return leftConstexpr;
                }
                auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the multiplication did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the multiplication did not evaluate to a constant expression",
+                         this->Source()));
                     return rightConstexpr;
                }
                if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the multiplication did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The left hand side of the multiplication did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The right hand side of the multiplication did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The right hand side of the multiplication did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
@@ -340,8 +382,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -356,39 +404,39 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the division did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the division did not evaluate to a constant expression",
+                         this->Source()));
                     return leftConstexpr;
                }
                auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the division did not evaluate to a constant expression",
-                        this->Source()));
+                         "The left hand side of the division did not evaluate to a constant expression",
+                         this->Source()));
                     return rightConstexpr;
                }
                if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the division did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The left hand side of the division did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The right hand side of the division did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The right hand side of the division did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
@@ -397,7 +445,7 @@ namespace ecpps::ir
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(
-                        std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
+                         std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
                     return result;
                }
 
@@ -417,8 +465,14 @@ namespace ecpps::ir
               : NodeBase(NodeKind::Subtraction, source), _left(std::move(left)), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Expression& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const Expression& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Expression& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const noexcept
+          {
+               return this->_right;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -433,37 +487,37 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto leftConstexpr = this->_left->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!leftConstexpr.has_value())
                {
                     leftConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
+                         "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
                     return leftConstexpr;
                }
                auto rightConstexpr = this->_right->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!rightConstexpr.has_value())
                {
                     rightConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
+                         "The left hand side of the modulo did not evaluate to a constant expression", this->Source()));
                     return rightConstexpr;
                }
                if (!std::holds_alternative<std::uint64_t>(leftConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The left hand side of the modulo did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The left hand side of the modulo did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                if (!std::holds_alternative<std::uint64_t>(rightConstexpr->variant))
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "The right hand side of the modulo did not evaluate to an integral or floating-point "
-                        "result",
-                        this->Source()));
+                         "The right hand side of the modulo did not evaluate to an integral or floating-point "
+                         "result",
+                         this->Source()));
                     return result;
                }
                const auto leftValue = std::get<std::uint64_t>(leftConstexpr->variant);
@@ -472,7 +526,7 @@ namespace ecpps::ir
                {
                     auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                     result.error().push(
-                        std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
+                         std::make_unique<diagnostics::ConstantEvaluationError>("Cannot divide by 0", this->Source()));
                     return result;
                }
 
@@ -495,11 +549,26 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const Expression& Address(void) const noexcept { return _address; }
-          [[nodiscard]] const Expression& Expected(void) const noexcept { return _expected; }
-          [[nodiscard]] const Expression& Replacement(void) const noexcept { return _replacement; }
-          [[nodiscard]] bool IsWeak(void) const noexcept { return _isWeak; }
-          [[nodiscard]] MemoryOrdering OrderingMode(void) const noexcept { return _ordering; }
+          [[nodiscard]] const Expression& Address(void) const noexcept
+          {
+               return _address;
+          }
+          [[nodiscard]] const Expression& Expected(void) const noexcept
+          {
+               return _expected;
+          }
+          [[nodiscard]] const Expression& Replacement(void) const noexcept
+          {
+               return _replacement;
+          }
+          [[nodiscard]] bool IsWeak(void) const noexcept
+          {
+               return _isWeak;
+          }
+          [[nodiscard]] MemoryOrdering OrderingMode(void) const noexcept
+          {
+               return _ordering;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -522,7 +591,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const std::string& Address(void) const noexcept { return this->_address; }
+          [[nodiscard]] const std::string& Address(void) const noexcept
+          {
+               return this->_address;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -541,7 +613,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] std::uint64_t Index(void) const noexcept { return this->_index; }
+          [[nodiscard]] std::uint64_t Index(void) const noexcept
+          {
+               return this->_index;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -560,8 +635,14 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const std::string& Address(void) const noexcept { return this->_address; }
-          [[nodiscard]] const Expression& Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] const std::string& Address(void) const noexcept
+          {
+               return this->_address;
+          }
+          [[nodiscard]] const Expression& Value(void) const noexcept
+          {
+               return this->_value;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -582,7 +663,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -602,7 +686,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -617,11 +704,11 @@ namespace ecpps::ir
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!operandConstexpr.has_value())
                {
                     operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "Indirected operand did not evaluate to a constant expression", this->Source()));
+                         "Indirected operand did not evaluate to a constant expression", this->Source()));
                     return operandConstexpr;
                }
                if (std::holds_alternative<ConstantAggregateArray>(operandConstexpr->variant))
@@ -632,7 +719,7 @@ namespace ecpps::ir
 
                auto result = std::unexpected<std::stack<diagnostics::DiagnosticsMessage>>(std::in_place_t{});
                result.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                   "The operand did not evaluate to an an operand eligible for indirection", this->Source()));
+                    "The operand did not evaluate to an an operand eligible for indirection", this->Source()));
                return result;
           }
 
@@ -671,13 +758,15 @@ namespace ecpps::ir
                    evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
-               return ConstantEvaluatedResult{
-                   ConstantAggregateArray{
-                       this->_referencedArray->Values() |
-                       std::views::transform([](const std::uint32_t value)
-                                             { return ConstantEvaluatedVariant{static_cast<std::uint64_t>(value)}; }) |
-                       std::ranges::to<std::vector>()},
-                   this->Source()};
+               return ConstantEvaluatedResult{ConstantAggregateArray{this->_referencedArray->Values() |
+                                                                     std::views::transform(
+                                                                          [](const std::uint32_t value)
+                                                                          {
+                                                                               return ConstantEvaluatedVariant{
+                                                                                    static_cast<std::uint64_t>(value)};
+                                                                          }) |
+                                                                     std::ranges::to<std::vector>()},
+                                              this->Source()};
           }
 
      private:
@@ -701,8 +790,14 @@ namespace ecpps::ir
                       std::format("__decay({})", this->_loadNode->ToString(0));
           }
 
-          [[nodiscard]] const LoadNode* GetLoadNode(void) const noexcept { return this->_loadNode; }
-          [[nodiscard]] const Expression& GetOperand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const LoadNode* GetLoadNode(void) const noexcept
+          {
+               return this->_loadNode;
+          }
+          [[nodiscard]] const Expression& GetOperand(void) const noexcept
+          {
+               return this->_operand;
+          }
 
      private:
           Expression _operand;
@@ -717,7 +812,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
           [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
           {
                return this->_targetType;
@@ -735,11 +833,11 @@ namespace ecpps::ir
                    evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!operandConstexpr.has_value())
                {
                     operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "Converted operand did not evaluate to a constant expression", this->Source()));
+                         "Converted operand did not evaluate to a constant expression", this->Source()));
                     return operandConstexpr;
                }
                const auto& operand = *operandConstexpr;
@@ -760,7 +858,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const Expression& Operand(void) const noexcept { return this->_operand; }
+          [[nodiscard]] const Expression& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
           [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType(void) const noexcept
           {
                return this->_targetType;
@@ -778,11 +879,11 @@ namespace ecpps::ir
                    evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
                auto operandConstexpr = this->_operand->Value()->TryConstantEvaluate(
-                   EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
+                    EvaluationContext{.currentDepth = evaluationContext.currentDepth + 1});
                if (!operandConstexpr.has_value())
                {
                     operandConstexpr.error().push(std::make_unique<diagnostics::ConstantEvaluationError>(
-                        "Converted operand did not evaluate to a constant expression", this->Source()));
+                         "Converted operand did not evaluate to a constant expression", this->Source()));
                     return operandConstexpr;
                }
                const auto& operand = *operandConstexpr;

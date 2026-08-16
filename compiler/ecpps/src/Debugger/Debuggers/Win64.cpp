@@ -23,7 +23,7 @@ static std::uint64_t ResolveRegister([[maybe_unused]] const CONTEXT& ctx, [[mayb
      return 0;
 }
 
-static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
+static std::string ResolveSymbol(HANDLE process, std::uintptr_t address)
 {
      std::string buffer{};
      buffer.resize(sizeof(SYMBOL_INFO) + MAX_SYM_NAME);
@@ -35,18 +35,24 @@ static std::string ResolveSymbol(HANDLE process, std::uintptr_t addr)
      modInfo.SizeOfStruct = sizeof(modInfo);
      std::string moduleName;
 
-     DWORD64 modBase = SymGetModuleBase64(process, addr);
-     if (modBase != 0 && SymGetModuleInfo64(process, modBase, &modInfo) != 0) { moduleName = modInfo.ModuleName; }
-
-     if (SymFromAddr(process, addr, nullptr, symbol) != 0)
+     DWORD64 modBase = ::SymGetModuleBase64(process, address);
+     if (modBase != 0 && ::SymGetModuleInfo64(process, modBase, &modInfo) != 0)
      {
-          return std::format("{}!{}+0x{:X}", moduleName.empty() ? "?" : moduleName, symbol->Name,
-                             addr - symbol->Address);
+          moduleName = modInfo.ModuleName;
      }
 
-     if (!moduleName.empty()) { return std::format("{}!0x{:016X}", moduleName, addr); }
+     if (::SymFromAddr(process, address, nullptr, symbol) != 0)
+     {
+          return std::format("{}!{}+0x{:X}", moduleName.empty() ? "?" : moduleName, symbol->Name,
+                             address - symbol->Address);
+     }
 
-     return std::format("0x{:016X}", addr);
+     if (!moduleName.empty())
+     {
+          return std::format("{}!0x{:016X}", moduleName, address);
+     }
+
+     return std::format("0x{:016X}", address);
 }
 
 static void PrintStackTrace(HANDLE process, HANDLE thread, const CONTEXT& ctx)
@@ -61,10 +67,10 @@ static void PrintStackTrace(HANDLE process, HANDLE thread, const CONTEXT& ctx)
 
      for (std::size_t frameIndex = 0; frameIndex < 64; frameIndex++)
      {
-          if (StackWalk64(
-                  IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
-                  reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
-                  nullptr, SymFunctionTableAccess64, SymGetModuleBase64, nullptr) == 0)
+          if (::StackWalk64(
+                   IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
+                   reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                   nullptr, ::SymFunctionTableAccess64, ::SymGetModuleBase64, nullptr) == 0)
                break;
 
           if (frame.AddrPC.Offset == 0) break;
@@ -75,7 +81,7 @@ static void Disassemble(HANDLE process, std::uintptr_t address, std::size_t size
 {
      std::array<std::byte, 32> bytes{};
      SIZE_T bytesRead{};
-     if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), bytes.data(), size, &bytesRead) == 0)
+     if (::ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), bytes.data(), size, &bytesRead) == 0)
      {
           std::println("Failed to read instructions at 0x{:016X} (error {})", address, GetLastError());
           return;
@@ -83,7 +89,10 @@ static void Disassemble(HANDLE process, std::uintptr_t address, std::size_t size
 
      std::println("At {}:", ResolveSymbol(process, address));
      std::print("  ");
-     for (std::size_t i = 0; i < bytesRead; i++) { std::print("{:02X} ", std::to_integer<unsigned char>(bytes[i])); }
+     for (std::size_t i = 0; i < bytesRead; i++)
+     {
+          std::print("{:02X} ", std::to_integer<unsigned char>(bytes[i]));
+     }
      std::println("; <no disasm>");
 }
 
@@ -91,7 +100,7 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
 {
      CONTEXT ctx{};
      ctx.ContextFlags = CONTEXT_FULL;
-     if (GetThreadContext(thread, &ctx) != 0)
+     if (::GetThreadContext(thread, &ctx) != 0)
      {
           std::println("Failed to get thread context (error {})", GetLastError());
      }
@@ -121,8 +130,8 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
      }
      if (command == "di")
      {
-          std::uintptr_t addr = ctx.Rip;
-          Disassemble(process, addr);
+          std::uintptr_t address = ctx.Rip;
+          Disassemble(process, address);
           return PromptResult::None;
      }
      if (command == "stack")
@@ -153,8 +162,8 @@ static PromptResult PromptLoop(HANDLE process, HANDLE thread)
 
           SIZE_T bytesRead = 0;
           std::vector<std::byte> buffer(count * 8);
-          if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(),
-                                &bytesRead) == FALSE)
+          if (::ReadProcessMemory(process, reinterpret_cast<LPCVOID>(address), buffer.data(), buffer.size(),
+                                  &bytesRead) == FALSE)
           {
                std::println("Failed to read memory at 0x{:016x} (error {})", address, GetLastError());
                return PromptResult::None;
@@ -225,16 +234,16 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
      PROCESS_INFORMATION pi{};
      DWORD creationFlags = DEBUG_ONLY_THIS_PROCESS;
 
-     if (CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) ==
+     if (::CreateProcessW(nullptr, commandLine, nullptr, nullptr, FALSE, creationFlags, nullptr, nullptr, &si, &pi) ==
          FALSE)
      {
           return static_cast<int>(GetLastError());
      }
 
-     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
+     ::SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES);
 
      // std::string symbolPath = "srv*C:\\Symbols*https://msdl.microsoft.com/download/symbols";
-     if (SymInitialize(pi.hProcess, nullptr, TRUE) == 0)
+     if (::SymInitialize(pi.hProcess, nullptr, TRUE) == 0)
      {
           std::println("SymInitialize failed ({:x})", GetLastError());
      }
@@ -245,9 +254,9 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
 
      while (running)
      {
-          if (!WaitForDebugEvent(&dbgEvent, INFINITE))
+          if (!::WaitForDebugEvent(&dbgEvent, INFINITE))
           {
-               TerminateProcess(pi.hProcess, 1);
+               ::TerminateProcess(pi.hProcess, 1);
                exitCode = 1;
                break;
           }
@@ -278,9 +287,9 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
           {
                auto base = reinterpret_cast<DWORD64>(dbgEvent.u.CreateProcessInfo.lpBaseOfImage);
                HANDLE file = dbgEvent.u.CreateProcessInfo.hFile;
-               SymLoadModuleEx(pi.hProcess, file, nullptr, nullptr, base, 0, nullptr, 0);
+               ::SymLoadModuleEx(pi.hProcess, file, nullptr, nullptr, base, 0, nullptr, 0);
                std::println("[+] Loaded main module at 0x{:016X}", base);
-               if (file) CloseHandle(file);
+               if (file) ::CloseHandle(file);
                break;
           }
 
@@ -293,7 +302,7 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
           {
                auto base = reinterpret_cast<DWORD64>(dbgEvent.u.LoadDll.lpBaseOfDll);
                HANDLE file = dbgEvent.u.LoadDll.hFile;
-               SymLoadModuleEx(pi.hProcess, file, nullptr, nullptr, base, 0, nullptr, 0);
+               ::SymLoadModuleEx(pi.hProcess, file, nullptr, nullptr, base, 0, nullptr, 0);
 
                std::string path;
                if (dbgEvent.u.LoadDll.lpImageName)
@@ -302,16 +311,16 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
                     nameBuffer.resize(MAX_PATH);
                     SIZE_T bytesRead = 0;
                     LPCVOID namePtr = nullptr;
-                    if (ReadProcessMemory(pi.hProcess, dbgEvent.u.LoadDll.lpImageName, &namePtr, sizeof(namePtr),
-                                          &bytesRead) &&
+                    if (::ReadProcessMemory(pi.hProcess, dbgEvent.u.LoadDll.lpImageName, &namePtr, sizeof(namePtr),
+                                            &bytesRead) &&
                         namePtr)
                     {
-                         ReadProcessMemory(pi.hProcess, namePtr, nameBuffer.data(), nameBuffer.size(), &bytesRead);
+                         ::ReadProcessMemory(pi.hProcess, namePtr, nameBuffer.data(), nameBuffer.size(), &bytesRead);
                          path = nameBuffer;
                     }
                }
                std::println("# DLL loaded at 0x{:016x} ({})", base, path.empty() ? "unknown" : path);
-               if (dbgEvent.u.LoadDll.hFile) CloseHandle(dbgEvent.u.LoadDll.hFile);
+               if (dbgEvent.u.LoadDll.hFile) ::CloseHandle(dbgEvent.u.LoadDll.hFile);
           }
           break;
           case UNLOAD_DLL_DEBUG_EVENT:
@@ -324,8 +333,8 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
                SIZE_T read{};
                std::string string;
                string.resize(dbgEvent.u.DebugString.nDebugStringLength);
-               ReadProcessMemory(pi.hProcess, dbgEvent.u.DebugString.lpDebugStringData, string.data(), string.size(),
-                                 &read);
+               ::ReadProcessMemory(pi.hProcess, dbgEvent.u.DebugString.lpDebugStringData, string.data(), string.size(),
+                                   &read);
                std::print("{}", string);
           }
           break;
@@ -335,16 +344,16 @@ int ecpps::debugging::Win64Debugger::Debug([[maybe_unused]] CompilerConfig& conf
           default: break;
           }
 
-          ContinueDebugEvent(dbgEvent.dwProcessId, dbgEvent.dwThreadId, continueStatus);
+          ::ContinueDebugEvent(dbgEvent.dwProcessId, dbgEvent.dwThreadId, continueStatus);
      }
 
-     if (WaitForSingleObject(pi.hProcess, 0) != WAIT_OBJECT_0) WaitForSingleObject(pi.hProcess, INFINITE);
+     if (::WaitForSingleObject(pi.hProcess, 0) != WAIT_OBJECT_0) ::WaitForSingleObject(pi.hProcess, INFINITE);
 
      DWORD processExitCode = 0;
-     if (GetExitCodeProcess(pi.hProcess, &processExitCode) != 0) processExitCode = exitCode;
+     if (::GetExitCodeProcess(pi.hProcess, &processExitCode) != 0) processExitCode = exitCode;
 
-     CloseHandle(pi.hThread);
-     CloseHandle(pi.hProcess);
+     ::CloseHandle(pi.hThread);
+     ::CloseHandle(pi.hProcess);
 
      std::println("Process exited with code {} (0x{:x})", processExitCode, processExitCode);
 

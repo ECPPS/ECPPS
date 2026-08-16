@@ -52,7 +52,7 @@ namespace ecpps::diagnostics
           [[nodiscard]] virtual std::string Name(void) const noexcept = 0;
           [[nodiscard]] virtual Location Source(void) const noexcept = 0;
           [[nodiscard]] virtual const std::vector<std::unique_ptr<IDiagnosticsBase>>& SubDiagnostics(
-              void) const noexcept = 0;
+               void) const noexcept = 0;
      };
 
      using DiagnosticsMessage = std::unique_ptr<IDiagnosticsBase>;
@@ -64,15 +64,30 @@ namespace ecpps::diagnostics
               : _name(std::move(name)), _message(std::move(message)), _source(source)
           {
           }
-          [[nodiscard]] DiagnosticsLevel Level(void) const noexcept override { return TLevel; }
-          [[nodiscard]] std::string Name(void) const noexcept override { return this->_name; }
-          [[nodiscard]] std::string Message(void) const noexcept override { return this->_message; }
-          [[nodiscard]] Location Source(void) const noexcept override { return this->_source; }
+          [[nodiscard]] DiagnosticsLevel Level(void) const noexcept override
+          {
+               return TLevel;
+          }
+          [[nodiscard]] std::string Name(void) const noexcept override
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::string Message(void) const noexcept override
+          {
+               return this->_message;
+          }
+          [[nodiscard]] Location Source(void) const noexcept override
+          {
+               return this->_source;
+          }
           [[nodiscard]] const std::vector<DiagnosticsMessage>& SubDiagnostics(void) const noexcept final
           {
                return this->_subDiagnostics;
           }
-          [[nodiscard]] std::vector<DiagnosticsMessage>& SubDiagnostics(void) noexcept { return this->_subDiagnostics; }
+          [[nodiscard]] std::vector<DiagnosticsMessage>& SubDiagnostics(void) noexcept
+          {
+               return this->_subDiagnostics;
+          }
 
      protected:
           std::string _name;

@@ -49,10 +49,10 @@ namespace ecpps
           }
 
           [[nodiscard]] std::vector<PreprocessingToken> ProcessObjectLike(
-              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
           [[nodiscard]] std::vector<PreprocessingToken> ProcessFunctionLike(
-              const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
 
           explicit MacroReplacement(std::string name, std::optional<std::vector<std::string>> parameters,
                                     std::string contents, const bool isVariadic)
@@ -84,9 +84,18 @@ namespace ecpps
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
      private:
-          static bool IsDigit(const char ch) { return std::isdigit(ch) != 0; }
-          static bool IsCharacterBeginning(const char ch) { return std::isalpha(ch) != 0 || ch == '_'; }
-          static bool IsCharacterContinuation(const char ch) { return std::isalnum(ch) != 0 || ch == '_'; }
+          static bool IsDigit(const char ch)
+          {
+               return std::isdigit(ch) != 0;
+          }
+          static bool IsCharacterBeginning(const char ch)
+          {
+               return std::isalpha(ch) != 0 || ch == '_';
+          }
+          static bool IsCharacterContinuation(const char ch)
+          {
+               return std::isalnum(ch) != 0 || ch == '_';
+          }
           static bool IsOperatorOrPunctuator(const std::string& string);
           static bool IsOperatorOrPunctuatorBeginning(char ch);
 

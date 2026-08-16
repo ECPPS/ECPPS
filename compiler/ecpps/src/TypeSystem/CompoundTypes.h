@@ -16,12 +16,21 @@ namespace ecpps::typeSystem
                 _alignmentRequirements(std::max(alignmentRequirements, _elementType->Alignment()))
           {
           }
-          [[nodiscard]] std::size_t ElementCount(void) const noexcept { return this->_nElements; }
-          [[nodiscard]] NonowningTypePointer ElementType(void) const noexcept { return this->_elementType; }
+          [[nodiscard]] std::size_t ElementCount(void) const noexcept
+          {
+               return this->_nElements;
+          }
+          [[nodiscard]] NonowningTypePointer ElementType(void) const noexcept
+          {
+               return this->_elementType;
+          }
 
           [[nodiscard]] std::size_t Size(void) const noexcept override;
 
-          [[nodiscard]] std::size_t Alignment(void) const noexcept override { return this->_alignmentRequirements; }
+          [[nodiscard]] std::size_t Alignment(void) const noexcept override
+          {
+               return this->_alignmentRequirements;
+          }
 
           [[nodiscard]] std::string RawName(void) const override
           {

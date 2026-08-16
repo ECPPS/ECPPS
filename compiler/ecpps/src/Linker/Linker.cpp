@@ -8,7 +8,7 @@
 #include "dllHelp.h"
 
 std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
-    LinkerType type, std::unique_ptr<LinkerOptionsBase> options)
+     LinkerType type, std::unique_ptr<LinkerOptionsBase> options)
 {
      switch (type)
      {
@@ -27,11 +27,11 @@ std::unique_ptr<ecpps::linker::LinkerBase> ecpps::linker::Linker::CreateLinker(
 }
 
 std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
-    const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
-    const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
-    const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
-    const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
-    const std::vector<std::byte>& stringData)
+     const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
+     const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
+     const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
+     const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
+     const std::vector<std::byte>& stringData)
 {
      std::unique_ptr<LinkerBase> selectedLinker = nullptr;
 
@@ -41,25 +41,25 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      case LinkerUsed::Windows32:
      {
           selectedLinker = ecpps::linker::Linker::CreateLinker(
-              ecpps::linker::LinkerType::PE,
-              std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
-                  ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable,
-                  config.linker == LinkerUsed::Windows32 ? LinkerBitness::x32 : LinkerBitness::x64));
+               ecpps::linker::LinkerType::PE,
+               std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
+                    ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable,
+                    config.linker == LinkerUsed::Windows32 ? LinkerBitness::x32 : LinkerBitness::x64));
      }
      break;
      case LinkerUsed::Windows64Coff:
      {
           selectedLinker = ecpps::linker::Linker::CreateLinker(
-              ecpps::linker::LinkerType::Coff,
-              std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::Coff>>(LinkerBitness::x64));
+               ecpps::linker::LinkerType::Coff,
+               std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::Coff>>(LinkerBitness::x64));
           break;
      }
      case LinkerUsed::Caosys:
      {
           selectedLinker = ecpps::linker::Linker::CreateLinker(
-              ecpps::linker::LinkerType::PE,
-              std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
-                  ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable, LinkerBitness::x64));
+               ecpps::linker::LinkerType::PE,
+               std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::PE>>(
+                    ecpps::linker::PESubsystem::Console, ecpps::linker::LinkType::Executable, LinkerBitness::x64));
      }
      break;
      default: return {};

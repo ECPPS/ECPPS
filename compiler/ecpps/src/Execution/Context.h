@@ -142,7 +142,7 @@ namespace ecpps::ir
      inline InvalidRequest::InvalidRequest(const InvalidRequest& other)
      {
           this->suggestedRequest =
-              other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+               other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
      }
      inline InvalidRequest::InvalidRequest(std::unique_ptr<TypeRequest> suggestedRequest,
                                            std::vector<diagnostics::DiagnosticsMessage> diagnostics)
@@ -154,7 +154,7 @@ namespace ecpps::ir
           if (this != &other)
           {
                this->suggestedRequest =
-                   other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
+                    other.suggestedRequest ? std::make_unique<TypeRequest>(*other.suggestedRequest) : nullptr;
           }
           return *this;
      }
@@ -180,36 +180,38 @@ namespace ecpps::ir
                seed = HashCombine(seed, value.data.index());
 
                std::visit(
-                   [&](const auto& data)
-                   {
-                        using T = std::decay_t<decltype(data)>;
+                    [&](const auto& data)
+                    {
+                         using T = std::decay_t<decltype(data)>;
 
-                        if constexpr (std::is_same_v<T, StandardSignedIntegerRequest>)
-                        {
-                             seed = HashCombine(seed, data.size);
-                             seed = HashCombine(seed, data.signedness);
-                             seed = HashCombine(seed, data.isCharWithoutSign);
-                        }
-                        else if constexpr (std::is_same_v<T, BoundedArrayRequest>)
-                        {
-                             seed = HashCombine(seed, data.elementType);
-                             seed = HashCombine(seed, data.size);
-                        }
-                        else if constexpr (std::is_same_v<T, PlatformIntegerRequest>)
-                        {
-                             seed = HashCombine(seed, data.kind);
-                        }
-                        else if constexpr (std::is_same_v<T, PointerRequest>)
-                        {
-                             seed = HashCombine(seed, data.elementType);
-                        }
-                        else if constexpr (std::is_same_v<T, VoidRequest>) {}
-                        else if constexpr (std::is_same_v<T, InvalidRequest>)
-                             seed = HashCombine(seed, &data);
-                        else
-                             std::terminate();
-                   },
-                   value.data);
+                         if constexpr (std::is_same_v<T, StandardSignedIntegerRequest>)
+                         {
+                              seed = HashCombine(seed, data.size);
+                              seed = HashCombine(seed, data.signedness);
+                              seed = HashCombine(seed, data.isCharWithoutSign);
+                         }
+                         else if constexpr (std::is_same_v<T, BoundedArrayRequest>)
+                         {
+                              seed = HashCombine(seed, data.elementType);
+                              seed = HashCombine(seed, data.size);
+                         }
+                         else if constexpr (std::is_same_v<T, PlatformIntegerRequest>)
+                         {
+                              seed = HashCombine(seed, data.kind);
+                         }
+                         else if constexpr (std::is_same_v<T, PointerRequest>)
+                         {
+                              seed = HashCombine(seed, data.elementType);
+                         }
+                         else if constexpr (std::is_same_v<T, VoidRequest>)
+                         {
+                         }
+                         else if constexpr (std::is_same_v<T, InvalidRequest>)
+                              seed = HashCombine(seed, &data);
+                         else
+                              std::terminate();
+                    },
+                    value.data);
 
                return seed;
           }
@@ -250,16 +252,21 @@ namespace ecpps::ir
 
                auto created = CreateType(request);
                return this->_typeDatabase.emplace(request, Node{.typePointer = std::move(created), .hitCount = 1})
-                   .first->second.typePointer.get();
+                    .first->second.typePointer.get();
           }
 
-          [[nodiscard]] std::size_t Count(void) const noexcept { return this->_typeDatabase.size(); }
+          [[nodiscard]] std::size_t Count(void) const noexcept
+          {
+               return this->_typeDatabase.size();
+          }
           [[nodiscard]] std::vector<NonownedNode> List(void) const noexcept
           {
                return this->_typeDatabase | std::views::values |
                       std::views::transform(
-                          [](const Node& node)
-                          { return NonownedNode{.typePointer = node.typePointer.get(), .hitCount = node.hitCount}; }) |
+                           [](const Node& node)
+                           {
+                                return NonownedNode{.typePointer = node.typePointer.get(), .hitCount = node.hitCount};
+                           }) |
                       std::ranges::to<std::vector>();
           }
 
@@ -299,34 +306,34 @@ namespace ecpps::ir
                          {
                          case typeSystem::TypeKind::Char:
                               return data.signedness == typeSystem::Signedness::Signed
-                                         ? std::make_unique<typeSystem::CharacterType>(
-                                               ecpps::typeSystem::CharacterSign::SignedChar,
-                                               std::format("{}signed char", cv), request.qualifiers)
-                                         : std::make_unique<typeSystem::CharacterType>(
-                                               ecpps::typeSystem::CharacterSign::UnsignedChar,
-                                               std::format("{}unsigned char", cv), request.qualifiers);
+                                          ? std::make_unique<typeSystem::CharacterType>(
+                                                 ecpps::typeSystem::CharacterSign::SignedChar,
+                                                 std::format("{}signed char", cv), request.qualifiers)
+                                          : std::make_unique<typeSystem::CharacterType>(
+                                                 ecpps::typeSystem::CharacterSign::UnsignedChar,
+                                                 std::format("{}unsigned char", cv), request.qualifiers);
                          case typeSystem::TypeKind::Short:
                          case typeSystem::TypeKind::Int:
                          case typeSystem::TypeKind::Long:
                          case typeSystem::TypeKind::LongLong:
                               return std::make_unique<typeSystem::IntegralType>(
-                                  data.signedness, data.size,
-                                  std::format("{}{}{}", cv,
-                                              data.signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
-                                              (
-                                                  [size = data.size] -> std::string
-                                                  {
-                                                       switch (size)
-                                                       {
-                                                       case typeSystem::TypeKind::Char: return "char";
-                                                       case typeSystem::TypeKind::Short: return "short";
-                                                       case typeSystem::TypeKind::Int: return "int";
-                                                       case typeSystem::TypeKind::Long: return "long";
-                                                       case typeSystem::TypeKind::LongLong: return "long long";
-                                                       }
-                                                       return "?";
-                                                  })()),
-                                  request.qualifiers);
+                                   data.signedness, data.size,
+                                   std::format("{}{}{}", cv,
+                                               data.signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
+                                               (
+                                                    [size = data.size] -> std::string
+                                                    {
+                                                         switch (size)
+                                                         {
+                                                         case typeSystem::TypeKind::Char: return "char";
+                                                         case typeSystem::TypeKind::Short: return "short";
+                                                         case typeSystem::TypeKind::Int: return "int";
+                                                         case typeSystem::TypeKind::Long: return "long";
+                                                         case typeSystem::TypeKind::LongLong: return "long long";
+                                                         }
+                                                         return "?";
+                                                    })()),
+                                   request.qualifiers);
                          }
                     }
                     if (std::holds_alternative<PlatformIntegerRequest>(request.data))
@@ -360,22 +367,22 @@ namespace ecpps::ir
                          }
 
                          return std::make_unique<typeSystem::IntegralType>(
-                             signedness, size,
-                             std::format("{}{}{}", cv, signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
-                                         (
-                                             [size] -> std::string
-                                             {
-                                                  switch (size)
-                                                  {
-                                                  case typeSystem::TypeKind::Char: return "char";
-                                                  case typeSystem::TypeKind::Short: return "short";
-                                                  case typeSystem::TypeKind::Int: return "int";
-                                                  case typeSystem::TypeKind::Long: return "long";
-                                                  case typeSystem::TypeKind::LongLong: return "long long";
-                                                  }
-                                                  return "?";
-                                             })()),
-                             request.qualifiers);
+                              signedness, size,
+                              std::format("{}{}{}", cv, signedness == typeSystem::Signedness::Signed ? "" : "unsigned ",
+                                          (
+                                               [size] -> std::string
+                                               {
+                                                    switch (size)
+                                                    {
+                                                    case typeSystem::TypeKind::Char: return "char";
+                                                    case typeSystem::TypeKind::Short: return "short";
+                                                    case typeSystem::TypeKind::Int: return "int";
+                                                    case typeSystem::TypeKind::Long: return "long";
+                                                    case typeSystem::TypeKind::LongLong: return "long long";
+                                                    }
+                                                    return "?";
+                                               })()),
+                              request.qualifiers);
                     }
                }
                else if (request.kind == TypeKind::Error)
@@ -398,8 +405,8 @@ namespace ecpps::ir
                     {
                          const auto& pointerData = std::get<PointerRequest>(request.data);
                          return std::make_unique<typeSystem::PointerType>(
-                             pointerData.elementType, std::format("{}* {}", pointerData.elementType->Name(), cv),
-                             request.qualifiers);
+                              pointerData.elementType, std::format("{}* {}", pointerData.elementType->Name(), cv),
+                              request.qualifiers);
                     }
                }
 
@@ -418,7 +425,7 @@ namespace ecpps::ir
           Scope* parentScope = nullptr;
           std::unordered_set<typeSystem::NonowningTypePointer, typeSystem::TypePointerHash,
                              typeSystem::TypePointerEqual>
-              types{};
+               types{};
           std::vector<std::shared_ptr<FunctionScope>> functions{};
           std::unordered_map<std::string, typeSystem::NonowningTypePointer> typeAliases{};
      };
@@ -428,12 +435,23 @@ namespace ecpps::ir
      {
           virtual ~ContextBase(void);
 
-          [[nodiscard]] const Scope& GetScope(void) const noexcept { return *this->_vScope; }
-          [[nodiscard]] Scope& GetScope(void) noexcept { return *this->_vScope; }
-          template <typename U> [[nodiscard]] U& GetScope(void) noexcept { return *static_cast<U*>(this->_vScope); }
+          [[nodiscard]] const Scope& GetScope(void) const noexcept
+          {
+               return *this->_vScope;
+          }
+          [[nodiscard]] Scope& GetScope(void) noexcept
+          {
+               return *this->_vScope;
+          }
+          template <typename U> [[nodiscard]] U& GetScope(void) noexcept
+          {
+               return *static_cast<U*>(this->_vScope);
+          }
 
      protected:
-          explicit ContextBase(Scope* vScope) : _vScope(vScope) {}
+          explicit ContextBase(Scope* vScope) : _vScope(vScope)
+          {
+          }
 
      private:
           Scope* _vScope;
@@ -464,7 +482,9 @@ namespace ecpps::ir
      };
      struct NamespaceContext final : ContextBase
      {
-          explicit NamespaceContext(Scope* vScope) : ContextBase(vScope) {}
+          explicit NamespaceContext(Scope* vScope) : ContextBase(vScope)
+          {
+          }
      };
 
      enum struct ConstexprType : std::uint_fast8_t
@@ -484,7 +504,9 @@ namespace ecpps::ir
      struct TemplateNonTypeParameter final : TemplateParameter
      {
           typeSystem::NonowningTypePointer type;
-          explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type) {}
+          explicit TemplateNonTypeParameter(typeSystem::NonowningTypePointer type) : type(type)
+          {
+          }
      };
      struct Variable final : ir::Entity
      {
@@ -542,7 +564,10 @@ namespace ecpps::ir
                     {
                          return std::get<Variable>(this->local).Name().value_or("<anonymous>");
                     }
-                    if (std::holds_alternative<ThisTag>(this->local)) { return "*this"; }
+                    if (std::holds_alternative<ThisTag>(this->local))
+                    {
+                         return "*this";
+                    }
                     return "__unknown_local";
                }
           };
@@ -550,7 +575,9 @@ namespace ecpps::ir
           std::vector<std::unique_ptr<TemplateParameter>> templateParameters{};
           std::vector<std::string> namespacePath{};
 
-          explicit FunctionScope(void) : ir::Entity(ir::EntityKind::Function, std::nullopt) {}
+          explicit FunctionScope(void) : ir::Entity(ir::EntityKind::Function, std::nullopt)
+          {
+          }
 
           using ir::Entity::SetName;
 
@@ -628,59 +655,59 @@ namespace ecpps::ir
           }
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Name> Name(
-              std::string value) && noexcept
+               std::string value) && noexcept
           {
                this->_scope->SetName(std::forward<std::remove_reference_t<decltype(value)>>(value));
                return std::move(*this);
           }
 
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ReturnType> ReturnType(
-              typeSystem::NonowningTypePointer value) && noexcept
+               typeSystem::NonowningTypePointer value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::returnType>(std::move(value));
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Parameters> Parameters(
-              std::vector<FunctionScope::Parameter> value) && noexcept
+               std::vector<FunctionScope::Parameter> value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::parameters>(std::move(value));
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::CallingConvention> CallingConvention(
-              abi::CallingConventionName value) && noexcept
+               abi::CallingConventionName value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::callingConvention>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::Linkage> Linkage(
-              abi::Linkage value) && noexcept
+               abi::Linkage value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::linkage>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsStatic> IsStatic(
-              bool value = true) && noexcept
+               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isStatic>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsInline> IsInline(
-              bool value = true) && noexcept
+               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isInline>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsFriend> IsFriend(
-              bool value = true) && noexcept
+               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isFriend>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsExtern> IsExtern(
-              bool value = true) && noexcept
+               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isExtern>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::ConstexprSpecifier> ConstexprSpecifier(
-              ConstexprType value) && noexcept
+               ConstexprType value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::constexprSpecifier>(value);
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::IsDllImportExport> IsDllImportExport(
-              bool value = true) && noexcept
+               bool value = true) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::isDllImportExport>(value);
           }
@@ -693,7 +720,7 @@ namespace ecpps::ir
                return std::move(*this).template PropertySetter<&FunctionScope::source>(std::move(value));
           }
           [[nodiscard]] FunctionScopeBuilder<TState | FunctionScopeBuilderState::NamespacePath> NamespacePath(
-              std::vector<std::string> value) && noexcept
+               std::vector<std::string> value) && noexcept
           {
                return std::move(*this).template PropertySetter<&FunctionScope::namespacePath>(std::move(value));
           }
@@ -710,13 +737,18 @@ namespace ecpps::ir
                this->_scope->*T = std::forward<std::remove_reference_t<decltype(value)>>(value);
                return std::move(*this);
           }
-          explicit FunctionScopeBuilder(FunctionScope* scope) : _scope(scope) {}
+          explicit FunctionScopeBuilder(FunctionScope* scope) : _scope(scope)
+          {
+          }
           FunctionScope* _scope;
 
           template <FunctionScopeBuilderState> friend struct FunctionScopeBuilder;
           friend inline FunctionScopeBuilder<> MakeFunctionScope(void);
      };
-     inline FunctionScopeBuilder<> MakeFunctionScope(void) { return FunctionScopeBuilder{new FunctionScope{}}; }
+     inline FunctionScopeBuilder<> MakeFunctionScope(void)
+     {
+          return FunctionScopeBuilder{new FunctionScope{}};
+     }
 
      struct ClassScope final : Scope
      {
@@ -731,7 +763,9 @@ namespace ecpps::ir
           bool isInline = false;
           std::vector<std::unique_ptr<NamespaceScope>> subNamespaces{};
           std::vector<std::unique_ptr<ClassScope>> classes{};
-          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt) {}
+          explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt)
+          {
+          }
           explicit NamespaceScope(std::string name, bool isInline = false)
               : ir::Entity(ir::EntityKind::Namespace, std::move(name)), isInline(isInline)
           {

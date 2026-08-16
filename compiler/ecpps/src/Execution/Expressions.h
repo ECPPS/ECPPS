@@ -16,19 +16,49 @@ namespace ecpps
 
           virtual ~ExpressionBase(void) = default;
 
-          [[nodiscard]] constexpr static bool IsExpression(void) noexcept { return true; }
+          [[nodiscard]] constexpr static bool IsExpression(void) noexcept
+          {
+               return true;
+          }
 
-          [[nodiscard]] virtual bool IsLValue(void) const noexcept { return false; }
-          [[nodiscard]] virtual bool IsXValue(void) const noexcept { return false; }
-          [[nodiscard]] virtual bool IsPRValue(void) const noexcept { return false; }
+          [[nodiscard]] virtual bool IsLValue(void) const noexcept
+          {
+               return false;
+          }
+          [[nodiscard]] virtual bool IsXValue(void) const noexcept
+          {
+               return false;
+          }
+          [[nodiscard]] virtual bool IsPRValue(void) const noexcept
+          {
+               return false;
+          }
 
-          [[nodiscard]] bool IsGLValue(void) const noexcept { return this->IsLValue() || this->IsXValue(); }
-          [[nodiscard]] bool IsRValue(void) const noexcept { return this->IsXValue() || this->IsPRValue(); }
+          [[nodiscard]] bool IsGLValue(void) const noexcept
+          {
+               return this->IsLValue() || this->IsXValue();
+          }
+          [[nodiscard]] bool IsRValue(void) const noexcept
+          {
+               return this->IsXValue() || this->IsPRValue();
+          }
 
-          [[nodiscard]] bool IsConstantExpression(void) const noexcept { return this->_isConstantExpression; }
-          [[nodiscard]] const ir::NodePointer& Value(void) const& noexcept { return this->_value; }
-          [[nodiscard]] ir::NodePointer&& Value(void) && noexcept { return std::move(this->_value); }
-          [[nodiscard]] typeSystem::NonowningTypePointer Type(void) const noexcept { return this->_type; }
+          [[nodiscard]] bool IsConstantExpression(void) const noexcept
+          {
+               return this->_isConstantExpression;
+          }
+          [[nodiscard]] const ir::NodePointer& Value(void) const& noexcept
+          {
+               return this->_value;
+          }
+          [[nodiscard]] ir::NodePointer&& Value(void) && noexcept
+          {
+               return std::move(this->_value);
+          }
+          [[nodiscard]] typeSystem::NonowningTypePointer Type(void) const noexcept
+          {
+               return this->_type;
+          }
 
      private:
           typeSystem::NonowningTypePointer _type;
@@ -42,7 +72,10 @@ namespace ecpps
      public:
           using ExpressionBase::ExpressionBase;
 
-          [[nodiscard]] bool IsLValue(void) const noexcept override { return true; }
+          [[nodiscard]] bool IsLValue(void) const noexcept override
+          {
+               return true;
+          }
      };
 
      class XValue final : public ExpressionBase
@@ -50,13 +83,19 @@ namespace ecpps
      public:
           using ExpressionBase::ExpressionBase;
 
-          [[nodiscard]] bool IsXValue(void) const noexcept override { return true; }
+          [[nodiscard]] bool IsXValue(void) const noexcept override
+          {
+               return true;
+          }
      };
      class PRValue final : public ExpressionBase
      {
      public:
           using ExpressionBase::ExpressionBase;
 
-          [[nodiscard]] bool IsPRValue(void) const noexcept override { return true; }
+          [[nodiscard]] bool IsPRValue(void) const noexcept override
+          {
+               return true;
+          }
      };
 } // namespace ecpps

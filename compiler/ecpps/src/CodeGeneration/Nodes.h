@@ -14,13 +14,18 @@ namespace ecpps::codegen
           /* static_assert(requires(const TOperand& operand) {
                 { operand.ToString() } -> std::same_as<std::string>;
            });*/
-          [[nodiscard]] std::size_t Size(void) const noexcept { return this->_size; }
+          [[nodiscard]] std::size_t Size(void) const noexcept
+          {
+               return this->_size;
+          }
 
      protected:
           std::size_t _size;
 
      private:
-          explicit OperandBase(const std::size_t width) : _size(width) {}
+          explicit OperandBase(const std::size_t width) : _size(width)
+          {
+          }
 
           friend TOperand;
      };
@@ -34,7 +39,10 @@ namespace ecpps::codegen
 
           [[nodiscard]] std::string ToString(void) const;
 
-          [[nodiscard]] const std::shared_ptr<abi::VirtualRegister>& Index(void) const noexcept { return this->_index; }
+          [[nodiscard]] const std::shared_ptr<abi::VirtualRegister>& Index(void) const noexcept
+          {
+               return this->_index;
+          }
 
      private:
           std::shared_ptr<abi::VirtualRegister> _index;
@@ -47,7 +55,10 @@ namespace ecpps::codegen
           }
           [[nodiscard]] std::string ToString(void) const;
 
-          [[nodiscard]] std::size_t Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] std::size_t Value(void) const noexcept
+          {
+               return this->_value;
+          }
 
      private:
           std::size_t _value;
@@ -62,8 +73,14 @@ namespace ecpps::codegen
           }
           [[nodiscard]] std::string ToString(void) const;
 
-          [[nodiscard]] const RegisterOperand& Register(void) const noexcept { return this->_register; }
-          [[nodiscard]] std::size_t Displacement(void) const noexcept { return this->_displacement; }
+          [[nodiscard]] const RegisterOperand& Register(void) const noexcept
+          {
+               return this->_register;
+          }
+          [[nodiscard]] std::size_t Displacement(void) const noexcept
+          {
+               return this->_displacement;
+          }
 
      private:
           RegisterOperand _register;
@@ -73,9 +90,15 @@ namespace ecpps::codegen
      struct IntegerRangeOperand : OperandBase<IntegerRangeOperand>
      {
           explicit IntegerRangeOperand(std::vector<unsigned char> values);
-          [[nodiscard]] std::string ToString(void) const { return std::format("{}", this->_values); }
+          [[nodiscard]] std::string ToString(void) const
+          {
+               return std::format("{}", this->_values);
+          }
 
-          [[nodiscard]] const std::vector<unsigned char>& Values(void) const noexcept { return this->_values; }
+          [[nodiscard]] const std::vector<unsigned char>& Values(void) const noexcept
+          {
+               return this->_values;
+          }
 
      private:
           std::vector<unsigned char> _values;
@@ -187,14 +210,18 @@ namespace ecpps::codegen
      {
           Operand source;
 
-          explicit PushInstruction(Operand source) : source(std::move(source)) {}
+          explicit PushInstruction(Operand source) : source(std::move(source))
+          {
+          }
      };
 
      struct PopInstruction
      {
           Operand destination;
 
-          explicit PopInstruction(Operand destination) : destination(std::move(destination)) {}
+          explicit PopInstruction(Operand destination) : destination(std::move(destination))
+          {
+          }
      };
 
      struct ReturnInstruction
@@ -205,7 +232,9 @@ namespace ecpps::codegen
      {
           std::string functionName;
 
-          explicit CallInstruction(std::string name) : functionName(std::move(name)) {}
+          explicit CallInstruction(std::string name) : functionName(std::move(name))
+          {
+          }
      };
 
      struct TakeAddressInstruction
@@ -305,9 +334,9 @@ namespace ecpps::codegen
      };
 
      using Instruction =
-         std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                      CallInstruction, TakeAddressInstruction,
-                      SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
+          std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
+                       CallInstruction, TakeAddressInstruction,
+                       SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

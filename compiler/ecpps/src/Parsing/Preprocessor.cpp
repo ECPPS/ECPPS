@@ -161,14 +161,14 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     }
 
                     std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
-                        fileName, header,
-                        (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
+                         fileName, header,
+                         (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
                     if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
                     {
                          const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
                          tokens.append_range(
-                             Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
+                              Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
                     }
                }
                else if (directive == "define")
@@ -239,11 +239,16 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     while (sourceIterator != source.end() && IsCharacterContinuation(*sourceIterator))
                          macroName += *sourceIterator++;
 
-                    bool wasConditionMet = isIfndef
-                                               ? std::ranges::none_of(macros, [&macroName](const MacroReplacement& m)
-                                                                      { return m.name == macroName; })
-                                               : std::ranges::any_of(macros, [&macroName](const MacroReplacement& m)
-                                                                     { return m.name == macroName; });
+                    bool wasConditionMet = isIfndef ? std::ranges::none_of(macros,
+                                                                           [&macroName](const MacroReplacement& m)
+                                                                           {
+                                                                                return m.name == macroName;
+                                                                           })
+                                                    : std::ranges::any_of(macros,
+                                                                          [&macroName](const MacroReplacement& m)
+                                                                          {
+                                                                               return m.name == macroName;
+                                                                          });
 
                     std::vector<PreprocessingToken> branchTokens;
                     std::string builtSource{};
@@ -269,8 +274,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               }
 
                               bool isDirective =
-                                  (nextDirective == "else" || nextDirective == "endif" || nextDirective == "elif" ||
-                                   nextDirective == "elifdef" || nextDirective == "elifndef");
+                                   (nextDirective == "else" || nextDirective == "endif" || nextDirective == "elif" ||
+                                    nextDirective == "elifdef" || nextDirective == "elifndef");
                               if (isDirective)
                               {
 
@@ -297,7 +302,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         {
                                              auto it = std::ranges::find_if(macros,
                                                                             [&elifCondition](const MacroReplacement& m)
-                                                                            { return m.name == elifCondition; });
+                                                                            {
+                                                                                 return m.name == elifCondition;
+                                                                            });
                                              wasConditionMet = (it != macros.end());
                                         }
                                         sourceIterator = peekIt;
@@ -318,7 +325,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         {
                                              auto it = std::ranges::find_if(macros,
                                                                             [&elifMacroName](const MacroReplacement& m)
-                                                                            { return m.name == elifMacroName; });
+                                                                            {
+                                                                                 return m.name == elifMacroName;
+                                                                            });
                                              wasConditionMet = isElifndef ? (it == macros.end()) : (it != macros.end());
                                         }
                                         sourceIterator = peekIt;
@@ -357,8 +366,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          location.position++;
                     }
 
-                    auto it = std::ranges::find_if(macros, [&macroName](const MacroReplacement& m)
-                                                   { return m.name == macroName; });
+                    auto it = std::ranges::find_if(macros,
+                                                   [&macroName](const MacroReplacement& m)
+                                                   {
+                                                        return m.name == macroName;
+                                                   });
                     if (it != macros.end()) macros.erase(it);
                }
                else if (directive == "error")
@@ -454,8 +466,11 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                {
 
                     location.endPosition = location.position;
-                    auto it = std::ranges::find_if(macros, [&identifier](const MacroReplacement& m)
-                                                   { return m.name == identifier; });
+                    auto it = std::ranges::find_if(macros,
+                                                   [&identifier](const MacroReplacement& m)
+                                                   {
+                                                        return m.name == identifier;
+                                                   });
 
                     if (it != macros.end())
                     {
@@ -683,9 +698,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           else
           {
                this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
-                   std::format("Invalid character '{:x}'",
-                               static_cast<std::uint32_t>(static_cast<unsigned char>(character))),
-                   location));
+                    std::format("Invalid character '{:x}'",
+                                static_cast<std::uint32_t>(static_cast<unsigned char>(character))),
+                    location));
           }
      }
 
@@ -727,9 +742,9 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)
 {
      static std::unordered_set<std::string> OperatorsAndPunctuators{
-         "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
-         "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
-         "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
+          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
+          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
+          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
 
      return OperatorsAndPunctuators.contains(string);
 }
@@ -856,14 +871,14 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
-    const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
      return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}), location, macros);
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionLike(
-    const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-    const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
      std::unordered_map<std::string, std::string> parameterMap;
      std::unordered_map<std::string, std::string> rawParameterMap;
@@ -897,7 +912,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     auto rf = raw.find_first_not_of(" \t\n\r");
                     auto rl = raw.find_last_not_of(" \t\n\r");
                     rawParameterMap[parameterName] =
-                        (rf != std::string::npos) ? raw.substr(rf, rl - rf + 1) : std::string{};
+                         (rf != std::string::npos) ? raw.substr(rf, rl - rf + 1) : std::string{};
                }
                else
                     rawParameterMap[parameterName] = {};

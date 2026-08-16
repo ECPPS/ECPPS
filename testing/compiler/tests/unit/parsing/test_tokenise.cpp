@@ -64,7 +64,10 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
           int identifier_count = 0;
           for (const auto& token : tokens)
           {
-               if (token.type == TokenType::Identifier) { identifier_count++; }
+               if (token.type == TokenType::Identifier)
+               {
+                    identifier_count++;
+               }
           }
 
           REQUIRE((identifier_count >= 4));
@@ -125,7 +128,10 @@ TEST_CASE("Tokeniser - Integer literals", "[parsing][tokeniser]")
           int literal_count = 0;
           for (const auto& token : tokens)
           {
-               if (token.type == TokenType::Literal) { literal_count++; }
+               if (token.type == TokenType::Literal)
+               {
+                    literal_count++;
+               }
           }
 
           REQUIRE((literal_count >= 4));

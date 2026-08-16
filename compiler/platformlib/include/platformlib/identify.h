@@ -21,7 +21,9 @@ namespace ecpps::platformlib
      struct PlatformIdentity
      {
           ArchitectureBitness bitness;
-          explicit PlatformIdentity(const ArchitectureBitness bitness) : bitness(bitness) {}
+          explicit PlatformIdentity(const ArchitectureBitness bitness) : bitness(bitness)
+          {
+          }
 
           /// <summary>
           /// Calling this from other platform than x86 is undefined

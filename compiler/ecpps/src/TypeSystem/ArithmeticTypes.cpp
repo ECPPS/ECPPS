@@ -61,7 +61,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonWith(
-    const ecpps::typeSystem::NonowningTypePointer other) const
+     const ecpps::typeSystem::NonowningTypePointer other) const
 {
      if (other == nullptr) return nullptr;
 
@@ -81,7 +81,7 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
           request.kind = ir::TypeKind::Fundamental;
           request.qualifiers = signedType->qualifiers();
           request.data =
-              ir::StandardSignedIntegerRequest{.size = signedType->Kind(), .signedness = Signedness::Unsigned};
+               ir::StandardSignedIntegerRequest{.size = signedType->Kind(), .signedness = Signedness::Unsigned};
 
           return ir::GetTypeContext().Get(request);
           // return ecpps::ir::GetTypeContext().Get(ecpps::ir::GetTypeContext().PushType(
@@ -94,7 +94,7 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::CharacterType::CompareTo(
-    const NonowningTypePointer other) const
+     const NonowningTypePointer other) const
 {
      if (!this->_isUnqualified || !IsCharacter(other)) return IntegralType::CompareTo(other);
 
@@ -122,53 +122,53 @@ std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
 // predefined builtin types
 // void
 std::unique_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
-    std::make_unique<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
 
 // char
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_char =
-    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "char",
-                                                ecpps::typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "char",
+                                                 ecpps::typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_signedChar =
-    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::SignedChar, "signed char",
-                                                ecpps::typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::SignedChar, "signed char",
+                                                 ecpps::typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_unsignedChar =
-    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::UnsignedChar, "unsigned char",
-                                                ecpps::typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::UnsignedChar, "unsigned char",
+                                                 ecpps::typeSystem::Qualifiers::None);
 
 // short
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_short =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::Short, "short",
-                                               typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::Short, "short",
+                                                typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedShort =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Short,
-                                               "unsigned short", typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Short,
+                                                "unsigned short", typeSystem::Qualifiers::None);
 
 // int
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_int = std::make_unique<typeSystem::IntegralType>(
-    typeSystem::Signedness::Signed, typeSystem::TypeKind::Int, "int", typeSystem::Qualifiers::None);
+     typeSystem::Signedness::Signed, typeSystem::TypeKind::Int, "int", typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedInt =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Int,
-                                               "unsigned int", typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Int,
+                                                "unsigned int", typeSystem::Qualifiers::None);
 
 // long
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_long = std::make_unique<typeSystem::IntegralType>(
-    typeSystem::Signedness::Signed, typeSystem::TypeKind::Long, "long", typeSystem::Qualifiers::None);
+     typeSystem::Signedness::Signed, typeSystem::TypeKind::Long, "long", typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLong =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Long,
-                                               "unsigned long", typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::Long,
+                                                "unsigned long", typeSystem::Qualifiers::None);
 
 // long long
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_longLong =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::LongLong,
-                                               "long long", typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Signed, typeSystem::TypeKind::LongLong,
+                                                "long long", typeSystem::Qualifiers::None);
 std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLongLong =
-    std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
-                                               "unsigned long long", typeSystem::Qualifiers::None);
+     std::make_unique<typeSystem::IntegralType>(typeSystem::Signedness::Unsigned, typeSystem::TypeKind::LongLong,
+                                                "unsigned long long", typeSystem::Qualifiers::None);
 
 // commonly used types
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
-    std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
-                                                ecpps::typeSystem::Qualifiers::Const);
+     std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
+                                                 ecpps::typeSystem::Qualifiers::Const);
 
 ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const IntegralType* integer)
 {
@@ -209,9 +209,15 @@ const ecpps::typeSystem::IntegralType* ecpps::typeSystem::PromoteInteger(const I
      return integer;
 }
 
-std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::PointerType::Size(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
-std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(NonowningTypePointer other) const
 {
@@ -297,13 +303,16 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWith(
-    [[maybe_unused]] NonowningTypePointer other) const
+     [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;
 }
 
-std::size_t ecpps::typeSystem::ReferenceType::Size(void) const noexcept { return abi::ABI::Current().PointerSize(); }
+std::size_t ecpps::typeSystem::ReferenceType::Size(void) const noexcept
+{
+     return abi::ABI::Current().PointerSize();
+}
 
 std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 {
@@ -311,7 +320,7 @@ std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
-    [[maybe_unused]] NonowningTypePointer other) const
+     [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      throw nullptr;
@@ -323,7 +332,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) con
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ReferenceType::CommonWith(
-    [[maybe_unused]] NonowningTypePointer other) const
+     [[maybe_unused]] NonowningTypePointer other) const
 {
      // TODO: Implement
      return nullptr;

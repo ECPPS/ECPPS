@@ -20,8 +20,8 @@ namespace ecpps::codegen
      {
           std::string symbolName;
           std::function<std::vector<std::byte>(
-              Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
-              apply;
+               Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
+               apply;
           std::size_t applyOutputSize;
      };
      struct StringRelocation
@@ -46,7 +46,10 @@ namespace ecpps::codegen
      public:
           virtual ~CodeEmitter(void);
           [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
-          [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
 
           virtual void PatchCalls(std::vector<std::byte>& source,
                                   std::unordered_map<std::string, std::size_t>& routines) = 0;
@@ -58,7 +61,9 @@ namespace ecpps::codegen
           std::vector<std::size_t> _stringRelocation{};
 
      protected:
-          explicit CodeEmitter(std::string name) : _name(std::move(name)) {}
+          explicit CodeEmitter(std::string name) : _name(std::move(name))
+          {
+          }
 
           std::size_t _currentInstructionBase{};
           // PRE emitting: used to store locations of calls to be patched later
@@ -82,7 +87,7 @@ namespace ecpps::codegen
           /// Custom instruction emitter. By default a no-op.
           /// </summary>
           [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(
-              [[maybe_unused]] const CustomInstruction& instruction)
+               [[maybe_unused]] const CustomInstruction& instruction)
           {
                return {};
           }

@@ -1,21 +1,25 @@
 ---
 Language: Cpp
 BasedOnStyle: Microsoft
+ReferenceAlignment: Left
 PointerAlignment: Left
 QualifierAlignment: Left
-NamespaceIndentation: All
 BreakBeforeBraces: Allman
 SpaceAfterTemplateKeyword: true
-TabWidth: 5
 IndentWidth: 5
+TabWidth: 5
+UseTab: Never
+AccessModifierOffset: -5
+NamespaceIndentation: All
+IndentRequires: true
+ContinuationIndentWidth: 5
 AllowShortEnumsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
-AllowShortLambdasOnASingleLine: All
-AllowShortBlocksOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
 AllowShortIfStatementsOnASingleLine: Always
 AllowShortLoopsOnASingleLine: true
-IndentRequires: true
 IncludeCategories:
     # Headers in <> with .h extension.
     - Regex: '<([A-Za-z0-9\/-_])+\.h>'
@@ -29,4 +33,6 @@ IncludeCategories:
 
 Cpp11BracedListStyle: true
 SpaceBeforeParens: ControlStatements
-AccessModifierOffset: -5
+BreakBeforeTernaryOperators: true
+AlignOperands: Align
+ColumnLimit: 120

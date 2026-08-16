@@ -15,25 +15,25 @@ TEST_CASE("Type Comparison - operator==", "[typesystem][type_comparison]")
 {
      // Create some test types for comparison
      ecpps::ir::TypeRequest int32RequestA{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest int32RequestB{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest uint32Request{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Unsigned}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Unsigned}};
      ecpps::ir::TypeRequest int64Request{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::LongLong,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::LongLong,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* int32A = ecpps::ir::GetTypeContext().Get(int32RequestA);
      const auto* int32B = ecpps::ir::GetTypeContext().Get(int32RequestB);
@@ -68,25 +68,25 @@ TEST_CASE("Type Comparison - operator==", "[typesystem][type_comparison]")
 TEST_CASE("Type Comparison - CompareTo conversion sequences", "[typesystem][type_comparison]")
 {
      ecpps::ir::TypeRequest int32SignedRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest int32UnsignedRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Unsigned}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Unsigned}};
      ecpps::ir::TypeRequest charRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest shortRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Short,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Short,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* int32Signed = ecpps::ir::GetTypeContext().Get(int32SignedRequest);
      const auto* int32Unsigned = ecpps::ir::GetTypeContext().Get(int32UnsignedRequest);
@@ -124,20 +124,20 @@ TEST_CASE("Type Comparison - CompareTo conversion sequences", "[typesystem][type
 TEST_CASE("Type Comparison - CommonWith for binary operators", "[typesystem][type_comparison]")
 {
      ecpps::ir::TypeRequest int32Request{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest int64Request{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::LongLong,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::LongLong,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest charRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* int32 = ecpps::ir::GetTypeContext().Get(int32Request);
      const auto* int64 = ecpps::ir::GetTypeContext().Get(int64Request);
@@ -167,15 +167,16 @@ TEST_CASE("Type Comparison - CommonWith for binary operators", "[typesystem][typ
 
 TEST_CASE("Type Comparison - Pointer type comparisons", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      ecpps::ir::TypeRequest charRequest{
-         .kind = ecpps::ir::TypeKind::Fundamental,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
-                                                         .signedness = Signedness::Signed}};
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Char,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
      const auto* charType = ecpps::ir::GetTypeContext().Get(charRequest);
@@ -194,50 +195,67 @@ TEST_CASE("Type Comparison - Pointer type comparisons", "[typesystem][type_compa
      const auto* intPtr2 = ecpps::ir::GetTypeContext().Get(intPtr2Request);
      const auto* charPtr = ecpps::ir::GetTypeContext().Get(charPtrRequest);
 
-     SECTION("Pointers to same type are equal") { REQUIRE((*intPtr == intPtr2)); }
+     SECTION("Pointers to same type are equal")
+     {
+          REQUIRE((*intPtr == intPtr2));
+     }
 
-     SECTION("Pointers to different types are not equal") { REQUIRE_FALSE((*intPtr == charPtr)); }
+     SECTION("Pointers to different types are not equal")
+     {
+          REQUIRE_FALSE((*intPtr == charPtr));
+     }
 
-     SECTION("Pointer comparison with non-pointer") { REQUIRE_FALSE((*intPtr == intType)); }
+     SECTION("Pointer comparison with non-pointer")
+     {
+          REQUIRE_FALSE((*intPtr == intType));
+     }
 }
 
 TEST_CASE("Type Comparison - Array type comparisons", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intArray10Request{.kind = ecpps::ir::TypeKind::Compound,
                                               .qualifiers = Qualifiers::None,
                                               .data =
-                                                  ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
+                                                   ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
      ecpps::ir::TypeRequest intArray10DupRequest{
-         .kind = ecpps::ir::TypeKind::Compound,
-         .qualifiers = Qualifiers::None,
-         .data = ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
+          .kind = ecpps::ir::TypeKind::Compound,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
      ecpps::ir::TypeRequest intArray20Request{.kind = ecpps::ir::TypeKind::Compound,
                                               .qualifiers = Qualifiers::None,
                                               .data =
-                                                  ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 20}};
+                                                   ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 20}};
 
      const auto* intArray10 = ecpps::ir::GetTypeContext().Get(intArray10Request);
      const auto* intArray10Dup = ecpps::ir::GetTypeContext().Get(intArray10DupRequest);
      const auto* intArray20 = ecpps::ir::GetTypeContext().Get(intArray20Request);
 
-     SECTION("Arrays of same type and size are equal") { REQUIRE((*intArray10 == intArray10Dup)); }
+     SECTION("Arrays of same type and size are equal")
+     {
+          REQUIRE((*intArray10 == intArray10Dup));
+     }
 
-     SECTION("Arrays of same type but different size are not equal") { REQUIRE_FALSE((*intArray10 == intArray20)); }
+     SECTION("Arrays of same type but different size are not equal")
+     {
+          REQUIRE_FALSE((*intArray10 == intArray20));
+     }
 }
 
 TEST_CASE("Type Comparison - Multi-level pointer comparisons", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
@@ -266,19 +284,29 @@ TEST_CASE("Type Comparison - Multi-level pointer comparisons", "[typesystem][typ
                                               .data = ecpps::ir::PointerRequest{.elementType = intPtr2}};
      const auto* intPtrPtr2 = ecpps::ir::GetTypeContext().Get(intPtrPtr2Request);
 
-     SECTION("int* != int**") { REQUIRE_FALSE((*intPtr == intPtrPtr)); }
+     SECTION("int* != int**")
+     {
+          REQUIRE_FALSE((*intPtr == intPtrPtr));
+     }
 
-     SECTION("int** == int** (same levels)") { REQUIRE((*intPtrPtr == intPtrPtr2)); }
+     SECTION("int** == int** (same levels)")
+     {
+          REQUIRE((*intPtrPtr == intPtrPtr2));
+     }
 
-     SECTION("int** != int***") { REQUIRE_FALSE((*intPtrPtr == intPtrPtrPtr)); }
+     SECTION("int** != int***")
+     {
+          REQUIRE_FALSE((*intPtrPtr == intPtrPtrPtr));
+     }
 }
 
 TEST_CASE("Type Comparison - Const qualifiers", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
 
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
@@ -306,19 +334,29 @@ TEST_CASE("Type Comparison - Conversion sequence ranking", "[typesystem][type_co
                    static_cast<int>(ConversionKind::IntegralConversion)));
      }
 
-     SECTION("LvalueToRValue ranks highest") { REQUIRE((static_cast<int>(ConversionKind::LvalueToRValue) == 16)); }
+     SECTION("LvalueToRValue ranks highest")
+     {
+          REQUIRE((static_cast<int>(ConversionKind::LvalueToRValue) == 16));
+     }
 
-     SECTION("Ellipsis (variadic) ranks lowest") { REQUIRE((static_cast<int>(ConversionKind::Ellipsis) == 1)); }
+     SECTION("Ellipsis (variadic) ranks lowest")
+     {
+          REQUIRE((static_cast<int>(ConversionKind::Ellipsis) == 1));
+     }
 
-     SECTION("UserDefined ranks low") { REQUIRE((static_cast<int>(ConversionKind::UserDefined) == 2)); }
+     SECTION("UserDefined ranks low")
+     {
+          REQUIRE((static_cast<int>(ConversionKind::UserDefined) == 2));
+     }
 }
 
 TEST_CASE("Type Comparison - Cross-category comparisons", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
@@ -331,19 +369,29 @@ TEST_CASE("Type Comparison - Cross-category comparisons", "[typesystem][type_com
                                             .data = ecpps::ir::BoundedArrayRequest{.elementType = intType, .size = 10}};
      const auto* intArray = ecpps::ir::GetTypeContext().Get(intArrayRequest);
 
-     SECTION("int != int*") { REQUIRE_FALSE((*intType == intPtr)); }
+     SECTION("int != int*")
+     {
+          REQUIRE_FALSE((*intType == intPtr));
+     }
 
-     SECTION("int != int[]") { REQUIRE_FALSE((*intType == intArray)); }
+     SECTION("int != int[]")
+     {
+          REQUIRE_FALSE((*intType == intArray));
+     }
 
-     SECTION("int* != int[]") { REQUIRE_FALSE((*intPtr == intArray)); }
+     SECTION("int* != int[]")
+     {
+          REQUIRE_FALSE((*intPtr == intArray));
+     }
 }
 
 TEST_CASE("Type Comparison - Nullptr and void* conversions", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intPtrRequest{.kind = ecpps::ir::TypeKind::Compound,
@@ -361,10 +409,11 @@ TEST_CASE("Type Comparison - Nullptr and void* conversions", "[typesystem][type_
 
 TEST_CASE("Type Comparison - Array decay to pointer", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      ecpps::ir::TypeRequest intArrayRequest{.kind = ecpps::ir::TypeKind::Compound,
@@ -407,17 +456,24 @@ TEST_CASE("Type Comparison - Floating point comparisons", "[typesystem][type_com
 
 TEST_CASE("Type Comparison - Type traits affect comparison", "[typesystem][type_comparison]")
 {
-     ecpps::ir::TypeRequest intRequest{.kind = ecpps::ir::TypeKind::Fundamental,
-                                       .qualifiers = Qualifiers::None,
-                                       .data = ecpps::ir::StandardSignedIntegerRequest{
-                                           .size = ecpps::typeSystem::TypeKind::Int, .signedness = Signedness::Signed}};
+     ecpps::ir::TypeRequest intRequest{
+          .kind = ecpps::ir::TypeKind::Fundamental,
+          .qualifiers = Qualifiers::None,
+          .data = ecpps::ir::StandardSignedIntegerRequest{.size = ecpps::typeSystem::TypeKind::Int,
+                                                          .signedness = Signedness::Signed}};
      const auto* intType = ecpps::ir::GetTypeContext().Get(intRequest);
 
      auto traits = intType->Traits();
 
-     SECTION("Integral types have Arithmetic trait") { REQUIRE(traits.Has(TypeTraitEnum::Arithmetic)); }
+     SECTION("Integral types have Arithmetic trait")
+     {
+          REQUIRE(traits.Has(TypeTraitEnum::Arithmetic));
+     }
 
-     SECTION("Integral types have Integral trait") { REQUIRE(traits.Has(TypeTraitEnum::Integral)); }
+     SECTION("Integral types have Integral trait")
+     {
+          REQUIRE(traits.Has(TypeTraitEnum::Integral));
+     }
 
      SECTION("Pointer types have Pointer trait")
      {

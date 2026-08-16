@@ -21,12 +21,17 @@ namespace ecpps::ast
      class Node
      {
      public:
-          explicit Node(Location location) : _location(location) {}
+          explicit Node(Location location) : _location(location)
+          {
+          }
           virtual ~Node(void);
 
           [[nodiscard]] virtual std::string ToString(std::size_t indent) const = 0;
 
-          [[nodiscard]] const Location& Source(void) const noexcept { return this->_location; }
+          [[nodiscard]] const Location& Source(void) const noexcept
+          {
+               return this->_location;
+          }
 
      private:
           Location _location;
@@ -156,8 +161,8 @@ namespace ecpps::ast
 
                     for (const auto& arg : this->_arguments)
                          built +=
-                             (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
-                             ", ";
+                              (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
+                              ", ";
 
                     built.pop_back();
                     built.pop_back();
@@ -165,8 +170,14 @@ namespace ecpps::ast
                }
                return built + "]]";
           }
-          [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
-          [[nodiscard]] const SBOVector<Token>& Arguments(void) const noexcept { return this->_arguments; }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] const SBOVector<Token>& Arguments(void) const noexcept
+          {
+               return this->_arguments;
+          }
 
      private:
           std::string _name;
@@ -282,7 +293,10 @@ namespace ecpps::ast
                return built + ";";
           }
 
-          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
+          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept
+          {
+               return this->_signature;
+          }
 
      private:
           FunctionSignature _signature;
@@ -310,8 +324,14 @@ namespace ecpps::ast
                return built + "\n" + std::string(indent * PrettyIndent, ' ') + "}";
           }
 
-          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept { return this->_signature; }
-          [[nodiscard]] const SBOVector<NodePointer>& Body(void) const noexcept { return this->_body; }
+          [[nodiscard]] const FunctionSignature& Signature(void) const noexcept
+          {
+               return this->_signature;
+          }
+          [[nodiscard]] const SBOVector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
 
      private:
           FunctionSignature _signature;
@@ -343,8 +363,14 @@ namespace ecpps::ast
                       ")";
           }
 
-          [[nodiscard]] const NodePointer& Function(void) const noexcept { return this->_function; }
-          [[nodiscard]] const SBOVector<NodePointer>& Arguments(void) const noexcept { return this->_arguments; }
+          [[nodiscard]] const NodePointer& Function(void) const noexcept
+          {
+               return this->_function;
+          }
+          [[nodiscard]] const SBOVector<NodePointer>& Arguments(void) const noexcept
+          {
+               return this->_arguments;
+          }
 
      private:
           NodePointer _function;
@@ -356,7 +382,9 @@ namespace ecpps::ast
      class ThisNode final : public Node
      {
      public:
-          explicit ThisNode(Location source) : Node(source) {}
+          explicit ThisNode(Location source) : Node(source)
+          {
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "this";
@@ -376,14 +404,23 @@ namespace ecpps::ast
               : Node(source), _value(value), _operand(std::move(operand)), _type(type)
           {
           }
-          [[nodiscard]] const Operator& Value(void) const noexcept { return this->_value; }
-          [[nodiscard]] const NodePointer& Operand(void) const noexcept { return this->_operand; }
-          [[nodiscard]] UnaryOperatorType UnaryType(void) const noexcept { return this->_type; }
+          [[nodiscard]] const Operator& Value(void) const noexcept
+          {
+               return this->_value;
+          }
+          [[nodiscard]] const NodePointer& Operand(void) const noexcept
+          {
+               return this->_operand;
+          }
+          [[nodiscard]] UnaryOperatorType UnaryType(void) const noexcept
+          {
+               return this->_type;
+          }
           [[nodiscard]] std::string ToString([[maybe_unused]] const std::size_t indent) const override
           {
                return this->_type == UnaryOperatorType::Postfix
-                          ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
-                          : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0));
+                           ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
+                           : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0));
           }
 
      private:
@@ -399,9 +436,18 @@ namespace ecpps::ast
               : Node(source), _left(std::move(left)), _value(value), _right(std::move(right))
           {
           }
-          [[nodiscard]] const Operator& Value(void) const noexcept { return this->_value; }
-          [[nodiscard]] const NodePointer& Left(void) const noexcept { return this->_left; }
-          [[nodiscard]] const NodePointer& Right(void) const noexcept { return this->_right; }
+          [[nodiscard]] const Operator& Value(void) const noexcept
+          {
+               return this->_value;
+          }
+          [[nodiscard]] const NodePointer& Left(void) const noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const NodePointer& Right(void) const noexcept
+          {
+               return this->_right;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "(" + this->_left->ToString(0) + " " +
@@ -422,7 +468,10 @@ namespace ecpps::ast
           {
           }
 
-          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_expression; }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept
+          {
+               return this->_expression;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                if (this->_expression == nullptr) return std::string(indent * PrettyIndent, ' ') + "return";
@@ -441,8 +490,14 @@ namespace ecpps::ast
           {
           }
 
-          [[nodiscard]] const NodePointer& AliasName(void) const noexcept { return this->_aliasName; }
-          [[nodiscard]] const NodePointer& TargetType(void) const noexcept { return this->_targetType; }
+          [[nodiscard]] const NodePointer& AliasName(void) const noexcept
+          {
+               return this->_aliasName;
+          }
+          [[nodiscard]] const NodePointer& TargetType(void) const noexcept
+          {
+               return this->_targetType;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
@@ -502,9 +557,18 @@ namespace ecpps::ast
           {
           }
 
-          [[nodiscard]] const NodePointer& Type(void) const noexcept { return this->_type; }
-          [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept { return this->_declarators; }
-          [[nodiscard]] const Flags& GetFlags(void) const noexcept { return this->_flags; }
+          [[nodiscard]] const NodePointer& Type(void) const noexcept
+          {
+               return this->_type;
+          }
+          [[nodiscard]] const std::vector<Declarator>& Declarators(void) const noexcept
+          {
+               return this->_declarators;
+          }
+          [[nodiscard]] const Flags& GetFlags(void) const noexcept
+          {
+               return this->_flags;
+          }
           [[nodiscard]] const std::optional<NodePointer>& ExplicitSpecifier(void) const noexcept
           {
                return this->_explicitSpecifier;
@@ -551,8 +615,13 @@ namespace ecpps::ast
      class BooleanLiteralNode final : public Node
      {
      public:
-          explicit BooleanLiteralNode(const bool value, Location source) : Node(source), _value(value) {}
-          [[nodiscard]] bool Value(void) const noexcept { return this->_value; }
+          explicit BooleanLiteralNode(const bool value, Location source) : Node(source), _value(value)
+          {
+          }
+          [[nodiscard]] bool Value(void) const noexcept
+          {
+               return this->_value;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + (this->_value ? "true" : "false");
@@ -564,13 +633,18 @@ namespace ecpps::ast
      class StringLiteralNode final : public Node
      {
      public:
-          explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value)) {}
+          explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value))
+          {
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept { return this->_value; }
+          [[nodiscard]] const std::string& Value(void) const noexcept
+          {
+               return this->_value;
+          }
 
      private:
           std::string _value;
@@ -579,8 +653,13 @@ namespace ecpps::ast
      class IntegerLiteralNode final : public Node
      {
      public:
-          explicit IntegerLiteralNode(const unsigned long long value, Location source) : Node(source), _value(value) {}
-          [[nodiscard]] unsigned long long Value(void) const noexcept { return this->_value; }
+          explicit IntegerLiteralNode(const unsigned long long value, Location source) : Node(source), _value(value)
+          {
+          }
+          [[nodiscard]] unsigned long long Value(void) const noexcept
+          {
+               return this->_value;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
@@ -593,8 +672,13 @@ namespace ecpps::ast
      class CharacterLiteralNode final : public Node
      {
      public:
-          explicit CharacterLiteralNode(const char value, Location source) : Node(source), _value(value) {}
-          [[nodiscard]] char Value(void) const noexcept { return this->_value; }
+          explicit CharacterLiteralNode(const char value, Location source) : Node(source), _value(value)
+          {
+          }
+          [[nodiscard]] char Value(void) const noexcept
+          {
+               return this->_value;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + std::to_string(this->_value);
@@ -607,7 +691,9 @@ namespace ecpps::ast
      class GlobalScopeNode final : public Node
      {
      public:
-          explicit GlobalScopeNode(Location source) : Node(source) {}
+          explicit GlobalScopeNode(Location source) : Node(source)
+          {
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' '); // NOLINT
@@ -621,9 +707,18 @@ namespace ecpps::ast
               : Node(source), _node(std::move(node)), _canBeTypeId(canBeTypeId)
           {
           }
-          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_node; }
-          [[nodiscard]] NodePointer&& Value(void) noexcept { return std::move(this->_node); }
-          [[nodiscard]] bool CanBeTypeId(void) const noexcept { return this->_canBeTypeId; }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept
+          {
+               return this->_node;
+          }
+          [[nodiscard]] NodePointer&& Value(void) noexcept
+          {
+               return std::move(this->_node);
+          }
+          [[nodiscard]] bool CanBeTypeId(void) const noexcept
+          {
+               return this->_canBeTypeId;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "sizeof(" +
@@ -642,9 +737,18 @@ namespace ecpps::ast
               : Node(source), _node(std::move(node)), _canBeTypeId(canBeTypeId)
           {
           }
-          [[nodiscard]] const NodePointer& Value(void) const noexcept { return this->_node; }
-          [[nodiscard]] NodePointer&& Value(void) noexcept { return std::move(this->_node); }
-          [[nodiscard]] bool CanBeTypeId(void) const noexcept { return this->_canBeTypeId; }
+          [[nodiscard]] const NodePointer& Value(void) const noexcept
+          {
+               return this->_node;
+          }
+          [[nodiscard]] NodePointer&& Value(void) noexcept
+          {
+               return std::move(this->_node);
+          }
+          [[nodiscard]] bool CanBeTypeId(void) const noexcept
+          {
+               return this->_canBeTypeId;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * PrettyIndent, ' ') + "alignof(" +
@@ -690,9 +794,17 @@ namespace ecpps::ast
      {
           NodePointer value{};
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
-          bool HasValue(void) const noexcept { return this->value != nullptr; }
-          bool WasSuccessful(void) const noexcept { return this->wasSuccessful; }
-          explicit ASTExpected(NodePointer value) : value(std::move(value)), wasSuccessful(true) {}
+          bool HasValue(void) const noexcept
+          {
+               return this->value != nullptr;
+          }
+          bool WasSuccessful(void) const noexcept
+          {
+               return this->wasSuccessful;
+          }
+          explicit ASTExpected(NodePointer value) : value(std::move(value)), wasSuccessful(true)
+          {
+          }
           explicit ASTExpected(NodePointer value, std::vector<diagnostics::DiagnosticsMessage> diagnostics)
               : value(std::move(value)), diagnostics(std::move(diagnostics)), wasSuccessful(false)
           {
@@ -715,7 +827,10 @@ namespace ecpps::ast
           std::size_t _position{};
           std::reference_wrapper<Diagnostics> _diagnostics;
 
-          [[nodiscard]] bool AtEnd(void) const { return this->_position >= this->_tokens.size(); }
+          [[nodiscard]] bool AtEnd(void) const
+          {
+               return this->_position >= this->_tokens.size();
+          }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
           {
                return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
@@ -724,10 +839,22 @@ namespace ecpps::ast
           {
                return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
           }
-          void Advance(void) noexcept { this->_position++; }
-          void Retreat(void) noexcept { this->_position--; }
-          [[nodiscard]] std::size_t CurrentPosition(void) const noexcept { return this->_position; }
-          void SetPosition(const std::size_t newPosition) noexcept { this->_position = newPosition; }
+          void Advance(void) noexcept
+          {
+               this->_position++;
+          }
+          void Retreat(void) noexcept
+          {
+               this->_position--;
+          }
+          [[nodiscard]] std::size_t CurrentPosition(void) const noexcept
+          {
+               return this->_position;
+          }
+          void SetPosition(const std::size_t newPosition) noexcept
+          {
+               this->_position = newPosition;
+          }
           [[nodiscard]] bool Match(const TokenType type) noexcept
           {
                if (Peek().type != type) return false;
@@ -784,7 +911,10 @@ namespace ecpps::ast
 
           // Statements
           NodePointer ParseStatement(ASTContext& context);
-          NodePointer ParseDeclarationStatement(ASTContext& context) { return ParseBlockDeclaration(context); }
+          NodePointer ParseDeclarationStatement(ASTContext& context)
+          {
+               return ParseBlockDeclaration(context);
+          }
           NodePointer ParseExpressionStatement(ASTContext& context);
 
           // Helpers (parse sub-components)

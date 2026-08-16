@@ -13,7 +13,7 @@
 ecpps::CompilerStrategy ecpps::g_compilerStrategy{};
 
 ecpps::CompilerConfig::CompilerConfig(
-    int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+     int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {
      using std::string_literals::operator""s;
 
@@ -43,16 +43,20 @@ ecpps::CompilerConfig::CompilerConfig(
                auto flag = fullArgument.substr(1);
                auto value = flag.find(':') == std::string::npos ? "" : flag.substr(flag.find(':') + 1);
                flag = flag.substr(0, flag.find(':'));
-               const auto lowerFlag =
-                   flag |
-                   std::views::transform([](const char ch) -> char
-                                         { return static_cast<char>(std::tolower(static_cast<int>(ch))); }) |
-                   std::ranges::to<std::string>();
-               const auto lowerValue =
-                   value |
-                   std::views::transform([](const char ch) -> char
-                                         { return static_cast<char>(std::tolower(static_cast<int>(ch))); }) |
-                   std::ranges::to<std::string>();
+               const auto lowerFlag = flag |
+                                      std::views::transform(
+                                           [](const char ch) -> char
+                                           {
+                                                return static_cast<char>(std::tolower(static_cast<int>(ch)));
+                                           }) |
+                                      std::ranges::to<std::string>();
+               const auto lowerValue = value |
+                                       std::views::transform(
+                                            [](const char ch) -> char
+                                            {
+                                                 return static_cast<char>(std::tolower(static_cast<int>(ch)));
+                                            }) |
+                                       std::ranges::to<std::string>();
 
                if (flag == "WX") this->warningsAreErrors = true;
                else if (flag == "-WX")
@@ -69,10 +73,15 @@ ecpps::CompilerConfig::CompilerConfig(
                     else
                          this->verboseStatus = VerboseStatus::Verbose;
                }
-               else if (flag == "V") { this->verboseStatus = VerboseStatus::ExtraVerbose; }
+               else if (flag == "V")
+               {
+                    this->verboseStatus = VerboseStatus::ExtraVerbose;
+               }
                else if (lowerFlag == "output" || lowerFlag == "out")
                {
-                    if (!this->outputImage.empty()) {} // TODO: Warning
+                    if (!this->outputImage.empty())
+                    {
+                    } // TODO: Warning
                     this->outputImage = value;
                }
                else if (lowerFlag == "I" || lowerFlag == "include")
@@ -110,7 +119,10 @@ ecpps::CompilerConfig::CompilerConfig(
                     const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(),
                                                            this->optimisations.maxConstantEvaluationDepth);
 
-                    if (ec != std::errc()) { std::println("Invalid value for /Oconst-depth: `{}`", value); }
+                    if (ec != std::errc())
+                    {
+                         std::println("Invalid value for /Oconst-depth: `{}`", value);
+                    }
                }
                else if (flag == "?" || lowerFlag == "help")
                     PrintHelpAndExit();

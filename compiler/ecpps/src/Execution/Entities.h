@@ -38,7 +38,7 @@ namespace ecpps::ir
                return this->_entries[kind].size();
           }
           [[nodiscard]] const std::unordered_map<EntityKind, std::vector<std::optional<std::string>>>& Entries(
-              void) const noexcept
+               void) const noexcept
           {
                return this->_entries;
           }
@@ -58,7 +58,10 @@ namespace ecpps::ir
           [[nodiscard]] std::size_t Count(void) const noexcept
           {
                return std::accumulate(this->_entries.begin(), this->_entries.end(), 0ULL,
-                                      [](std::size_t sum, const auto& pair) { return sum + pair.second.size(); });
+                                      [](std::size_t sum, const auto& pair)
+                                      {
+                                           return sum + pair.second.size();
+                                      });
           }
 
      private:
@@ -91,8 +94,14 @@ namespace ecpps::ir
           Entity& operator=(const Entity&) = delete;
           Entity& operator=(Entity&&) = default;
 
-          [[nodiscard]] EntityKind Kind(void) const noexcept { return this->_kind; }
-          [[nodiscard]] const std::optional<std::string>& Name(void) const noexcept { return this->_name; }
+          [[nodiscard]] EntityKind Kind(void) const noexcept
+          {
+               return this->_kind;
+          }
+          [[nodiscard]] const std::optional<std::string>& Name(void) const noexcept
+          {
+               return this->_name;
+          }
           [[nodiscard]] virtual std::string ToString(void) const = 0;
 
      protected:

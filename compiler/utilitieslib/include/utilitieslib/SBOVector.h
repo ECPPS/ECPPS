@@ -52,8 +52,14 @@ template <typename T> void UFillN(T&& value, T* to, std::size_t size)
 }
 #endif
 #else
-template <typename T> void UCopyN(const T* from, T* to, std::size_t size) { std::uninitialized_copy_n(from, size, to); }
-template <typename T> void UMoveN(T* from, T* to, std::size_t size) { std::uninitialized_move_n(from, size, to); }
+template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
+{
+     std::uninitialized_copy_n(from, size, to);
+}
+template <typename T> void UMoveN(T* from, T* to, std::size_t size)
+{
+     std::uninitialized_move_n(from, size, to);
+}
 template <typename T> void UFillN(const T& value, T* to, std::size_t size)
 {
      std::uninitialized_fill_n(to, size, value);
@@ -84,29 +90,36 @@ namespace ecpps
           /// In elements, not bytes
           /// </summary>
           static constexpr std::size_t SBOSize =
-              std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
+               std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
 
           union BufferUnion
           {
                std::byte sbo[sizeof(TElement) * SBOSize]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
                NoSBO noSbo;
 
-               explicit BufferUnion(void) {} // NOLINT(cppcoreguidelines-pro-type-member-init)
-               ~BufferUnion(void) {}
+               explicit BufferUnion(void)
+               {
+               } // NOLINT(cppcoreguidelines-pro-type-member-init)
+               ~BufferUnion(void)
+               {
+               }
           };
 
      public:
-          explicit SBOVector(void) { new (this->_buffer.sbo) std::byte[sizeof(TElement) * SBOSize]; }
+          explicit SBOVector(void)
+          {
+               new (this->_buffer.sbo) std::byte[sizeof(TElement) * SBOSize];
+          }
 
           SBOVector(std::size_t count, const TElement& value = TElement{}) : _size(count)
           {
                const bool sbo = UseSBO();
                if (sbo)
                {
-                    auto* destination =
-                        std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                             // modernize-avoid-c-arrays)
-                            this->_buffer.sbo));
+                    auto* destination = std::launder(
+                         reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                 // modernize-avoid-c-arrays)
+                              this->_buffer.sbo));
                     UFillN(value, destination, count);
                }
                else
@@ -172,9 +185,9 @@ namespace ecpps
           {
                if (UseSBO())
                     return std::launder(
-                        reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                // modernize-avoid-c-arrays)
-                            this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+                         reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                 // modernize-avoid-c-arrays)
+                              this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
                return this->_buffer.noSbo.begin;
           }
 
@@ -182,31 +195,32 @@ namespace ecpps
           {
                if (UseSBO())
                     return std::launder(
-                        reinterpret_cast<const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                      // modernize-avoid-c-arrays)
-                            this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+                         reinterpret_cast<const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                       // modernize-avoid-c-arrays)
+                              this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
                return this->_buffer.noSbo.begin;
           }
 
           TElement* end(void) // NOLINT(readability-identifier-naming)
           {
-               return UseSBO() ? std::launder(
-                                     this->_size +
-                                     reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                             // modernize-avoid-c-arrays)
-                                         this->_buffer.sbo))
-                               : (this->begin() + this->_size);
+               return UseSBO()
+                           ? std::launder(
+                                  this->_size +
+                                  reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
+                                       this->_buffer.sbo))
+                           : (this->begin() + this->_size);
           }
 
           const TElement* end(void) const // NOLINT(readability-identifier-naming)
           {
                return UseSBO()
-                          ? std::launder(this->_size +
-                                         reinterpret_cast<
-                                             const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                          // modernize-avoid-c-arrays)
-                                             this->_buffer.sbo))
-                          : (this->begin() + this->_size);
+                           ? std::launder(this->_size +
+                                          reinterpret_cast<
+                                               const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                            // modernize-avoid-c-arrays)
+                                               this->_buffer.sbo))
+                           : (this->begin() + this->_size);
           }
           template <typename... TArgs> TElement& EmplaceBack(TArgs&&... args)
           {
@@ -223,7 +237,7 @@ namespace ecpps
                          for (std::size_t i = 0; i < SBOSize; i++)
                          {
                               new (newBuffer + i)
-                                  TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
+                                   TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
                               reinterpret_cast<TElement*>(this->_buffer.sbo)[i].~TElement();
                          }
                          _buffer.noSbo.begin = newBuffer;
@@ -276,7 +290,10 @@ namespace ecpps
                          const std::size_t newCap = oldCap * 2;
                          TElement* newBuf = allocator.allocate(newCap);
                          UMoveN(this->_buffer.noSbo.begin, newBuf, index);
-                         for (std::size_t i = 0; i < index; i++) { std::destroy_at(this->_buffer.noSbo.begin + i); }
+                         for (std::size_t i = 0; i < index; i++)
+                         {
+                              std::destroy_at(this->_buffer.noSbo.begin + i);
+                         }
                          allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
                          this->_buffer.noSbo.capacity = newCap;
                     }
@@ -284,11 +301,11 @@ namespace ecpps
                     return *std::construct_at(_buffer.noSbo.begin + index, value);
                }
                return *std::construct_at(
-                   std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                        // modernize-avoid-c-arrays)
-                       this->_buffer.sbo)) +
-                       index,
-                   value);
+                    std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                         // modernize-avoid-c-arrays)
+                         this->_buffer.sbo)) +
+                         index,
+                    value);
           }
 
           TElement& Push(TElement&& value)
@@ -303,9 +320,9 @@ namespace ecpps
                          const std::size_t cap = SBOSize * 2;
                          TElement* newBuf = allocator.allocate(cap);
                          TElement* sboPtr = std::launder(
-                             reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                     // modernize-avoid-c-arrays)
-                                 _buffer.sbo));
+                              reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                      // modernize-avoid-c-arrays)
+                                   _buffer.sbo));
 
                          for (std::size_t i = 0; i < index; i++)
                          {
@@ -338,8 +355,14 @@ namespace ecpps
                return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + index, std::move(value));
           }
 
-          constexpr std::size_t Size(void) const noexcept { return this->_size; }
-          constexpr bool UseSBO(void) const noexcept { return this->_size <= SBOSize; }
+          constexpr std::size_t Size(void) const noexcept
+          {
+               return this->_size;
+          }
+          constexpr bool UseSBO(void) const noexcept
+          {
+               return this->_size <= SBOSize;
+          }
 
      private:
           BufferUnion _buffer;

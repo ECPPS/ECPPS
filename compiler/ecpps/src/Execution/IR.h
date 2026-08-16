@@ -71,7 +71,10 @@ namespace ecpps::ir
      [[nodiscard]] ImplicitConversion MatchImplicitConversion(const Expression& expression,
                                                               typeSystem::NonowningTypePointer type);
 
-     constexpr bool operator!(const MatchingScore score) { return score == MatchingScore::NotMatching; }
+     constexpr bool operator!(const MatchingScore score)
+     {
+          return score == MatchingScore::NotMatching;
+     }
      constexpr auto operator<=>(const MatchingScore left, const MatchingScore right)
      {
           return std::to_underlying(left) <=> std::to_underlying(right);
@@ -105,10 +108,15 @@ namespace ecpps::ir
                                                 const std::vector<ast::NodePointer>& ast);
 
      private:
-          explicit IR(Context* context) : _context(context) {}
+          explicit IR(Context* context) : _context(context)
+          {
+          }
           std::vector<NodePointer> _built{};
           Context* _context;
-          [[nodiscard]] Context& GetContext(void) const noexcept { return *this->_context; }
+          [[nodiscard]] Context& GetContext(void) const noexcept
+          {
+               return *this->_context;
+          }
 
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);

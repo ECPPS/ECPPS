@@ -46,9 +46,18 @@ _DLLIMPORT(ReadConsoleA)
 _BOOL __ReadConsoleA(_HANDLE __hConsole, char* __lpBuffer, _DWORD __nNumberOfCharsToRead, _DWORD* __lpNumberOfCharsRead,
                      _QWORD q);
 
-_HANDLE __std_stdin_handle() { return __GetStdHandle(0 - 10); }
-_HANDLE __std_stdout_handle() { return __GetStdHandle(0 - 11); }
-_HANDLE __std_stderr_handle() { return __GetStdHandle(0 - 12); }
+_HANDLE __std_stdin_handle()
+{
+     return __GetStdHandle(0 - 10);
+}
+_HANDLE __std_stdout_handle()
+{
+     return __GetStdHandle(0 - 11);
+}
+_HANDLE __std_stderr_handle()
+{
+     return __GetStdHandle(0 - 12);
+}
 _DWORD __std_console_write(_HANDLE __hConsole, const char* __buffer, _DWORD __length)
 {
      _DWORD __numberOfCharsWritten;
@@ -63,7 +72,10 @@ char __std_console_read(_HANDLE __hConsole)
      return __buffer;
 }
 
-int __std_strlen(const char* __string) { return __lstrlenA(__string); }
+int __std_strlen(const char* __string)
+{
+     return __lstrlenA(__string);
+}
 
 int __std_cwrite(const char* __buffer)
 {
@@ -75,7 +87,10 @@ int __std_cwrite(const char* __buffer)
 // stub
 int main();
 #ifdef __ecpps_version
-extern "C" void _EntryPoint() { __ExitProcess(main()); }
+extern "C" void _EntryPoint()
+{
+     __ExitProcess(main());
+}
 #endif
 
 // NOLINTEND

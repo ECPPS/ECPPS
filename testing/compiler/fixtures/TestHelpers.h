@@ -16,15 +16,24 @@ namespace TestHelpers
 {
 
      /// Create a diagnostics instance for testing
-     inline auto MakeDiagnostics() { return ecpps::Diagnostics{}; }
+     inline auto MakeDiagnostics()
+     {
+          return ecpps::Diagnostics{};
+     }
 
      /// Create a BumpAllocator with specified initial size
-     inline auto MakeAllocator(std::size_t initialSize = 1024 * 64) { return ecpps::BumpAllocator{initialSize}; }
+     inline auto MakeAllocator(std::size_t initialSize = 1024 * 64)
+     {
+          return ecpps::BumpAllocator{initialSize};
+     }
 
      /// Compare two byte sequences and return true if equal
      inline bool CompareBytes(std::span<const std::byte> left, std::span<const std::byte> right)
      {
-          if (left.size() != right.size()) { return false; }
+          if (left.size() != right.size())
+          {
+               return false;
+          }
 
           return std::equal(left.begin(), left.end(), right.begin());
      }
@@ -52,8 +61,8 @@ namespace TestHelpers
      inline std::filesystem::path CreateTempSourceFile(std::string_view content, std::string_view extension = ".cpp")
      {
           auto tempPath =
-              std::filesystem::temp_directory_path() /
-              ("ecpps_test_" + std::to_string(std::hash<std::string_view>{}(content)) + std::string{extension});
+               std::filesystem::temp_directory_path() /
+               ("ecpps_test_" + std::to_string(std::hash<std::string_view>{}(content)) + std::string{extension});
 
           std::ofstream file(tempPath);
           file << content;
@@ -79,8 +88,14 @@ namespace TestHelpers
                std::filesystem::remove(path_, ec);
           }
 
-          const std::filesystem::path& path() const { return path_; }
-          operator std::filesystem::path() const { return path_; }
+          const std::filesystem::path& path() const
+          {
+               return path_;
+          }
+          operator std::filesystem::path() const
+          {
+               return path_;
+          }
      };
 
      /// Compare two AST nodes recursively (basic implementation)
@@ -104,14 +119,20 @@ namespace TestHelpers
      }
 
      /// User-defined literal for byte arrays: 0x48_b, 0x89_b, etc.
-     inline constexpr std::byte operator""_b(unsigned long long value) { return static_cast<std::byte>(value); }
+     inline constexpr std::byte operator""_b(unsigned long long value)
+     {
+          return static_cast<std::byte>(value);
+     }
 
      /// Helper to create a vector of bytes from initializer list
      inline std::vector<std::byte> MakeBytes(std::initializer_list<unsigned char> bytes)
      {
           std::vector<std::byte> result;
           result.reserve(bytes.size());
-          for (auto b : bytes) { result.push_back(static_cast<std::byte>(b)); }
+          for (auto b : bytes)
+          {
+               result.push_back(static_cast<std::byte>(b));
+          }
           return result;
      }
 

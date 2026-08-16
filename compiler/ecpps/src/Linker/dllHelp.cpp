@@ -24,7 +24,7 @@ std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(con
 
           ULONG size = 0;
           const auto* exports = static_cast<PIMAGE_EXPORT_DIRECTORY>(
-              ImageDirectoryEntryToData(module, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &size));
+               ImageDirectoryEntryToData(module, TRUE, IMAGE_DIRECTORY_ENTRY_EXPORT, &size));
 
           if (!exports || exports->NumberOfNames == 0)
           {
@@ -50,7 +50,7 @@ std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(con
 
 #elifdef __linux__
 std::unordered_map<std::string, std::vector<std::string>> GetExportsFromDlls(
-    [[maybe_unused]] const std::vector<std::string>& dlls)
+     [[maybe_unused]] const std::vector<std::string>& dlls)
 {
      return {};
 }

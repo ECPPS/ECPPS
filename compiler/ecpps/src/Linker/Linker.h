@@ -81,7 +81,9 @@ namespace ecpps::linker
      {
           LinkerBitness bitness;
 
-          explicit LinkerOptions(const LinkerBitness bitness) : bitness(bitness) {}
+          explicit LinkerOptions(const LinkerBitness bitness) : bitness(bitness)
+          {
+          }
      };
 
      class LinkerBase
@@ -110,10 +112,10 @@ namespace ecpps::linker
           explicit Linker(void) = delete;
 
           static std::vector<std::byte> SelectAndLink(
-              const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
-              const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
-              const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
-              const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
-              const std::vector<std::byte>& stringData);
+               const ecpps::CompilerConfig& config, std::vector<std::byte> generatedMachineCode,
+               const std::vector<std::pair<std::string, std::size_t>>& functions, std::size_t mainOffset,
+               const codegen::LinkerRelocationMap& relocationMap, std::vector<std::byte>& diagnosticsCodeSection,
+               const std::vector<std::size_t>& stringRelocations, std::size_t toRelocateWidth,
+               const std::vector<std::byte>& stringData);
      };
 } // namespace ecpps::linker

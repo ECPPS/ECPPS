@@ -17,8 +17,12 @@ TEST_CASE("Preprocessor - Identifiers", "[parsing][identifiers]")
      SECTION("Simple identifiers")
      {
           auto tokens = preprocessor.Parse("int main() {}", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
 
           REQUIRE((identifierCount == 2));
           REQUIRE(tokens[0].value == "int");
@@ -48,8 +52,12 @@ TEST_CASE("Preprocessor - Identifiers", "[parsing][identifiers]")
      SECTION("Identifiers with underscores and digits")
      {
           auto tokens = preprocessor.Parse("variable _private count123 __internal", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
 
           REQUIRE((identifierCount == 4));
           REQUIRE(tokens[0].value == "variable");
@@ -68,40 +76,55 @@ TEST_CASE("Preprocessor - operator-or-punctuators", "[parsing][operators-or-punc
      {
           auto tokens = preprocessor.Parse("+ - * / %", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 5));
      }
      SECTION("Bitwise operators")
      {
           auto tokens = preprocessor.Parse("<< >> & | ^", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 5));
      }
      SECTION("Comparison operators")
      {
           auto tokens = preprocessor.Parse("== != < > <= >=", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 6));
      }
      SECTION("Assignment operators")
      {
           auto tokens = preprocessor.Parse("= += -= *= /= %=", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 6));
      }
      SECTION("Increment and decrement")
      {
           auto tokens = preprocessor.Parse("++ --", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 2));
      }
 
@@ -109,8 +132,11 @@ TEST_CASE("Preprocessor - operator-or-punctuators", "[parsing][operators-or-punc
      {
           auto tokens = preprocessor.Parse("& && | ||", macros, "tests.cpp");
           SignedSize operatorCount =
-              std::ranges::count_if(tokens, [](const auto& token)
-                                    { return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator; });
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::OperatorOrPunctuator;
+                                     });
           REQUIRE((operatorCount == 4));
           REQUIRE(tokens[0].value == "&");
           REQUIRE(tokens[1].value == "&&");
@@ -128,10 +154,14 @@ TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
      SECTION("Integer literals")
      {
           auto tokens = preprocessor.Parse(
-              "0 42 123 9999 0x00 0xFF 0xDEADBEEF 0b0 0b1 0b1010 0b11111111 0 07 077 0777 1'000 1'000'000", macros,
-              "tests.cpp");
-          SignedSize literalCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Number; });
+               "0 42 123 9999 0x00 0xFF 0xDEADBEEF 0b0 0b1 0b1010 0b11111111 0 07 077 0777 1'000 1'000'000", macros,
+               "tests.cpp");
+          SignedSize literalCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Number;
+                                     });
           REQUIRE(literalCount == 17);
           REQUIRE(tokens[0].value == "0");
           REQUIRE(tokens[1].value == "42");
@@ -154,8 +184,12 @@ TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
      SECTION("Floating point literals")
      {
           auto tokens = preprocessor.Parse("3.14 2.718 0.5 1e10 3.14f 2.718F 1.0l 2.0L", macros, "tests.cpp");
-          SignedSize literalCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Number; });
+          SignedSize literalCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Number;
+                                     });
           REQUIRE(literalCount == 8);
           REQUIRE(tokens[0].value == "3.14");
           REQUIRE(tokens[1].value == "2.718");
@@ -169,8 +203,12 @@ TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
      SECTION("Character literals")
      {
           auto tokens = preprocessor.Parse("'a' '\\n' '\\''", macros, "tests.cpp");
-          SignedSize literalCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::CharacterLiteral; });
+          SignedSize literalCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::CharacterLiteral;
+                                     });
           REQUIRE(literalCount == 3);
           REQUIRE(tokens[0].value == "a");
           REQUIRE(tokens[1].value == "\n");
@@ -180,9 +218,13 @@ TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
      SECTION("String literals")
      {
           auto tokens =
-              preprocessor.Parse(R"("Hello, World!" "Line 1\nLine 2" "She said, \"Hello!\"")", macros, "tests.cpp");
-          SignedSize literalCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::StringLiteral; });
+               preprocessor.Parse(R"("Hello, World!" "Line 1\nLine 2" "She said, \"Hello!\"")", macros, "tests.cpp");
+          SignedSize literalCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::StringLiteral;
+                                     });
           REQUIRE(literalCount == 3);
           REQUIRE(tokens[0].value == "Hello, World!");
           REQUIRE(tokens[1].value == "Line 1\nLine 2");
@@ -198,10 +240,18 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      {
           macros.emplace_back("PI", std::nullopt, "3.14", false);
           auto tokens = preprocessor.Parse("double pi = PI;", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          SignedSize numberCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Number; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
+          SignedSize numberCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Number;
+                                     });
           REQUIRE(identifierCount == 2);
           REQUIRE(numberCount == 1);
           REQUIRE(tokens[0].value == "double");
@@ -215,10 +265,18 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      {
           macros.emplace_back("SQUARE", std::vector<std::string>{"x"}, "((x) * (x))", false);
           auto tokens = preprocessor.Parse("int result = SQUARE(5);", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          SignedSize numberCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Number; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
+          SignedSize numberCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Number;
+                                     });
           REQUIRE(identifierCount == 2);
           REQUIRE(numberCount == 2);
           REQUIRE(tokens.size() == 13);
@@ -242,10 +300,18 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
           macros.emplace_back("PI", std::nullopt, "3.14", false);
           macros.emplace_back("CIRCLE_AREA", std::vector<std::string>{"r"}, "(PI * (r) * (r))", false);
           auto tokens = preprocessor.Parse("double area = CIRCLE_AREA(5);", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          SignedSize numberCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Number; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
+          SignedSize numberCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Number;
+                                     });
           REQUIRE(identifierCount == 2);
           REQUIRE(numberCount == 3);
           REQUIRE(tokens.size() == 15);
@@ -270,8 +336,12 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      {
           macros.emplace_back("CONCAT", std::vector<std::string>{"a", "b"}, "a##b", false);
           auto tokens = preprocessor.Parse("int xy = CONCAT(x, y);", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(identifierCount == 3);
           REQUIRE(tokens.size() == 5);
           REQUIRE(tokens[0].value == "int");
@@ -285,10 +355,18 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      {
           macros.emplace_back("STRINGIFY", std::vector<std::string>{"x"}, "#x", false);
           auto tokens = preprocessor.Parse("const char* str = STRINGIFY(Hello kitten!);", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          SignedSize stringLiteralCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::StringLiteral; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
+          SignedSize stringLiteralCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::StringLiteral;
+                                     });
           REQUIRE(identifierCount == 3);
           REQUIRE(stringLiteralCount == 1);
           REQUIRE(tokens.size() == 7);
@@ -305,10 +383,18 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
      {
           macros.emplace_back("LOG", std::vector<std::string>{}, "printf(__VA_ARGS__)", true);
           auto tokens = preprocessor.Parse("LOG(\"Error: %d\", errorCode);", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
-          SignedSize stringLiteralCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::StringLiteral; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
+          SignedSize stringLiteralCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::StringLiteral;
+                                     });
           REQUIRE(identifierCount == 2);
           REQUIRE(stringLiteralCount == 1);
           REQUIRE(tokens.size() == 7);
@@ -358,8 +444,12 @@ TEST_CASE("Preprocessor - Comments", "[parsing][comments]")
      SECTION("Single-line comments")
      {
           auto tokens = preprocessor.Parse("int x = 42; // This is a comment\nint y = 24;", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(identifierCount == 4);
           REQUIRE(tokens[0].value == "int");
           REQUIRE(tokens[1].value == "x");
@@ -375,8 +465,12 @@ TEST_CASE("Preprocessor - Comments", "[parsing][comments]")
      SECTION("Multi-line comments")
      {
           auto tokens = preprocessor.Parse("/* This is a\nmulti-line comment */\nint z = 100;", macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
           REQUIRE(tokens[1].value == "z");
@@ -395,7 +489,7 @@ TEST_CASE("Preprocessor - preprocessing directives", "[parsing][directives]")
      SECTION("ifdef and ifndef")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef DEFINED_MACRO
 int a;
 #else
@@ -405,9 +499,13 @@ int b;
 int c;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 6);
           REQUIRE(identifierCount == 4);
           REQUIRE(tokens[0].value == "int");
@@ -421,7 +519,7 @@ int c;
      SECTION("elifdef, elifndef, else - happy")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef DEFINED_MACRO
 int a;
 #elifdef DEFINED_MACRO
@@ -432,9 +530,13 @@ int c;
 int d;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -445,7 +547,7 @@ int d;
      SECTION("elifdef, elifndef, else - unhappy 1")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #elifdef DEFINED_MACRO
@@ -456,9 +558,13 @@ int c;
 int d;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -469,7 +575,7 @@ int d;
      SECTION("elifdef, elifndef, else - unhappy 2")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #elifdef UNDEFINED_MACRO
@@ -480,9 +586,13 @@ int c;
 int d;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -493,7 +603,7 @@ int d;
      SECTION("elifdef, elifndef, else - unhappy 3")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #elifdef UNDEFINED_MACRO
@@ -504,9 +614,13 @@ int c;
 int d;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -517,7 +631,7 @@ int d;
      SECTION("else - additional directives")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #
@@ -527,9 +641,13 @@ int b;
 #
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -540,7 +658,7 @@ int b;
      SECTION("if/elif/else - definitions")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #define UNDEFINED_MACRO 2
@@ -550,9 +668,13 @@ int b;
 int c;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");
@@ -563,7 +685,7 @@ int c;
      SECTION("if/elif/else - definitions")
      {
           auto tokens = preprocessor.Parse(
-              R"(
+               R"(
 #ifdef UNDEFINED_MACRO
 int a;
 #define UNDEFINED_MACRO 2
@@ -573,9 +695,13 @@ int b;
 int c;
 #endif
 )",
-              macros, "tests.cpp");
-          SignedSize identifierCount = std::ranges::count_if(
-              tokens, [](const auto& token) { return token.type == ecpps::PreprocessingTokenType::Identifier; });
+               macros, "tests.cpp");
+          SignedSize identifierCount =
+               std::ranges::count_if(tokens,
+                                     [](const auto& token)
+                                     {
+                                          return token.type == ecpps::PreprocessingTokenType::Identifier;
+                                     });
           REQUIRE(tokens.size() == 3);
           REQUIRE(identifierCount == 2);
           REQUIRE(tokens[0].value == "int");

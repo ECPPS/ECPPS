@@ -9,7 +9,9 @@ namespace ecpps::platformlib
 {
      struct NativeException : std::runtime_error
      {
-          explicit NativeException(const std::string& message) : runtime_error(message) {}
+          explicit NativeException(const std::string& message) : runtime_error(message)
+          {
+          }
      };
      template <typename TFrom, typename TTo> struct PointerInterconvertibility
      {
@@ -64,5 +66,8 @@ namespace ecpps::platformlib
           std::vector<void*> WalkTrace(DebuggerContext* defaultContext);
      } // namespace debugger
 
-     inline ecpps::platformlib::DebuggerContext::~DebuggerContext(void) { debugger::Delete(this); }
+     inline ecpps::platformlib::DebuggerContext::~DebuggerContext(void)
+     {
+          debugger::Delete(this);
+     }
 } // namespace ecpps::platformlib

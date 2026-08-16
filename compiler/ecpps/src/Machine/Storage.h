@@ -23,8 +23,14 @@ namespace ecpps::abi
           std::size_t width;
           std::size_t id;
 
-          constexpr bool operator==(const PhysicalRegister& other) const { return this->id == other.id; }
-          constexpr bool operator!=(const PhysicalRegister& other) const { return this->id != other.id; }
+          constexpr bool operator==(const PhysicalRegister& other) const
+          {
+               return this->id == other.id;
+          }
+          constexpr bool operator!=(const PhysicalRegister& other) const
+          {
+               return this->id != other.id;
+          }
 
           /// <summary>
           /// Constructs a new register object
@@ -63,12 +69,24 @@ namespace ecpps::abi
           ~AllocatedRegister(void);
           void Release(void);
 
-          [[nodiscard]] bool operator!(void) const noexcept { return this->_register != nullptr; }
+          [[nodiscard]] bool operator!(void) const noexcept
+          {
+               return this->_register != nullptr;
+          }
 
-          VirtualRegister* operator->(void) noexcept { return this->_register.get(); }
-          const VirtualRegister* operator->(void) const noexcept { return this->_register.get(); }
+          VirtualRegister* operator->(void) noexcept
+          {
+               return this->_register.get();
+          }
+          const VirtualRegister* operator->(void) const noexcept
+          {
+               return this->_register.get();
+          }
 
-          const std::shared_ptr<VirtualRegister>& Ptr(void) const noexcept { return this->_register; }
+          const std::shared_ptr<VirtualRegister>& Ptr(void) const noexcept
+          {
+               return this->_register;
+          }
 
      private:
           std::shared_ptr<VirtualRegister> _register;
@@ -83,10 +101,14 @@ namespace ecpps::abi
      struct StorageRef
      {
           using ValueType =
-              std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
+               std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
           ValueType value;
-          explicit StorageRef(ValueType value) : value(std::move(value)) {}
-          explicit(false) StorageRef(std::nullptr_t) : value(std::monostate{}) {}
+          explicit StorageRef(ValueType value) : value(std::move(value))
+          {
+          }
+          explicit(false) StorageRef(std::nullptr_t) : value(std::monostate{})
+          {
+          }
 
           StorageRef& operator=(ValueType other)
           {

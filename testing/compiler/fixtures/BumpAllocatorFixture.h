@@ -38,14 +38,32 @@ namespace TestHelpers
           BumpAllocatorFixture(BumpAllocatorFixture&&) = default;
           BumpAllocatorFixture& operator=(BumpAllocatorFixture&&) = default;
 
-          ecpps::BumpAllocator& get() { return *allocator_; }
-          const ecpps::BumpAllocator& get() const { return *allocator_; }
+          ecpps::BumpAllocator& get()
+          {
+               return *allocator_;
+          }
+          const ecpps::BumpAllocator& get() const
+          {
+               return *allocator_;
+          }
 
-          ecpps::BumpAllocator& operator*() { return *allocator_; }
-          const ecpps::BumpAllocator& operator*() const { return *allocator_; }
+          ecpps::BumpAllocator& operator*()
+          {
+               return *allocator_;
+          }
+          const ecpps::BumpAllocator& operator*() const
+          {
+               return *allocator_;
+          }
 
-          ecpps::BumpAllocator* operator->() { return allocator_.get(); }
-          const ecpps::BumpAllocator* operator->() const { return allocator_.get(); }
+          ecpps::BumpAllocator* operator->()
+          {
+               return allocator_.get();
+          }
+          const ecpps::BumpAllocator* operator->() const
+          {
+               return allocator_.get();
+          }
      };
 
 } // namespace TestHelpers

@@ -30,7 +30,10 @@ namespace ecpps::ir
           {
           }
 
-          [[nodiscard]] const std::string& Name(void) const noexcept { return this->_name; }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
           [[nodiscard]] const std::vector<std::string>& NamespacePath(void) const noexcept
           {
                return this->_namespacePath;
@@ -44,13 +47,16 @@ namespace ecpps::ir
                runtime_assert(this->_locals != nullptr, "ProcedureNode must have a non-nullptr _locals");
                return *this->_locals;
           }
-          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept { return this->_body; }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built(indent * ast::PrettyIndent, ' ');
                built +=
-                   this->_returnType->RawName() + " " + ::ToString(this->_callingConvention) + " " + this->_name + "(";
+                    this->_returnType->RawName() + " " + ::ToString(this->_callingConvention) + " " + this->_name + "(";
                built += ")\n" + std::string(indent * ast::PrettyIndent, ' ') + "{\n";
                for (const auto& line : this->_body) built += line->ToString(indent + 1) + "\n";
                return built + std::string(indent * ast::PrettyIndent, ' ') + "}";
@@ -59,8 +65,14 @@ namespace ecpps::ir
           {
                return this->_callingConvention;
           }
-          [[nodiscard]] abi::Linkage Linkage(void) const noexcept { return this->_linkage; }
-          [[nodiscard]] typeSystem::NonowningTypePointer ReturnType(void) const noexcept { return this->_returnType; }
+          [[nodiscard]] abi::Linkage Linkage(void) const noexcept
+          {
+               return this->_linkage;
+          }
+          [[nodiscard]] typeSystem::NonowningTypePointer ReturnType(void) const noexcept
+          {
+               return this->_returnType;
+          }
 
      private:
           abi::Linkage _linkage;
@@ -96,8 +108,14 @@ namespace ecpps::ir
                       "(" + args + ")";
           }
 
-          [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept { return this->_function; }
-          [[nodiscard]] const std::vector<Expression>& Arguments(void) const noexcept { return this->_arguments; }
+          [[nodiscard]] const std::shared_ptr<FunctionScope>& Function(void) const noexcept
+          {
+               return this->_function;
+          }
+          [[nodiscard]] const std::vector<Expression>& Arguments(void) const noexcept
+          {
+               return this->_arguments;
+          }
 
      private:
           std::shared_ptr<FunctionScope> _function;
