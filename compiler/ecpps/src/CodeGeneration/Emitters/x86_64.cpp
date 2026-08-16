@@ -1,7 +1,6 @@
 // NOLINT(readability-identifier-length)
 
 #include "x86_64.h"
-#include <cmath>
 #include <format>
 #include <mutex>
 #include <stdexcept>
@@ -15,8 +14,9 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                                         std::unordered_map<std::string, std::size_t>& routines)
 {
      constexpr static auto ApplyImportLambda =
-         [](Address resolved, [[maybe_unused]] std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)
-         -> std::vector<std::byte>
+          [](Address resolved,
+             [[maybe_unused]] std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)
+          -> std::vector<std::byte>
      {
           return x86_64::GenerateIndirectCall2(static_cast<std::int32_t>(resolved.Value()));
      };
@@ -26,9 +26,9 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
           if (ecpps::codegen::g_functionImports.contains(name))
           {
                this->linkerForwardedRelocations.emplace(
-                   ByteOffset{index}, Relocation{.symbolName = name,
-                                                 .apply = ApplyImportLambda,
-                                                 .applyOutputSize = 6}); // Linker pass handles that, hopefully
+                    ByteOffset{index}, Relocation{.symbolName = name,
+                                                  .apply = ApplyImportLambda,
+                                                  .applyOutputSize = 6}); // Linker pass handles that, hopefully
                continue;
           }
 
@@ -50,395 +50,417 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const MovInstruction& mov)
 {
      return mov.isConversion
-                ? std::visit(
-                      OverloadedVisitor{
-                          [&mov, this](const RegisterOperand&)
-                          {
-                               return std::visit(
-                                   OverloadedVisitor{
-                                       [](std::monostate)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [](const ErrorOperand&)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [&mov, this](const RegisterOperand&)
-                                       {
-                                            return this->EmitSpecificConversion<OperandCombination::RegisterToRegister>(
-                                                mov);
-                                       },
-                                       [&mov, this](const IntegerOperand&)
-                                       {
-                                            return this
-                                                ->EmitSpecificConversion<OperandCombination::ImmediateToRegister>(mov);
-                                       },
-                                       [&mov, this](const MemoryLocationOperand&)
-                                       {
-                                            return this->EmitSpecificConversion<OperandCombination::MemoryToRegister>(
-                                                mov);
-                                       },
-                                       [](auto&&) -> std::vector<std::byte>
-                                       {
-                                            throw TracedException(std::logic_error(
-                                                "Invalid conversion mov operation: unsupported source operand type"));
-                                       }},
-                                   mov.source);
-                          },
-                          [&mov, this](const MemoryLocationOperand&)
-                          {
-                               return std::visit(
-                                   OverloadedVisitor{
-                                       [](std::monostate)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [](const ErrorOperand&)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [&mov, this](const RegisterOperand&)
-                                       {
-                                            return this->EmitSpecificConversion<OperandCombination::RegisterToMemory>(
-                                                mov);
-                                       },
-                                       [&mov, this](const IntegerOperand&)
-                                       {
-                                            return this->EmitSpecificConversion<OperandCombination::ImmediateToMemory>(
-                                                mov);
-                                       },
-                                       [&mov, this](const MemoryLocationOperand&) -> std::vector<std::byte>
-                                       {
-                                            auto& abi = ecpps::abi::ABI::Current();
-                                            auto tempReg = abi.AllocateRegister(mov.width);
+                 ? std::visit(
+                        OverloadedVisitor{
+                             [&mov, this](const RegisterOperand&)
+                             {
+                                  return std::visit(
+                                       OverloadedVisitor{
+                                            [](std::monostate)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [](const ErrorOperand&)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [&mov, this](const RegisterOperand&)
+                                            {
+                                                 return this
+                                                      ->EmitSpecificConversion<OperandCombination::RegisterToRegister>(
+                                                           mov);
+                                            },
+                                            [&mov, this](const IntegerOperand&)
+                                            {
+                                                 return this
+                                                      ->EmitSpecificConversion<OperandCombination::ImmediateToRegister>(
+                                                           mov);
+                                            },
+                                            [&mov, this](const MemoryLocationOperand&)
+                                            {
+                                                 return this
+                                                      ->EmitSpecificConversion<OperandCombination::MemoryToRegister>(
+                                                           mov);
+                                            },
+                                            [](auto&&) -> std::vector<std::byte>
+                                            {
+                                                 throw TracedException(
+                                                      std::logic_error("Invalid conversion mov operation: unsupported "
+                                                                       "source operand type"));
+                                            }},
+                                       mov.source);
+                             },
+                             [&mov, this](const MemoryLocationOperand&)
+                             {
+                                  return std::visit(
+                                       OverloadedVisitor{
+                                            [](std::monostate)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [](const ErrorOperand&)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [&mov, this](const RegisterOperand&)
+                                            {
+                                                 return this
+                                                      ->EmitSpecificConversion<OperandCombination::RegisterToMemory>(
+                                                           mov);
+                                            },
+                                            [&mov, this](const IntegerOperand&)
+                                            {
+                                                 return this
+                                                      ->EmitSpecificConversion<OperandCombination::ImmediateToMemory>(
+                                                           mov);
+                                            },
+                                            [&mov, this](const MemoryLocationOperand&) -> std::vector<std::byte>
+                                            {
+                                                 auto& abi = ecpps::abi::ABI::Current();
+                                                 auto tempReg = abi.AllocateRegister(mov.width);
 
-                                            MovInstruction loadMov = mov;
-                                            loadMov.destination = RegisterOperand{tempReg.Ptr()};
-                                            auto loadInstructions =
-                                                this->EmitSpecificConversion<OperandCombination::MemoryToRegister>(
-                                                    loadMov);
+                                                 MovInstruction loadMov = mov;
+                                                 loadMov.destination = RegisterOperand{tempReg.Ptr()};
+                                                 auto loadInstructions = this->EmitSpecificConversion<
+                                                      OperandCombination::MemoryToRegister>(loadMov);
 
-                                            MovInstruction storeMov = mov;
-                                            storeMov.source = RegisterOperand{tempReg.Ptr()};
-                                            auto storeInstructions =
-                                                this->EmitSpecificConversion<OperandCombination::RegisterToMemory>(
-                                                    storeMov);
+                                                 MovInstruction storeMov = mov;
+                                                 storeMov.source = RegisterOperand{tempReg.Ptr()};
+                                                 auto storeInstructions = this->EmitSpecificConversion<
+                                                      OperandCombination::RegisterToMemory>(storeMov);
 
-                                            tempReg.Release();
+                                                 tempReg.Release();
 
-                                            loadInstructions.insert(loadInstructions.end(), storeInstructions.begin(),
-                                                                    storeInstructions.end());
-                                            return loadInstructions;
-                                       },
-                                       [](auto&&) -> std::vector<std::byte>
-                                       {
-                                            throw TracedException(std::logic_error(
-                                                "Invalid conversion mov operation: unsupported operand combination"));
-                                       }},
-                                   mov.source);
-                          },
-                          [](const ErrorOperand&) -> std::vector<std::byte>
-                          {
-                               return std::vector<std::byte>{};
-                          },
-                          [](const std::monostate&) -> std::vector<std::byte>
-                          {
-                               return std::vector<std::byte>{};
-                          },
-                          [](auto&&) -> std::vector<std::byte>
-                          {
-                               throw TracedException(std::logic_error(
-                                   "Invalid conversion mov operation: unsupported destination operand type"));
-                          }},
-                      mov.destination)
-                : std::visit(
-                      OverloadedVisitor{
-                          [&mov, this](const RegisterOperand&)
-                          {
-                               return std::visit(
-                                   OverloadedVisitor{
-                                       [](std::monostate)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [](const ErrorOperand&)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [&mov, this](const RegisterOperand&)
-                                       {
-                                            return this->EmitSpecificMov<OperandCombination::RegisterToRegister>(mov);
-                                       },
-                                       [&mov, this](const IntegerOperand&)
-                                       {
-                                            return this->EmitSpecificMov<OperandCombination::ImmediateToRegister>(mov);
-                                       },
-                                       [&mov, this](const MemoryLocationOperand&)
-                                       {
-                                            return this->EmitSpecificMov<OperandCombination::MemoryToRegister>(mov);
-                                       },
-                                       [](auto&&) -> std::vector<std::byte>
-                                       {
-                                            throw TracedException(std::logic_error(
-                                                "Invalid mov operation: unsupported source operand type"));
-                                       }},
-                                   mov.source);
-                          },
-                          [&mov, this](const MemoryLocationOperand&)
-                          {
-                               return std::visit(
-                                   OverloadedVisitor{
-                                       [](std::monostate)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [](const ErrorOperand&)
-                                       {
-                                            return std::vector<std::byte>{};
-                                       },
-                                       [&mov, this](const RegisterOperand&)
-                                       {
-                                            return this->EmitSpecificMov<OperandCombination::RegisterToMemory>(mov);
-                                       },
-                                       [&mov, this](const IntegerOperand&)
-                                       {
-                                            return this->EmitSpecificMov<OperandCombination::ImmediateToMemory>(mov);
-                                       },
-                                       [&mov, this](const MemoryLocationOperand&) -> std::vector<std::byte>
-                                       {
-                                            auto& abi = ecpps::abi::ABI::Current();
-                                            auto tempReg = abi.AllocateRegister(mov.width);
+                                                 loadInstructions.insert(loadInstructions.end(),
+                                                                         storeInstructions.begin(),
+                                                                         storeInstructions.end());
+                                                 return loadInstructions;
+                                            },
+                                            [](auto&&) -> std::vector<std::byte>
+                                            {
+                                                 throw TracedException(
+                                                      std::logic_error("Invalid conversion mov operation: unsupported "
+                                                                       "operand combination"));
+                                            }},
+                                       mov.source);
+                             },
+                             [](const ErrorOperand&) -> std::vector<std::byte>
+                             {
+                                  return std::vector<std::byte>{};
+                             },
+                             [](const std::monostate&) -> std::vector<std::byte>
+                             {
+                                  return std::vector<std::byte>{};
+                             },
+                             [](auto&&) -> std::vector<std::byte>
+                             {
+                                  throw TracedException(std::logic_error(
+                                       "Invalid conversion mov operation: unsupported destination operand type"));
+                             }},
+                        mov.destination)
+                 : std::visit(
+                        OverloadedVisitor{
+                             [&mov, this](const RegisterOperand&)
+                             {
+                                  return std::visit(
+                                       OverloadedVisitor{
+                                            [](std::monostate)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [](const ErrorOperand&)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [&mov, this](const RegisterOperand&)
+                                            {
+                                                 return this->EmitSpecificMov<OperandCombination::RegisterToRegister>(
+                                                      mov);
+                                            },
+                                            [&mov, this](const IntegerOperand&)
+                                            {
+                                                 return this->EmitSpecificMov<OperandCombination::ImmediateToRegister>(
+                                                      mov);
+                                            },
+                                            [&mov, this](const MemoryLocationOperand&)
+                                            {
+                                                 return this->EmitSpecificMov<OperandCombination::MemoryToRegister>(
+                                                      mov);
+                                            },
+                                            [](auto&&) -> std::vector<std::byte>
+                                            {
+                                                 throw TracedException(std::logic_error(
+                                                      "Invalid mov operation: unsupported source operand type"));
+                                            }},
+                                       mov.source);
+                             },
+                             [&mov, this](const MemoryLocationOperand&)
+                             {
+                                  return std::visit(
+                                       OverloadedVisitor{
+                                            [](std::monostate)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [](const ErrorOperand&)
+                                            {
+                                                 return std::vector<std::byte>{};
+                                            },
+                                            [&mov, this](const RegisterOperand&)
+                                            {
+                                                 return this->EmitSpecificMov<OperandCombination::RegisterToMemory>(
+                                                      mov);
+                                            },
+                                            [&mov, this](const IntegerOperand&)
+                                            {
+                                                 return this->EmitSpecificMov<OperandCombination::ImmediateToMemory>(
+                                                      mov);
+                                            },
+                                            [&mov, this](const MemoryLocationOperand&) -> std::vector<std::byte>
+                                            {
+                                                 auto& abi = ecpps::abi::ABI::Current();
+                                                 auto tempReg = abi.AllocateRegister(mov.width);
 
-                                            MovInstruction loadMov = mov;
-                                            loadMov.destination = RegisterOperand{tempReg.Ptr()};
-                                            auto loadInstructions =
-                                                this->EmitSpecificMov<OperandCombination::MemoryToRegister>(loadMov);
+                                                 MovInstruction loadMov = mov;
+                                                 loadMov.destination = RegisterOperand{tempReg.Ptr()};
+                                                 auto loadInstructions =
+                                                      this->EmitSpecificMov<OperandCombination::MemoryToRegister>(
+                                                           loadMov);
 
-                                            MovInstruction storeMov = mov;
-                                            storeMov.source = RegisterOperand{tempReg.Ptr()};
-                                            auto storeInstructions =
-                                                this->EmitSpecificMov<OperandCombination::RegisterToMemory>(storeMov);
+                                                 MovInstruction storeMov = mov;
+                                                 storeMov.source = RegisterOperand{tempReg.Ptr()};
+                                                 auto storeInstructions =
+                                                      this->EmitSpecificMov<OperandCombination::RegisterToMemory>(
+                                                           storeMov);
 
-                                            tempReg.Release();
+                                                 tempReg.Release();
 
-                                            loadInstructions.insert(loadInstructions.end(), storeInstructions.begin(),
-                                                                    storeInstructions.end());
-                                            return loadInstructions;
-                                       },
-                                       [](auto&&) -> std::vector<std::byte>
-                                       {
-                                            throw TracedException(std::logic_error(
-                                                "Invalid mov operation: unsupported operand combination"));
-                                       }},
-                                   mov.source);
-                          },
-                          [](const ErrorOperand&) -> std::vector<std::byte>
-                          {
-                               return std::vector<std::byte>{};
-                          },
-                          [](const std::monostate&) -> std::vector<std::byte>
-                          {
-                               return std::vector<std::byte>{};
-                          },
-                          [](auto&&) -> std::vector<std::byte>
-                          {
-                               throw TracedException(
-                                   std::logic_error("Invalid mov operation: unsupported destination operand type"));
-                          }},
-                      mov.destination);
+                                                 loadInstructions.insert(loadInstructions.end(),
+                                                                         storeInstructions.begin(),
+                                                                         storeInstructions.end());
+                                                 return loadInstructions;
+                                            },
+                                            [](auto&&) -> std::vector<std::byte>
+                                            {
+                                                 throw TracedException(std::logic_error(
+                                                      "Invalid mov operation: unsupported operand combination"));
+                                            }},
+                                       mov.source);
+                             },
+                             [](const ErrorOperand&) -> std::vector<std::byte>
+                             {
+                                  return std::vector<std::byte>{};
+                             },
+                             [](const std::monostate&) -> std::vector<std::byte>
+                             {
+                                  return std::vector<std::byte>{};
+                             },
+                             [](auto&&) -> std::vector<std::byte>
+                             {
+                                  throw TracedException(
+                                       std::logic_error("Invalid mov operation: unsupported destination operand type"));
+                             }},
+                        mov.destination);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const AddInstruction& add)
 {
      return std::visit(
-         OverloadedVisitor{
-             [&add, this](const RegisterOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&add, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificAdd<OperandCombination::RegisterToRegister>(add);
-                                        },
-                                        [&add, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificAdd<OperandCombination::ImmediateToRegister>(add);
-                                        },
-                                        [&add, this](const MemoryLocationOperand&)
-                                        {
-                                             return this->EmitSpecificAdd<OperandCombination::MemoryToRegister>(add);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw ecpps::TracedException(std::logic_error("Invalid add operation"));
-                                        }},
-                      add.from);
-             },
-             [&add, this](const MemoryLocationOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&add, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificAdd<OperandCombination::RegisterToMemory>(add);
-                                        },
-                                        [&add, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificAdd<OperandCombination::ImmediateToMemory>(add);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw ecpps::TracedException(std::logic_error("Invalid add operation"));
-                                        }},
-                      add.from);
-             },
-             [](auto&&) -> std::vector<std::byte>
-             {
-                  throw ecpps::TracedException(std::logic_error("Invalid add operation"));
-             }},
-         add.to);
+          OverloadedVisitor{
+               [&add, this](const RegisterOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{
+                              [&add, this](const RegisterOperand&)
+                              {
+                                   return this->EmitSpecificAdd<OperandCombination::RegisterToRegister>(add);
+                              },
+                              [&add, this](const IntegerOperand&)
+                              {
+                                   return this->EmitSpecificAdd<OperandCombination::ImmediateToRegister>(add);
+                              },
+                              [&add, this](const MemoryLocationOperand&)
+                              {
+                                   return this->EmitSpecificAdd<OperandCombination::MemoryToRegister>(add);
+                              },
+                              [](auto&&) -> std::vector<std::byte>
+                              {
+                                   throw ecpps::TracedException(std::logic_error("Invalid add operation"));
+                              }},
+                         add.from);
+               },
+               [&add, this](const MemoryLocationOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{[&add, this](const RegisterOperand&)
+                                           {
+                                                return this->EmitSpecificAdd<OperandCombination::RegisterToMemory>(add);
+                                           },
+                                           [&add, this](const IntegerOperand&)
+                                           {
+                                                return this->EmitSpecificAdd<OperandCombination::ImmediateToMemory>(
+                                                     add);
+                                           },
+                                           [](auto&&) -> std::vector<std::byte>
+                                           {
+                                                throw ecpps::TracedException(std::logic_error("Invalid add operation"));
+                                           }},
+                         add.from);
+               },
+               [](auto&&) -> std::vector<std::byte>
+               {
+                    throw ecpps::TracedException(std::logic_error("Invalid add operation"));
+               }},
+          add.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const SubInstruction& sub)
 {
      return std::visit(
-         OverloadedVisitor{
-             [&sub, this](const RegisterOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&sub, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificSub<OperandCombination::RegisterToRegister>(sub);
-                                        },
-                                        [&sub, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificSub<OperandCombination::ImmediateToRegister>(sub);
-                                        },
-                                        [&sub, this](const MemoryLocationOperand&)
-                                        {
-                                             return this->EmitSpecificSub<OperandCombination::MemoryToRegister>(sub);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw TracedException(std::logic_error("Invalid sub operation"));
-                                        }},
-                      sub.from);
-             },
-             [&sub, this](const MemoryLocationOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&sub, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificSub<OperandCombination::RegisterToMemory>(sub);
-                                        },
-                                        [&sub, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificSub<OperandCombination::ImmediateToMemory>(sub);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw TracedException(std::logic_error("Invalid sub operation"));
-                                        }},
-                      sub.from);
-             },
-             [](auto&&) -> std::vector<std::byte>
-             {
-                  throw ecpps::TracedException(std::logic_error("Invalid sub operation"));
-             }},
-         sub.to);
+          OverloadedVisitor{
+               [&sub, this](const RegisterOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{
+                              [&sub, this](const RegisterOperand&)
+                              {
+                                   return this->EmitSpecificSub<OperandCombination::RegisterToRegister>(sub);
+                              },
+                              [&sub, this](const IntegerOperand&)
+                              {
+                                   return this->EmitSpecificSub<OperandCombination::ImmediateToRegister>(sub);
+                              },
+                              [&sub, this](const MemoryLocationOperand&)
+                              {
+                                   return this->EmitSpecificSub<OperandCombination::MemoryToRegister>(sub);
+                              },
+                              [](auto&&) -> std::vector<std::byte>
+                              {
+                                   throw TracedException(std::logic_error("Invalid sub operation"));
+                              }},
+                         sub.from);
+               },
+               [&sub, this](const MemoryLocationOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{[&sub, this](const RegisterOperand&)
+                                           {
+                                                return this->EmitSpecificSub<OperandCombination::RegisterToMemory>(sub);
+                                           },
+                                           [&sub, this](const IntegerOperand&)
+                                           {
+                                                return this->EmitSpecificSub<OperandCombination::ImmediateToMemory>(
+                                                     sub);
+                                           },
+                                           [](auto&&) -> std::vector<std::byte>
+                                           {
+                                                throw TracedException(std::logic_error("Invalid sub operation"));
+                                           }},
+                         sub.from);
+               },
+               [](auto&&) -> std::vector<std::byte>
+               {
+                    throw ecpps::TracedException(std::logic_error("Invalid sub operation"));
+               }},
+          sub.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMul(const MulInstruction& mul)
 {
      return std::visit(
-         OverloadedVisitor{
-             [&mul, this](const RegisterOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&mul, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificMul<OperandCombination::RegisterToRegister>(mul);
-                                        },
-                                        [&mul, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul);
-                                        },
-                                        [&mul, this](const MemoryLocationOperand&)
-                                        {
-                                             return this->EmitSpecificMul<OperandCombination::MemoryToRegister>(mul);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw TracedException(std::logic_error("Invalid mul operation"));
-                                        }},
-                      mul.from);
-             },
-             [&mul, this](const MemoryLocationOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&mul, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificMul<OperandCombination::RegisterToMemory>(mul);
-                                        },
-                                        [&mul, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificMul<OperandCombination::ImmediateToMemory>(mul);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw TracedException(std::logic_error("Invalid mul operation"));
-                                        }},
-                      mul.from);
-             },
-             [](auto&&) -> std::vector<std::byte>
-             {
-                  throw TracedException(std::logic_error("Invalid mul operation"));
-             }},
-         mul.to);
+          OverloadedVisitor{
+               [&mul, this](const RegisterOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{
+                              [&mul, this](const RegisterOperand&)
+                              {
+                                   return this->EmitSpecificMul<OperandCombination::RegisterToRegister>(mul);
+                              },
+                              [&mul, this](const IntegerOperand&)
+                              {
+                                   return this->EmitSpecificMul<OperandCombination::ImmediateToRegister>(mul);
+                              },
+                              [&mul, this](const MemoryLocationOperand&)
+                              {
+                                   return this->EmitSpecificMul<OperandCombination::MemoryToRegister>(mul);
+                              },
+                              [](auto&&) -> std::vector<std::byte>
+                              {
+                                   throw TracedException(std::logic_error("Invalid mul operation"));
+                              }},
+                         mul.from);
+               },
+               [&mul, this](const MemoryLocationOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{[&mul, this](const RegisterOperand&)
+                                           {
+                                                return this->EmitSpecificMul<OperandCombination::RegisterToMemory>(mul);
+                                           },
+                                           [&mul, this](const IntegerOperand&)
+                                           {
+                                                return this->EmitSpecificMul<OperandCombination::ImmediateToMemory>(
+                                                     mul);
+                                           },
+                                           [](auto&&) -> std::vector<std::byte>
+                                           {
+                                                throw TracedException(std::logic_error("Invalid mul operation"));
+                                           }},
+                         mul.from);
+               },
+               [](auto&&) -> std::vector<std::byte>
+               {
+                    throw TracedException(std::logic_error("Invalid mul operation"));
+               }},
+          mul.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitDiv(const DivInstruction& div)
 {
      return std::visit(
-         OverloadedVisitor{
-             [&div, this](const RegisterOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&div, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificDiv<OperandCombination::RegisterToRegister>(div);
-                                        },
-                                        [&div, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
-                                        }},
-                      div.from);
-             },
-             [&div, this](const MemoryLocationOperand&)
-             {
-                  return std::visit(
-                      OverloadedVisitor{[&div, this](const RegisterOperand&)
-                                        {
-                                             return this->EmitSpecificDiv<OperandCombination::RegisterToMemory>(div);
-                                        },
-                                        [&div, this](const IntegerOperand&)
-                                        {
-                                             return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(div);
-                                        },
-                                        [](auto&&) -> std::vector<std::byte>
-                                        {
-                                             throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
-                                        }},
-                      div.from);
-             },
-             [](auto&&) -> std::vector<std::byte>
-             {
-                  throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
-             }},
-         div.to);
+          OverloadedVisitor{
+               [&div, this](const RegisterOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{
+                              [&div, this](const RegisterOperand&)
+                              {
+                                   return this->EmitSpecificDiv<OperandCombination::RegisterToRegister>(div);
+                              },
+                              [&div, this](const IntegerOperand&)
+                              {
+                                   return this->EmitSpecificDiv<OperandCombination::ImmediateToRegister>(div);
+                              },
+                              [](auto&&) -> std::vector<std::byte>
+                              {
+                                   throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
+                              }},
+                         div.from);
+               },
+               [&div, this](const MemoryLocationOperand&)
+               {
+                    return std::visit(
+                         OverloadedVisitor{[&div, this](const RegisterOperand&)
+                                           {
+                                                return this->EmitSpecificDiv<OperandCombination::RegisterToMemory>(div);
+                                           },
+                                           [&div, this](const IntegerOperand&)
+                                           {
+                                                return this->EmitSpecificDiv<OperandCombination::ImmediateToMemory>(
+                                                     div);
+                                           },
+                                           [](auto&&) -> std::vector<std::byte>
+                                           {
+                                                throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
+                                           }},
+                         div.from);
+               },
+               [](auto&&) -> std::vector<std::byte>
+               {
+                    throw ecpps::TracedException(std::logic_error("Invalid mul operation"));
+               }},
+          div.to);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const TakeAddressInstruction& lea)
@@ -450,7 +472,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const Tak
                                          [](auto&&) -> std::vector<std::byte>
                                          {
                                               throw ecpps::TracedException(
-                                                  std::logic_error("Invalid address-of operation"));
+                                                   std::logic_error("Invalid address-of operation"));
                                          }},
                        lea.to);
 }
@@ -474,11 +496,11 @@ std::size_t ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(const Regist
 {
      const auto registerName = register_.Index()->physical->friendlyName;
      const static std::unordered_map<std::string, std::size_t> GeneralRegisterMap{
-         {"rax", x86_64::Rax}, {"rcx", x86_64::Rcx}, {"rdx", x86_64::Rdx}, {"rbx", x86_64::Rbx},
-         {"rsp", x86_64::Rsp}, {"rbp", x86_64::Rbp}, {"rsi", x86_64::Rsi}, {"rdi", x86_64::Rdi},
+          {"rax", x86_64::Rax}, {"rcx", x86_64::Rcx}, {"rdx", x86_64::Rdx}, {"rbx", x86_64::Rbx},
+          {"rsp", x86_64::Rsp}, {"rbp", x86_64::Rbp}, {"rsi", x86_64::Rsi}, {"rdi", x86_64::Rdi},
 
-         {"r8", x86_64::R8},   {"r9", x86_64::R9},   {"r10", x86_64::R10}, {"r11", x86_64::R11},
-         {"r12", x86_64::R12}, {"r13", x86_64::R13}, {"r14", x86_64::R14}, {"r15", x86_64::R15},
+          {"r8", x86_64::R8},   {"r9", x86_64::R9},   {"r10", x86_64::R10}, {"r11", x86_64::R11},
+          {"r12", x86_64::R12}, {"r13", x86_64::R13}, {"r14", x86_64::R14}, {"r15", x86_64::R15},
      };
      if (GeneralRegisterMap.contains(registerName)) return GeneralRegisterMap.at(registerName);
 
@@ -499,7 +521,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
 
           const auto sourceImmediate = source.Value();
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (mov.width)
@@ -556,7 +578,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
 
           const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (mov.width)
@@ -603,7 +625,7 @@ struct ecpps::codegen::emitters::EmitSpecificMovImpl<ecpps::codegen::emitters::O
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
-    ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
+     ecpps::codegen::emitters::OperandCombination::ImmediateToMemory>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MovInstruction& mov)
      {
@@ -612,7 +634,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
           const auto sourceImmediate = source.Value();
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (mov.width)
@@ -636,7 +658,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
-    ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
+     ecpps::codegen::emitters::OperandCombination::ImmediateToRegister>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MovInstruction& mov)
      {
@@ -663,7 +685,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
-    ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
+     ecpps::codegen::emitters::OperandCombination::RegisterToMemory>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MovInstruction& mov)
      {
@@ -677,7 +699,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
           const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           const auto fromSize = source.Size();
@@ -686,7 +708,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
           if (toSize > fromSize)
           {
                throw TracedException(std::logic_error(
-                   std::format("Cannot extend {} bits to {} bits when moving to memory", fromSize, toSize)));
+                    std::format("Cannot extend {} bits to {} bits when moving to memory", fromSize, toSize)));
           }
 
           switch (toSize)
@@ -706,7 +728,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
-    ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
+     ecpps::codegen::emitters::OperandCombination::RegisterToRegister>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self,
                                               [[maybe_unused]] const MovInstruction& mov)
@@ -752,25 +774,25 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
                {
                case wordSize:
                     return fromSize == byteSize
-                               ? x86_64::GenerateMovZeroExtendReg8ToReg16(destinationRegister, sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendReg8ToReg16(destinationRegister, sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                case dwordSize:
                     return fromSize == byteSize
-                               ? x86_64::GenerateMovZeroExtendReg8ToReg32(destinationRegister, sourceRegister)
+                                ? x86_64::GenerateMovZeroExtendReg8ToReg32(destinationRegister, sourceRegister)
                            : fromSize == wordSize
-                               ? x86_64::GenerateMovZeroExtendReg16ToReg32(destinationRegister, sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendReg16ToReg32(destinationRegister, sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                case qwordSize:
                     return fromSize == byteSize
-                               ? x86_64::GenerateMovZeroExtendReg8ToReg64(destinationRegister, sourceRegister)
+                                ? x86_64::GenerateMovZeroExtendReg8ToReg64(destinationRegister, sourceRegister)
                            : fromSize == wordSize
-                               ? x86_64::GenerateMovZeroExtendReg16ToReg64(destinationRegister, sourceRegister)
+                                ? x86_64::GenerateMovZeroExtendReg16ToReg64(destinationRegister, sourceRegister)
                            : fromSize == dwordSize
-                               ? x86_64::GenerateMovZeroExtendReg32ToReg64(destinationRegister, sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendReg32ToReg64(destinationRegister, sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                }
           }
           break;
@@ -782,7 +804,7 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
 
 template <>
 struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
-    ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
+     ecpps::codegen::emitters::OperandCombination::MemoryToRegister>
 {
      static std::vector<std::byte> operator()([[maybe_unused]] X8664Emitter* self, const MovInstruction& mov)
      {
@@ -831,28 +853,28 @@ struct ecpps::codegen::emitters::EmitSpecificConversionImpl<
                {
                case wordSize:
                     return fromSize == byteSize
-                               ? x86_64::GenerateMovZeroExtendMem8ToReg16(destinationRegister, sourceRegisterOffset,
-                                                                          sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendMem8ToReg16(destinationRegister, sourceRegisterOffset,
+                                                                           sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                case dwordSize:
                     return fromSize == byteSize ? x86_64::GenerateMovZeroExtendMem8ToReg32(
-                                                      destinationRegister, sourceRegisterOffset, sourceRegister)
+                                                       destinationRegister, sourceRegisterOffset, sourceRegister)
                            : fromSize == wordSize
-                               ? x86_64::GenerateMovZeroExtendMem16ToReg32(destinationRegister, sourceRegisterOffset,
-                                                                           sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendMem16ToReg32(destinationRegister, sourceRegisterOffset,
+                                                                            sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                case qwordSize:
                     return fromSize == byteSize   ? x86_64::GenerateMovZeroExtendMem8ToReg64(
-                                                        destinationRegister, sourceRegisterOffset, sourceRegister)
+                                                         destinationRegister, sourceRegisterOffset, sourceRegister)
                            : fromSize == wordSize ? x86_64::GenerateMovZeroExtendMem16ToReg64(
-                                                        destinationRegister, sourceRegisterOffset, sourceRegister)
+                                                         destinationRegister, sourceRegisterOffset, sourceRegister)
                            : fromSize == dwordSize
-                               ? x86_64::GenerateMovZeroExtendMem32ToReg64(destinationRegister, sourceRegisterOffset,
-                                                                           sourceRegister)
-                               : throw TracedException(std::logic_error(
-                                     std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
+                                ? x86_64::GenerateMovZeroExtendMem32ToReg64(destinationRegister, sourceRegisterOffset,
+                                                                            sourceRegister)
+                                : throw TracedException(std::logic_error(
+                                       std::format("Cannot move-extend {} bits to {} bits", fromSize, toSize)));
                }
           }
           break;
@@ -876,7 +898,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
 
           const auto sourceImmediate = source.Value();
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (add.width)
@@ -961,7 +983,7 @@ struct ecpps::codegen::emitters::EmitSpecificAddImpl<ecpps::codegen::emitters::O
 
           const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (add.width)
@@ -1042,7 +1064,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
 
           const auto sourceImmediate = source.Value();
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (sub.width)
@@ -1101,7 +1123,7 @@ struct ecpps::codegen::emitters::EmitSpecificSubImpl<ecpps::codegen::emitters::O
 
           const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (sub.width)
@@ -1185,7 +1207,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 
           const auto sourceImmediate = source.Value();
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (mul.width)
@@ -1249,7 +1271,7 @@ struct ecpps::codegen::emitters::EmitSpecificMulImpl<ecpps::codegen::emitters::O
 
           const auto sourceRegister = ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(source);
           const auto destinationRegister =
-              ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
+               ecpps::codegen::emitters::X8664Emitter::RegisterToIndex(destination.Register());
           const auto destinationDisplacement = destination.Displacement();
 
           switch (mul.width)
@@ -1362,16 +1384,16 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
           UnsignedT initialThreshold = twoToThe31 + (UnsignedT(divisor) >> (BitCount - 1));
           UnsignedT adjustedThreshold =
-              initialThreshold - 1 - (initialThreshold % static_cast<UnsignedT>(absoluteDivisor));
+               initialThreshold - 1 - (initialThreshold % static_cast<UnsignedT>(absoluteDivisor));
 
           UnsignedT shiftCounter = BitCount - 1;
           UnsignedT quotientEstimateForAdjustedThreshold = twoToThe31 / adjustedThreshold;
           UnsignedT remainderEstimateForAdjustedThreshold =
-              twoToThe31 - (quotientEstimateForAdjustedThreshold * adjustedThreshold);
+               twoToThe31 - (quotientEstimateForAdjustedThreshold * adjustedThreshold);
 
           UnsignedT quotientEstimateForDivisor = twoToThe31 / static_cast<UnsignedT>(absoluteDivisor);
           UnsignedT remainderEstimateForDivisor =
-              twoToThe31 - (quotientEstimateForDivisor * static_cast<UnsignedT>(absoluteDivisor));
+               twoToThe31 - (quotientEstimateForDivisor * static_cast<UnsignedT>(absoluteDivisor));
 
           UnsignedT deltaThreshold{};
 
@@ -1401,8 +1423,8 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
 
                deltaThreshold = static_cast<UnsignedT>(absoluteDivisor) - remainderEstimateForDivisor;
           } while (
-              quotientEstimateForAdjustedThreshold < deltaThreshold ||
-              (quotientEstimateForAdjustedThreshold == deltaThreshold && remainderEstimateForAdjustedThreshold == 0));
+               quotientEstimateForAdjustedThreshold < deltaThreshold ||
+               (quotientEstimateForAdjustedThreshold == deltaThreshold && remainderEstimateForAdjustedThreshold == 0));
 
           SignedT magicMultiplier = static_cast<SignedT>(quotientEstimateForDivisor + 1);
 
@@ -1533,7 +1555,7 @@ struct ecpps::codegen::emitters::EmitSpecificDivImpl<ecpps::codegen::emitters::O
                code.append_range(x86_64::GenerateSignedSarImmToReg32(x86_64::Rcx, 31));
                code.append_range(x86_64::GenerateMovZeroExtendReg16ToReg32(x86_64::Rax, destReg));
                code.append_range(
-                   x86_64::GenerateSignedMulImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
+                    x86_64::GenerateSignedMulImmToReg64(x86_64::Rax, static_cast<std::uint64_t>(magic.magic)));
                code.append_range(x86_64::GenerateSignedShrImmToReg64(x86_64::Rax, 32));
 
                if (magic.shift)

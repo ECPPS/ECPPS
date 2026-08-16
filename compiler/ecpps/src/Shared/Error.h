@@ -52,7 +52,7 @@ namespace ecpps::diagnostics
           [[nodiscard]] virtual std::string Name(void) const noexcept = 0;
           [[nodiscard]] virtual Location Source(void) const noexcept = 0;
           [[nodiscard]] virtual const std::vector<std::unique_ptr<IDiagnosticsBase>>& SubDiagnostics(
-              void) const noexcept = 0;
+               void) const noexcept = 0;
      };
 
      using DiagnosticsMessage = std::unique_ptr<IDiagnosticsBase>;

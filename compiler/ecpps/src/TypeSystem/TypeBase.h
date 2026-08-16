@@ -287,7 +287,7 @@ namespace ecpps::typeSystem
                return this->_qualifiers;
           }
           [[nodiscard]] Qualifiers qualifiers( // NOLINT(readability-identifier-naming)
-              const Qualifiers newQualifiers) noexcept
+               const Qualifiers newQualifiers) noexcept
           {
                return std::exchange(this->_qualifiers, newQualifiers);
           }
@@ -336,8 +336,8 @@ namespace ecpps::typeSystem
           [[nodiscard]] ConversionSequence CompareTo(NonowningTypePointer other) const override
           {
                return typeid(*other) == typeid(VoidType) // NOLINT
-                          ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
-                          : ConversionSequence{std::nullopt};
+                           ? ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}}
+                           : ConversionSequence{std::nullopt};
           }
 
           [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const override;

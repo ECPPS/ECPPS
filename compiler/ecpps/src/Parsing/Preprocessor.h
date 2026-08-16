@@ -49,10 +49,10 @@ namespace ecpps
           }
 
           [[nodiscard]] std::vector<PreprocessingToken> ProcessObjectLike(
-              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
           [[nodiscard]] std::vector<PreprocessingToken> ProcessFunctionLike(
-              const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-              const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
 
           explicit MacroReplacement(std::string name, std::optional<std::vector<std::string>> parameters,
                                     std::string contents, const bool isVariadic)

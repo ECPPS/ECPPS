@@ -290,9 +290,9 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.fileHeader.machine = IMAGE_FILE_MACHINE_AMD64;
      this->ntHeaders.fileHeader.sizeOfOptionalHeader = sizeof(OptionalHeader);
      this->ntHeaders.fileHeader.characteristics =
-         (linkType == LinkType::Executable ? IMAGE_FILE_EXECUTABLE_IMAGE
-                                           : (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DLL)) |
-         IMAGE_FILE_LARGE_ADDRESS_AWARE;
+          (linkType == LinkType::Executable ? IMAGE_FILE_EXECUTABLE_IMAGE
+                                            : (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DLL)) |
+          IMAGE_FILE_LARGE_ADDRESS_AWARE;
      const std::time_t currentTime = std::time(nullptr);
      this->ntHeaders.fileHeader.timeDateStamp = static_cast<std::uint32_t>(currentTime);
 
@@ -437,15 +437,15 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      // Calculate RVAs for the function addresses, names, and ordinals
      exportDirectory.AddressOfFunctions = currentOffset;
      currentOffset +=
-         AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
+          AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
      exportDirectory.AddressOfNames = currentOffset;
      currentOffset +=
-         AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
+          AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
      exportDirectory.AddressOfNameOrdinals = currentOffset; // Ensure AddressOfNameOrdinals is set
      currentOffset +=
-         AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
+          AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
 
      std::uint32_t offset = 0;
      // Serialise function addresses
@@ -470,7 +470,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      for (const auto& [name, address] : this->exports)
      {
           const std::size_t insertPos = std::max<std::size_t>(
-              address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
+               address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
@@ -528,10 +528,10 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
 
      // Update directories
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT] =
-         DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
+          DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
 
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
-         .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t))};
+          .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t))};
 
      // Update sizeOfImage
      currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());
@@ -539,7 +539,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
 
      this->ntHeaders.optionalHeader.numberOfRvaAndSizes = 14;
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] =
-         DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
+          DataDirectory{.VirtualAddress = exportRVA, .Size = exportSize};
 
      // this->ntHeaders.optionalHeader.sizeOfImage =
      //     AlignUp(exportRVA + exportSize + static_cast<std::uint32_t>(idataBuf.size()), sectionAlignment);
@@ -548,8 +548,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      constexpr std::uint32_t ntHeadersOffset = AlignUp<std::uint32_t>(sizeof(DosHeader), sizeof(std::uint32_t));
      constexpr std::uint32_t sectionHeadersOffset = ntHeadersOffset + sizeof(NtHeaders);
      const std::uint32_t headersSize =
-         AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),
-                 this->ntHeaders.optionalHeader.fileAlignment);
+          AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),
+                  this->ntHeaders.optionalHeader.fileAlignment);
 
      this->ntHeaders.optionalHeader.sizeOfInitializedData = static_cast<std::uint32_t>(idataBuffer.size());
      this->ntHeaders.fileHeader.numberOfSections = static_cast<std::uint16_t>(this->sections.size());
@@ -564,9 +564,9 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           if (section.name == ".rdata") this->rdataRVA = currentVirtualAddress;
 
           currentVirtualAddress =
-              AlignUp(currentVirtualAddress + AlignUp(static_cast<std::uint32_t>(section.data.size()),
-                                                      this->ntHeaders.optionalHeader.sectionAlignment),
-                      this->ntHeaders.optionalHeader.sectionAlignment);
+               AlignUp(currentVirtualAddress + AlignUp(static_cast<std::uint32_t>(section.data.size()),
+                                                       this->ntHeaders.optionalHeader.sectionAlignment),
+                       this->ntHeaders.optionalHeader.sectionAlignment);
      }
 
      std::uint32_t fileSize = headersSize;
@@ -578,8 +578,8 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           section.pointerToRawData = fileSize;
           fileSize = AlignUp(fileSize + static_cast<std::uint32_t>(section.data.size()),
                              this->ntHeaders.optionalHeader.fileAlignment);
-          imageSize +=
-              AlignUp(static_cast<std::uint32_t>(section.data.size()), this->ntHeaders.optionalHeader.sectionAlignment);
+          imageSize += AlignUp(static_cast<std::uint32_t>(section.data.size()),
+                               this->ntHeaders.optionalHeader.sectionAlignment);
      }
 
      this->ntHeaders.optionalHeader.sizeOfImage = imageSize;
@@ -602,11 +602,11 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           memcpy(sectionHeadersPtr->Name, section.name.c_str(),
                  std::min(section.name.size(), sizeof(sectionHeadersPtr->Name)));
           sectionHeadersPtr->VirtualAddress =
-              AlignUp(section.virtualAddress, this->ntHeaders.optionalHeader.sectionAlignment);
+               AlignUp(section.virtualAddress, this->ntHeaders.optionalHeader.sectionAlignment);
           sectionHeadersPtr->PointerToRawData = section.pointerToRawData;
           sectionHeadersPtr->SizeOfRawData = static_cast<std::uint32_t>(section.data.size());
           sectionHeadersPtr->VirtualSize =
-              AlignUp(static_cast<std::uint32_t>(section.data.size()), this->ntHeaders.optionalHeader.fileAlignment);
+               AlignUp(static_cast<std::uint32_t>(section.data.size()), this->ntHeaders.optionalHeader.fileAlignment);
           sectionHeadersPtr->Characteristics = static_cast<std::uint32_t>(section.flags);
           ++sectionHeadersPtr;
      }

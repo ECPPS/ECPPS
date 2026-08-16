@@ -95,11 +95,11 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                          positionMap[line.size()] = pos; // For end position handling
 
                          std::size_t startPos = positionMap.size() > (diagnostic->Source().position)
-                                                    ? positionMap.at(diagnostic->Source().position)
-                                                    : diagnostic->Source().position;
+                                                     ? positionMap.at(diagnostic->Source().position)
+                                                     : diagnostic->Source().position;
                          std::size_t endPos = positionMap.size() > (diagnostic->Source().endPosition)
-                                                  ? positionMap.at(diagnostic->Source().endPosition)
-                                                  : diagnostic->Source().endPosition;
+                                                   ? positionMap.at(diagnostic->Source().endPosition)
+                                                   : diagnostic->Source().endPosition;
 
                          std::println("{}{:<{}} {}", diagnostic->Source().line, '|', indent * 5uz, expandedLine);
                          std::println("{}   {}{}{}\x1b[0m", std::string(indent * 5uz, ' '), "   ",

@@ -56,7 +56,7 @@ namespace ecpps::ir
           {
                std::string built(indent * ast::PrettyIndent, ' ');
                built +=
-                   this->_returnType->RawName() + " " + ::ToString(this->_callingConvention) + " " + this->_name + "(";
+                    this->_returnType->RawName() + " " + ::ToString(this->_callingConvention) + " " + this->_name + "(";
                built += ")\n" + std::string(indent * ast::PrettyIndent, ' ') + "{\n";
                for (const auto& line : this->_body) built += line->ToString(indent + 1) + "\n";
                return built + std::string(indent * ast::PrettyIndent, ' ') + "}";

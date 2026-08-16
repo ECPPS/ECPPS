@@ -262,8 +262,8 @@ static LONG WINAPI WinExceptionHandler(EXCEPTION_POINTERS* exceptionInfo)
      case EXCEPTION_INT_DIVIDE_BY_ZERO: ecpps::IssueICE("Divide by zero", exceptionInfo->ContextRecord);
      default:
           ecpps::IssueICE(
-              std::format("Unhandled exception has occurred: {}", exceptionInfo->ExceptionRecord->ExceptionCode),
-              exceptionInfo->ContextRecord);
+               std::format("Unhandled exception has occurred: {}", exceptionInfo->ExceptionRecord->ExceptionCode),
+               exceptionInfo->ContextRecord);
      }
 }
 

@@ -20,8 +20,8 @@ namespace ecpps::codegen
      {
           std::string symbolName;
           std::function<std::vector<std::byte>(
-              Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
-              apply;
+               Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
+               apply;
           std::size_t applyOutputSize;
      };
      struct StringRelocation
@@ -87,7 +87,7 @@ namespace ecpps::codegen
           /// Custom instruction emitter. By default a no-op.
           /// </summary>
           [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(
-              [[maybe_unused]] const CustomInstruction& instruction)
+               [[maybe_unused]] const CustomInstruction& instruction)
           {
                return {};
           }

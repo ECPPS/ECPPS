@@ -94,7 +94,7 @@ namespace
      }
 
      std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> CollectExactMatches(
-         const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
+          const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::shared_ptr<ecpps::ir::FunctionScope>> exactMatches;
           for (const auto& context : contextSequence)
@@ -105,7 +105,7 @@ namespace
      }
 
      std::vector<std::pair<std::string, std::size_t>> CollectSimilarNames(
-         const std::string& name, std::size_t argumentCount, std::deque<ecpps::ir::ContextPointer>& contextSequence)
+          const std::string& name, std::size_t argumentCount, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::pair<std::string, std::size_t>> similar;
           std::set<std::string> seen;
@@ -129,7 +129,7 @@ namespace
 
                     const std::size_t paramCount = func->parameters.size();
                     const std::size_t argPenalty =
-                        (paramCount > argumentCount) ? (paramCount - argumentCount) : (argumentCount - paramCount);
+                         (paramCount > argumentCount) ? (paramCount - argumentCount) : (argumentCount - paramCount);
 
                     const std::size_t score = nameDistance + (argPenalty * 2);
 
@@ -149,7 +149,7 @@ namespace
      }
 
      std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
-         const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
+          const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {
           std::vector<std::pair<std::string, std::size_t>> similar;
           std::set<std::string> seen;
@@ -209,9 +209,9 @@ namespace
           {
                using std::string_view_literals::operator""sv;
                info.parameterFailures.emplace_back(
-                   static_cast<std::size_t>(-1),
-                   std::format("Expected {} argument{}, got {}", function->parameters.size(),
-                               function->parameters.size() == 1 ? ""sv : "s"sv, arguments.size()));
+                    static_cast<std::size_t>(-1),
+                    std::format("Expected {} argument{}, got {}", function->parameters.size(),
+                                function->parameters.size() == 1 ? ""sv : "s"sv, arguments.size()));
                return info;
           }
 
@@ -223,7 +223,7 @@ namespace
                if (argument == nullptr)
                {
                     info.parameterFailures.emplace_back(
-                        paramIndex, std::format("Parameter {}: Invalid argument expression", paramIndex));
+                         paramIndex, std::format("Parameter {}: Invalid argument expression", paramIndex));
                     paramIndex++;
                     continue;
                }
@@ -270,9 +270,9 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAl
      ir.GetContext().globalScope->types.insert(signedCharType);
      TypeRequest unsignedCharRequest{.kind = TypeKind::Fundamental,
                                      .data =
-                                         StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Char,
-                                                                      .signedness = typeSystem::Signedness::Unsigned,
-                                                                      .isCharWithoutSign = false}};
+                                          StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Char,
+                                                                       .signedness = typeSystem::Signedness::Unsigned,
+                                                                       .isCharWithoutSign = false}};
      const auto* unsignedCharType = GetTypeContext().Get(unsignedCharRequest);
      ir.GetContext().globalScope->types.insert(unsignedCharType);
      TypeRequest shortRequest{.kind = TypeKind::Fundamental,
@@ -301,9 +301,9 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAl
      ir.GetContext().globalScope->types.insert(longLongType);
      TypeRequest unsignedShortRequest{.kind = TypeKind::Fundamental,
                                       .data =
-                                          StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Short,
-                                                                       .signedness = typeSystem::Signedness::Unsigned,
-                                                                       .isCharWithoutSign = false}};
+                                           StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Short,
+                                                                        .signedness = typeSystem::Signedness::Unsigned,
+                                                                        .isCharWithoutSign = false}};
      const auto* unsignedShortType = GetTypeContext().Get(unsignedShortRequest);
      ir.GetContext().globalScope->types.insert(unsignedShortType);
      TypeRequest unsignedIntRequest{.kind = TypeKind::Fundamental,
@@ -314,16 +314,16 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAl
      ir.GetContext().globalScope->types.insert(unsignedIntType);
      TypeRequest unsignedLongRequest{.kind = TypeKind::Fundamental,
                                      .data =
-                                         StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Long,
-                                                                      .signedness = typeSystem::Signedness::Unsigned,
-                                                                      .isCharWithoutSign = false}};
+                                          StandardSignedIntegerRequest{.size = typeSystem::TypeKind::Long,
+                                                                       .signedness = typeSystem::Signedness::Unsigned,
+                                                                       .isCharWithoutSign = false}};
      const auto* unsignedLongType = GetTypeContext().Get(unsignedLongRequest);
      ir.GetContext().globalScope->types.insert(unsignedLongType);
      TypeRequest unsignedLongLongRequest{
-         .kind = TypeKind::Fundamental,
-         .data = StandardSignedIntegerRequest{.size = typeSystem::TypeKind::LongLong,
-                                              .signedness = typeSystem::Signedness::Unsigned,
-                                              .isCharWithoutSign = false}};
+          .kind = TypeKind::Fundamental,
+          .data = StandardSignedIntegerRequest{.size = typeSystem::TypeKind::LongLong,
+                                               .signedness = typeSystem::Signedness::Unsigned,
+                                               .isCharWithoutSign = false}};
      const auto* unsignedLongLongType = GetTypeContext().Get(unsignedLongLongRequest);
      ir.GetContext().globalScope->types.insert(unsignedLongLongType);
      ir.GetContext().contextSequence.push_back(std::make_unique<NamespaceContext>(ir.GetContext().globalScope.get()));
@@ -372,8 +372,8 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           if (targetType == nullptr)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Invalid target type in using declaration", aliasNode->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Invalid target type in using declaration", aliasNode->Source()));
                return;
           }
 
@@ -406,13 +406,13 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      if (node.Signature().externOptional.has_value())
      {
           const std::string& languageLinkage =
-              node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
+               node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                       "Invalid language linkage specification", node.Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                         "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -443,24 +443,24 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
 
      const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
      auto functionScope =
-         MakeFunctionScope()
-             .Name(name)
-             .ReturnType(returnType)
-             .CallingConvention(node.Signature().callingConvention)
-             .Linkage(linkage)
-             .IsDllImportExport(isDllImportExport)
-             .DllImportName(dllImportName)
-             .IsExtern(node.Signature().isExtern)
-             .IsFriend(node.Signature().isFriend)
-             .IsInline(node.Signature().isInline)
-             .IsStatic(false) // TODO: node.Signature().isStatic
-             .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
-                                     ? ecpps::ir::ConstexprType::Constexpr
-                                     : ecpps::ir::ConstexprType::None)
-             .Parameters(parameters)
-             .Source(node.Source())
-             .NamespacePath(namespacePath)
-             .Build();
+          MakeFunctionScope()
+               .Name(name)
+               .ReturnType(returnType)
+               .CallingConvention(node.Signature().callingConvention)
+               .Linkage(linkage)
+               .IsDllImportExport(isDllImportExport)
+               .DllImportName(dllImportName)
+               .IsExtern(node.Signature().isExtern)
+               .IsFriend(node.Signature().isFriend)
+               .IsInline(node.Signature().isInline)
+               .IsStatic(false) // TODO: node.Signature().isStatic
+               .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
+                                        ? ecpps::ir::ConstexprType::Constexpr
+                                        : ecpps::ir::ConstexprType::None)
+               .Parameters(parameters)
+               .Source(node.Source())
+               .NamespacePath(namespacePath)
+               .Build();
      functionScope->parameters = parameters;
      this->GetContext().contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
 }
@@ -480,13 +480,13 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      if (node.Signature().externOptional.has_value())
      {
           const std::string& languageLinkage =
-              node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
+               node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                       "Invalid language linkage specification", node.Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                         "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -518,35 +518,35 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
      auto functionScope =
-         MakeFunctionScope()
-             .Name(name)
-             .ReturnType(returnType)
-             .CallingConvention(node.Signature().callingConvention)
-             .Linkage(linkage)
-             .IsDllImportExport(isDllImportExport)
-             .DllImportName(dllImportName)
-             .IsExtern(node.Signature().isExtern)
-             .IsFriend(node.Signature().isFriend)
-             .IsInline(node.Signature().isInline)
-             .IsStatic(false) // TODO: node.Signature().isStatic
-             .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
-                                     ? ecpps::ir::ConstexprType::Constexpr
-                                     : ecpps::ir::ConstexprType::None)
-             .Parameters(parameters)
-             .Source(node.Source())
-             .NamespacePath(namespacePath)
-             .Build();
+          MakeFunctionScope()
+               .Name(name)
+               .ReturnType(returnType)
+               .CallingConvention(node.Signature().callingConvention)
+               .Linkage(linkage)
+               .IsDllImportExport(isDllImportExport)
+               .DllImportName(dllImportName)
+               .IsExtern(node.Signature().isExtern)
+               .IsFriend(node.Signature().isFriend)
+               .IsInline(node.Signature().isInline)
+               .IsStatic(false) // TODO: node.Signature().isStatic
+               .ConstexprSpecifier(node.Signature().constexprSpecifier == ast::ConstantExpressionSpecifier::Constexpr
+                                        ? ecpps::ir::ConstexprType::Constexpr
+                                        : ecpps::ir::ConstexprType::None)
+               .Parameters(parameters)
+               .Source(node.Source())
+               .NamespacePath(namespacePath)
+               .Build();
      functionScope->parameters = parameters;
      functionScope->linkage = linkage;
      auto functionContext =
-         std::make_shared<FunctionContext>(functionScope.get(), node.Signature().callingConvention, returnType, name,
-                                           parameters |
-                                               std::views::transform(
-                                                   [](const FunctionScope::Parameter& parameter) -> decltype(auto)
-                                                   {
-                                                        return parameter.type;
-                                                   }) |
-                                               std::ranges::to<std::vector>());
+          std::make_shared<FunctionContext>(functionScope.get(), node.Signature().callingConvention, returnType, name,
+                                            parameters |
+                                                 std::views::transform(
+                                                      [](const FunctionScope::Parameter& parameter) -> decltype(auto)
+                                                      {
+                                                           return parameter.type;
+                                                      }) |
+                                                 std::ranges::to<std::vector>());
 
      ir.GetContext() = this->GetContext();
      auto* vFunctionScope = functionScope.get();
@@ -555,7 +555,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      ir.GetContext().contextSequence.push_back(std::move(functionContext));
      std::uint64_t paramIndex{};
      std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals =
-         std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+          std::make_shared<std::vector<FunctionScope::LocalEntity>>();
      locals->reserve(parameters.size());
      vFunctionScope->SetLocals(locals);
 
@@ -566,34 +566,34 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           locals->push_back(std::move(localEntity));
 
           auto paramNode = std::make_unique<PRValue>(
-              param.type,
-              std::unique_ptr<ParameterNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
-                                                            ParameterNode(paramIndex++, node.Source())),
-              false);
+               param.type,
+               std::unique_ptr<ParameterNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
+                                                              ParameterNode(paramIndex++, node.Source())),
+               false);
 
           ir._built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-              new (*this->GetContext().nodeAllocator) ir::StoreNode(param.name, std::move(paramNode), node.Source())});
+               new (*this->GetContext().nodeAllocator) ir::StoreNode(param.name, std::move(paramNode), node.Source())});
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
      if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir.GetContext().nodeAllocator)
-                                                                             ir::ReturnNode(nullptr, node.Source())});
+                                                                              ir::ReturnNode(nullptr, node.Source())});
 
      if (name == "main" && (ir._built.empty() || ir._built.back()->Kind() != NodeKind::Return))
           ir._built.push_back(
-              std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir.GetContext().nodeAllocator) ir::ReturnNode(
-                  std::make_unique<PRValue>(typeSystem::g_int.get(),
-                                            std::unique_ptr<IntegralNode, IRDeleter>{new (
-                                                *ir.GetContext().nodeAllocator) ir::IntegralNode(0, node.Source())},
-                                            true),
-                  node.Source())});
+               std::unique_ptr<ir::ReturnNode, IRDeleter>{new (*ir.GetContext().nodeAllocator) ir::ReturnNode(
+                    std::make_unique<PRValue>(typeSystem::g_int.get(),
+                                              std::unique_ptr<IntegralNode, IRDeleter>{new (
+                                                   *ir.GetContext().nodeAllocator) ir::IntegralNode(0, node.Source())},
+                                              true),
+                    node.Source())});
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
-         new (*this->GetContext().nodeAllocator) ecpps::ir::ProcedureNode(
-             linkage, node.Signature().callingConvention, returnType, name, std::move(parameters), std::move(locals),
-             std::move(ir._built), node.Source(), NamespacePathFromContext())});
+          new (*this->GetContext().nodeAllocator) ecpps::ir::ProcedureNode(
+               linkage, node.Signature().callingConvention, returnType, name, std::move(parameters), std::move(locals),
+               std::move(ir._built), node.Source(), NamespacePathFromContext())});
 
      this->GetContext().contextSequence.pop_back();
 }
@@ -609,13 +609,13 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
           if (!typeSystem::g_void->CommonWith(function->returnType)) // NOLINT(clang-analyzer-core.NullDereference)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
-                           function->returnType->RawName() + ")",
-                       node.Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
+                              function->returnType->RawName() + ")",
+                         node.Source()));
           }
           this->_built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{
-              new (*this->GetContext().nodeAllocator) ir::ReturnNode(nullptr, node.Source())});
+               new (*this->GetContext().nodeAllocator) ir::ReturnNode(nullptr, node.Source())});
      }
 
      auto returnExpression = ParseExpression(node.Value());
@@ -625,12 +625,12 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      {
           auto& value = *optionalConstexpr;
           returnExpression =
-              ConstantEvaluationResultToExpression(value, returnExpression->Type(), *this->GetContext().nodeAllocator);
+               ConstantEvaluationResultToExpression(value, returnExpression->Type(), *this->GetContext().nodeAllocator);
      }
 
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      this->_built.push_back(std::unique_ptr<ir::ReturnNode, IRDeleter>{
-         new (*this->GetContext().nodeAllocator) ir::ReturnNode(std::move(converted), node.Source())});
+          new (*this->GetContext().nodeAllocator) ir::ReturnNode(std::move(converted), node.Source())});
 }
 
 void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode& node)
@@ -641,8 +641,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           if (declaredType == nullptr)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       std::format("Unknown type {} in typedef declaration", node.Type()->ToString(0)), node.Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Unknown type {} in typedef declaration", node.Type()->ToString(0)),
+                         node.Source()));
                return;
           }
 
@@ -654,8 +655,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (idExpr == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                            "Expected identifier in typedef declarator", decl.name->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                              "Expected identifier in typedef declarator", decl.name->Source()));
                     continue;
                }
 
@@ -675,8 +676,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
      if (declaredType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  std::format("Unknown type {} in variable declaration", node.Type()->ToString(0)), node.Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Unknown type {} in variable declaration", node.Type()->ToString(0)), node.Source()));
           return;
      }
 
@@ -687,8 +688,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           if (idExpr == nullptr)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                       "Expected identifier in variable declarator", decl.name->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                         "Expected identifier in variable declarator", decl.name->Source()));
                continue;
           }
 
@@ -701,12 +702,12 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           {
                if (inferLastArrayFromInitialiser)
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        std::make_unique<diagnostics::TypeError>(
-                            std::format(
-                                "Declaration of '{}' introduces an array of unbounded arrays which is not allowed, "
-                                "only the top-level array might be unbounded",
-                                varName),
-                            arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                         std::make_unique<diagnostics::TypeError>(
+                              std::format(
+                                   "Declaration of '{}' introduces an array of unbounded arrays which is not allowed, "
+                                   "only the top-level array might be unbounded",
+                                   varName),
+                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
 
                if (arrayLevel == nullptr)
                {
@@ -718,21 +719,21 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (arrayLevelExpression == nullptr) break; // assume the caller issued diagnostics
 
                auto constexprArraySize =
-                   arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+                    arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
                if (!constexprArraySize.has_value())
                {
                     inferLastArrayFromInitialiser = true; // at least try to be useful...
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        std::make_unique<diagnostics::TypeError>(
-                            std::format("Arrays bounds must be defined by a constant expression", varName),
-                            arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                         std::make_unique<diagnostics::TypeError>(
+                              std::format("Arrays bounds must be defined by a constant expression", varName),
+                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
 
                     auto& nestedDiagnostics = constexprArraySize.error();
 
                     while (!nestedDiagnostics.empty())
                     {
                          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                             std::move(nestedDiagnostics.top()));
+                              std::move(nestedDiagnostics.top()));
                          nestedDiagnostics.pop();
                     }
                     break;
@@ -742,9 +743,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                {
                     inferLastArrayFromInitialiser = true; // at least try to be useful...
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        std::make_unique<diagnostics::TypeError>(
-                            std::format("Arrays bounds must be defined by an integer", varName),
-                            arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                         std::make_unique<diagnostics::TypeError>(
+                              std::format("Arrays bounds must be defined by an integer", varName),
+                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
                     break;
                }
                const auto length = std::get<std::uint64_t>(arraySize.variant);
@@ -779,8 +780,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           if (duplicate)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Redefinition of variable '" + varName + "'", decl.name->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Redefinition of variable '" + varName + "'", decl.name->Source()));
                continue;
           }
 
@@ -794,14 +795,14 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (decl.initialiser == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            std::format("Unbounded array '{}' must have an initialiser", varName),
-                            decl.name->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Unbounded array '{}' must have an initialiser", varName),
+                              decl.name->Source()));
                }
                if (IsEligibleForStringLiteralInitialisation(variableType))
                {
                     if (auto* const stringInitialiser =
-                            dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
+                             dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
                         stringInitialiser != nullptr)
                     {
                          const auto& string = stringInitialiser->Value();
@@ -821,23 +822,23 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          for (const auto character : string) arrayValues.emplace_back(character);
                          arrayValues.emplace_back(0u);
                          std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
-                             new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
-                                 std::move(arrayValues), elementType, decl.initialiser->Source())};
+                              new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
+                                   std::move(arrayValues), elementType, decl.initialiser->Source())};
                          auto initialiserExpression =
-                             std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
+                              std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
                          this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                             new (*this->GetContext().nodeAllocator)
-                                 ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
-                                               std::move(initialiserExpression), decl.initialiser->Source())});
+                              new (*this->GetContext().nodeAllocator)
+                                   ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
+                                                 std::move(initialiserExpression), decl.initialiser->Source())});
                     }
                }
                if (inferLastArrayFromInitialiser)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            std::format("Array '{}' must be initialised with initialiser-lists", varName),
-                            decl.name->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Array '{}' must be initialised with initialiser-lists", varName),
+                              decl.name->Source()));
                }
 
                registeredVar.type = variableType;
@@ -848,8 +849,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (initExpr == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
                     continue;
                }
                if (isArray)
@@ -860,25 +861,25 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     if (IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
                     {
                          if (auto* const stringInitialiser =
-                                 dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
+                                  dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
                              stringInitialiser != nullptr)
                          {
                               const auto& string = stringInitialiser->Value();
                               const auto arrayLength = string.length() + 1;
                               const auto* elementType =
-                                  arrayType->ElementType()->CastTo<ecpps::typeSystem::CharacterType>();
+                                   arrayType->ElementType()->CastTo<ecpps::typeSystem::CharacterType>();
                               runtime_assert(elementType != nullptr,
                                              "Expected a character type for string-literal initialisation");
 
                               if (arrayLength > arrayType->ElementCount())
                               {
                                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                                       diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                           std::format("Cannot initialise an array with more elements than it can "
-                                                       "hold. Provided {} elements for an array of `{}` `{}`s",
-                                                       arrayLength, arrayType->ElementCount(),
-                                                       arrayType->ElementType()->RawName()),
-                                           decl.initialiser->Source()));
+                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                             std::format("Cannot initialise an array with more elements than it can "
+                                                         "hold. Provided {} elements for an array of `{}` `{}`s",
+                                                         arrayLength, arrayType->ElementCount(),
+                                                         arrayType->ElementType()->RawName()),
+                                             decl.initialiser->Source()));
                               }
 
                               std::vector<std::uint32_t> arrayValues{};
@@ -890,24 +891,24 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                                    arrayValues.resize(arrayType->ElementCount());
 
                               std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
-                                  new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
-                                      std::move(arrayValues), elementType, decl.initialiser->Source())};
+                                   new (*this->GetContext().nodeAllocator) ecpps::ir::IntegerArrayNode(
+                                        std::move(arrayValues), elementType, decl.initialiser->Source())};
                               auto initialiserExpression =
-                                  std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
+                                   std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
 
                               this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                                  new (*this->GetContext().nodeAllocator)
-                                      ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
-                                                    std::move(initialiserExpression), decl.initialiser->Source())});
+                                   new (*this->GetContext().nodeAllocator)
+                                        ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"),
+                                                      std::move(initialiserExpression), decl.initialiser->Source())});
                          }
                          continue;
                     }
                }
 
                this->_built.push_back(std::unique_ptr<ir::StoreNode, IRDeleter>{
-                   new (*this->GetContext().nodeAllocator)
-                       ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(initExpr),
-                                     decl.initialiser->Source())});
+                    new (*this->GetContext().nodeAllocator)
+                         ir::StoreNode(registeredVar.Name().value_or("__unknown_local_variable"), std::move(initExpr),
+                                       decl.initialiser->Source())});
           }
           else
           {
@@ -1018,10 +1019,10 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                if (!isPlus)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            std::format("Cannot subtract a pointer of type `{}` from an integer of type `{}`",
-                                        rightPointer->RawName(), leftIntegral->RawName()),
-                            source));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Cannot subtract a pointer of type `{}` from an integer of type `{}`",
+                                          rightPointer->RawName(), leftIntegral->RawName()),
+                              source));
                     return nullptr;
                }
 
@@ -1039,8 +1040,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
                right = std::make_unique<PRValue>(rightIntegral,
                                                  std::unique_ptr<ConvertNode, IRDeleter>{
-                                                     new (*this->GetContext().nodeAllocator)
-                                                         ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                                      new (*this->GetContext().nodeAllocator)
+                                                           ConvertNode(std::move(right), rightIntegral, innerSource)},
                                                  wasConstexpr);
           }
 
@@ -1048,17 +1049,17 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           {
                return std::make_unique<PRValue>(leftPointer,
                                                 std::unique_ptr<SubtractionNode, IRDeleter>{
-                                                    new (*this->GetContext().nodeAllocator)
-                                                        SubtractionNode(std::move(left), std::move(right), source)},
+                                                     new (*this->GetContext().nodeAllocator)
+                                                          SubtractionNode(std::move(left), std::move(right), source)},
                                                 false);
           }
 
           // ptr + int
           return std::make_unique<PRValue>(
-              leftPointer,
-              std::unique_ptr<AdditionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                           AdditionNode(std::move(left), std::move(right), source)},
-              false);
+               leftPointer,
+               std::unique_ptr<AdditionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                             AdditionNode(std::move(left), std::move(right), source)},
+               false);
      }
 
      if (leftPointer != nullptr && rightPointer != nullptr)
@@ -1066,17 +1067,17 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           if (operator_ != ast::Operator::Minus)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
                return nullptr;
           }
 
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Cannot subtract pointers to different types (" + left->Type()->Name() + " and " +
-                           right->Type()->Name() + ")",
-                       source));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot subtract pointers to different types (" + left->Type()->Name() + " and " +
+                              right->Type()->Name() + ")",
+                         source));
                return nullptr;
           }
 
@@ -1087,8 +1088,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
           return std::make_unique<PRValue>(resultType,
                                            std::unique_ptr<SubtractionNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator)
-                                                   SubtractionNode(std::move(left), std::move(right), source)},
+                                                new (*this->GetContext().nodeAllocator)
+                                                     SubtractionNode(std::move(left), std::move(right), source)},
                                            false);
      }
 
@@ -1097,9 +1098,9 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           // TODO: Classes
 
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                  left->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
 
           return nullptr;
      }
@@ -1112,10 +1113,10 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           const auto wasConstexpr = left->IsConstantExpression();
 
           left = std::make_unique<PRValue>(
-              leftIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
-              wasConstexpr);
+               leftIntegral,
+               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                            ConvertNode(std::move(left), leftIntegral, innerSource)},
+               wasConstexpr);
      }
 
      if (right->Type() != rightIntegral) // got promoted
@@ -1124,41 +1125,42 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           const auto wasConstexpr = right->IsConstantExpression();
 
           right = std::make_unique<PRValue>(
-              rightIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
-              wasConstexpr);
+               rightIntegral,
+               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                            ConvertNode(std::move(right), rightIntegral, innerSource)},
+               wasConstexpr);
      }
 
      const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
-                  left->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
           return nullptr;
      }
 
      if (operator_ == ast::Operator::Plus)
           return std::make_unique<PRValue>(
-              resultType,
-              std::unique_ptr<AdditionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                           AdditionNode(std::move(left), std::move(right), source)},
-              false);
+               resultType,
+               std::unique_ptr<AdditionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                             AdditionNode(std::move(left), std::move(right), source)},
+               false);
 
      return std::make_unique<PRValue>(
-         resultType,
-         std::unique_ptr<SubtractionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                         SubtractionNode(std::move(left), std::move(right), source)},
-         false);
+          resultType,
+          std::unique_ptr<SubtractionNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                           SubtractionNode(std::move(left), std::move(right), source)},
+          false);
 }
 
 Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Operator operator_, Expression right,
                                                         const Location& source) const
 {
      runtime_assert(operator_ == ast::Operator::Asterisk || operator_ == ast::Operator::Solidus ||
-                        operator_ == ast::Operator::Percent,
+                         operator_ == ast::Operator::Percent,
                     "Operator was not multiplicative in a multiplicative-expression");
 
      const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
@@ -1169,9 +1171,9 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
           // TODO: Classes
 
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                  left->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
 
           return nullptr;
      }
@@ -1184,10 +1186,10 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
           const auto wasConstexpr = left->IsConstantExpression();
 
           left = std::make_unique<PRValue>(
-              leftIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(left), leftIntegral, innerSource)},
-              wasConstexpr);
+               leftIntegral,
+               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                            ConvertNode(std::move(left), leftIntegral, innerSource)},
+               wasConstexpr);
      }
 
      if (right->Type() != rightIntegral) // got promoted
@@ -1196,41 +1198,42 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
           const auto wasConstexpr = right->IsConstantExpression();
 
           right = std::make_unique<PRValue>(
-              rightIntegral,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(right), rightIntegral, innerSource)},
-              wasConstexpr);
+               rightIntegral,
+               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                            ConvertNode(std::move(right), rightIntegral, innerSource)},
+               wasConstexpr);
      }
 
      const auto* resultType = leftIntegral->CommonWith(rightIntegral);
      if (resultType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot find a common integral type between " + left->Type()->Name() + " and " + left->Type()->Name(),
-                  left->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
           return nullptr;
      }
 
      if (operator_ == ast::Operator::Asterisk)
           return std::make_unique<PRValue>(resultType,
                                            std::unique_ptr<MultiplicationNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator)
-                                                   MultiplicationNode(std::move(left), std::move(right), source)},
+                                                new (*this->GetContext().nodeAllocator)
+                                                     MultiplicationNode(std::move(left), std::move(right), source)},
                                            false);
 
      if (operator_ == ast::Operator::Solidus)
           return std::make_unique<PRValue>(
-              resultType,
-              std::unique_ptr<DivideNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                         DivideNode(std::move(left), std::move(right), source)},
-              false);
+               resultType,
+               std::unique_ptr<DivideNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                           DivideNode(std::move(left), std::move(right), source)},
+               false);
 
      return std::make_unique<PRValue>(
-         resultType,
-         std::unique_ptr<ModuloNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                    ModuloNode(std::move(left), std::move(right), source)},
-         false);
+          resultType,
+          std::unique_ptr<ModuloNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                      ModuloNode(std::move(left), std::move(right), source)},
+          false);
 }
 
 Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
@@ -1272,8 +1275,8 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
           // TODO: Classes
 
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot perform this unary operation on " + operand->Type()->Name(), operand->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this unary operation on " + operand->Type()->Name(), operand->Value()->Source()));
 
           return nullptr;
      }
@@ -1290,10 +1293,10 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
      // }
 
      return std::make_unique<LValue>(
-         pointerType->BaseType(),
-         std::unique_ptr<DereferenceNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                         DereferenceNode(std::move(operand), source)},
-         false);
+          pointerType->BaseType(),
+          std::unique_ptr<DereferenceNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                           DereferenceNode(std::move(operand), source)},
+          false);
 }
 
 Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Location& source) const
@@ -1304,8 +1307,8 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
      {
 
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "An lvalue is required for a the address-of operator", operand->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "An lvalue is required for a the address-of operator", operand->Value()->Source()));
 
           return nullptr;
      }
@@ -1319,10 +1322,11 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
      pointerRequest.data = PointerRequest{.elementType = operand->Type()};
      const auto* pointerType = GetTypeContext().Get(pointerRequest);
 
-     return std::make_unique<PRValue>(pointerType,
-                                      std::unique_ptr<AddressOfNode, IRDeleter>{new (
-                                          *this->GetContext().nodeAllocator) AddressOfNode(std::move(operand), source)},
-                                      false);
+     return std::make_unique<PRValue>(
+          pointerType,
+          std::unique_ptr<AddressOfNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                         AddressOfNode(std::move(operand), source)},
+          false);
 }
 
 Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression right, const Location& source) const
@@ -1340,9 +1344,9 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
          ((rightPointer == nullptr && !rightIsArray) || leftIntegral == nullptr))
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  std::format("Cannot subscript types `{}` and `{}`", left->Type()->Name(), right->Type()->Name()),
-                  source));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Cannot subscript types `{}` and `{}`", left->Type()->Name(), right->Type()->Name()),
+                    source));
           return nullptr;
      }
 
@@ -1405,22 +1409,23 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
           if (!operand->IsLValue())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "A modifiable lvalue is required for a the builtin pre-increment operator",
-                       operand->Value()->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A modifiable lvalue is required for a the builtin pre-increment operator",
+                         operand->Value()->Source()));
                return nullptr;
           }
 
           return std::make_unique<LValue>(
-              operandType,
-              std::unique_ptr<AdditionAssignNode, IRDeleter>{new (*this->GetContext().nodeAllocator) AdditionAssignNode(
-                  std::move(operand),
-                  std::make_unique<PRValue>(operandType,
-                                            std::unique_ptr<IntegralNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator) IntegralNode(1, source)},
-                                            true),
-                  source)},
-              false);
+               operandType,
+               std::unique_ptr<AdditionAssignNode, IRDeleter>{
+                    new (*this->GetContext().nodeAllocator) AdditionAssignNode(
+                         std::move(operand),
+                         std::make_unique<PRValue>(operandType,
+                                                   std::unique_ptr<IntegralNode, IRDeleter>{new (
+                                                        *this->GetContext().nodeAllocator) IntegralNode(1, source)},
+                                                   true),
+                         source)},
+               false);
      }
 
      throw TracedException("Not implemented");
@@ -1436,17 +1441,17 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
           if (!operand->IsLValue())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "A modifiable lvalue is required for a the builtin post-increment operator",
-                       operand->Value()->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A modifiable lvalue is required for a the builtin post-increment operator",
+                         operand->Value()->Source()));
                return nullptr;
           }
 
           return std::make_unique<PRValue>(
-              operandType,
-              std::unique_ptr<PostIncrementNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                PostIncrementNode(std::move(operand), 1, source)},
-              false);
+               operandType,
+               std::unique_ptr<PostIncrementNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                  PostIncrementNode(std::move(operand), 1, source)},
+               false);
      }
 
      throw TracedException("Not implemented");
@@ -1461,23 +1466,23 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
           if (!operand->IsLValue())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "A modifiable lvalue is required for a the builtin pre-decrement operator",
-                       operand->Value()->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A modifiable lvalue is required for a the builtin pre-decrement operator",
+                         operand->Value()->Source()));
                return nullptr;
           }
 
           return std::make_unique<LValue>(
-              operandType,
-              std::unique_ptr<SubtractionAssignNode, IRDeleter>{
-                  new (*this->GetContext().nodeAllocator) SubtractionAssignNode(
-                      std::move(operand),
-                      std::make_unique<PRValue>(operandType,
-                                                std::unique_ptr<IntegralNode, IRDeleter>{
-                                                    new (*this->GetContext().nodeAllocator) IntegralNode(1, source)},
-                                                true),
-                      source)},
-              false);
+               operandType,
+               std::unique_ptr<SubtractionAssignNode, IRDeleter>{
+                    new (*this->GetContext().nodeAllocator) SubtractionAssignNode(
+                         std::move(operand),
+                         std::make_unique<PRValue>(operandType,
+                                                   std::unique_ptr<IntegralNode, IRDeleter>{new (
+                                                        *this->GetContext().nodeAllocator) IntegralNode(1, source)},
+                                                   true),
+                         source)},
+               false);
      }
 
      throw TracedException("Not implemented");
@@ -1493,17 +1498,17 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
           if (!operand->IsLValue())
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "A modifiable lvalue is required for a the builtin post-decrement operator",
-                       operand->Value()->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A modifiable lvalue is required for a the builtin post-decrement operator",
+                         operand->Value()->Source()));
                return nullptr;
           }
 
           return std::make_unique<PRValue>(
-              operandType,
-              std::unique_ptr<PostDecrementNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                PostDecrementNode(std::move(operand), 1, source)},
-              false);
+               operandType,
+               std::unique_ptr<PostDecrementNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                  PostDecrementNode(std::move(operand), 1, source)},
+               false);
      }
 
      throw TracedException("Not implemented");
@@ -1523,12 +1528,12 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
      case ast::Operator::Ampersand: return this->ParseAddressOfExpression(std::move(operand), node.Source());
      case ast::Operator::Increment:
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
-                     ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
-                     : this->ParsePostIncrementExpression(std::move(operand), node.Source());
+                      ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
+                      : this->ParsePostIncrementExpression(std::move(operand), node.Source());
      case ast::Operator::Decrement:
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
-                     ? this->ParsePreDecrementExpression(std::move(operand), node.Source())
-                     : this->ParsePostDecrementExpression(std::move(operand), node.Source());
+                      ? this->ParsePreDecrementExpression(std::move(operand), node.Source())
+                      : this->ParsePostDecrementExpression(std::move(operand), node.Source());
      default: throw TracedException(std::logic_error("Invalid unary operator"));
      }
 }
@@ -1593,11 +1598,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           if (isFromGlobalNamespace && parts.size() == 1)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Expected a function name in a call expression, found global scope specifier",
-                       node.Function()->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Expected a function name in a call expression, found global scope specifier",
+                         node.Function()->Source()));
                identifierFunction =
-                   new ast::IdentifierNode("__unknown", node.Function()->Source()); // a leak yeah, but uh
+                    new ast::IdentifierNode("__unknown", node.Function()->Source()); // a leak yeah, but uh
           }
           else
                identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
@@ -1606,9 +1611,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      if (!identifierFunction)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  std::format("Expected a function name in a call expression, found: {}", node.Function()->ToString(0)),
-                  node.Function()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Expected a function name in a call expression, found: {}",
+                                node.Function()->ToString(0)),
+                    node.Function()->Source()));
           return nullptr;
      }
 
@@ -1616,12 +1622,12 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      std::priority_queue<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>,
                          std::vector<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>>,
                          CompareByPriority>
-         candidates{};
+          candidates{};
 
      bool didMatchName = false;
      for (const auto& context : (isFromGlobalNamespace ? std::deque{this->GetContext().contextSequence.front()}
                                                        : this->GetContext().contextSequence) |
-                                    std::views::reverse)
+                                     std::views::reverse)
      {
           if (didMatchName) break;
 
@@ -1658,10 +1664,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
           std::vector<Expression> arguments = node.Arguments() |
                                               std::views::transform(
-                                                  [this](const ast::NodePointer& argument)
-                                                  {
-                                                       return this->ParseExpression(argument);
-                                                  }) |
+                                                   [this](const ast::NodePointer& argument)
+                                                   {
+                                                        return this->ParseExpression(argument);
+                                                   }) |
                                               std::ranges::to<std::vector>();
 
           for (const auto& candidate : scope->functions)
@@ -1682,16 +1688,16 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
           std::vector<Expression> evaluatedArguments = std::views::zip(candidate->parameters, moveRange) |
                                                        std::views::transform(
-                                                           [this](auto&& pair)
-                                                           {
-                                                                auto&& [param, arg] = pair;
-                                                                return ConvertTo(std::move(arg), param.type);
-                                                           }) |
+                                                            [this](auto&& pair)
+                                                            {
+                                                                 auto&& [param, arg] = pair;
+                                                                 return ConvertTo(std::move(arg), param.type);
+                                                            }) |
                                                        std::ranges::to<std::vector>();
 
           auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
-              new (*this->GetContext().nodeAllocator)
-                  FunctionCallNode(candidate, std::move(evaluatedArguments), node.Source())};
+               new (*this->GetContext().nodeAllocator)
+                    FunctionCallNode(candidate, std::move(evaluatedArguments), node.Source())};
 
           // TODO: Check for references; lvalue reference => lvalue; rvalue reference => xvalue
           return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
@@ -1701,17 +1707,17 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
      std::vector<Expression> argumentsForAnalysis = node.Arguments() |
                                                     std::views::transform(
-                                                        [this](const ast::NodePointer& argument)
-                                                        {
-                                                             return this->ParseExpression(argument);
-                                                        }) |
+                                                         [this](const ast::NodePointer& argument)
+                                                         {
+                                                              return this->ParseExpression(argument);
+                                                         }) |
                                                     std::ranges::to<std::vector>();
 
      auto exactMatches = CollectExactMatches(name, this->GetContext().contextSequence);
      if (!exactMatches.empty())
      {
           auto mainError = ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
-              name, errorMessage, identifierFunction->Source());
+               name, errorMessage, identifierFunction->Source());
 
           std::vector<const ast::Node*> argumentNodes;
           argumentNodes.reserve(node.Arguments().Size());
@@ -1719,15 +1725,15 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           for (const auto& func : exactMatches)
           {
                auto candidateNote = std::make_unique<diagnostics::Information>(
-                   "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
+                    "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
 
                auto failureInfo = AnalyseCandidateFailure(func, argumentsForAnalysis);
                for (const auto& [paramIndex, failure] : failureInfo.parameterFailures)
                {
                     Location argSource =
-                        (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 && paramIndex <= argumentNodes.size())
-                            ? argumentNodes[paramIndex - 1]->Source()
-                            : identifierFunction->Source();
+                         (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 && paramIndex <= argumentNodes.size())
+                              ? argumentNodes[paramIndex - 1]->Source()
+                              : identifierFunction->Source();
 
                     auto failureNote = std::make_unique<diagnostics::Information>("note", failure, argSource);
 
@@ -1745,7 +1751,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                               if ((ecpps::typeSystem::IsPointer(fromType) || ecpps::typeSystem::IsArray(fromType)) &&
                                   !ecpps::typeSystem::IsPointer(toType) && !ecpps::typeSystem::IsArray(toType))
                                    failureNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                                       "note", "Did you mean to dereference the argument?", argSource));
+                                        "note", "Did you mean to dereference the argument?", argSource));
                          }
                     }
 
@@ -1760,19 +1766,19 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      else
      {
           auto mainError =
-              std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage, identifierFunction->Source());
+               std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage, identifierFunction->Source());
 
           auto similarNames =
-              CollectSimilarNames(name, argumentsForAnalysis.size(), this->GetContext().contextSequence);
+               CollectSimilarNames(name, argumentsForAnalysis.size(), this->GetContext().contextSequence);
           if (!similarNames.empty())
           {
                auto didYouMeanNote =
-                   std::make_unique<diagnostics::Information>("note", "Did you mean:", identifierFunction->Source());
+                    std::make_unique<diagnostics::Information>("note", "Did you mean:", identifierFunction->Source());
 
                for (const auto& [similarName, distance] : similarNames)
                {
                     didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                        "", std::format("    {} [distance={}]", similarName, distance), identifierFunction->Source()));
+                         "", std::format("    {} [distance={}]", similarName, distance), identifierFunction->Source()));
                }
 
                mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
@@ -1788,9 +1794,9 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
 {
      const auto length = expression.Value().length();
      const auto* elementType =
-         GetTypeContext().Get(TypeRequest{.kind = TypeKind::Fundamental,
-                                          .qualifiers = typeSystem::Qualifiers::Const,
-                                          .data = StandardSignedIntegerRequest{.isCharWithoutSign = true}});
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Fundamental,
+                                           .qualifiers = typeSystem::Qualifiers::Const,
+                                           .data = StandardSignedIntegerRequest{.isCharWithoutSign = true}});
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
@@ -1803,7 +1809,7 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      const auto* arrayType = GetTypeContext().Get(arrayRequest);
 
      auto node = std::unique_ptr<IntegerArrayNode, IRDeleter>(new (*this->GetContext().nodeAllocator) IntegerArrayNode(
-         std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
+          std::move(values), elementType->CastTo<typeSystem::IntegralType>(), expression.Source()));
      return std::make_unique<PRValue>(arrayType, std::move(node), true);
 }
 
@@ -1818,9 +1824,9 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                if (type == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            std::format("Unknown type `{}` in sizeof expression", expression.Value()->ToString(0)),
-                            expression.Value()->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Unknown type `{}` in sizeof expression", expression.Value()->ToString(0)),
+                              expression.Value()->Source()));
                     return nullptr;
                }
                const auto size = type->Size();
@@ -1830,7 +1836,7 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
                const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
                auto node = std::unique_ptr<IntegralNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
-                                                                        IntegralNode(size, expression.Source()));
+                                                                         IntegralNode(size, expression.Source()));
                return std::make_unique<PRValue>(sizeType, std::move(node), true);
           }
      }
@@ -1850,8 +1856,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
      if (operandType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot determine the type of the operand in a sizeof expression", expression.Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot determine the type of the operand in a sizeof expression", expression.Value()->Source()));
           return nullptr;
      }
      const auto size = operandType->Size();
@@ -1860,7 +1866,7 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
      sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
      const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
      auto node = std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                              IntegralNode(size, expression.Value()->Source())};
+                                                               IntegralNode(size, expression.Value()->Source())};
      return std::make_unique<PRValue>(sizeType, std::move(node), true);
 }
 Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& expression)
@@ -1874,9 +1880,9 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
                if (type == nullptr)
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                            std::format("Unknown type `{}` in alignof expression", expression.Value()->ToString(0)),
-                            expression.Value()->Source()));
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Unknown type `{}` in alignof expression", expression.Value()->ToString(0)),
+                              expression.Value()->Source()));
                     return nullptr;
                }
                const auto size = type->Alignment();
@@ -1886,7 +1892,7 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
                sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
                const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
                auto node = std::unique_ptr<IntegralNode, IRDeleter>(new (*this->GetContext().nodeAllocator)
-                                                                        IntegralNode(size, expression.Source()));
+                                                                         IntegralNode(size, expression.Source()));
                return std::make_unique<PRValue>(sizeType, std::move(node), true);
           }
      }
@@ -1906,8 +1912,8 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
      if (operandType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot determine the type of the operand in an alignof expression", expression.Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot determine the type of the operand in an alignof expression", expression.Value()->Source()));
           return nullptr;
      }
      const auto size = operandType->Alignment();
@@ -1916,7 +1922,7 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
      sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
      const auto* sizeType = GetTypeContext().Get(sizeTypeRequest);
      auto node = std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                              IntegralNode(size, expression.Value()->Source())};
+                                                               IntegralNode(size, expression.Value()->Source())};
      return std::make_unique<PRValue>(sizeType, std::move(node), true);
 }
 
@@ -1940,10 +1946,11 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
                          if (variable.Name().value_or("__unknown_local") == name)
                          {
                               return std::make_unique<LValue>(
-                                  variable.type,
-                                  std::unique_ptr<LoadNode, IRDeleter>{new (*this->GetContext().nodeAllocator) LoadNode(
-                                      variable.Name().value_or("__unknown_local"), expression.Source())},
-                                  false);
+                                   variable.type,
+                                   std::unique_ptr<LoadNode, IRDeleter>{
+                                        new (*this->GetContext().nodeAllocator) LoadNode(
+                                             variable.Name().value_or("__unknown_local"), expression.Source())},
+                                   false);
                          }
                     }
                }
@@ -1958,12 +1965,12 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
      if (!similarNames.empty())
      {
           auto didYouMeanNote =
-              std::make_unique<diagnostics::Information>("note", "Did you mean:", expression.Source());
+               std::make_unique<diagnostics::Information>("note", "Did you mean:", expression.Source());
 
           for (const auto& [similarName, distance] : similarNames)
           {
                didYouMeanNote->SubDiagnostics().push_back(
-                   std::make_unique<diagnostics::Information>("", "    " + similarName, expression.Source()));
+                    std::make_unique<diagnostics::Information>("", "    " + similarName, expression.Source()));
           }
 
           mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
@@ -1982,17 +1989,17 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
          integerLiteral != nullptr)
           return std::make_unique<PRValue>(typeSystem::g_int.get(),
                                            std::unique_ptr<ir::IntegralNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator)
-                                                   ir::IntegralNode(integerLiteral->Value(), expression->Source())},
+                                                new (*this->GetContext().nodeAllocator)
+                                                     ir::IntegralNode(integerLiteral->Value(), expression->Source())},
                                            true);
 
      if (auto* const characterLiteral = dynamic_cast<ast::CharacterLiteralNode*>(expression.get());
          characterLiteral != nullptr)
           return std::make_unique<PRValue>(
-              typeSystem::g_char.get(),
-              std::unique_ptr<ir::IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator) ir::IntegralNode(
-                  static_cast<std::uint64_t>(characterLiteral->Value()), expression->Source())},
-              true);
+               typeSystem::g_char.get(),
+               std::unique_ptr<ir::IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator) ir::IntegralNode(
+                    static_cast<std::uint64_t>(characterLiteral->Value()), expression->Source())},
+               true);
      if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);
@@ -2011,8 +2018,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseAlignofExpression(*alignofNode);
 
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
-         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-             expression->ToString(0) + " cannot appear in this context.", expression->Source()));
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               expression->ToString(0) + " cannot appear in this context.", expression->Source()));
 
      return nullptr;
 }
@@ -2035,8 +2042,8 @@ Expression ecpps::ir::IR::PickInitialiser(const ast::NodePointer& expression,
      break;
      default:
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Unknown initialisation type",
-                                                                              expression->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Unknown initialisation type",
+                                                                               expression->Source()));
           break;
      }
      throw TracedException(std::logic_error("Unknown initialisation type"));
@@ -2055,9 +2062,9 @@ Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointe
      if (converted == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
-                  expression->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                    expression->Source()));
      }
      return converted;
 }
@@ -2071,9 +2078,9 @@ Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer&
      if (converted == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
-                  expression->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                    expression->Source()));
      }
      return converted;
 }
@@ -2085,10 +2092,10 @@ Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePoint
           if (IsIntegral(desiredType))
           {
                return std::make_unique<PRValue>(
-                   desiredType,
-                   std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                IntegralNode(0, Location{0, 0, 0})},
-                   true);
+                    desiredType,
+                    std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                  IntegralNode(0, Location{0, 0, 0})},
+                    true);
           }
           /*        if (IsPointer(desiredType))
                   {
@@ -2099,8 +2106,8 @@ Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePoint
                   }*/
      }
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
-         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-             "Zero initialisation is not supported for this type", Location{0, 0, 0}));
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               "Zero initialisation is not supported for this type", Location{0, 0, 0}));
      return nullptr;
 }
 Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType)
@@ -2117,8 +2124,8 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
      if (initialiserListNode == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Expected an initialiser list for list initialisation", expression->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Expected an initialiser list for list initialisation", expression->Source()));
           return nullptr;
      }
      std::vector<Expression> initialisers{};
@@ -2138,16 +2145,16 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           if (IsNarrowingConversion(initialiserExpression, desiredType))
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                       "Narrowing conversion from '" + initialiserExpression->Type()->Name() + "' to '" +
-                           desiredType->Name() + "' is not allowed in list initialisation",
-                       expression->Source()));
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Narrowing conversion from '" + initialiserExpression->Type()->Name() + "' to '" +
+                              desiredType->Name() + "' is not allowed in list initialisation",
+                         expression->Source()));
           }
           return ConvertTo(std::move(initialiserExpression), desiredType);
      }
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
-         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-             "List initialisation with multiple initialisers is not supported yet", expression->Source()));
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               "List initialisation with multiple initialisers is not supported yet", expression->Source()));
      return nullptr;
 }
 
@@ -2169,7 +2176,7 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
           const auto& value = basicType->Value();
 
           const auto qualifiers = basicType->IsConst() && basicType->IsVolatile()
-                                      ? typeSystem::Qualifiers::ConstVolatile
+                                       ? typeSystem::Qualifiers::ConstVolatile
                                   : basicType->IsConst()    ? typeSystem::Qualifiers::Const
                                   : basicType->IsVolatile() ? typeSystem::Qualifiers::Volatile
                                                             : typeSystem::Qualifiers::None;
@@ -2268,11 +2275,11 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
 
                std::vector<diagnostics::DiagnosticsMessage> diagnosticsList{};
                diagnosticsList.push_back(diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                   "Invalid type specifier: " + value, basicType->Source()));
+                    "Invalid type specifier: " + value, basicType->Source()));
                TypeRequest fallbackRequest{};
                fallbackRequest.kind = TypeKind::Error;
                fallbackRequest.data =
-                   InvalidRequest(std::make_unique<TypeRequest>(request), std::move(diagnosticsList));
+                    InvalidRequest(std::make_unique<TypeRequest>(request), std::move(diagnosticsList));
                return fallbackRequest;
           }
 
@@ -2283,7 +2290,7 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
           else
           {
                signedRequest.signedness =
-                   isUnsigned ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
+                    isUnsigned ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
 
                if (isChar) signedRequest.size = typeSystem::TypeKind::Char;
                else if (isShort)
@@ -2342,13 +2349,13 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
           try
           {
                expression =
-                   ConstantEvaluationResultToExpression(value, expression->Type(), *this->GetContext().nodeAllocator);
+                    ConstantEvaluationResultToExpression(value, expression->Type(), *this->GetContext().nodeAllocator);
           }
           catch (...)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                   std::make_unique<diagnostics::ConstantEvaluationWarning>(
-                       "Failed to use the constant expression evaluation result", expression->Value()->Source()));
+                    std::make_unique<diagnostics::ConstantEvaluationWarning>(
+                         "Failed to use the constant expression evaluation result", expression->Value()->Source()));
           }
      }
 
@@ -2357,10 +2364,10 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
      if (!comparison.IsValid())
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
-              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                  "Cannot convert from " + expression->Type()->Name() + " (aka " + expression->Type()->RawName() +
-                      ") to type " + toType->Name() + " (aka " + toType->RawName() + ")",
-                  expression->Value()->Source()));
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot convert from " + expression->Type()->Name() + " (aka " + expression->Type()->RawName() +
+                         ") to type " + toType->Name() + " (aka " + toType->RawName() + ")",
+                    expression->Value()->Source()));
           return nullptr;
      }
 
@@ -2396,8 +2403,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                          const auto source = intArray->Source();
 
                          decayNode = std::unique_ptr<TemporaryIntegerArrayDecayNode, IRDeleter>(
-                             new (*this->GetContext().nodeAllocator)
-                                 TemporaryIntegerArrayDecayNode(std::move(expression), source));
+                              new (*this->GetContext().nodeAllocator)
+                                   TemporaryIntegerArrayDecayNode(std::move(expression), source));
                     }
                     else
                          throw TracedException("array-to-pointer is not supported yet");
@@ -2413,8 +2420,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                     {
                          const auto source = loadNode->Source();
 
-                         decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(
-                             new (*this->GetContext().nodeAllocator) LoadArrayDecayNode(std::move(expression), source));
+                         decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(new (
+                              *this->GetContext().nodeAllocator) LoadArrayDecayNode(std::move(expression), source));
                     }
                     else
                          throw TracedException("array-to-pointer is not supported yet");
@@ -2434,7 +2441,7 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                const bool isLValue = expression->IsLValue();
 
                auto castNode = std::unique_ptr<PointerConversionNode, IRDeleter>(new (
-                   *this->GetContext().nodeAllocator) PointerConversionNode(std::move(expression), toType, source));
+                    *this->GetContext().nodeAllocator) PointerConversionNode(std::move(expression), toType, source));
 
                if (isPRValue) return std::make_unique<PRValue>(toType, std::move(castNode), wasConstexpr);
                if (isXValue) return std::make_unique<XValue>(toType, std::move(castNode), wasConstexpr);
@@ -2465,10 +2472,10 @@ Expression ecpps::ir::IR::ConvertIntegral(Expression expression, const typeSyste
      }
      if (IsArithmetic(expressionType))
           return std::make_unique<PRValue>(
-              type,
-              std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                          ConvertNode(std::move(expression), type, source)},
-              false);
+               type,
+               std::unique_ptr<ConvertNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                            ConvertNode(std::move(expression), type, source)},
+               false);
      return nullptr; // TODO: Return implicit conversion node
 }
 

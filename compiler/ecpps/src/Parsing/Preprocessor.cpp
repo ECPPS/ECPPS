@@ -161,14 +161,14 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     }
 
                     std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
-                        fileName, header,
-                        (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
+                         fileName, header,
+                         (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
                     if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
                     {
                          const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
                          tokens.append_range(
-                             Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
+                              Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
                     }
                }
                else if (directive == "define")
@@ -274,8 +274,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               }
 
                               bool isDirective =
-                                  (nextDirective == "else" || nextDirective == "endif" || nextDirective == "elif" ||
-                                   nextDirective == "elifdef" || nextDirective == "elifndef");
+                                   (nextDirective == "else" || nextDirective == "endif" || nextDirective == "elif" ||
+                                    nextDirective == "elifdef" || nextDirective == "elifndef");
                               if (isDirective)
                               {
 
@@ -698,9 +698,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           else
           {
                this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
-                   std::format("Invalid character '{:x}'",
-                               static_cast<std::uint32_t>(static_cast<unsigned char>(character))),
-                   location));
+                    std::format("Invalid character '{:x}'",
+                                static_cast<std::uint32_t>(static_cast<unsigned char>(character))),
+                    location));
           }
      }
 
@@ -742,9 +742,9 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)
 {
      static std::unordered_set<std::string> OperatorsAndPunctuators{
-         "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
-         "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
-         "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
+          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
+          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
+          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
 
      return OperatorsAndPunctuators.contains(string);
 }
@@ -871,14 +871,14 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
-    const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
      return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}), location, macros);
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionLike(
-    const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-    const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
 {
      std::unordered_map<std::string, std::string> parameterMap;
      std::unordered_map<std::string, std::string> rawParameterMap;
@@ -912,7 +912,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     auto rf = raw.find_first_not_of(" \t\n\r");
                     auto rl = raw.find_last_not_of(" \t\n\r");
                     rawParameterMap[parameterName] =
-                        (rf != std::string::npos) ? raw.substr(rf, rl - rf + 1) : std::string{};
+                         (rf != std::string::npos) ? raw.substr(rf, rl - rf + 1) : std::string{};
                }
                else
                     rawParameterMap[parameterName] = {};

@@ -177,9 +177,9 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     {
                          if (auto val = ParseFloat(numericPart))
                               tokens.emplace_back(
-                                  TokenType::Literal,
-                                  UserDefinedLiteral{.value = FloatingPointLiteral{*val}, .name = suffix},
-                                  preprocessorToken.source);
+                                   TokenType::Literal,
+                                   UserDefinedLiteral{.value = FloatingPointLiteral{*val}, .name = suffix},
+                                   preprocessorToken.source);
                     }
                     else
                     {
@@ -270,55 +270,55 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           {
                colour = "\x1b[32m";
                value = std::visit(
-                   OverloadedVisitor{[](const bool& boolean) -> std::string
-                                     {
-                                          return boolean ? "true" : "false";
-                                     },
-                                     [](const StringLiteral& literal) -> std::string
-                                     {
-                                          return "\"" + literal.value + "\"";
-                                     },
-                                     [](const IntegerLiteral& literal) -> std::string
-                                     {
-                                          return std::to_string(literal.value);
-                                     },
-                                     [](const char literal) -> std::string
-                                     {
-                                          return "'"s + literal + "'";
-                                     },
-                                     [](const FloatingPointLiteral& literal) -> std::string
-                                     {
-                                          return std::to_string(literal.value);
-                                     },
-                                     [](const UserDefinedLiteral& udl) -> std::string
-                                     {
-                                          return std::visit(
-                                                     OverloadedVisitor{
-                                                         [](const StringLiteral& literal) -> std::string
-                                                         {
-                                                              return "\"" + literal.value + "\"";
-                                                         },
-                                                         [](const IntegerLiteral& literal) -> std::string
-                                                         {
-                                                              return std::to_string(literal.value);
-                                                         },
-                                                         [](const char& literal) -> std::string
-                                                         {
-                                                              return "'"s + literal + "'";
-                                                         },
-                                                         [](const FloatingPointLiteral& literal) -> std::string
-                                                         {
-                                                              return std::to_string(literal.value);
-                                                         },
-                                                     },
-                                                     udl.value) +
-                                                 udl.name;
-                                     },
-                                     [](auto&&) -> std::string
-                                     {
-                                          return "?";
-                                     }},
-                   token.value);
+                    OverloadedVisitor{[](const bool& boolean) -> std::string
+                                      {
+                                           return boolean ? "true" : "false";
+                                      },
+                                      [](const StringLiteral& literal) -> std::string
+                                      {
+                                           return "\"" + literal.value + "\"";
+                                      },
+                                      [](const IntegerLiteral& literal) -> std::string
+                                      {
+                                           return std::to_string(literal.value);
+                                      },
+                                      [](const char literal) -> std::string
+                                      {
+                                           return "'"s + literal + "'";
+                                      },
+                                      [](const FloatingPointLiteral& literal) -> std::string
+                                      {
+                                           return std::to_string(literal.value);
+                                      },
+                                      [](const UserDefinedLiteral& udl) -> std::string
+                                      {
+                                           return std::visit(
+                                                       OverloadedVisitor{
+                                                            [](const StringLiteral& literal) -> std::string
+                                                            {
+                                                                 return "\"" + literal.value + "\"";
+                                                            },
+                                                            [](const IntegerLiteral& literal) -> std::string
+                                                            {
+                                                                 return std::to_string(literal.value);
+                                                            },
+                                                            [](const char& literal) -> std::string
+                                                            {
+                                                                 return "'"s + literal + "'";
+                                                            },
+                                                            [](const FloatingPointLiteral& literal) -> std::string
+                                                            {
+                                                                 return std::to_string(literal.value);
+                                                            },
+                                                       },
+                                                       udl.value) +
+                                                  udl.name;
+                                      },
+                                      [](auto&&) -> std::string
+                                      {
+                                           return "?";
+                                      }},
+                    token.value);
           }
           break;
           case TokenType::Operator:
@@ -378,11 +378,11 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           default: colour = "\x1b[38m";
           }
           const std::string spaces(
-              static_cast<std::size_t>(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
-                                                    static_cast<std::ptrdiff_t>(previous.endPosition),
-                                                1z) -
-                                       1z),
-              ' ');
+               static_cast<std::size_t>(std::max(static_cast<std::ptrdiff_t>(token.location.position) -
+                                                      static_cast<std::ptrdiff_t>(previous.endPosition),
+                                                 1z) -
+                                        1z),
+               ' ');
           previous = token.location;
 
           std::print("{}{}{}", spaces, colour, value);
@@ -393,20 +393,20 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
 bool ecpps::Tokeniser::IsKeyword(const std::string& identifier)
 {
      static std::unordered_set<std::string> Keywords = {
-         "alignas",       "alignof",     "asm",       "auto",      "bool",         "break",
-         "case",          "catch",       "char",      "char8_t",   "char16_t",     "char32_t",
-         "class",         "concept",     "const",     "consteval", "constexpr",    "constinit",
-         "const_cast",    "continue",    "co_await",  "co_return", "co_yield",     "decltype",
-         "default",       "delete",      "do",        "double",    "dynamic_cast", "else",
-         "enum",          "explicit",    "export",    "extern",    "false",        "float",
-         "for",           "friend",      "goto",      "if",        "inline",       "int",
-         "long",          "mutable",     "namespace", "new",       "noexcept",     "nullptr",
-         "operator",      "private",     "protected", "public",    "register",     "reinterpret_cast",
-         "requires",      "return",      "short",     "signed",    "sizeof",       "static",
-         "static_assert", "static_cast", "struct",    "switch",    "template",     "this",
-         "thread_local",  "throw",       "true",      "try",       "typedef",      "typeid",
-         "typename",      "union",       "unsigned",  "using",     "virtual",      "void",
-         "volatile",      "wchar_t",     "while"};
+          "alignas",       "alignof",     "asm",       "auto",      "bool",         "break",
+          "case",          "catch",       "char",      "char8_t",   "char16_t",     "char32_t",
+          "class",         "concept",     "const",     "consteval", "constexpr",    "constinit",
+          "const_cast",    "continue",    "co_await",  "co_return", "co_yield",     "decltype",
+          "default",       "delete",      "do",        "double",    "dynamic_cast", "else",
+          "enum",          "explicit",    "export",    "extern",    "false",        "float",
+          "for",           "friend",      "goto",      "if",        "inline",       "int",
+          "long",          "mutable",     "namespace", "new",       "noexcept",     "nullptr",
+          "operator",      "private",     "protected", "public",    "register",     "reinterpret_cast",
+          "requires",      "return",      "short",     "signed",    "sizeof",       "static",
+          "static_assert", "static_cast", "struct",    "switch",    "template",     "this",
+          "thread_local",  "throw",       "true",      "try",       "typedef",      "typeid",
+          "typename",      "union",       "unsigned",  "using",     "virtual",      "void",
+          "volatile",      "wchar_t",     "while"};
 
      return Keywords.contains(identifier);
 }

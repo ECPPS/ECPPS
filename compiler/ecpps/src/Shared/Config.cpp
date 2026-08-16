@@ -13,7 +13,7 @@
 ecpps::CompilerStrategy ecpps::g_compilerStrategy{};
 
 ecpps::CompilerConfig::CompilerConfig(
-    int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
+     int argc, char* argv[]) // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
 {
      using std::string_literals::operator""s;
 
@@ -45,17 +45,17 @@ ecpps::CompilerConfig::CompilerConfig(
                flag = flag.substr(0, flag.find(':'));
                const auto lowerFlag = flag |
                                       std::views::transform(
-                                          [](const char ch) -> char
-                                          {
-                                               return static_cast<char>(std::tolower(static_cast<int>(ch)));
-                                          }) |
-                                      std::ranges::to<std::string>();
-               const auto lowerValue = value |
-                                       std::views::transform(
                                            [](const char ch) -> char
                                            {
                                                 return static_cast<char>(std::tolower(static_cast<int>(ch)));
                                            }) |
+                                      std::ranges::to<std::string>();
+               const auto lowerValue = value |
+                                       std::views::transform(
+                                            [](const char ch) -> char
+                                            {
+                                                 return static_cast<char>(std::tolower(static_cast<int>(ch)));
+                                            }) |
                                        std::ranges::to<std::string>();
 
                if (flag == "WX") this->warningsAreErrors = true;

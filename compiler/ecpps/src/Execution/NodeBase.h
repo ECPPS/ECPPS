@@ -46,7 +46,7 @@ namespace ecpps::ir
      struct ConstantAggregateArray;
 
      using ConstantEvaluatedVariant =
-         std::variant<std::monostate, std::uint64_t, std::double_t, ConstantAggregateMap, ConstantAggregateArray>;
+          std::variant<std::monostate, std::uint64_t, std::double_t, ConstantAggregateMap, ConstantAggregateArray>;
 
      struct ConstantAggregateMap
      {

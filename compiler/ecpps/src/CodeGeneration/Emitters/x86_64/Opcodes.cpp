@@ -205,7 +205,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(std::size_t
      if (imm > std::numeric_limits<std::uint32_t>::max())
      {
           binary.append_range(GenerateMovImmToMem32(
-              reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
+               reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
           binary.append_range(GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
           return binary;
      }
@@ -1267,7 +1267,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToReg8([[ma
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem64(
-    std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
+     std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, destination >= 8);
@@ -1278,7 +1278,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem64(
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem32(
-    std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
+     std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, destination >= 8);
@@ -1289,7 +1289,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem32(
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem16(
-    std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
+     std::size_t destination, std::size_t destinationOffset, [[maybe_unused]] std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
@@ -1484,8 +1484,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem16(std::
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem8(
-    [[maybe_unused]] std::size_t destination, [[maybe_unused]] std::size_t destinationOffset,
-    [[maybe_unused]] std::size_t sourceRegister)
+     [[maybe_unused]] std::size_t destination, [[maybe_unused]] std::size_t destinationOffset,
+     [[maybe_unused]] std::size_t sourceRegister)
 {
      return {};
 }

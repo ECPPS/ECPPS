@@ -32,7 +32,7 @@ ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Ident
           case IMAGE_FILE_MACHINE_I386: bitness = ecpps::platformlib::ArchitectureBitness::x86_32; break;
           default:
                throw ecpps::platformlib::NativeException(
-                   std::format("Unknown native architecture: 0x{:X}", nativeMachine));
+                    std::format("Unknown native architecture: 0x{:X}", nativeMachine));
           }
      }
      else
@@ -43,7 +43,7 @@ ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Ident
           case IMAGE_FILE_MACHINE_AMD64: bitness = ecpps::platformlib::ArchitectureBitness::x86_64; break;
           default:
                throw ecpps::platformlib::NativeException(
-                   std::format("Unsupported WOW64 native arch: 0x{:X}", nativeMachine));
+                    std::format("Unsupported WOW64 native arch: 0x{:X}", nativeMachine));
           }
      }
 #else

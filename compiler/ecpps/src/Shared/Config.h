@@ -26,11 +26,11 @@ namespace ecpps
 
      constexpr LinkerUsed DefaultLinker = LinkerUsed::
 #ifdef _WIN64
-         Windows64;
+          Windows64;
 #elif defined(_WIN32)
-         Windows32;
+          Windows32;
 #else
-         Undefined;
+          Undefined;
 #endif
 
      enum struct DiagnosticType : std::uint_fast8_t

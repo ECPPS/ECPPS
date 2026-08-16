@@ -89,8 +89,8 @@ namespace ecpps::codegen
                               //      return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
                               // }
                               if (const auto position =
-                                      std::basic_string_view<Byte>{this->_arena.data() + view.begin, view.Size()}.find(
-                                          probe);
+                                       std::basic_string_view<Byte>{this->_arena.data() + view.begin, view.Size()}.find(
+                                            probe);
                                   position != std::basic_string_view<Byte>::npos)
                               {
                                    return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
@@ -127,7 +127,7 @@ namespace ecpps::codegen
           }
 
           std::stack<std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>>
-              symbolTables;
+               symbolTables;
           std::vector<ecpps::abi::StorageRef> functionParameters{};
           std::size_t stackFrameAdjustment = 0;
 

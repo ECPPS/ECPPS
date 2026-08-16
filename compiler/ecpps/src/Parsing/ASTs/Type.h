@@ -20,7 +20,7 @@ namespace ecpps::ast
                return this->_aliasName;
           }
           [[nodiscard]] const SBOVector<std::unique_ptr<IdentifierNode, ASTDeleter>>& AliasedNamespace(
-              void) const noexcept
+               void) const noexcept
           {
                return this->_aliasedNamespace;
           }

@@ -76,7 +76,7 @@ enum struct FileIterationStatus : bool
           std::chrono::year_month_day ymd{std::chrono::floor<std::chrono::days>(now)};
           macros.emplace_back("__DATE__", std::nullopt, std::format("\"{:%b %e %Y}\"", ymd), false);
           std::chrono::hh_mm_ss hms{
-              std::chrono::floor<std::chrono::seconds>(now - std::chrono::floor<std::chrono::days>(now))};
+               std::chrono::floor<std::chrono::seconds>(now - std::chrono::floor<std::chrono::days>(now))};
           macros.emplace_back("__TIME__", std::nullopt, std::format("\"{:%T}\"", hms), false);
           // TODO: __STDC_HOSTED__
           // TODO: __STDCPP_DEFAULT_NEW_ALIGNMENT__
@@ -97,7 +97,7 @@ enum struct FileIterationStatus : bool
           std::set<std::filesystem::path> includedFiles;
           ecpps::Preprocessor preprocessor{};
           const auto ppTokens =
-              preprocessor.Parse(source.contents, macros, source.name, includedFiles, config.includeDirectories);
+               preprocessor.Parse(source.contents, macros, source.name, includedFiles, config.includeDirectories);
           std::ranges::move(preprocessor.diagnostics, std::back_inserter(source.diagnostics.diagnosticsList));
           const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
           if (isExtraVerbose) std::println();
@@ -176,14 +176,14 @@ enum struct FileIterationStatus : bool
 
                     std::size_t start = std::min(routineOffset, generatedMachineCode.size());
                     std::size_t end = (i + 1 < ordered.size())
-                                          ? std::min(ordered[i + 1].second, generatedMachineCode.size())
-                                          : generatedMachineCode.size();
+                                           ? std::min(ordered[i + 1].second, generatedMachineCode.size())
+                                           : generatedMachineCode.size();
 
                     if (start >= end) continue;
 
                     auto machineCode =
-                        std::ranges::subrange(generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(start),
-                                              generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(end));
+                         std::ranges::subrange(generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(start),
+                                               generatedMachineCode.begin() + static_cast<std::ptrdiff_t>(end));
 
                     constexpr std::size_t RowSize = 8; // in bytes
                     const auto rows = (machineCode.size() + RowSize - 1) / RowSize;
@@ -199,7 +199,7 @@ enum struct FileIterationStatus : bool
                               if (byteOffset >= machineCode.size()) std::print("   ");
                               else
                                    std::print("{:02x} ", static_cast<std::size_t>(
-                                                             machineCode[static_cast<std::ptrdiff_t>(byteOffset)]));
+                                                              machineCode[static_cast<std::ptrdiff_t>(byteOffset)]));
                          }
                          std::println("|");
                     }
@@ -398,15 +398,15 @@ int main(int argc, char* argv[])
           config.stringArray.emplace_back(u8'\0');
 
           std::vector<std::byte> imageBytes = ecpps::linker::Linker::SelectAndLink(
-              config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,
-              emitter->_stringRelocation, 4,
-              config.stringArray |
-                  std::views::transform(
-                      [](const char8_t character)
-                      {
-                           return static_cast<std::byte>(character);
-                      }) |
-                  std::ranges::to<std::vector>());
+               config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,
+               emitter->_stringRelocation, 4,
+               config.stringArray |
+                    std::views::transform(
+                         [](const char8_t character)
+                         {
+                              return static_cast<std::byte>(character);
+                         }) |
+                    std::ranges::to<std::vector>());
 
           if (imageBytes.empty())
           {

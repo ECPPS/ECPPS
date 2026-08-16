@@ -38,7 +38,7 @@ namespace ecpps::ir
                return this->_entries[kind].size();
           }
           [[nodiscard]] const std::unordered_map<EntityKind, std::vector<std::optional<std::string>>>& Entries(
-              void) const noexcept
+               void) const noexcept
           {
                return this->_entries;
           }

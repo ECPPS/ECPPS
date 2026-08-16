@@ -61,8 +61,8 @@ namespace TestHelpers
      inline std::filesystem::path CreateTempSourceFile(std::string_view content, std::string_view extension = ".cpp")
      {
           auto tempPath =
-              std::filesystem::temp_directory_path() /
-              ("ecpps_test_" + std::to_string(std::hash<std::string_view>{}(content)) + std::string{extension});
+               std::filesystem::temp_directory_path() /
+               ("ecpps_test_" + std::to_string(std::hash<std::string_view>{}(content)) + std::string{extension});
 
           std::ofstream file(tempPath);
           file << content;

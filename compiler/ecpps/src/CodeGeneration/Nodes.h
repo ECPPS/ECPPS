@@ -334,9 +334,9 @@ namespace ecpps::codegen
      };
 
      using Instruction =
-         std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
-                      CallInstruction, TakeAddressInstruction,
-                      SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
+          std::variant<MovInstruction, ReturnInstruction, AddInstruction, MulInstruction, DivInstruction,
+                       CallInstruction, TakeAddressInstruction,
+                       SubInstruction /*, PushInstruction, PopInstruction , std::unique_ptr<CustomInstruction>*/>;
      [[nodiscard]] std::string ToString(const Instruction& instruction);
 
      struct Routine

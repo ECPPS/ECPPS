@@ -16,7 +16,7 @@ namespace ecpps
           union BufferUnion
           {
                alignas(T) std::byte // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
-                   sbo[sizeof(T) * SBOSize];
+                    sbo[sizeof(T) * SBOSize];
                struct
                {
                     T* begin{};
@@ -272,18 +272,19 @@ namespace ecpps
                return UseSBO() ? std::launder(reinterpret_cast<
                                               T(&)[TNSBOSize / sizeof(T)]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                             // modernize-avoid-c-arrays)
-                                     this->_buffer.sbo))
+                                      this->_buffer.sbo))
                                : this->_buffer.noSbo.begin;
           }
 
           const T* StoragePtr(void) const noexcept
           {
                return UseSBO()
-                          ? std::launder(reinterpret_cast<
-                                         const T(&)[TNSBOSize / sizeof(T)]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                             // modernize-avoid-c-arrays)
-                                this->_buffer.sbo))
-                          : _buffer.noSbo.begin;
+                           ? std::launder(
+                                  reinterpret_cast<
+                                       const T(&)[TNSBOSize / sizeof(T)]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                           // modernize-avoid-c-arrays)
+                                       this->_buffer.sbo))
+                           : _buffer.noSbo.begin;
           }
 
           T& operator[](std::size_t index)

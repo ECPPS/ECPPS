@@ -116,9 +116,9 @@ namespace ecpps::abi
 
           [[nodiscard]] virtual StorageRef ReturnValueStorage(StorageRequirement storageSize) const = 0;
           [[nodiscard]] virtual std::vector<StorageRef> LocateParameters(
-              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const = 0;
+               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const = 0;
           [[nodiscard]] virtual StorageRequirement GetRequirementsForType(
-              typeSystem::NonowningTypePointer type) const = 0;
+               typeSystem::NonowningTypePointer type) const = 0;
 
           [[nodiscard]] CallingConventionName Name(void) const noexcept
           {
@@ -133,11 +133,11 @@ namespace ecpps::abi
                return this->_stackAlignment;
           }
           [[nodiscard]] virtual std::unique_ptr<ProcedureStackManager> BeginStack(
-              std::vector<ecpps::codegen::Instruction>&) const = 0;
+               std::vector<ecpps::codegen::Instruction>&) const = 0;
           [[nodiscard]] virtual std::unique_ptr<CallTemporaryProxy> PrepareForCall(
-              std::vector<ecpps::codegen::Instruction>& instructions) = 0;
+               std::vector<ecpps::codegen::Instruction>& instructions) = 0;
           [[nodiscard]] virtual std::size_t CalculateArgumentStackSpace(
-              StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const = 0;
+               StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const = 0;
 
      protected:
           CallingConventionName _name;
@@ -153,14 +153,14 @@ namespace ecpps::abi
 
           [[nodiscard]] StorageRef ReturnValueStorage(StorageRequirement storageSize) const override;
           [[nodiscard]] std::vector<StorageRef> LocateParameters(
-              StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
+               StorageRequirement returnSize, std::vector<StorageRequirement> parameters) const override;
           [[nodiscard]] StorageRequirement GetRequirementsForType(typeSystem::NonowningTypePointer type) const override;
           [[nodiscard]] std::unique_ptr<ProcedureStackManager> BeginStack(
-              std::vector<ecpps::codegen::Instruction>& instructions) const final override;
+               std::vector<ecpps::codegen::Instruction>& instructions) const final override;
           [[nodiscard]] std::unique_ptr<CallTemporaryProxy> PrepareForCall(
-              std::vector<ecpps::codegen::Instruction>& instructions) final override;
+               std::vector<ecpps::codegen::Instruction>& instructions) final override;
           [[nodiscard]] std::size_t CalculateArgumentStackSpace(
-              StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const final;
+               StorageRequirement returnSize, const std::vector<StorageRequirement>& parameters) const final;
      };
 
      enum struct RegisterAllocation : bool

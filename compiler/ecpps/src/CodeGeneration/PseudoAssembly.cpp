@@ -36,15 +36,15 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
                                        std::vector<Instruction>& code)
 {
      const auto AppendInteger =
-         [&code]<std::size_t NBytes>(const std::shared_ptr<ecpps::abi::VirtualRegister>& relativeTo,
-                                     std::size_t location, const std::size_t integer)
+          [&code]<std::size_t NBytes>(const std::shared_ptr<ecpps::abi::VirtualRegister>& relativeTo,
+                                      std::size_t location, const std::size_t integer)
      {
           constexpr auto width = NBytes * ecpps::typeSystem::CharWidth;
 
           code.emplace_back(ecpps::codegen::MovInstruction{
-              ecpps::codegen::IntegerOperand{integer, width},
-              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{relativeTo}, location, width},
-              width});
+               ecpps::codegen::IntegerOperand{integer, width},
+               ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{relativeTo}, location, width},
+               width});
      };
 
      auto& abi = ecpps::abi::ABI::Current();
@@ -56,8 +56,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (!IsAligned(offset, 2) && std::distance(rangeIterator, range.Values().end()) >= 1)
           {
                const auto value =
-                   abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<1>(reg, offset, value);
                ++rangeIterator;
                offset++;
@@ -65,8 +65,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (!IsAligned(offset, 4) && std::distance(rangeIterator, range.Values().end()) >= 2)
           {
                const auto value =
-                   abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<2>(reg, offset, value);
                rangeIterator += 2;
                offset += 2;
@@ -74,8 +74,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (!IsAligned(offset, 8) && std::distance(rangeIterator, range.Values().end()) >= 4)
           {
                const auto value =
-                   abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<4>(reg, offset, value);
                rangeIterator += 4;
                offset += 4;
@@ -84,8 +84,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (std::distance(rangeIterator, range.Values().end()) >= 8)
           {
                const auto value =
-                   abi.ConvertEndian<8, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<8, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<8>(reg, offset, value);
                rangeIterator += 8;
                offset += 8;
@@ -94,8 +94,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (std::distance(rangeIterator, range.Values().end()) >= 4)
           {
                const auto value =
-                   abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<4, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<4>(reg, offset, value);
                rangeIterator += 4;
                offset += 4;
@@ -104,8 +104,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (std::distance(rangeIterator, range.Values().end()) >= 2)
           {
                const auto value =
-                   abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<2, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<2>(reg, offset, value);
                rangeIterator += 2;
                offset += 2;
@@ -114,8 +114,8 @@ static void CopyRangeOperandIntoMemory(const ecpps::codegen::IntegerRangeOperand
           while (std::distance(rangeIterator, range.Values().end()) >= 1)
           {
                const auto value =
-                   abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
+                    abi.ConvertEndian<1, unsigned char[]>(rangeIterator); // NOLINT(cppcoreguidelines-avoid-c-arrays,
+                                                                          // modernize-avoid-c-arrays)
                AppendInteger.template operator()<1>(reg, offset, value);
                ++rangeIterator;
                offset++;
@@ -141,82 +141,82 @@ static std::vector<unsigned char> SerialiseByteArray(const std::vector<std::uint
           case 1:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 2:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 3:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 4:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 5:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 6:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 7:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 8:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 9:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                          // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 10:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 11:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 12:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 13:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 14:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 15:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 16:
                bytes.append_range(abi.ConvertEndian<unsigned char[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                           // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           default: throw TracedException("Invalid size");
           }
@@ -240,82 +240,82 @@ static std::vector<char8_t> SerialiseByteArrayChar(const std::vector<std::uint32
           case 1:
                bytes.append_range(abi.ConvertEndian<char8_t[], 1>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 2:
                bytes.append_range(abi.ConvertEndian<char8_t[], 2>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 3:
                bytes.append_range(abi.ConvertEndian<char8_t[], 3>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 4:
                bytes.append_range(abi.ConvertEndian<char8_t[], 4>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 5:
                bytes.append_range(abi.ConvertEndian<char8_t[], 5>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 6:
                bytes.append_range(abi.ConvertEndian<char8_t[], 6>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 7:
                bytes.append_range(abi.ConvertEndian<char8_t[], 7>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 8:
                bytes.append_range(abi.ConvertEndian<char8_t[], 8>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 9:
                bytes.append_range(abi.ConvertEndian<char8_t[], 9>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                    // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 10:
                bytes.append_range(abi.ConvertEndian<char8_t[], 10>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 11:
                bytes.append_range(abi.ConvertEndian<char8_t[], 11>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 12:
                bytes.append_range(abi.ConvertEndian<char8_t[], 12>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 13:
                bytes.append_range(abi.ConvertEndian<char8_t[], 13>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 14:
                bytes.append_range(abi.ConvertEndian<char8_t[], 14>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 15:
                bytes.append_range(abi.ConvertEndian<char8_t[], 15>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           case 16:
                bytes.append_range(abi.ConvertEndian<char8_t[], 16>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
                                                                     // modernize-avoid-c-arrays)
-                   value));
+                    value));
                break;
           default: throw TracedException("Invalid size");
           }
@@ -358,18 +358,19 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           }
 
           auto destinationStorage =
-              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
-                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
-                                                                ecpps::abi::RegisterAllocation::Priority)
-                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
+               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                    ? ecpps::abi::ABI::Current().AllocateRegister(
+                           std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                           ecpps::abi::RegisterAllocation::Priority)
+                    : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           std::vector<Instruction> codeBuffer{};
           const auto right = ParseExpression(context, codeBuffer, addition->Right());
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(right) &&
               *std::get<ecpps::codegen::RegisterOperand>(right).Index()->physical ==
-                  *destinationStorage.Ptr()->physical)
+                   *destinationStorage.Ptr()->physical)
                destinationStorage =
-                   ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
+                    ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left) ||
               std::holds_alternative<ecpps::codegen::ErrorOperand>(right))
@@ -378,12 +379,12 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left) ||
               *std::get<ecpps::codegen::RegisterOperand>(left).Index()->physical != *destinationStorage->physical)
                code.emplace_back(ecpps::codegen::MovInstruction{
-                   left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+                    left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           code.append_range(codeBuffer);
 
           code.emplace_back(ecpps::codegen::AddInstruction{
-              right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+               right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -405,7 +406,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           code.append_range(codeBuffer);
 
           code.emplace_back(ecpps::codegen::AddInstruction{
-              right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
@@ -427,7 +428,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           code.append_range(codeBuffer);
 
           code.emplace_back(ecpps::codegen::SubInstruction{
-              right, destinationStorage, subtraction->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               right, destinationStorage, subtraction->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return destinationStorage; // NOLINT(clang-diagnostic-nrvo)
      }
@@ -452,10 +453,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           }
 
           auto destinationStorage =
-              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
-                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
-                                                                ecpps::abi::RegisterAllocation::Priority)
-                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
+               std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                    ? ecpps::abi::ABI::Current().AllocateRegister(
+                           std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                           ecpps::abi::RegisterAllocation::Priority)
+                    : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           const auto right = ParseExpression(context, code, subtraction->Right());
 
@@ -465,9 +467,9 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           if (!std::holds_alternative<ecpps::codegen::RegisterOperand>(left))
                code.emplace_back(ecpps::codegen::MovInstruction{
-                   left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+                    left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
           code.emplace_back(ecpps::codegen::SubInstruction{
-              right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
+               right, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}, destinationStorage->width});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -494,11 +496,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           const auto left = ParseExpression(context, code, multiplication->Left());
 
-          auto storage =
-              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
-                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
-                                                                ecpps::abi::RegisterAllocation::Priority)
-                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
+          auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                              ? ecpps::abi::ABI::Current().AllocateRegister(
+                                     std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                                     ecpps::abi::RegisterAllocation::Priority)
+                              : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           const auto right = ParseExpression(context, code, multiplication->Right());
 
@@ -535,11 +537,11 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           const auto left = ParseExpression(context, code, div->Left());
 
-          auto storage =
-              std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
-                  ? ecpps::abi::ABI::Current().AllocateRegister(std::get<ecpps::codegen::RegisterOperand>(left).Index(),
-                                                                ecpps::abi::RegisterAllocation::Priority)
-                  : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
+          auto storage = std::holds_alternative<ecpps::codegen::RegisterOperand>(left)
+                              ? ecpps::abi::ABI::Current().AllocateRegister(
+                                     std::get<ecpps::codegen::RegisterOperand>(left).Index(),
+                                     ecpps::abi::RegisterAllocation::Priority)
+                              : ecpps::abi::ABI::Current().AllocateRegister(ecpps::typeSystem::CharWidth * sizeInBytes);
 
           const auto right = ParseExpression(context, code, div->Right());
 
@@ -561,15 +563,15 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
 
           auto& currentAbi = ecpps::abi::ABI::Current();
           const std::string functionName = ecpps::abi::ABI::MangleName(
-              function.linkage, function.Name().value_or("__unknown"), function.callingConvention, function.returnType,
-              function.parameters |
-                  std::views::transform(
-                      [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                      {
-                           return parameter.type;
-                      }) |
-                  std::ranges::to<std::vector>(),
-              function.namespacePath);
+               function.linkage, function.Name().value_or("__unknown"), function.callingConvention, function.returnType,
+               function.parameters |
+                    std::views::transform(
+                         [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                         {
+                              return parameter.type;
+                         }) |
+                    std::ranges::to<std::vector>(),
+               function.namespacePath);
           auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
 
           runtime_assert(function.parameters.size() == call->Arguments().size(),
@@ -580,10 +582,10 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
           const auto parameterSizes = function.parameters |
                                       std::views::transform(
-                                          [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                          {
-                                               return callingConvention.GetRequirementsForType(parameter.type);
-                                          }) |
+                                           [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                           {
+                                                return callingConvention.GetRequirementsForType(parameter.type);
+                                           }) |
                                       std::ranges::to<std::vector>();
 
           const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
@@ -602,26 +604,26 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
                {
                     destination =
-                        ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+                         ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
                }
                else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
                {
                     const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
                     destination = ecpps::codegen::MemoryLocationOperand{
-                        ecpps::codegen::RegisterOperand{memLoc.reg}, memLoc.offset, parameter.type->Size() * CHAR_BIT};
+                         ecpps::codegen::RegisterOperand{memLoc.reg}, memLoc.offset, parameter.type->Size() * CHAR_BIT};
                }
                else
                     throw TracedException("Invalid parameter storage type in function call");
 
                code.emplace_back(
-                   ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
+                    ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
           }
 
           if (function.isDllImportExport)
                ecpps::codegen::g_functionImports[functionName] = function.dllImportName.empty() ? functionName
                                                                  : function.dllImportName.empty()
-                                                                     ? functionName
-                                                                     : function.dllImportName;
+                                                                      ? functionName
+                                                                      : function.dllImportName;
           code.emplace_back(ecpps::codegen::CallInstruction{functionName});
           callAbi->Finish(code);
 
@@ -629,7 +631,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           if (std::holds_alternative<std::monostate>(returnStorage.value))
                return ecpps::codegen::Operand{std::monostate{}};
           return ecpps::codegen::Operand{
-              ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}};
+               ecpps::codegen::RegisterOperand{std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}};
      }
      if (auto* const load = dynamic_cast<ecpps::ir::LoadNode*>(value.get()); load != nullptr)
      {
@@ -643,7 +645,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto width = storageRequest.size * ecpps::typeSystem::CharWidth;
 
           return ecpps::codegen::Operand{ecpps::codegen::MemoryLocationOperand{
-              ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
+               ecpps::codegen::RegisterOperand{memoryLocation.reg}, memoryLocation.offset, width}};
      }
      if (auto* const addressOf = dynamic_cast<ecpps::ir::AddressOfNode*>(value.get()); addressOf != nullptr)
      {
@@ -663,9 +665,9 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto resultReg = abi.AllocateRegister(abi.PointerSize() * ecpps::typeSystem::CharWidth);
 
           code.emplace_back(ecpps::codegen::TakeAddressInstruction{
-              ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
-                                                    abi.PointerSize() * ecpps::typeSystem::CharWidth},
-              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}}});
+               ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                     abi.PointerSize() * ecpps::typeSystem::CharWidth},
+               ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}}});
 
           return ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{resultReg.Ptr()}};
      }
@@ -683,20 +685,20 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                const auto& mem = std::get<ecpps::codegen::MemoryLocationOperand>(operandToPerformIndirectionOn);
 
                code.emplace_back(ecpps::codegen::MovInstruction{
-                   ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
-                                                         abi.PointerSize() * ecpps::typeSystem::CharWidth},
-                   ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}},
-                   abi.PointerSize() * ecpps::typeSystem::CharWidth});
+                    ecpps::codegen::MemoryLocationOperand{mem.Register(), mem.Displacement(),
+                                                          abi.PointerSize() * ecpps::typeSystem::CharWidth},
+                    ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}},
+                    abi.PointerSize() * ecpps::typeSystem::CharWidth});
                return ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{tmpReg.Ptr()}, 0,
                                                             pointerType->BaseType()->Size() *
-                                                                ecpps::typeSystem::CharWidth};
+                                                                 ecpps::typeSystem::CharWidth};
           }
 
           if (std::holds_alternative<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn))
           {
                return ecpps::codegen::MemoryLocationOperand{
-                   std::get<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn), 0,
-                   pointerType->BaseType()->Size() * ecpps::typeSystem::CharWidth};
+                    std::get<ecpps::codegen::RegisterOperand>(operandToPerformIndirectionOn), 0,
+                    pointerType->BaseType()->Size() * ecpps::typeSystem::CharWidth};
           }
 
           throw TracedException("Invalid operand for the address-of instruction");
@@ -724,7 +726,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           {
                ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
                                                              convert->Operand()->Type()->Size() *
-                                                                 ecpps::typeSystem::CharWidth};
+                                                                  ecpps::typeSystem::CharWidth};
                movInstruction.isConversion = true;
                code.emplace_back(std::move(movInstruction));
           }
@@ -732,7 +734,7 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           {
                ecpps::codegen::MovInstruction movInstruction{inner, ecpps::codegen::RegisterOperand{storage.Ptr()},
                                                              convert->Operand()->Type()->Size() *
-                                                                 ecpps::typeSystem::CharWidth};
+                                                                  ecpps::typeSystem::CharWidth};
                movInstruction.isConversion = true;
                code.emplace_back(std::move(movInstruction));
           }
@@ -746,22 +748,23 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto left = ParseExpression(context, code, postIncrement->Operand());
 
           auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
-              postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+               postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
 
           std::vector<Instruction> codeBuffer{};
-          const auto right = ecpps::codegen::IntegerOperand{
-              postIncrement->IncrementValue(), postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+          const auto right =
+               ecpps::codegen::IntegerOperand{postIncrement->IncrementValue(),
+                                              postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
 
           code.append_range(codeBuffer);
 
           code.emplace_back(
-              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
-                                             postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                              postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           code.emplace_back(ecpps::codegen::AddInstruction{
-              right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               right, left, postIncrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -772,22 +775,23 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto left = ParseExpression(context, code, postDecrement->Operand());
 
           auto destinationStorage = ecpps::abi::ABI::Current().AllocateRegister(
-              postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
+               postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth);
 
           std::vector<Instruction> codeBuffer{};
-          const auto right = ecpps::codegen::IntegerOperand{
-              postDecrement->IncrementValue(), postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
+          const auto right =
+               ecpps::codegen::IntegerOperand{postDecrement->IncrementValue(),
+                                              postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth};
 
           if (std::holds_alternative<ecpps::codegen::ErrorOperand>(left)) return ecpps::codegen::ErrorOperand{};
 
           code.append_range(codeBuffer);
 
           code.emplace_back(
-              ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
-                                             postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               ecpps::codegen::MovInstruction{left, ecpps::codegen::RegisterOperand{destinationStorage.Ptr()},
+                                              postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           code.emplace_back(ecpps::codegen::SubInstruction{
-              right, left, postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               right, left, postDecrement->Operand()->Type()->Size() * ecpps::typeSystem::CharWidth});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -808,9 +812,9 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
           const auto instructionIndex = code.size();
 
           code.emplace_back(ecpps::codegen::TakeAddressInstruction{
-              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
-                                                    context.GetStringOffset(stringIndex), movWidth},
-              ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
+               ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{abi.StringRegister()},
+                                                     context.GetStringOffset(stringIndex), movWidth},
+               ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
           context.AddStringPatch(static_cast<std::uint32_t>(instructionIndex), ecpps::InstructionPatchType::LeaFrom,
                                  stringIndex);
 
@@ -840,8 +844,8 @@ static ecpps::codegen::Operand ParseExpression(ecpps::codegen::AssemblyContext& 
                          "Invalid operand for lea");
 
           code.emplace_back(
-              ecpps::codegen::TakeAddressInstruction{std::get<ecpps::codegen::MemoryLocationOperand>(loaded),
-                                                     ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
+               ecpps::codegen::TakeAddressInstruction{std::get<ecpps::codegen::MemoryLocationOperand>(loaded),
+                                                      ecpps::codegen::RegisterOperand{destinationStorage.Ptr()}});
 
           return ecpps::codegen::RegisterOperand{destinationStorage.Ptr()};
      }
@@ -880,12 +884,12 @@ static void CompileReturn(ecpps::codegen::AssemblyContext& context, std::vector<
           // TODO: Mapping function
           ecpps::abi::MicrosoftX64CallingConvention callingConvention{};
           const auto returnStorage =
-              callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
+               callingConvention.ReturnValueStorage(callingConvention.GetRequirementsForType(node.Value()->Type()));
           code.emplace_back(
-              ecpps::codegen::MovInstruction{ParseExpression(context, code, node.Value()),
-                                             ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
-                                                 std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
-                                             node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
+               ecpps::codegen::MovInstruction{ParseExpression(context, code, node.Value()),
+                                              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{
+                                                   std::get<ecpps::abi::AllocatedRegister>(returnStorage.value).Ptr()}},
+                                              node.Value()->Type()->Size() * ecpps::typeSystem::CharWidth});
      }
 
      code.emplace_back(ecpps::codegen::ReturnInstruction{});
@@ -1012,20 +1016,20 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
           const auto parameterSizes = function.parameters |
                                       std::views::transform(
-                                          [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                          {
-                                               return callingConvention.GetRequirementsForType(parameter.type);
-                                          }) |
+                                           [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                           {
+                                                return callingConvention.GetRequirementsForType(parameter.type);
+                                           }) |
                                       std::ranges::to<std::vector>();
 
           const std::size_t callStackSpace =
-              callingConvention.CalculateArgumentStackSpace(returnTypeSize, parameterSizes);
+               callingConvention.CalculateArgumentStackSpace(returnTypeSize, parameterSizes);
           maxArgumentStackSpace = std::max(maxArgumentStackSpace, callStackSpace);
      }
      stackManager->ReserveCallArgumentSpace(maxArgumentStackSpace);
 
      std::unordered_map<std::string, std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>>& symbolTable =
-         context.symbolTables.emplace();
+          context.symbolTables.emplace();
 
      symbolTable.reserve(node.Locals().size());
      for (const auto& decl : node.Locals())
@@ -1038,29 +1042,29 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
           ecpps::abi::StorageRequirement request{type->Size(), type->Alignment(),
                                                  IsIntegral(type) ? ecpps::abi::RequiredStorageKind::Integer
                                                  : IsFloatingPoint(type)
-                                                     ? ecpps::abi::RequiredStorageKind::FloatingPoint
+                                                      ? ecpps::abi::RequiredStorageKind::FloatingPoint
                                                  : IsPointer(type) ? ecpps::abi::RequiredStorageKind::Pointer
                                                                    : ecpps::abi::RequiredStorageKind::Aggregate};
 
           auto storage = stackManager->ReserveStorage(request);
           symbolTable.emplace(
-              variableDecl.Name().value_or("__unknown_local_variable"),
-              std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{std::move(storage), request});
+               variableDecl.Name().value_or("__unknown_local_variable"),
+               std::pair<ecpps::abi::StorageRef, ecpps::abi::StorageRequirement>{std::move(storage), request});
      }
 
      context.stackFrameAdjustment = stackManager->GetParameterAdjustment();
 
      context.functionParameters = parentCallingConvention.LocateParameters(
-         ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
-                                        ecpps::abi::RequiredStorageKind::Integer},
-         node.ParameterList() |
-             std::views::transform(
-                 [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                 {
-                      return ecpps::abi::StorageRequirement{parameter.type->Size(), parameter.type->Alignment(),
-                                                            ecpps::abi::RequiredStorageKind::Integer};
-                 }) |
-             std::ranges::to<std::vector>());
+          ecpps::abi::StorageRequirement{node.ReturnType()->Size(), node.ReturnType()->Alignment(),
+                                         ecpps::abi::RequiredStorageKind::Integer},
+          node.ParameterList() |
+               std::views::transform(
+                    [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                    {
+                         return ecpps::abi::StorageRequirement{parameter.type->Size(), parameter.type->Alignment(),
+                                                               ecpps::abi::RequiredStorageKind::Integer};
+                    }) |
+               std::ranges::to<std::vector>());
 
      for (const auto& line : node.Body())
      {
@@ -1071,26 +1075,26 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                const auto& function = *call->Function();
 
                const std::string functionName =
-                   ecpps::abi::ABI::MangleName(function.linkage, function.Name().value_or("__unknown"),
-                                               function.callingConvention, function.returnType,
-                                               function.parameters |
-                                                   std::views::transform(
-                                                       [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                                       {
-                                                            return parameter.type;
-                                                       }) |
-                                                   std::ranges::to<std::vector>(),
-                                               function.namespacePath);
+                    ecpps::abi::ABI::MangleName(function.linkage, function.Name().value_or("__unknown"),
+                                                function.callingConvention, function.returnType,
+                                                function.parameters |
+                                                     std::views::transform(
+                                                          [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                          {
+                                                               return parameter.type;
+                                                          }) |
+                                                     std::ranges::to<std::vector>(),
+                                                function.namespacePath);
                const auto& callingConvention = currentAbi.CallingConventionFromName(function.callingConvention);
                const auto returnTypeSize = callingConvention.GetRequirementsForType(function.returnType);
                const auto parameterSizes =
-                   function.parameters |
-                   std::views::transform(
-                       [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
-                       {
-                            return callingConvention.GetRequirementsForType(parameter.type);
-                       }) |
-                   std::ranges::to<std::vector>();
+                    function.parameters |
+                    std::views::transform(
+                         [&callingConvention](const ecpps::ir::FunctionScope::Parameter& parameter)
+                         {
+                              return callingConvention.GetRequirementsForType(parameter.type);
+                         }) |
+                    std::ranges::to<std::vector>();
 
                const auto argumentStorage = callingConvention.LocateParameters(returnTypeSize, parameterSizes);
                auto argumentIterator = call->Arguments().begin();
@@ -1108,25 +1112,25 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                     if (std::holds_alternative<ecpps::abi::AllocatedRegister>(storage.value))
                     {
                          destination = ecpps::codegen::RegisterOperand{
-                             std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
+                              std::get<ecpps::abi::AllocatedRegister>(storage.value).Ptr()};
                     }
                     else if (std::holds_alternative<ecpps::abi::MemoryLocation>(storage.value))
                     {
                          const auto& memLoc = std::get<ecpps::abi::MemoryLocation>(storage.value);
                          destination =
-                             ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg},
-                                                                   memLoc.offset, parameter.type->Size() * CHAR_BIT};
+                              ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memLoc.reg},
+                                                                    memLoc.offset, parameter.type->Size() * CHAR_BIT};
                     }
                     else
                          throw TracedException("Invalid parameter storage type in function call");
 
                     instructions.emplace_back(
-                        ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
+                         ecpps::codegen::MovInstruction{operand, destination, parameter.type->Size() * CHAR_BIT});
                }
 
                if (function.isDllImportExport)
                     ecpps::codegen::g_functionImports[functionName] =
-                        function.dllImportName.empty() ? functionName : function.dllImportName;
+                         function.dllImportName.empty() ? functionName : function.dllImportName;
                instructions.emplace_back(ecpps::codegen::CallInstruction{functionName});
           }
           else if (const auto* const store = dynamic_cast<const ecpps::ir::StoreNode*>(line.get()); store != nullptr)
@@ -1139,8 +1143,8 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                const auto initValue = ParseExpression(context, instructions, store->Value());
 
                const ecpps::codegen::Operand dest{
-                   ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
-                                                         memoryLocation.offset, storageRequest.size * CHAR_BIT}};
+                    ecpps::codegen::MemoryLocationOperand{ecpps::codegen::RegisterOperand{memoryLocation.reg},
+                                                          memoryLocation.offset, storageRequest.size * CHAR_BIT}};
 
                if (std::holds_alternative<ecpps::codegen::IntegerRangeOperand>(initValue))
                {
@@ -1157,17 +1161,17 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                          const auto tempReg = currentAbi.AllocateRegister(storageRequest.size * CHAR_BIT);
 
                          instructions.emplace_back(ecpps::codegen::MovInstruction{
-                             initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
-                             storageRequest.size * CHAR_BIT});
+                              initValue, ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}},
+                              storageRequest.size * CHAR_BIT});
 
                          instructions.emplace_back(ecpps::codegen::MovInstruction{
-                             ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
-                             storageRequest.size * CHAR_BIT});
+                              ecpps::codegen::Operand{ecpps::codegen::RegisterOperand{tempReg.Ptr()}}, dest,
+                              storageRequest.size * CHAR_BIT});
                     }
                     else
                     {
                          instructions.emplace_back(
-                             ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
+                              ecpps::codegen::MovInstruction{initValue, dest, storageRequest.size * CHAR_BIT});
                     }
                }
           }
@@ -1189,7 +1193,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                instructions.append_range(codeBuffer);
 
                instructions.emplace_back(ecpps::codegen::AddInstruction{
-                   right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
+                    right, destinationStorage, addition->Right()->Type()->Size() * ecpps::typeSystem::CharWidth});
           }
      }
 
@@ -1197,16 +1201,16 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      context.symbolTables.pop();
 
      return Routine::Branchless(
-         std::move(instructions),
-         ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
-                                     node.ParameterList() |
-                                         std::views::transform(
-                                             [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                             {
-                                                  return parameter.type;
-                                             }) |
-                                         std::ranges::to<std::vector>(),
-                                     node.NamespacePath()));
+          std::move(instructions),
+          ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+                                      node.ParameterList() |
+                                           std::views::transform(
+                                                [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                {
+                                                     return parameter.type;
+                                                }) |
+                                           std::ranges::to<std::vector>(),
+                                      node.NamespacePath()));
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,

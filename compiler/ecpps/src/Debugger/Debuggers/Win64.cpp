@@ -68,9 +68,9 @@ static void PrintStackTrace(HANDLE process, HANDLE thread, const CONTEXT& ctx)
      for (std::size_t frameIndex = 0; frameIndex < 64; frameIndex++)
      {
           if (StackWalk64(
-                  IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
-                  reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
-                  nullptr, SymFunctionTableAccess64, SymGetModuleBase64, nullptr) == 0)
+                   IMAGE_FILE_MACHINE_AMD64, process, thread, &frame,
+                   reinterpret_cast<PVOID>(const_cast<CONTEXT*>(&ctx)), // NOLINT(cppcoreguidelines-pro-type-const-cast)
+                   nullptr, SymFunctionTableAccess64, SymGetModuleBase64, nullptr) == 0)
                break;
 
           if (frame.AddrPC.Offset == 0) break;

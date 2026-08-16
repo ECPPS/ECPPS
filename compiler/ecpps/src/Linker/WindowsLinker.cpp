@@ -34,7 +34,7 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
      {
           const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, static_cast<std::uint32_t>(codeSize));
           auto toInsert =
-              relocation.apply(Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks);
+               relocation.apply(Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks);
 
           const auto pos = where.Value();
           for (std::size_t i = 0; i < toInsert.size() && (pos + i) < data.size(); i++) data[pos + i] = toInsert[i];
@@ -85,7 +85,7 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::ToBytes(const std::str
                                                                   const std::vector<std::byte>& stringData) const
 {
      return this->Link(static_cast<std::uint32_t>(entryPointAddress) + ExportDisplacement)
-         .ToBytes(imageName, stringData);
+          .ToBytes(imageName, stringData);
 }
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)

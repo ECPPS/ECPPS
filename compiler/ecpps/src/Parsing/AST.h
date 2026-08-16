@@ -161,8 +161,8 @@ namespace ecpps::ast
 
                     for (const auto& arg : this->_arguments)
                          built +=
-                             (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
-                             ", ";
+                              (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
+                              ", ";
 
                     built.pop_back();
                     built.pop_back();
@@ -419,8 +419,8 @@ namespace ecpps::ast
           [[nodiscard]] std::string ToString([[maybe_unused]] const std::size_t indent) const override
           {
                return this->_type == UnaryOperatorType::Postfix
-                          ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
-                          : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0));
+                           ? (this->_operand->ToString(0) + ecpps::ast::ToString(this->_value))
+                           : (ecpps::ast::ToString(this->_value) + this->_operand->ToString(0));
           }
 
      private:

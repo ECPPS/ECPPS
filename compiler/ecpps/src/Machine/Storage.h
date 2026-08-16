@@ -101,7 +101,7 @@ namespace ecpps::abi
      struct StorageRef
      {
           using ValueType =
-              std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
+               std::variant<std::monostate, AllocatedRegister, std::vector<AllocatedRegister>, MemoryLocation>;
           ValueType value;
           explicit StorageRef(ValueType value) : value(std::move(value))
           {

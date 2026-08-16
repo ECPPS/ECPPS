@@ -8,7 +8,7 @@ std::size_t ecpps::typeSystem::ArrayType::Size(void) const noexcept
 }
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ArrayType::CompareTo(
-    [[maybe_unused]] NonowningTypePointer other) const
+     [[maybe_unused]] NonowningTypePointer other) const
 {
      return ConversionSequence{std::nullopt};
 }
@@ -19,7 +19,7 @@ ecpps::typeSystem::TypeTraits ecpps::typeSystem::ArrayType::Traits(void) const n
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ArrayType::CommonWith(
-    [[maybe_unused]] NonowningTypePointer other) const
+     [[maybe_unused]] NonowningTypePointer other) const
 {
      return nullptr;
 }
