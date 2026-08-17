@@ -4,50 +4,92 @@ on:
   workflow_call:
     inputs:
       llvm-version:
-        description: "Exact LLVM version to install (e.g. 20.1.8)"
         required: false
         type: string
         default: "20.1.8"
+      os:
+        required: false
+        type: string
+        default: "windows-latest"
     outputs:
-      llvm-path:
-        description: "Absolute path to the LLVM bin directory"
-        value: ${{ jobs.setup.outputs.llvm-path }}
+      llvm-bin:
+        description: "Path to LLVM bin directory"
+        value: ${{ jobs.setup.outputs.llvm-bin }}
+      llvm-version:
+        description: "Installed LLVM version"
+        value: ${{ inputs.llvm-version }}
 
 jobs:
   setup:
-    name: Install LLVM ${{ inputs.llvm-version }} + ccache
-    runs-on: windows-latest
+    runs-on: ${{ inputs.os }}
     outputs:
-      llvm-path: ${{ steps.emit.outputs.llvm-path }}
+      llvm-bin: ${{ steps.emit.outputs.llvm-bin }}
 
     steps:
-      - name: Cache LLVM installation
-        id: cache-llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-
-      - name: Install LLVM ${{ inputs.llvm-version }}
-        if: steps.cache-llvm.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
-
-      - name: Verify LLVM installation
+      - name: Setup LLVM (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $llvmBin = "C:\Program Files\LLVM\bin"
-          if (Test-Path $llvmBin) {
-            Write-Host "LLVM ${{ inputs.llvm-version }} installed at: $llvmBin"
-            & "$llvmBin\clang.exe" --version
-          } else {
-            throw "LLVM installation failed or not found at $llvmBin"
+          $version = "${{ inputs.llvm-version }}"
+          $llvmPath = "C:\Program Files\LLVM"
+          $binPath = "$llvmPath\bin"
+
+          # Check if already installed
+          if (Test-Path "$binPath\clang.exe") {
+            $installedVersion = & "$binPath\clang.exe" --version | Select-String -Pattern "version (\d+\.\d+\.\d+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+            if ($installedVersion -eq $version) {
+              Write-Host "LLVM $version already installed at $llvmPath"
+              echo "LLVM_PATH=$llvmPath" >> $env:GITHUB_ENV
+              echo "LLVM_BIN=$binPath" >> $env:GITHUB_ENV
+              exit 0
+            }
           }
+
+          # Install using Chocolatey
+          choco install llvm --version=$version --allow-downgrade -y
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to install LLVM $version"
+            exit 1
+          }
+
+          echo "LLVM_PATH=$llvmPath" >> $env:GITHUB_ENV
+          echo "LLVM_BIN=$binPath" >> $env:GITHUB_ENV
+
+      - name: Setup LLVM (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          version="${{ inputs.llvm-version }}"
+          # Extract major version
+          major_version=$(echo $version | cut -d. -f1)
+
+          # Check if already installed
+          if [ -d "/usr/lib/llvm-$major_version/bin" ]; then
+            echo "LLVM $version already installed"
+            echo "LLVM_PATH=/usr/lib/llvm-$major_version" >> $GITHUB_ENV
+            echo "LLVM_BIN=/usr/lib/llvm-$major_version/bin" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh $major_version all
+
+          echo "LLVM_PATH=/usr/lib/llvm-$major_version" >> $GITHUB_ENV
+          echo "LLVM_BIN=/usr/lib/llvm-$major_version/bin" >> $GITHUB_ENV
+
+      - name: Verify LLVM installation
+        shell: bash
+        run: |
+          if [ -z "$LLVM_BIN" ]; then
+            echo "LLVM_BIN not set"
+            exit 1
+          fi
+          "$LLVM_BIN/clang" --version
+          echo "LLVM installed at: $LLVM_BIN"
 
       - name: Emit outputs
         id: emit
-        shell: pwsh
+        shell: bash
         run: |
-          $llvmBin = "C:\Program Files\LLVM\bin"
-          echo "$llvmBin" >> $env:GITHUB_PATH
-          echo "llvm-path=$llvmBin" >> $env:GITHUB_OUTPUT
+          echo "llvm-bin=$LLVM_BIN" >> $GITHUB_OUTPUT

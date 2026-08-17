@@ -2,91 +2,67 @@ name: CI — Pull Request
 
 on:
   pull_request:
-    branches:
-      - main
-      - development
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [main, development]
 
 concurrency:
   group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  setup-llvm:
-    uses: ./.github/workflows/_setup-llvm.yml
-    with:
-      llvm-version: "20.1.8"
+  define-build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      windows-matrix: ${{ steps.set-matrix.outputs.windows-matrix }}
+      linux-matrix: ${{ steps.set-matrix.outputs.linux-matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          cat << 'EOF' >> $GITHUB_OUTPUT
+          windows-matrix=[{"compiler":"MSVC","name":"msvc","build_type":"Release","preset_configure":"Win64-MSVC-Release","preset_build":"Win64-MSVC-Release-Build","needs_msvc":true,"needs_llvm":false},{"compiler":"Clang","name":"clang20","build_type":"Release","preset_configure":"Win64-Clang-Release","preset_build":"Win64-Clang-Release-Build","needs_msvc":false,"needs_llvm":true}]
+          linux-matrix=[{"compiler":"Clang","name":"clang20","build_type":"Release","preset_configure":"Linux-Clang-Release","preset_build":"Linux-Clang-Release-Build","needs_llvm":true},{"compiler":"GCC","name":"gcc15","build_type":"Release","preset_configure":"Linux-GCC-Release","preset_build":"Linux-GCC-Release-Build","needs_llvm":false}]
+          EOF
 
   clang-format:
-    name: "clang-format"
     uses: ./.github/workflows/_clang-format.yml
-    with:
-      llvm-version: "20.1.8"
 
   build-windows:
-    name: "Build Matrix (Windows)"
-    needs:
-      - setup-llvm
-      - clang-format
-    uses: ./.github/workflows/_build-windows.yml
+    needs: [define-build-matrix, clang-format]
+    uses: ./.github/workflows/_build.yml
     with:
-      llvm-version: "20.1.8"
+      os: windows-latest
+      matrix-config: ${{ needs.define-build-matrix.outputs.windows-matrix }}
       upload-artifacts: true
       enable-lto: false
-      enable-ccache: true
 
   build-linux:
-    name: "Build Matrix (Linux)"
-    needs: clang-format
-    uses: ./.github/workflows/_build-linux.yml
+    needs: [define-build-matrix, clang-format]
+    uses: ./.github/workflows/_build.yml
     with:
+      os: ubuntu-latest
       llvm-version: "20"
+      matrix-config: ${{ needs.define-build-matrix.outputs.linux-matrix }}
       upload-artifacts: true
       enable-lto: false
-      enable-ccache: true
 
-  tests-build:
-    name: "Tests - Build"
-    needs: clang-format
+  tests:
+    needs: [build-windows, clang-format]
     uses: ./.github/workflows/_tests.yml
-    with:
-      enable-ccache: true
 
   clang-tidy:
-    name: "clang-tidy"
-    needs: 
-      - build-windows
-      - build-linux
+    needs: [build-windows, build-linux]
     uses: ./.github/workflows/_clang-tidy.yml
-    with:
-      llvm-version: "20.1.8"
 
   sanitisers:
-    name: "Sanitisers"
-    needs: 
-      - build-windows
-      - build-linux
+    needs: [build-windows, build-linux]
     uses: ./.github/workflows/_sanitisers.yml
-    with:
-      llvm-version: "20.1.8"
-      enable-ccache: true
 
   all-checks-pass:
-    name: All checks pass
     if: always()
-    needs:
-      - clang-format
-      - build-windows
-      - build-linux
-      - tests-build
-      - clang-tidy
-      - sanitisers
+    needs: [clang-format, build-windows, build-linux, tests, clang-tidy, sanitisers]
     runs-on: ubuntu-latest
     steps:
-      - name: Check all jobs succeeded
-        run: |
+      - run: |
           results='${{ toJSON(needs.*.result) }}'
-          echo "Job results: $results"
           if echo "$results" | grep -qE '"(failure|cancelled)"'; then
             echo "One or more required jobs failed or were cancelled."
             exit 1

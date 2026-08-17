@@ -10,148 +10,56 @@ permissions:
 
 jobs:
   check-and-release:
-    name: "Check for new commits and create pre-release"
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: development
 
-      - name: Check for new commits since last pre-release
-        id: check-commits
+      - name: Check for new commits
+        id: check
         shell: pwsh
         run: |
           $lastTag = git describe --tags --match "pre-release-*" --abbrev=0 2>$null
-          
           if ($null -eq $lastTag) {
-            Write-Host "No previous pre-release tags found, will create new release"
-            echo "has-new-commits=true" >> $env:GITHUB_OUTPUT
+            echo "has-new=true" >> $env:GITHUB_OUTPUT
             exit 0
           }
-          
+
           $lastTagSha = git rev-list -n 1 $lastTag
           $currentSha = git rev-parse HEAD
-          
-          if ($lastTagSha -eq $currentSha) {
-            Write-Host "No new commits since last pre-release ($lastTag)"
-            echo "has-new-commits=false" >> $env:GITHUB_OUTPUT
-          } else {
-            Write-Host "Found new commits since $lastTag"
-            echo "has-new-commits=true" >> $env:GITHUB_OUTPUT
-          }
-          
-          echo "LAST_TAG=$lastTag" >> $env:GITHUB_ENV
-          echo "CURRENT_SHA=$currentSha" >> $env:GITHUB_ENV
 
-      - name: Download latest Clang Release artifact from development branch
-        if: steps.check-commits.outputs.has-new-commits == 'true'
+          if ($lastTagSha -ne $currentSha) {
+            echo "has-new=true" >> $env:GITHUB_OUTPUT
+            echo "LAST_TAG=$lastTag" >> $env:GITHUB_ENV
+          } else {
+            echo "has-new=false" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Download latest build artifact
+        if: steps.check.outputs.has-new == 'true'
         shell: pwsh
         run: |
-            $response = gh run list `
-              --workflow=ci_development.yml `
-              --branch=development `
-              --status=success `
-              --limit=1 `
-              --json=databaseId `
-              --jq='.[0].databaseId'
+          $run = gh run list --workflow=ci_development.yml --branch=development --status=success --limit=1 --json=databaseId --jq='.[0].databaseId'
+          if (-not $run) {
+            Write-Error "No successful development build found"
+            exit 1
+          }
 
-            if ($null -eq $response -or $response -eq "") {
-              Write-Error "No successful development CI runs found"
-              exit 1
-            }
-
-            $runId = $response
-            Write-Host "Found successful run: $runId"
-
-            gh run download $runId `
-              --name build-windows-clang20-release `
-              --dir dist/windows
-
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Failed to download Windows artifact"
-              exit 1
-            }
-
-            gh run download $runId `
-              --name build-linux-clang20-release `
-              --dir dist/linux
-
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Failed to download artifacts"
-              exit 1
-            }
+          gh run download $run --name build-windows-clang20-Release --dir dist/artifact
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Package release archive
-        if: steps.check-commits.outputs.has-new-commits == 'true'
-        shell: pwsh
-        run: |
-          $sha   = "${{ env.CURRENT_SHA }}".Substring(0, 8)
-          $archive = "ecpps-pre-release-clang-$sha.zip"
-          $packageDir = "ecpps-package"
-          
-          $sourceMap = Get-Content -Path .github/workflows/.release-sourcemap.json | ConvertFrom-Json
-          
-          New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-          
-          foreach ($mapping in $sourceMap.mappings) {
-            $source = $mapping.source
-            $destination = Join-Path $packageDir $mapping.destination
-            
-            New-Item -ItemType Directory -Path $destination -Force | Out-Null
-            
-            if ($mapping.patterns) {
-              foreach ($pattern in $mapping.patterns) {
-                $files = Get-ChildItem -Recurse $source -Include $pattern -ErrorAction SilentlyContinue
-                $files | ForEach-Object {
-                  Write-Host "Copying $($_.FullName) to $destination"
-                  Copy-Item $_.FullName -Destination $destination
-                }
-              }
-            } else {
-              if (Test-Path $source) {
-                Write-Host "Copying directory $source to $destination"
-                Copy-Item -Path "$source/*" -Destination $destination -Recurse -Force
-              }
-            }
-          }
-          
-          $fileCount = @(Get-ChildItem -Recurse $packageDir -File).Count
-          
-          if ($fileCount -eq 0) {
-            Write-Error "No files packaged"
-            exit 1
-          }
-          
-          Write-Host "Packaged $fileCount files"
-          
-          Compress-Archive -Path "$packageDir/*" -DestinationPath $archive -Force
-          Remove-Item -Recurse -Force $packageDir
-          
-          echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
-          echo "SHA_SHORT=$sha"   >> $env:GITHUB_ENV
-
       - name: Create pre-release
-        if: steps.check-commits.outputs.has-new-commits == 'true'
-        uses: softprops/action-gh-release@v2
+        if: steps.check.outputs.has-new == 'true'
+        uses: ./.github/workflows/_release-packager.yml
         with:
-          tag_name: "pre-release-${{ env.SHA_SHORT }}"
-          name: "Pre-release ${{ env.SHA_SHORT }} (development)"
+          artifact-name: build-windows-clang20-Release
+          release-tag: pre-release-${{ github.sha }}
+          release-name: "Pre-release (development)"
+          is-prerelease: true
           body: |
-            **Pre-release** built from `development` @ `${{ env.CURRENT_SHA }}`.
+            **Pre-release** from `development` @ `${{ github.sha }}`
 
-            Compiler: Clang 20.1.8
-            Commit:   ${{ env.CURRENT_SHA }}
-
-            > [!WARNING]
-            > This is an automated daily pre-release from the `development` branch.
-            > It has passed the full CI suite (build, tests, clang-tidy, sanitisers)
-            > but is **not** a stable release.
-
-            This release was created because new commits were detected on the development branch.
-          prerelease: true
-          files: ${{ env.ARCHIVE }}
-          fail_on_unmatched_files: true
+            Automated daily build - not a stable release.

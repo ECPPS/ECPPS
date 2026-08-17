@@ -1,0 +1,141 @@
+name: _build
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: false
+        type: string
+        default: "windows-latest"
+      llvm-version:
+        required: false
+        type: string
+        default: "20.1.8"
+      upload-artifacts:
+        required: false
+        type: boolean
+        default: true
+      enable-lto:
+        required: false
+        type: boolean
+        default: true
+      build-type:
+        required: false
+        type: string
+        default: "Release"
+      compiler:
+        required: false
+        type: string
+        default: "Clang"
+      matrix-config:
+        required: false
+        type: string
+        default: "default"
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.matrix-config) }}
+
+    name: ${{ matrix.compiler }} / ${{ matrix.build_type }} (${{ inputs.os }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup LLVM
+        if: matrix.needs_llvm == true
+        uses: ./.github/workflows/_setup-llvm.yml
+        with:
+          llvm-version: ${{ inputs.llvm-version }}
+          os: ${{ inputs.os }}
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows' && matrix.needs_msvc == true
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup GCC (Linux)
+        if: runner.os == 'Linux' && matrix.compiler == 'GCC'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+
+      - name: Setup ccache
+        uses: ./.github/workflows/_setup-ccache.yml
+        with:
+          os: ${{ inputs.os }}
+          cache-key-suffix: -${{ matrix.name }}-${{ matrix.build_type }}
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install ninja cmake -y
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: out/build/${{ matrix.preset_configure }}/_deps
+          key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S . -G Ninja `
+            --preset ${{ matrix.preset_configure }} `
+            -DBUILD_TESTING=OFF `
+            -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
+
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cmake -S . -G Ninja \
+            --preset ${{ matrix.preset_configure }} \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake --build --preset "${{ matrix.preset_build }}" --parallel
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cmake --build --preset "${{ matrix.preset_build }}" --parallel
+
+      - name: Show ccache stats
+        if: always()
+        shell: bash
+        run: |
+          if command -v ccache &> /dev/null; then
+            echo "=== CCACHE STATISTICS ==="
+            ccache --show-stats
+          fi
+
+      - name: Upload artifact
+        if: inputs.upload-artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}
+          path: |
+            out/build
+            out/build/compile_commands.json
+          retention-days: 7
