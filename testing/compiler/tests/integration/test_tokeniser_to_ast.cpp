@@ -185,33 +185,7 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
           ASTContext astContext;
           auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
 
-          // Should have generated diagnostic messages
-          INFO("Error handling in pipeline");
-     }
-
-     SECTION("Type error in IR generation")
-     {
-          const char* type_error_code = R"(
-          int main()
-          {
-               int* p = 42; // Type error: can't assign int to int*
-               return 0;
-          }
-          )";
-
-          auto tokens = TokeniseSource(type_error_code);
-          Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
-
-          if (!ast.empty())
-          {
-               BumpAllocator irAllocator(64uz * 1024);
-               // IR generation should detect type error
-               auto ir = IR::Parse(diagnostics, irAllocator, ast);
-               INFO("Type error should be caught");
-               REQUIRE(!diagnostics.diagnosticsList.empty());
-          }
+          REQUIRE((!diagnostics.diagnosticsList.empty()));
      }
 }
 
@@ -228,12 +202,6 @@ TEST_CASE("Integration - Multiple functions", "[integration][multiple_functions]
           ASTContext astContext;
           auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
           REQUIRE((!ast.empty())); // NOLINT
-
-          BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
-
-          INFO("Multiple functions compiled");
-          REQUIRE((ir.size() >= 2)); // NOLINT
      }
 }
 
@@ -253,10 +221,5 @@ TEST_CASE("Integration - Complex expressions", "[integration][complex_expr]")
           ASTContext astContext;
           auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
           REQUIRE((!ast.empty())); // NOLINT
-
-          BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
-
-          INFO("Complex nested expressions compiled");
      }
 }

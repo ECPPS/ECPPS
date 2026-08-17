@@ -2,6 +2,9 @@
 #include <TestHelpers.h>
 #include <TypeSystem/ArithmeticTypes.h>
 #include <TypeSystem/CompoundTypes.h>
+#include <cstdint>
+#include <limits>
+#include "Shared/Config.h"
 #define CATCH_CONFIG_MAIN
 #include <catch_amalgamated.hpp>
 
@@ -226,6 +229,8 @@ TEST_CASE("ArithmeticTypes - Character types", "[typesystem][arithmetic_types]")
 
 TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
 {
+     ecpps::abi::ABI::Current().SetPointerSize(8);
+
      ecpps::ir::TypeRequest intRequest{
           .kind = ecpps::ir::TypeKind::Fundamental,
           .qualifiers = Qualifiers::None,
@@ -240,12 +245,8 @@ TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
                                             .data = ecpps::ir::PointerRequest{.elementType = intType}};
           const auto* intPtr = ecpps::ir::GetTypeContext().Get(ptrRequest);
 
-// On x64, pointers should be 8 bytes
-#ifdef _WIN64
-          REQUIRE((intPtr->Size() == 8));
-#else
-          REQUIRE((intPtr->Size() >= 4));
-#endif
+          INFO("Size = " << intPtr->Size());
+          REQUIRE((intPtr->Size() == sizeof(std::uintptr_t)));
      }
 
      SECTION("Pointer to char")
