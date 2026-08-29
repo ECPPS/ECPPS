@@ -99,22 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
-        if: matrix.needs_llvm
-        id: cache-llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-
-      - name: Install LLVM ${{ inputs.llvm-version }}
-        if: matrix.needs_llvm && steps.cache-llvm.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          Write-Host "LLVM cache miss - installing LLVM ${{ inputs.llvm-version }}..."
-          choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
-
-      - name: Verify LLVM installation
+      - name: Setup LLVM
         if: matrix.needs_llvm
         shell: pwsh
         run: |
@@ -125,8 +110,16 @@ jobs:
             throw "LLVM installation not found at $clang"
           }
 
-          Write-Host "LLVM found at: $llvmBin"
-          & $clang --version
+          $versionOutput = & $clang --version
+          $versionOutput | Write-Host
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
+            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Setup MinGW (GCC)
         if: matrix.compiler == 'GCC'
@@ -139,11 +132,6 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ccache
           msystem: MINGW64
-
-      - name: Add LLVM to PATH
-        if: matrix.needs_llvm
-        shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
       - name: Add MinGW to PATH
         if: matrix.compiler == 'GCC'

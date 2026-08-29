@@ -73,16 +73,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
-
-      - name: Add LLVM to PATH
+      - name: Setup LLVM
         shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clangTidy = Join-Path $llvmBin "clang-tidy.exe"
+
+          if (-not (Test-Path $clangTidy)) {
+            throw "LLVM/clang-tidy not found at $clangTidy"
+          }
+
+          $versionOutput = & $clangTidy --version
+          $versionOutput | Write-Host
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
+            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Download Clang Release build artifact
         uses: actions/download-artifact@v4

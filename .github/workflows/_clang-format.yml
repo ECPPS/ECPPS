@@ -20,40 +20,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
-        if: runner.os == 'Windows'
-        id: cache-llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-
-      - name: Install LLVM ${{ inputs.llvm-version }}
-        if: runner.os == 'Windows' && steps.cache-llvm.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          Write-Host "LLVM cache miss - installing LLVM ${{ inputs.llvm-version }}..."
-          choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
-
-      - name: Verify LLVM installation
+      - name: Setup LLVM (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $llvmBin = "C:\Program Files\LLVM\bin"
-          $clang = Join-Path $llvmBin "clang.exe"
+          $clangFormat = Join-Path $llvmBin "clang-format.exe"
 
-          if (-not (Test-Path $clang)) {
-            throw "LLVM installation not found at $clang"
+          if (-not (Test-Path $clangFormat)) {
+            throw "LLVM/clang-format not found at $clangFormat"
           }
 
-          Write-Host "LLVM found at: $llvmBin"
-          & $clang --version
+          $versionOutput = & $clangFormat --version
+          $versionOutput | Write-Host
 
-      - name: Add LLVM to PATH (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
+            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Install LLVM (Linux)
         if: runner.os == 'Linux'
