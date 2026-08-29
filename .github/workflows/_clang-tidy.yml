@@ -37,15 +37,10 @@ jobs:
 #           name: build-linux-clang20-Release
 #           path: out/build
 
-#       - name: Install dependencies
-#         run: sudo apt-get update && sudo apt-get install -y ninja-build
-
 #       - name: Configure (fetch dependencies only)
 #         run: |
-#           cmake -S . -G Ninja \
-#             --preset Linux-Clang-Release \
-#             -DBUILD_TESTING=ON \
-#             -DCMAKE_BUILD_TYPE=Release
+#           cmake --preset Linux-Clang \
+#             -DBUILD_TESTING=ON
 
 #       - name: Verify clang-tidy version
 #         run: clang-tidy --version
@@ -62,7 +57,7 @@ jobs:
 #                 -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
 #                 -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
 #                 -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
-#                 -I"${GITHUB_WORKSPACE}/out/build/Linux-Clang-Release/_deps/catch2" \
+#                 -I"${GITHUB_WORKSPACE}/out/build/Linux-Clang/_deps/catch2" \
 #                 -DCLANG_TIDY \
 #                 -DNOMINMAX
 
@@ -74,7 +69,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup LLVM
-        if: matrix.needs_llvm
         shell: pwsh
         run: |
           $llvmBin = "C:\Program Files\LLVM\bin"
@@ -115,16 +109,14 @@ jobs:
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:
-          path: out/build/Win64-Clang-Release/_deps
+          path: out/build/Win64-Clang/_deps
           key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
 
       - name: Configure (fetch dependencies only)
         shell: pwsh
         run: |
-          cmake -S . -G Ninja `
-            --preset Win64-Clang-Release `
-            -DBUILD_TESTING=ON `
-            -DCMAKE_BUILD_TYPE=Release
+          cmake --preset Win64-Clang `
+            -DBUILD_TESTING=ON
 
       - name: Verify clang-tidy version
         shell: bash
@@ -143,6 +135,6 @@ jobs:
                 -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
                 -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
                 -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
-                -I"${GITHUB_WORKSPACE}/out/build/Win64-Clang-Release/_deps/catch2" \
+                -I"${GITHUB_WORKSPACE}/out/build/Win64-Clang/_deps/catch2" \
                 -DCLANG_TIDY \
                 -DNOMINMAX
