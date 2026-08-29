@@ -101,11 +101,32 @@ jobs:
 
       - name: Restore LLVM cache
         if: matrix.needs_llvm
+        id: cache-llvm
         uses: actions/cache@v4
         with:
           path: C:\Program Files\LLVM
           key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
+
+      - name: Install LLVM ${{ inputs.llvm-version }}
+        if: matrix.needs_llvm && steps.cache-llvm.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Write-Host "LLVM cache miss - installing LLVM ${{ inputs.llvm-version }}..."
+          choco install llvm --version=${{ inputs.llvm-version }} --allow-downgrade -y
+
+      - name: Verify LLVM installation
+        if: matrix.needs_llvm
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clang = Join-Path $llvmBin "clang.exe"
+
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
+          }
+
+          Write-Host "LLVM found at: $llvmBin"
+          & $clang --version
 
       - name: Setup MinGW (GCC)
         if: matrix.compiler == 'GCC'
