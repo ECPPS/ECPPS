@@ -73,16 +73,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
-
-      - name: Add LLVM to PATH
+      - name: Setup LLVM
+        if: matrix.needs_llvm
         shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clang = Join-Path $llvmBin "clang.exe"
+
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
+          }
+
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
+            throw "Expected LLVM $expectedVersion but found: $versionLine"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Download Clang Release build artifact
         uses: actions/download-artifact@v4

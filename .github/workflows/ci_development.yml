@@ -10,11 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  setup-llvm:
-    uses: ./.github/workflows/_setup-llvm.yml
-    with:
-      llvm-version: "20.1.8"
-
   clang-format:
     name: "clang-format"
     uses: ./.github/workflows/_clang-format.yml
@@ -24,7 +19,6 @@ jobs:
   build-windows:
     name: "Build Matrix (Windows)"
     needs:
-      - setup-llvm
       - clang-format
     uses: ./.github/workflows/_build-windows.yml
     with:
@@ -52,7 +46,7 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
-    needs: 
+    needs:
       - build-windows
       - build-linux
     uses: ./.github/workflows/_clang-tidy.yml
