@@ -99,13 +99,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
+      - name: Setup LLVM
         if: matrix.needs_llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clang = Join-Path $llvmBin "clang.exe"
+
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
+          }
+
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
+            throw "Expected LLVM $expectedVersion but found: $versionLine"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Setup MinGW (GCC)
         if: matrix.compiler == 'GCC'
@@ -118,11 +132,6 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ccache
           msystem: MINGW64
-
-      - name: Add LLVM to PATH
-        if: matrix.needs_llvm
-        shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
       - name: Add MinGW to PATH
         if: matrix.compiler == 'GCC'
