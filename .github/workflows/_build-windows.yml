@@ -110,12 +110,12 @@ jobs:
             throw "LLVM installation not found at $clang"
           }
 
-          $versionOutput = & $clang --version
-          $versionOutput | Write-Host
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
 
           $expectedVersion = "${{ inputs.llvm-version }}"
-          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
-            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
+            throw "Expected LLVM $expectedVersion but found: $versionLine"
           }
 
           Write-Host "Using preinstalled LLVM $expectedVersion"

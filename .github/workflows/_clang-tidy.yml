@@ -74,21 +74,22 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup LLVM
+        if: matrix.needs_llvm
         shell: pwsh
         run: |
           $llvmBin = "C:\Program Files\LLVM\bin"
-          $clangTidy = Join-Path $llvmBin "clang-tidy.exe"
+          $clang = Join-Path $llvmBin "clang.exe"
 
-          if (-not (Test-Path $clangTidy)) {
-            throw "LLVM/clang-tidy not found at $clangTidy"
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
           }
 
-          $versionOutput = & $clangTidy --version
-          $versionOutput | Write-Host
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
 
           $expectedVersion = "${{ inputs.llvm-version }}"
-          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
-            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
+            throw "Expected LLVM $expectedVersion but found: $versionLine"
           }
 
           Write-Host "Using preinstalled LLVM $expectedVersion"
