@@ -160,15 +160,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (sourceIterator != source.end()) ++sourceIterator; // skip closing delimiter
                     }
 
-                    std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
-                         fileName, header,
-                         (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
-                    if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
+                    try
                     {
-                         const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
-                         tokens.append_range(
-                              Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
+                         std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
+                              fileName, header,
+                              (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
+                         if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
+                         {
+                              const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
+
+                              tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includedFiles,
+                                                        includeDirectories));
+                         }
+                    }
+                    catch (const fs::FileNotFoundException& fileNotFound)
+                    {
+                         this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              std::format("Unable to include file '{}'", fileNotFound.name), location));
                     }
                }
                else if (directive == "define")
