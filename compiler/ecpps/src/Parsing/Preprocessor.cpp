@@ -8,6 +8,7 @@
 #include <print>
 #include <unordered_map>
 #include <unordered_set>
+#include "Shared/Error.h"
 
 static std::string ReadEscapedLiteral(std::string::const_iterator& it, const std::string::const_iterator& end,
                                       char delimiter)
@@ -390,10 +391,12 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          errorMessage += *sourceIterator;
                          Advance(sourceIterator);
                     }
-                    throw std::runtime_error("preprocessor error: " + errorMessage);
+                    this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         std::format("preprocessor error: {}", errorMessage), location));
                }
                else
-                    throw std::runtime_error(std::format("unknown preprocessor directive: {}", directive));
+                    this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         std::format("unknown preprocessor directive: {}", directive), location));
 
                if (sourceIterator != source.begin()) --sourceIterator;
                location.position = 0;
