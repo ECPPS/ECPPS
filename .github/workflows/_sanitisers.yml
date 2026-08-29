@@ -39,26 +39,32 @@ jobs:
         run: |
           if command -v ccache &> /dev/null; then
             ccache --max-size=500M --set-config=compression=true
+            echo "ccache configured"
+          else
+            echo "ccache not found, proceeding without cache"
           fi
 
       - name: Configure (ASan)
         shell: pwsh
         run: |
-          cmake --preset Win64-MSVC-Debug-ASan `
+          cmake --preset Win64-MSVC-ASan `
             -DBUILD_TESTING=ON `
-            -DSANITISE=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
       - name: Build
         shell: pwsh
         run: |
-          cmake --build --preset Win64-MSVC-Debug-ASan-Build --parallel
+          cmake --build `
+            --preset Win64-MSVC-ASan-Debug-Tests `
+            --parallel
 
       - name: Run tests
         shell: pwsh
         run: |
           $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
-          ctest --preset Win64-MSVC-Debug-ASan-Test --output-on-failure
+          ctest `
+            --preset Win64-MSVC-ASan-Debug `
+            --output-on-failure
 
 
   linux-clang-asan-ubsan:
@@ -122,21 +128,24 @@ jobs:
 
       - name: Configure
         run: |
-          cmake --preset Linux-Clang-Debug-ASan-UBSan \
+          cmake --preset Linux-Clang-ASan-UBSan \
             -DBUILD_TESTING=ON \
-            -DSANITISE=ON \
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
       - name: Build
         run: |
-          cmake --build --preset Linux-Clang-Debug-ASan-UBSan-Build --parallel
+          cmake --build \
+            --preset Linux-Clang-ASan-UBSan-Debug-Tests \
+            --parallel
 
       - name: Run tests
         env:
           ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |
-          ctest --preset Linux-Clang-Debug-ASan-UBSan-Test --output-on-failure
+          ctest \
+            --preset Linux-Clang-ASan-UBSan-Debug \
+            --output-on-failure
 
 
   linux-gcc-asan-ubsan:
@@ -184,18 +193,21 @@ jobs:
 
       - name: Configure
         run: |
-          cmake --preset Linux-GCC-Debug-ASan-UBSan \
+          cmake --preset Linux-GCC-ASan-UBSan \
             -DBUILD_TESTING=ON \
-            -DSANITISE=ON \
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
       - name: Build
         run: |
-          cmake --build --preset Linux-GCC-Debug-ASan-UBSan-Build --parallel
+          cmake --build \
+            --preset Linux-GCC-ASan-UBSan-Debug-Tests \
+            --parallel
 
       - name: Run tests
         env:
           ASAN_OPTIONS: abort_on_error=1:detect_leaks=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |
-          ctest --preset Linux-GCC-Debug-ASan-UBSan-Test --output-on-failure
+          ctest \
+            --preset Linux-GCC-ASan-UBSan-Debug \
+            --output-on-failure
