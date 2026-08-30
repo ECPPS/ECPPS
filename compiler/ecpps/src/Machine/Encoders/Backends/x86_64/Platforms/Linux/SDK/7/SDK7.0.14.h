@@ -1,11 +1,10 @@
 #pragma once
+#include "SDK7x.h"
 #pragma once
-
-#include "Machine/Encoders/API/SDK.h"
 
 namespace ecpps::abi::encoders::x8664
 {
-     struct WindowsSDK10 : api::SDKBase
+     struct LinuxSDK7014 : LinuxSDK7x
      {
      };
 } // namespace ecpps::abi::encoders::x8664
