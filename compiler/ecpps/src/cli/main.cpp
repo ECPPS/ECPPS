@@ -1,5 +1,6 @@
 #include "Execution/Context.h"
 #include "Machine/ABI.h"
+#include "Machine/Encoders/InstructionEncoder.h"
 #include "TypeSystem/TypeBase.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -275,6 +276,8 @@ int main(int argc, char* argv[])
           std::vector<std::byte> strings{};
 
           auto startTime = std::chrono::steady_clock::now();
+
+          ecpps::abi::BackendRegistry::RegisterTargets();
 
           ecpps::CompilerConfig config{argc, argv};
           ecpps::fs::GetSourceScanner().configuration = &config;
