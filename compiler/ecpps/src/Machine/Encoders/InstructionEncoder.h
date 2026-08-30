@@ -15,11 +15,15 @@ namespace ecpps::abi
 
           static api::Target& Get(const encoding::CompilationContext& name)
           {
-               return *_backends.at(name.MakeId());
+               auto& target = *_backends.at(name.MakeId());
+               target.EnsureVRM();
+               return target;
           }
           static api::Target& Get(const encoding::CompilationId identifier)
           {
-               return *_backends.at(identifier);
+               auto& target = *_backends.at(identifier);
+               target.EnsureVRM();
+               return target;
           }
 
           static void RegisterTargets(void);

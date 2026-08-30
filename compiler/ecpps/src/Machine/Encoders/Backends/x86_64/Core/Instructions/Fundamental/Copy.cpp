@@ -26,11 +26,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& source = registerArray[1];
      built.append_range(EnsureMaterialisation(source));
 
-     this->_virtualRegisterMap->DereferenceRegister(source); // TODO: check use counter
-     runtime_assert(this->_virtualRegisterMap->IsMaterialised(source),
+     this->GetVRM().DereferenceRegister(source); // TODO: check use counter
+     runtime_assert(this->GetVRM().IsMaterialised(source),
                     "Failed to materialise the source"); // TODO: Diagnostics
 
-     const auto& materialisedSourceStateOptional = this->_virtualRegisterMap->GetMaterialisation(source);
+     const auto& materialisedSourceStateOptional = this->GetVRM().GetMaterialisation(source);
      runtime_assert(materialisedSourceStateOptional.has_value(), "Invalid state for the materialised register");
      const auto& materialisedSourceState = materialisedSourceStateOptional.value();
      runtime_assert(materialisedSourceState.type == ecpps::ir::abstract::StateType::Allocation,
@@ -47,7 +47,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           newState.data.resize(sizeof(values::CopyRegisterToRegister));
           values::CopyRegisterToRegister& copyValue = *new (newState.data.data()) values::CopyRegisterToRegister{};
           copyValue.parameters = std::make_tuple(destination, source);
-          this->_virtualRegisterMap->UpdateValue(destination, newState);
+          this->GetVRM().UpdateValue(destination, newState);
      }
      break;
      }
@@ -68,8 +68,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      MovInstruction& mov = *new (instruction.description.data()) MovInstruction{};
 
      const auto& [virtualDestination, virtualSource] = copyValue.parameters;
-     runtime_assert(this->_virtualRegisterMap->IsMaterialised(virtualSource), "Source must be materialised");
-     const auto& source = this->_virtualRegisterMap->GetMaterialisation(virtualSource);
+     runtime_assert(this->GetVRM().IsMaterialised(virtualSource), "Source must be materialised");
+     const auto& source = this->GetVRM().GetMaterialisation(virtualSource);
      runtime_assert(source.has_value() && source->type == ir::abstract::StateType::Allocation,
                     "Source must be materialised");
      mov.destination = RegisterOperand{RegisterIndex::Rax};
