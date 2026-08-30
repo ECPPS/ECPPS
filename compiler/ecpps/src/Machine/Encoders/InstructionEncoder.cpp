@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <utility>
 #include "Machine/Encoders/API/Target.h"
+#include "Machine/Encoders/Backends/x86_64/Core/encoder.h"
 #include "Machine/Encoders/Context.h"
 #include "Machine/Machine.h"
 #include "RuntimeAssert.h"
@@ -17,7 +18,9 @@ static std::unique_ptr<ecpps::abi::api::Target> FromDescription(ecpps::abi::enco
      auto target = std::make_unique<ecpps::abi::api::Target>();
      switch (context.isa)
      {
-     case ecpps::abi::ISA::x86_64: break;
+     case ecpps::abi::ISA::x86_64:
+          target->encoder = std::make_unique<ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder>(*target);
+          break;
      default: throw ecpps::TracedException(std::format("Invalid target.isa: {}", std::to_underlying(context.isa)));
      }
 

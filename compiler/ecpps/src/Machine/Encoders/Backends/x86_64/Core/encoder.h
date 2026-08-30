@@ -76,9 +76,7 @@ namespace ecpps::abi::encoders::x8664
 
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
-          explicit X8664VirtualInstructionEncoder(ir::abstract::VirtualRegisterMap& virtualRegisterMap,
-                                                  api::Target& target)
-              : VirtualInstructionEncoder(ISA::x86_64, target), _virtualRegisterMap(&virtualRegisterMap)
+          explicit X8664VirtualInstructionEncoder(api::Target& target) : VirtualInstructionEncoder(ISA::x86_64, target)
           {
           }
 
@@ -87,7 +85,7 @@ namespace ecpps::abi::encoders::x8664
 
      private:
           std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
-          ir::abstract::VirtualRegisterMap* _virtualRegisterMap;
+          [[nodiscard]] ir::abstract::VirtualRegisterMap& GetVRM(void) noexcept;
 
           std::vector<ecpps::ir::abstract::Instruction> EnsureMaterialisation(
                ir::abstract::VirtualRegister virtualRegister);
