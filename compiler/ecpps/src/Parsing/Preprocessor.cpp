@@ -8,6 +8,7 @@
 #include <print>
 #include <unordered_map>
 #include <unordered_set>
+#include "Shared/Error.h"
 
 static std::string ReadEscapedLiteral(std::string::const_iterator& it, const std::string::const_iterator& end,
                                       char delimiter)
@@ -160,15 +161,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (sourceIterator != source.end()) ++sourceIterator; // skip closing delimiter
                     }
 
-                    std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
-                         fileName, header,
-                         (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
-                    if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
+                    try
                     {
-                         const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
-                         tokens.append_range(
-                              Parse(includedSource, macros, resolvedPath.string(), includedFiles, includeDirectories));
+                         std::filesystem::path resolvedPath = ecpps::fs::GetSourceScanner().ResolveInclude(
+                              fileName, header,
+                              (delimiter == '"') ? ecpps::fs::IncludeType::Local : ecpps::fs::IncludeType::System);
+                         if (std::ranges::find(includedFiles, resolvedPath) == includedFiles.end())
+                         {
+                              const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
+
+                              tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includedFiles,
+                                                        includeDirectories));
+                         }
+                    }
+                    catch (const fs::FileNotFoundException& fileNotFound)
+                    {
+                         this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              std::format("Unable to include file '{}'", fileNotFound.name), location));
                     }
                }
                else if (directive == "define")
@@ -381,10 +391,12 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          errorMessage += *sourceIterator;
                          Advance(sourceIterator);
                     }
-                    throw std::runtime_error("preprocessor error: " + errorMessage);
+                    this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         std::format("preprocessor error: {}", errorMessage), location));
                }
                else
-                    throw std::runtime_error(std::format("unknown preprocessor directive: {}", directive));
+                    this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         std::format("unknown preprocessor directive: {}", directive), location));
 
                if (sourceIterator != source.begin()) --sourceIterator;
                location.position = 0;

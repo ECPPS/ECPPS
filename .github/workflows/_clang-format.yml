@@ -20,70 +20,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
-
-      - name: Add LLVM to PATH (Windows)
+      - name: Setup LLVM (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clangFormat = Join-Path $llvmBin "clang-format.exe"
+
+          if (-not (Test-Path $clangFormat)) {
+            throw "LLVM/clang-format not found at $clangFormat"
+          }
+
+          $versionOutput = & $clangFormat --version
+          $versionOutput | Write-Host
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
+            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Install LLVM (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
+          llvm_major="${{ inputs.llvm-version }}"
+          llvm_major="${llvm_major%%.*}"
+
           wget -q https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 20 all
+          sudo ./llvm.sh "$llvm_major" all
 
       - name: Add LLVM to PATH (Linux)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
-          echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
-          echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+          llvm_major="${{ inputs.llvm-version }}"
+          llvm_major="${llvm_major%%.*}"
 
-      - name: Run clang-format (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+          echo "/usr/lib/llvm-${llvm_major}/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-${llvm_major}/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Run clang-format
+        shell: bash
         run: |
-          $files = git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' |
-                  Where-Object { $_ -ne '' }
+          files=$(git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' | grep -v '^$' || true)
 
-          if (-not $files) {
-            Write-Host "No C/C++ files found."
-            exit 0
-          }
-
-          $result = & clang-format --style=file --dry-run --Werror @files 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "clang-format violations found:"
-            $result | Write-Host
-            exit 1
-          }
-          Write-Host "All files correctly formatted ($($files.Count) files checked)"
-
-      - name: Run clang-format (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          export PATH="/usr/lib/llvm-20/bin:$PATH"
-          export LD_LIBRARY_PATH="/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH"
-          
-          files=$(git ls-files '*.cpp' '*.c' '*.h' '*.hpp' '*.cxx' '*.cc' '*.ixx' | grep -v '^$')
-          
           if [ -z "$files" ]; then
             echo "No C/C++ files found."
             exit 0
           fi
-          
-          echo "$files" | xargs clang-format --style=file --dry-run --Werror
-          if [ $? -ne 0 ]; then
+
+          if ! echo "$files" | xargs clang-format --style=file --dry-run --Werror; then
             echo "clang-format violations found"
             exit 1
           fi
-          
+
           file_count=$(echo "$files" | wc -l)
           echo "All files correctly formatted ($file_count files checked)"

@@ -7,6 +7,10 @@
 
 namespace ecpps::fs
 {
+     struct FileNotFoundException
+     {
+          std::string name;
+     };
      struct IncludeCache
      {
           std::unordered_map<std::string, std::filesystem::path> cache;

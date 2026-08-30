@@ -24,7 +24,7 @@ const std::filesystem::path& ecpps::fs::SourceScanner::ResolveInclude(const std:
           const auto& localPath = currentPath.parent_path() / name;
           if (std::filesystem::exists(localPath)) return cache.try_emplace(name, canonical(localPath)).first->second;
      }
-     throw std::runtime_error("Include file not found: " + name);
+     throw FileNotFoundException{.name = name};
 }
 
 const std::string& ecpps::fs::SourceScanner::GetFileContents(const std::filesystem::path& path)

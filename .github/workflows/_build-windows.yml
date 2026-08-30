@@ -26,6 +26,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     strategy:
       fail-fast: true
       matrix:
@@ -33,64 +34,64 @@ jobs:
           - compiler: MSVC
             name: msvc
             build_type: Debug
-            preset_configure: Win64-MSVC-Debug
-            preset_build: Win64-MSVC-Debug-Build
+            preset_configure: Win64-MSVC
+            preset_build: Win64-MSVC-Debug
             needs_msvc_env: true
             needs_llvm: false
 
           - compiler: MSVC
             name: msvc
             build_type: Release
-            preset_configure: Win64-MSVC-Release
-            preset_build: Win64-MSVC-Release-Build
+            preset_configure: Win64-MSVC
+            preset_build: Win64-MSVC-Release
             needs_msvc_env: true
             needs_llvm: false
 
           - compiler: Clang
             name: clang20
             build_type: Debug
-            preset_configure: Win64-Clang-Debug
-            preset_build: Win64-Clang-Debug-Build
+            preset_configure: Win64-Clang
+            preset_build: Win64-Clang-Debug
             needs_msvc_env: false
             needs_llvm: true
 
           - compiler: Clang
             name: clang20
             build_type: Release
-            preset_configure: Win64-Clang-Release
-            preset_build: Win64-Clang-Release-Build
+            preset_configure: Win64-Clang
+            preset_build: Win64-Clang-Release
             needs_msvc_env: false
             needs_llvm: true
 
           - compiler: Clang-cl
             name: clang20-cl
             build_type: Debug
-            preset_configure: Win64-Clang-cl-Debug
-            preset_build: Win64-Clang-cl-Debug-Build
+            preset_configure: Win64-Clang-cl
+            preset_build: Win64-Clang-cl-Debug
             needs_msvc_env: true
             needs_llvm: true
 
           - compiler: Clang-cl
             name: clang20-cl
             build_type: Release
-            preset_configure: Win64-Clang-cl-Release
-            preset_build: Win64-Clang-cl-Release-Build
+            preset_configure: Win64-Clang-cl
+            preset_build: Win64-Clang-cl-Release
             needs_msvc_env: true
             needs_llvm: true
 
           - compiler: GCC
             name: gcc
             build_type: Debug
-            preset_configure: Win64-GCC-Debug
-            preset_build: Win64-GCC-Debug-Build
+            preset_configure: Win64-GCC
+            preset_build: Win64-GCC-Debug
             needs_msvc_env: false
             needs_llvm: false
 
           - compiler: GCC
             name: gcc
             build_type: Release
-            preset_configure: Win64-GCC-Release
-            preset_build: Win64-GCC-Release-Build
+            preset_configure: Win64-GCC
+            preset_build: Win64-GCC-Release
             needs_msvc_env: false
             needs_llvm: false
 
@@ -99,13 +100,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore LLVM cache
+      - name: Setup LLVM
         if: matrix.needs_llvm
-        uses: actions/cache@v4
-        with:
-          path: C:\Program Files\LLVM
-          key: llvm-${{ inputs.llvm-version }}-windows
-          fail-on-cache-miss: true
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clang = Join-Path $llvmBin "clang.exe"
+
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
+          }
+
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
+
+          $expectedVersion = "${{ inputs.llvm-version }}"
+          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
+            throw "Expected LLVM $expectedVersion but found: $versionLine"
+          }
+
+          Write-Host "Using preinstalled LLVM $expectedVersion"
+          echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Setup MinGW (GCC)
         if: matrix.compiler == 'GCC'
@@ -118,11 +133,6 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ccache
           msystem: MINGW64
-
-      - name: Add LLVM to PATH
-        if: matrix.needs_llvm
-        shell: pwsh
-        run: echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
       - name: Add MinGW to PATH
         if: matrix.compiler == 'GCC'
@@ -159,13 +169,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: out/build/${{ matrix.preset_configure }}/_deps
-          key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
+          key: fetchcontent-${{ runner.os }}-${{ matrix.name }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
 
       - name: Configure
         shell: pwsh
         run: |
-          cmake -S . -G Ninja `
-            --preset ${{ matrix.preset_configure }} `
+          cmake --preset "${{ matrix.preset_configure }}" `
             -DBUILD_TESTING=OFF `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} `
             -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
@@ -194,6 +203,6 @@ jobs:
         with:
           name: build-windows-${{ matrix.name }}-${{ matrix.build_type }}
           path: |
-            out/build
-            out/build/compile_commands.json
+            out/build/${{ matrix.preset_configure }}
+            out/install/${{ matrix.preset_configure }}
           retention-days: 3
