@@ -3,6 +3,7 @@
 #include <new>
 #include <span>
 #include "CodeGeneration/AbstractNodes.h"
+#include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
 #include "Shared/Diagnostics.h"
@@ -25,6 +26,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      return instructions;
 }
 
+[[nodiscard]] ecpps::ir::abstract::VirtualRegisterMap& ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     GetVRM(void) noexcept
+{
+     return *this->_target->registerMap;
+}
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EncodeSingle(
      const ir::abstract::VirtualInstruction& instruction)
 {
@@ -45,9 +51,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EnsureMaterialisation(ecpps::ir::abstract::VirtualRegister virtualRegister)
 {
-     if (this->_virtualRegisterMap->IsMaterialised(virtualRegister)) return {};
+     if (this->GetVRM().IsMaterialised(virtualRegister)) return {};
 
-     const auto& value = this->_virtualRegisterMap->GetValue(virtualRegister);
+     const auto& value = this->GetVRM().GetValue(virtualRegister);
      runtime_assert(value.type != ir::abstract::StateType::Unknown,
                     "Cannot materialise a  register with unknown value"); // TODO: Diagnostics
      runtime_assert(value.type != ir::abstract::StateType::Impossible,
