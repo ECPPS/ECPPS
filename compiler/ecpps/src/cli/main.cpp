@@ -128,15 +128,6 @@ enum struct FileIterationStatus : bool
 
           for (const auto& procedure : source.compiledRoutines)
           {
-               if (isExtraVerbose)
-               {
-                    std::println("{}:", procedure.name);
-                    for (const auto& instruction : procedure.instructions)
-                    {
-                         std::println("     {}", ecpps::codegen::ToString(instruction));
-                    }
-               }
-
                const auto machineCode = emitter.EmitRoutine(procedure, generatedMachineCode.size());
 
                routines.emplace(procedure.name, generatedMachineCode.size());
