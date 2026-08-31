@@ -90,5 +90,6 @@ ecpps::BumpAllocator::~BumpAllocator(void)
 void ecpps::BumpAllocator::Release(void)
 {
      const auto length = static_cast<std::size_t>(this->_capacity - this->_begin);
+     if (this->_begin == nullptr) return;
      ReleaseMemory(std::exchange(this->_begin, nullptr), length);
 }
