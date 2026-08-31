@@ -53,6 +53,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-switch-enum
           -Wno-unused-macros
           -Wno-weak-vtables
+		-Wc2y-extensions # ccache2 uses __COUNTER__ inside a macro the user is supposed to read and ehh sure...
      )
 endif()
 

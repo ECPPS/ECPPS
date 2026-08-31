@@ -79,6 +79,10 @@ namespace ecpps::abi
           {
                return this->boolSize;
           }
+          void SetPointerSize(const std::size_t newSize) noexcept
+          {
+               _pointerSize = newSize;
+          }
 
           template <std::size_t TTo, std::size_t TFrom>
           [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
