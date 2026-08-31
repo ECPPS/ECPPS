@@ -4,8 +4,8 @@
 		{
 			"name": "base",
 			"hidden": true,
-			"description": "Common configuration for all platforms and toolchains.",
-			"generator": "Ninja Multi-Config",
+			"description": "Base configuration for all platforms. LTO defaults to OFF for safety; enable via preset inheritance or -DENABLE_LTO=ON",
+			"generator": "Ninja",
 			"cacheVariables": {
 				"CMAKE_CXX_STANDARD": "23",
 				"CMAKE_CXX_STANDARD_REQUIRED": "ON",
@@ -13,6 +13,48 @@
 				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
 				"ENABLE_CCACHE": "ON",
 				"ENABLE_LTO": "OFF"
+			}
+		},
+		{
+			"name": "debug",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"ENABLE_LTO": "OFF"
+			}
+		},
+		{
+			"name": "relwithdebinfo",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"ENABLE_LTO": "ON"
+			}
+		},
+		{
+			"name": "release",
+			"hidden": true,
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"ENABLE_LTO": "ON"
+			}
+		},
+		{
+			"name": "ci-pr",
+			"hidden": true,
+			"description": "CI preset for Pull Requests: disabled LTO for speed",
+			"inherits": [ "base" ],
+			"cacheVariables": {
+				"ENABLE_LTO": "OFF"
+			}
+		},
+		{
+			"name": "ci-release",
+			"hidden": true,
+			"description": "CI preset for Release builds (main/development): enabled LTO",
+			"inherits": [ "base" ],
+			"cacheVariables": {
+				"ENABLE_LTO": "ON"
 			}
 		},
 		{
@@ -45,8 +87,7 @@
 				"CMAKE_CXX_FLAGS_INIT": "/WX /Zc:inline /Zc:__cplusplus /Zc:enumTypes /Zc:templateScope /Zc:throwingNew /guard:cf",
 				"CMAKE_CXX_FLAGS_RELEASE_INIT": "/O2 /Oi /fp:fast /GF /Gy /Ot /Ob3 /Gw /GL",
 				"CMAKE_CXX_FLAGS_DEBUG_INIT": "/Od /Zi /sdl /GS",
-				"CMAKE_EXE_LINKER_FLAGS": "/stack:10000000",
-				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+				"CMAKE_EXE_LINKER_FLAGS": "/stack:10000000"
 			}
 		},
 		{
@@ -94,13 +135,257 @@
 			}
 		},
 		{
-			"name": "asan-ubsan-linux",
+			"name": "asan-linux",
 			"hidden": true,
 			"cacheVariables": {
 				"CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all",
 				"CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
 				"USE_MIMALLOC": "OFF",
 				"SANITISE": "ON"
+			}
+		},
+		{
+			"name": "Win64-MSVC-Debug",
+			"displayName": "Windows x64 / MSVC / Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Debug-MSVC",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/msvc/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Debug-MSVC",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebug"
+			}
+		},
+		{
+			"name": "Win64-MSVC-Debug-ASan",
+			"displayName": "Windows x64 / MSVC / Debug / ASan",
+			"inherits": [
+				"Win64-MSVC-Debug",
+				"asan-windows-msvc"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Debug-MSVC-ASan",
+			"cacheVariables": {
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Debug-MSVC-ASan"
+			}
+		},
+		{
+			"name": "Win64-MSVC-Release",
+			"displayName": "Windows x64 / MSVC / RelWithDebInfo",
+			"inherits": [
+				"base",
+				"windows",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Release-MSVC",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/msvc/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Release-MSVC",
+				"CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+			}
+		},
+		{
+			"name": "Win64-Clang-cl-Debug",
+			"displayName": "Windows x64 / Clang-cl / Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Debug",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang-cl/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Debug"
+			}
+		},
+		{
+			"name": "Win64-Clang-cl-Release",
+			"displayName": "Windows x64 / Clang-cl / RelWithDebInfo",
+			"inherits": [
+				"base",
+				"windows",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl-Release",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang-cl/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-cl-Release"
+			}
+		},
+		{
+			"name": "Win64-Clang-Debug",
+			"displayName": "Windows x64 / Clang / Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Debug",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Debug"
+			}
+		},
+		{
+			"name": "Win64-Clang-Release",
+			"displayName": "Windows x64 / Clang / RelWithDebInfo",
+			"inherits": [
+				"base",
+				"windows",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-Clang-Release",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-Clang-Release"
+			}
+		},
+		{
+			"name": "Win64-GCC-Debug",
+			"displayName": "Windows x64 / GCC / Debug",
+			"inherits": [
+				"base",
+				"windows",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Debug",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Debug"
+			}
+		},
+		{
+			"name": "Win64-GCC-Release",
+			"displayName": "Windows x64 / GCC / Release",
+			"inherits": [
+				"base",
+				"windows",
+				"relwithdebinfo"
+			],
+			"binaryDir": "${sourceDir}/out/build/Win64-GCC-Release",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/windows.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Win64-GCC-Release"
+			}
+		},
+		{
+			"name": "Linux-Clang-Debug",
+			"displayName": "Linux / Clang / Debug / UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"debug",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug"
+			}
+		},
+		{
+			"name": "Linux-Clang-Release",
+			"displayName": "Linux / Clang / Release / UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release"
+			}
+		},
+		{
+			"name": "Linux-GCC-Debug",
+			"displayName": "Linux / GCC / Debug",
+			"inherits": [
+				"base",
+				"linux",
+				"debug"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug"
+			}
+		},
+		{
+			"name": "Linux-GCC-Release",
+			"displayName": "Linux / GCC / Release",
+			"inherits": [
+				"base",
+				"linux",
+				"release"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release"
+			}
+		},
+		{
+			"name": "Linux-Clang-Debug-ASan-UBSan",
+			"displayName": "Linux / Clang / Debug / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"debug",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Debug-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Debug-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-Clang-Release-ASan-UBSan",
+			"displayName": "Linux / Clang / Release / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-Clang-Release-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-Clang-Release-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-GCC-Debug-ASan-UBSan",
+			"displayName": "Linux / GCC / Debug / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"debug",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Debug-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Debug-ASan-UBSan"
+			}
+		},
+		{
+			"name": "Linux-GCC-Release-ASan-UBSan",
+			"displayName": "Linux / GCC / Release / ASan+UBSan",
+			"inherits": [
+				"base",
+				"linux",
+				"release",
+				"asan-linux"
+			],
+			"binaryDir": "${sourceDir}/out/build/linux-GCC-Release-ASan-UBSan",
+			"cacheVariables": {
+				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/linux-GCC-Release-ASan-UBSan"
 			}
 		},
 		{
@@ -111,488 +396,303 @@
 			}
 		},
 		{
-			"name": "ci-pr",
-			"hidden": true,
-			"description": "CI configuration for Pull Requests. LTO is disabled for faster builds.",
-			"inherits": [
-				"base"
-			],
-			"cacheVariables": {
-				"ENABLE_LTO": "OFF"
-			}
-		},
-		{
-			"name": "ci-release",
-			"hidden": true,
-			"description": "CI configuration for release builds. LTO is enabled.",
-			"inherits": [
-				"base"
-			],
-			"cacheVariables": {
-				"ENABLE_LTO": "ON"
-			}
-		},
-		{
-			"name": "Win64-MSVC",
-			"displayName": "Windows x64 / MSVC",
-			"inherits": [
-				"base",
-				"msvc"
-			],
-			"binaryDir": "${sourceDir}/out/build/Win64-MSVC",
-			"installDir": "${sourceDir}/out/install/Win64-MSVC",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/msvc/windows.cmake"
-			}
-		},
-		{
-			"name": "Win64-MSVC-ASan",
-			"displayName": "Windows x64 / MSVC / ASan",
-			"inherits": [
-				"Win64-MSVC",
-				"asan-windows-msvc"
-			],
-			"binaryDir": "${sourceDir}/out/build/Win64-MSVC-ASan",
-			"installDir": "${sourceDir}/out/install/Win64-MSVC-ASan"
-		},
-		{
-			"name": "Win64-Clang-cl",
-			"displayName": "Windows x64 / Clang-cl",
-			"inherits": [
-				"base",
-				"clang-cl"
-			],
-			"binaryDir": "${sourceDir}/out/build/Win64-Clang-cl",
-			"installDir": "${sourceDir}/out/install/Win64-Clang-cl",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang-cl/windows.cmake"
-			}
-		},
-		{
-			"name": "Win64-Clang",
-			"displayName": "Windows x64 / Clang",
-			"inherits": [
-				"base",
-				"windows",
-				"clang"
-			],
-			"binaryDir": "${sourceDir}/out/build/Win64-Clang",
-			"installDir": "${sourceDir}/out/install/Win64-Clang",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/windows.cmake"
-			}
-		},
-		{
-			"name": "Win64-GCC",
-			"displayName": "Windows x64 / GCC",
-			"inherits": [
-				"base",
-				"windows",
-				"gcc"
-			],
-			"binaryDir": "${sourceDir}/out/build/Win64-GCC",
-			"installDir": "${sourceDir}/out/install/Win64-GCC",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/windows.cmake"
-			}
-		},
-		{
-			"name": "Linux-Clang",
-			"displayName": "Linux / Clang",
-			"inherits": [
-				"base",
-				"linux",
-				"clang"
-			],
-			"binaryDir": "${sourceDir}/out/build/Linux-Clang",
-			"installDir": "${sourceDir}/out/install/Linux-Clang",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/clang/linux.cmake"
-			}
-		},
-		{
-			"name": "Linux-GCC",
-			"displayName": "Linux / GCC",
-			"inherits": [
-				"base",
-				"linux",
-				"gcc"
-			],
-			"binaryDir": "${sourceDir}/out/build/Linux-GCC",
-			"installDir": "${sourceDir}/out/install/Linux-GCC",
-			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "cmake/toolchains/gcc/linux.cmake"
-			}
-		},
-		{
-			"name": "Linux-Clang-ASan-UBSan",
-			"displayName": "Linux / Clang / ASan+UBSan",
-			"inherits": [
-				"Linux-Clang",
-				"asan-ubsan-linux"
-			],
-			"binaryDir": "${sourceDir}/out/build/Linux-Clang-ASan-UBSan",
-			"installDir": "${sourceDir}/out/install/Linux-Clang-ASan-UBSan"
-		},
-		{
-			"name": "Linux-GCC-ASan-UBSan",
-			"displayName": "Linux / GCC / ASan+UBSan",
-			"inherits": [
-				"Linux-GCC",
-				"asan-ubsan-linux"
-			],
-			"binaryDir": "${sourceDir}/out/build/Linux-GCC-ASan-UBSan",
-			"installDir": "${sourceDir}/out/install/Linux-GCC-ASan-UBSan"
-		}
-	],
-	"buildPresets": [
-		{
-			"name": "Win64-MSVC-Debug",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Win64-MSVC-RelWithDebInfo",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Win64-MSVC-Release",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Release"
-		},
-		{
-			"name": "Win64-MSVC-ASan-Debug",
-			"configurePreset": "Win64-MSVC-ASan",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Win64-Clang-cl-Debug",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Win64-Clang-cl-RelWithDebInfo",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Win64-Clang-cl-Release",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Release"
-		},
-		{
-			"name": "Win64-Clang-Debug",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Win64-Clang-RelWithDebInfo",
-			"configurePreset": "Win64-Clang",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Win64-Clang-Release",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Release"
-		},
-		{
-			"name": "Win64-GCC-Debug",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Win64-GCC-RelWithDebInfo",
-			"configurePreset": "Win64-GCC",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Win64-GCC-Release",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Release"
-		},
-		{
-			"name": "Linux-Clang-Debug",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Linux-Clang-RelWithDebInfo",
-			"configurePreset": "Linux-Clang",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Linux-Clang-Release",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Release"
-		},
-		{
-			"name": "Linux-GCC-Debug",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Linux-GCC-RelWithDebInfo",
-			"configurePreset": "Linux-GCC",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Linux-GCC-Release",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Release"
-		},
-		{
-			"name": "Linux-Clang-ASan-UBSan-Debug",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Linux-Clang-ASan-UBSan-RelWithDebInfo",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Linux-Clang-ASan-UBSan-Release",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Release"
-		},
-		{
-			"name": "Linux-GCC-ASan-UBSan-Debug",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Debug"
-		},
-		{
-			"name": "Linux-GCC-ASan-UBSan-RelWithDebInfo",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "RelWithDebInfo"
-		},
-		{
-			"name": "Linux-GCC-ASan-UBSan-Release",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Release"
-		},
-		{
 			"name": "Win64-MSVC-Debug-Tests",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-MSVC-Debug",
+				"testing"
 			]
 		},
 		{
 			"name": "Win64-MSVC-Release-Tests",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Release",
-			"targets": [
-				"all"
-			]
-		},
-		{
-			"name": "Win64-MSVC-ASan-Debug-Tests",
-			"configurePreset": "Win64-MSVC-ASan",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-MSVC-Release",
+				"testing"
 			]
 		},
 		{
 			"name": "Win64-Clang-Debug-Tests",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-Clang-Debug",
+				"testing"
 			]
 		},
 		{
 			"name": "Win64-Clang-Release-Tests",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Release",
-			"targets": [
-				"all"
-			]
-		},
-		{
-			"name": "Win64-Clang-cl-Debug-Tests",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Debug",
-			"targets": [
-				"all"
-			]
-		},
-		{
-			"name": "Win64-Clang-cl-Release-Tests",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-Clang-Release",
+				"testing"
 			]
 		},
 		{
 			"name": "Win64-GCC-Debug-Tests",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-GCC-Debug",
+				"testing"
 			]
 		},
 		{
 			"name": "Win64-GCC-Release-Tests",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"inherits": [
+				"Win64-GCC-Release",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-cl-Debug-Tests",
+			"inherits": [
+				"Win64-Clang-cl-Debug",
+				"testing"
+			]
+		},
+		{
+			"name": "Win64-Clang-cl-Release-Tests",
+			"inherits": [
+				"Win64-Clang-cl-Release",
+				"testing"
 			]
 		},
 		{
 			"name": "Linux-Clang-Debug-Tests",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Linux-Clang-Debug",
+				"testing"
 			]
 		},
 		{
 			"name": "Linux-Clang-Release-Tests",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"inherits": [
+				"Linux-Clang-Release",
+				"testing"
 			]
 		},
 		{
 			"name": "Linux-GCC-Debug-Tests",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"inherits": [
+				"Linux-GCC-Debug",
+				"testing"
 			]
 		},
 		{
 			"name": "Linux-GCC-Release-Tests",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"inherits": [
+				"Linux-GCC-Release",
+				"testing"
 			]
 		},
 		{
-			"name": "Linux-Clang-ASan-UBSan-Debug-Tests",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"name": "Linux-Clang-Debug-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-Clang-Debug-ASan-UBSan",
+				"testing"
 			]
 		},
 		{
-			"name": "Linux-Clang-ASan-UBSan-Release-Tests",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"name": "Linux-Clang-Release-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-Clang-Release-ASan-UBSan",
+				"testing"
 			]
 		},
 		{
-			"name": "Linux-GCC-ASan-UBSan-Debug-Tests",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Debug",
-			"targets": [
-				"all"
+			"name": "Linux-GCC-Debug-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-GCC-Debug-ASan-UBSan",
+				"testing"
 			]
 		},
 		{
-			"name": "Linux-GCC-ASan-UBSan-Release-Tests",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Release",
-			"targets": [
-				"all"
+			"name": "Linux-GCC-Release-ASan-UBSan-Tests",
+			"inherits": [
+				"Linux-GCC-Release-ASan-UBSan",
+				"testing"
 			]
+		},
+		{
+			"name": "Win64-MSVC-Debug-ASan-Tests",
+			"inherits": [
+				"Win64-MSVC-Debug-ASan",
+				"testing"
+			]
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "Win64-MSVC-Debug-Build",
+			"configurePreset": "Win64-MSVC-Debug"
+		},
+		{
+			"name": "Win64-MSVC-Debug-ASan-Build",
+			"configurePreset": "Win64-MSVC-Debug-ASan"
+		},
+		{
+			"name": "Win64-MSVC-Release-Build",
+			"configurePreset": "Win64-MSVC-Release"
+		},
+		{
+			"name": "Win64-Clang-cl-Debug-Build",
+			"configurePreset": "Win64-Clang-cl-Debug"
+		},
+		{
+			"name": "Win64-Clang-cl-Release-Build",
+			"configurePreset": "Win64-Clang-cl-Release"
+		},
+		{
+			"name": "Win64-Clang-Debug-Build",
+			"configurePreset": "Win64-Clang-Debug"
+		},
+		{
+			"name": "Win64-Clang-Release-Build",
+			"configurePreset": "Win64-Clang-Release"
+		},
+		{
+			"name": "Win64-GCC-Debug-Build",
+			"configurePreset": "Win64-GCC-Debug"
+		},
+		{
+			"name": "Win64-GCC-Release-Build",
+			"configurePreset": "Win64-GCC-Release"
+		},
+		{
+			"name": "Linux-Clang-Debug-Build",
+			"configurePreset": "Linux-Clang-Debug"
+		},
+		{
+			"name": "Linux-Clang-Release-Build",
+			"configurePreset": "Linux-Clang-Release"
+		},
+		{
+			"name": "Linux-GCC-Debug-Build",
+			"configurePreset": "Linux-GCC-Debug"
+		},
+		{
+			"name": "Linux-GCC-Release-Build",
+			"configurePreset": "Linux-GCC-Release"
+		},
+		{
+			"name": "Linux-Clang-Debug-ASan-UBSan-Build",
+			"configurePreset": "Linux-Clang-Debug-ASan-UBSan"
+		},
+		{
+			"name": "Linux-Clang-Release-ASan-UBSan-Build",
+			"configurePreset": "Linux-Clang-Release-ASan-UBSan"
+		},
+		{
+			"name": "Linux-GCC-Debug-ASan-UBSan-Build",
+			"configurePreset": "Linux-GCC-Debug-ASan-UBSan"
+		},
+		{
+			"name": "Linux-GCC-Release-ASan-UBSan-Build",
+			"configurePreset": "Linux-GCC-Release-ASan-UBSan"
+		},
+		{
+			"name": "Win64-MSVC-Debug-Tests-Build",
+			"configurePreset": "Win64-MSVC-Debug-Tests"
+		},
+		{
+			"name": "Win64-MSVC-Release-Tests-Build",
+			"configurePreset": "Win64-MSVC-Release-Tests"
+		},
+		{
+			"name": "Win64-Clang-Debug-Tests-Build",
+			"configurePreset": "Win64-Clang-Debug-Tests"
+		},
+		{
+			"name": "Win64-Clang-Release-Tests-Build",
+			"configurePreset": "Win64-Clang-Release-Tests"
+		},
+		{
+			"name": "Win64-GCC-Debug-Tests-Build",
+			"configurePreset": "Win64-GCC-Debug-Tests"
+		},
+		{
+			"name": "Win64-GCC-Release-Tests-Build",
+			"configurePreset": "Win64-GCC-Release-Tests"
+		},
+		{
+			"name": "Win64-Clang-cl-Debug-Tests-Build",
+			"configurePreset": "Win64-Clang-cl-Debug-Tests"
+		},
+		{
+			"name": "Win64-Clang-cl-Release-Tests-Build",
+			"configurePreset": "Win64-Clang-cl-Release-Tests"
+		},
+		{
+			"name": "Linux-Clang-Debug-Tests-Build",
+			"configurePreset": "Linux-Clang-Debug-Tests"
+		},
+		{
+			"name": "Linux-Clang-Release-Tests-Build",
+			"configurePreset": "Linux-Clang-Release-Tests"
 		}
 	],
 	"testPresets": [
 		{
-			"name": "Win64-MSVC-Debug",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Debug"
+			"name": "Win64-MSVC-Debug-Test",
+			"configurePreset": "Win64-MSVC-Debug-Tests"
 		},
 		{
-			"name": "Win64-MSVC-Release",
-			"configurePreset": "Win64-MSVC",
-			"configuration": "Release"
+			"name": "Win64-MSVC-Debug-ASan-Test",
+			"configurePreset": "Win64-MSVC-Debug-ASan-Tests"
 		},
 		{
-			"name": "Win64-MSVC-ASan-Debug",
-			"configurePreset": "Win64-MSVC-ASan",
-			"configuration": "Debug"
+			"name": "Win64-MSVC-Release-Test",
+			"configurePreset": "Win64-MSVC-Release-Tests"
 		},
 		{
-			"name": "Win64-Clang-cl-Debug",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Debug"
+			"name": "Win64-Clang-cl-Debug-Test",
+			"configurePreset": "Win64-Clang-cl-Debug-Tests"
 		},
 		{
-			"name": "Win64-Clang-cl-Release",
-			"configurePreset": "Win64-Clang-cl",
-			"configuration": "Release"
+			"name": "Win64-Clang-cl-Release-Test",
+			"configurePreset": "Win64-Clang-cl-Release-Tests"
 		},
 		{
-			"name": "Win64-Clang-Debug",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Debug"
+			"name": "Win64-Clang-Debug-Test",
+			"configurePreset": "Win64-Clang-Debug-Tests"
 		},
 		{
-			"name": "Win64-Clang-Release",
-			"configurePreset": "Win64-Clang",
-			"configuration": "Release"
+			"name": "Win64-Clang-Release-Test",
+			"configurePreset": "Win64-Clang-Release-Tests"
 		},
 		{
-			"name": "Win64-GCC-Debug",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Debug"
+			"name": "Win64-GCC-Debug-Test",
+			"configurePreset": "Win64-GCC-Debug-Tests"
 		},
 		{
-			"name": "Win64-GCC-Release",
-			"configurePreset": "Win64-GCC",
-			"configuration": "Release"
+			"name": "Win64-GCC-Release-Test",
+			"configurePreset": "Win64-GCC-Release-Tests"
 		},
 		{
-			"name": "Linux-Clang-Debug",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Debug"
+			"name": "Linux-Clang-Debug-Test",
+			"configurePreset": "Linux-Clang-Debug-Tests"
 		},
 		{
-			"name": "Linux-Clang-Release",
-			"configurePreset": "Linux-Clang",
-			"configuration": "Release"
+			"name": "Linux-Clang-Release-Test",
+			"configurePreset": "Linux-Clang-Release-Tests"
 		},
 		{
-			"name": "Linux-GCC-Debug",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Debug"
+			"name": "Linux-GCC-Debug-Test",
+			"configurePreset": "Linux-GCC-Debug-Tests"
 		},
 		{
-			"name": "Linux-GCC-Release",
-			"configurePreset": "Linux-GCC",
-			"configuration": "Release"
+			"name": "Linux-GCC-Release-Test",
+			"configurePreset": "Linux-GCC-Release-Tests"
 		},
 		{
-			"name": "Linux-Clang-ASan-UBSan-Debug",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Debug"
+			"name": "Linux-Clang-Debug-ASan-UBSan-Test",
+			"configurePreset": "Linux-Clang-Debug-ASan-UBSan-Tests"
 		},
 		{
-			"name": "Linux-Clang-ASan-UBSan-Release",
-			"configurePreset": "Linux-Clang-ASan-UBSan",
-			"configuration": "Release"
+			"name": "Linux-Clang-Release-ASan-UBSan-Test",
+			"configurePreset": "Linux-Clang-Release-ASan-UBSan-Tests"
 		},
 		{
-			"name": "Linux-GCC-ASan-UBSan-Debug",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Debug"
+			"name": "Linux-GCC-Debug-ASan-UBSan-Test",
+			"configurePreset": "Linux-GCC-Debug-ASan-UBSan-Tests"
 		},
 		{
-			"name": "Linux-GCC-ASan-UBSan-Release",
-			"configurePreset": "Linux-GCC-ASan-UBSan",
-			"configuration": "Release"
+			"name": "Linux-GCC-Release-ASan-UBSan-Test",
+			"configurePreset": "Linux-GCC-Release-ASan-UBSan-Tests"
 		}
 	]
 }

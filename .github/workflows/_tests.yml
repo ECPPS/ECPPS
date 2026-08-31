@@ -44,7 +44,8 @@ jobs:
       - name: Configure with BUILD_TESTING=ON
         shell: pwsh
         run: |
-          cmake --preset Win64-MSVC `
+          cmake -S . -G Ninja `
+            --preset Win64-MSVC-Debug `
             -DBUILD_TESTING=ON `
             -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
 
@@ -52,12 +53,12 @@ jobs:
         shell: pwsh
         run: |
           cmake --build `
-            --preset Win64-MSVC-Debug-Tests `
+            --preset Win64-MSVC-Debug-Build `
             --parallel
 
       - name: Run tests
-        shell: pwsh
+        shell: bash
         run: |
-          ctest `
-            --preset Win64-MSVC-Debug `
-            --output-on-failure
+          ctest --test-dir out/build/Win64-Debug-MSVC \
+                --output-on-failure \
+                --parallel "$(nproc)"
