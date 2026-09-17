@@ -1,7 +1,9 @@
 #pragma once
+#include <format>
 #include <functional>
 #include <span>
 #include <stack>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,6 +15,7 @@
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Storage.h"
 #include "Shared/Config.h"
+#include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
 
 namespace ecpps::codegen
@@ -46,12 +49,82 @@ namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
 
+     struct AllocationDescriptor
+     {
+          enum struct Type : std::uint8_t
+          {
+               Locked = 0, // highest priority
+               HotTemporary,
+               HotAllocation,
+               Temporary,
+               Allocation,
+               ColdAllocation, // lowest priority
+          };
+          std::size_t size;
+          std::size_t alignment;
+          Type type;
+     };
+     struct AllocationMap
+     {
+
+          std::size_t EmplaceAllocate(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
+                                      AllocationDescriptor::Type type)
+          {
+               auto virtualIndex = _firstFreeEntry++;
+
+               if (this->_descriptorArray.size() <= virtualIndex) this->_descriptorArray.resize(virtualIndex + 1);
+               if (this->_descriptorArrayWindow.size() <= ssaIndex) this->_descriptorArrayWindow.resize(ssaIndex + 1);
+
+               this->_descriptorArray[virtualIndex] =
+                    AllocationDescriptor{.size = size, .alignment = alignment, .type = type};
+               this->_descriptorArrayWindow[ssaIndex] = virtualIndex;
+
+               return virtualIndex;
+          }
+
+          [[nodiscard]] std::size_t FindVirtualBySSA(std::size_t ssaIndex)
+          {
+               if (this->_descriptorArrayWindow.size() <= ssaIndex)
+                    throw TracedException(std::logic_error(std::format("Invalid index: {}", ssaIndex)));
+               return this->_descriptorArrayWindow[ssaIndex];
+          }
+
+          [[nodiscard]] std::size_t FindSSAByVirtual(std::size_t virtualIndex)
+          {
+               auto remaining = static_cast<decltype(0z)>(this->_descriptorArrayWindow.size());
+               auto iterator = this->_descriptorArrayWindow.begin() + (remaining /= 2);
+               while (iterator != this->_descriptorArrayWindow.end() &&
+                      iterator != this->_descriptorArrayWindow.begin())
+               {
+                    auto ordering = *iterator <=> virtualIndex;
+                    if (is_eq(ordering)) break;
+                    if (is_lt(ordering)) iterator += (remaining /= 2);
+                    if (is_gt(ordering)) iterator -= (remaining /= 2);
+               }
+               return static_cast<std::size_t>(iterator - this->_descriptorArrayWindow.begin());
+          }
+          [[nodiscard]] AllocationDescriptor& GetDescriptorFromSSA(std::size_t ssaIndex)
+          {
+               return this->_descriptorArray[FindVirtualBySSA(ssaIndex)];
+          }
+          [[nodiscard]] AllocationDescriptor& GetDescriptorFromVirtual(std::size_t virtualIndex)
+          {
+               return this->_descriptorArray[virtualIndex];
+          }
+
+     private:
+          std::vector<std::size_t> _descriptorArrayWindow{};
+          std::vector<AllocationDescriptor> _descriptorArray{};
+          std::size_t _firstFreeEntry{};
+     };
+
      struct ParsingContext
      {
           std::vector<ir::abstract::VirtualInstruction> instructions;
-          ecpps::abi::ABI* abi;
+          ecpps::abi::ABI* abi{};
           std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
-          abi::api::Target* target;
+          abi::api::Target* target{};
+          AllocationMap virtualRegisterAllocationMap;
 
           void ParseNode(const ir::NodeBase* node);
 
@@ -184,5 +257,5 @@ namespace ecpps::codegen
      };
 
      void Compile(CompilerConfig& config, SourceFile& source,
-                  const std::vector<ir::NodePointer>& intermediateRepresentation);
+                  const std::vector<ir::NodePointer>& intermediateRepresentation, ecpps::abi::api::Target* target);
 } // namespace ecpps::codegen
