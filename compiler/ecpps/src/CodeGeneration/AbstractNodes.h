@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "Shared/Diagnostics.h"
 
 namespace ecpps::ir::abstract
 {
@@ -62,10 +63,23 @@ namespace ecpps::ir::abstract
      };
      enum struct VirtualInstructionType : std::uint32_t // NOLINT(performance-enum-size)
      {
-          Copy,   // copies A = B
-          Add,    // A = B + C
-          Return, // returns A
+          Copy,        // copies A = B
+          CopyInteger, // copies A = B(int)
+          Add,         // A = B + C
+          Return,      // returns A
      };
+     constexpr std::string_view ToString(const VirtualInstructionType type)
+     {
+          switch (type)
+          {
+          case VirtualInstructionType::Copy: return "copy";
+          case VirtualInstructionType::CopyInteger: return "copy-int";
+          case VirtualInstructionType::Add: return "add";
+          case VirtualInstructionType::Return: return "return";
+          }
+          throw TracedException("control flow");
+     }
+
      struct VirtualRegister
      {
           std::size_t index{};
