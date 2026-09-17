@@ -64,6 +64,12 @@ namespace ecpps::codegen
           std::size_t alignment;
           Type type;
      };
+     struct VirtualNotFoundError : std::exception
+     {
+          VirtualNotFoundError([[maybe_unused]] auto&&... args) // TODO: do something lol
+          {
+          }
+     };
      struct AllocationMap
      {
 
@@ -85,7 +91,7 @@ namespace ecpps::codegen
           [[nodiscard]] std::size_t FindVirtualBySSA(std::size_t ssaIndex)
           {
                if (this->_descriptorArrayWindow.size() <= ssaIndex)
-                    throw TracedException(std::logic_error(std::format("Invalid index: {}", ssaIndex)));
+                    throw VirtualNotFoundError(std::logic_error(std::format("Invalid index: {}", ssaIndex)));
                return this->_descriptorArrayWindow[ssaIndex];
           }
 
@@ -133,6 +139,7 @@ namespace ecpps::codegen
           void ParseStoreNode(const ir::SSAStoreNode& node);
           void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
           void ParseAddNode(const ir::SSAAddNode& node);
+          void ParseLoadNode(const ir::SSALoadNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
      };
 
