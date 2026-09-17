@@ -8,6 +8,7 @@
 #include "../Execution/Operations.h"
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
+#include "AbstractNodes.h"
 #include "Execution/NodeBase.h"
 #include "Machine/Storage.h"
 #include "Nodes.h"
@@ -82,18 +83,28 @@ void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::
 void ecpps::codegen::ParsingContext::ParseStoreNode([[maybe_unused]] const ir::SSAStoreNode& node)
 {
 }
-void ecpps::codegen::ParsingContext::ParseStoreIntNode([[maybe_unused]] const ir::SSAStoreIntegerNode& node)
+void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreIntegerNode& node)
 {
+     auto ssaIndex = node.Target().Index();
+     ir::abstract::VirtualRegister virtualIndex{this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaIndex)};
+     ir::abstract::VirtualRegister sourceVirtualised{node.Src()};
+     // TODO: Error check
+     ir::abstract::VirtualInstruction instruction{.type = ir::abstract::VirtualInstructionType::CopyInteger,
+                                                  .operands = {virtualIndex, sourceVirtualised}};
+     this->instructions.push_back(instruction);
 }
 void ecpps::codegen::ParsingContext::ParseAddNode([[maybe_unused]] const ir::SSAAddNode& node)
 {
 }
-void ecpps::codegen::ParsingContext::ParseAllocateNode([[maybe_unused]] const ir::AllocationNode& node)
+void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode& node)
 {
+     const auto allocatedIndex = this->virtualRegisterAllocationMap.EmplaceAllocate(
+          node.Node().Index(), node.Size(), node.Alignment(), AllocationDescriptor::Type::Allocation);
+     this->target->registerMap->ReferenceRegister(allocatedIndex);
 }
 
 static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& context,
-                              const ecpps::ir::ProcedureNode& node)
+                              const ecpps::ir::ProcedureNode& node, ecpps::abi::api::Target* target)
 {
      auto& currentAbi = ecpps::abi::ABI::Current();
 
@@ -114,6 +125,8 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
      }
 
      ecpps::codegen::ParsingContext parseContext(currentAbi);
+     parseContext.target = target;
+
      for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
 
      return Routine(std::move(parseContext.instructions),
@@ -130,7 +143,8 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
-                             const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation)
+                             const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation,
+                             ecpps::abi::api::Target* target)
 {
      AssemblyContext context{config};
      auto& patches = context.Patches();
@@ -139,7 +153,7 @@ void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
           patches = {};
 
           if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
-               source.compiledRoutines.push_back(CompileRoutine(context, *procedureNode));
+               source.compiledRoutines.push_back(CompileRoutine(context, *procedureNode, target));
 
           source.stringTranslation = patches;
      }
