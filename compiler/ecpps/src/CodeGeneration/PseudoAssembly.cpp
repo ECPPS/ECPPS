@@ -36,45 +36,60 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
 
-     switch (node->Kind())
+     try
      {
-     case ecpps::ir::NodeKind::Allocate:
-     {
-          const auto* allocationNode = dynamic_cast<const ecpps::ir::AllocationNode*>(node);
-          runtime_assert(allocationNode != nullptr, "Allocate node was not an allocation!");
-          this->ParseAllocateNode(*allocationNode);
-     }
-     break;
-     case ecpps::ir::NodeKind::Return:
-     {
-          const auto* returnNode = dynamic_cast<const ecpps::ir::SSAReturnNode*>(node);
-          runtime_assert(returnNode != nullptr, "Return node was not a return!");
-          this->ParseReturnNode(*returnNode);
-     }
-     break;
-     case ecpps::ir::NodeKind::Store:
-     {
-          if (const auto* storeIntNode = dynamic_cast<const ecpps::ir::SSAStoreIntegerNode*>(node);
-              storeIntNode != nullptr)
+          switch (node->Kind())
           {
-               this->ParseStoreIntNode(*storeIntNode);
-               return;
+          case ecpps::ir::NodeKind::Allocate:
+          {
+               const auto* allocationNode = dynamic_cast<const ecpps::ir::AllocationNode*>(node);
+               runtime_assert(allocationNode != nullptr, "Allocate node was not an allocation!");
+               this->ParseAllocateNode(*allocationNode);
           }
-          const auto* storeNode = dynamic_cast<const ecpps::ir::SSAStoreNode*>(node);
-          runtime_assert(storeNode != nullptr, "Store node was not a store!");
-          this->ParseStoreNode(*storeNode);
-     }
-     break;
-     case ecpps::ir::NodeKind::Addition:
-     {
-          const auto* addNode = dynamic_cast<const ecpps::ir::SSAAddNode*>(node);
-          runtime_assert(addNode != nullptr, "Addition node was not an addition!");
-          this->ParseAddNode(*addNode);
-     }
-     break;
-     default:
-          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>("Not implemented", node->Source()));
           break;
+          case ecpps::ir::NodeKind::Return:
+          {
+               const auto* returnNode = dynamic_cast<const ecpps::ir::SSAReturnNode*>(node);
+               runtime_assert(returnNode != nullptr, "Return node was not a return!");
+               this->ParseReturnNode(*returnNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Store:
+          {
+               if (const auto* storeIntNode = dynamic_cast<const ecpps::ir::SSAStoreIntegerNode*>(node);
+                   storeIntNode != nullptr)
+               {
+                    this->ParseStoreIntNode(*storeIntNode);
+                    return;
+               }
+               const auto* storeNode = dynamic_cast<const ecpps::ir::SSAStoreNode*>(node);
+               runtime_assert(storeNode != nullptr, "Store node was not a store!");
+               this->ParseStoreNode(*storeNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Addition:
+          {
+               const auto* addNode = dynamic_cast<const ecpps::ir::SSAAddNode*>(node);
+               runtime_assert(addNode != nullptr, "Addition node was not an addition!");
+               this->ParseAddNode(*addNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Load:
+          {
+               const auto* addNode = dynamic_cast<const ecpps::ir::SSALoadNode*>(node);
+               runtime_assert(addNode != nullptr, "Addition node was not an addition!");
+               this->ParseLoadNode(*addNode);
+          }
+          break;
+          default:
+               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>("Not implemented", node->Source()));
+               break;
+          }
+     }
+     catch (VirtualNotFoundError)
+     {
+          this->diagnostics.push_back(
+               std::make_unique<diagnostics::TypeError>("See earlier diagnostics", node->Source()));
      }
 }
 void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::SSAReturnNode& node)
@@ -89,12 +104,69 @@ void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreInteger
      ir::abstract::VirtualRegister virtualIndex{this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaIndex)};
      ir::abstract::VirtualRegister sourceVirtualised{node.Src()};
      // TODO: Error check
-     ir::abstract::VirtualInstruction instruction{.type = ir::abstract::VirtualInstructionType::CopyInteger,
-                                                  .operands = {virtualIndex, sourceVirtualised}};
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::CopyInteger,
+          .operands = {virtualIndex, sourceVirtualised},
+     };
      this->instructions.push_back(instruction);
 }
-void ecpps::codegen::ParsingContext::ParseAddNode([[maybe_unused]] const ir::SSAAddNode& node)
+void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
 {
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(this->virtualRegisterAllocationMap.EmplaceAllocate(
+          ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+     this->target->registerMap->ReferenceRegister(allocatedIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     // TODO: Error check
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Add,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
+{
+     auto ssaSourceIndex = node.Address().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+     auto& describedSource = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex);
+
+     auto size = describedSource.size;
+     auto alignment = describedSource.alignment;
+
+     ir::abstract::VirtualRegister allocatedIndex(this->virtualRegisterAllocationMap.EmplaceAllocate(
+          ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+     this->target->registerMap->ReferenceRegister(allocatedIndex);
+
+     ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+     // TODO: Error check
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Copy,
+          .operands = {allocatedIndex, virtualSource},
+     };
+     this->instructions.push_back(instruction);
 }
 void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode& node)
 {
