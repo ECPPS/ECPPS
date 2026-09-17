@@ -116,17 +116,17 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
      ecpps::codegen::ParsingContext parseContext(currentAbi);
      for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
 
-     return Routine::Branchless(
-          std::move(parseContext.instructions),
-          ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
-                                      node.ParameterList() |
-                                           std::views::transform(
-                                                [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                                {
-                                                     return parameter.type;
-                                                }) |
-                                           std::ranges::to<std::vector>(),
-                                      node.NamespacePath()));
+     return Routine(std::move(parseContext.instructions),
+                    ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
+                                                node.ReturnType(),
+                                                node.ParameterList() |
+                                                     std::views::transform(
+                                                          [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                                          {
+                                                               return parameter.type;
+                                                          }) |
+                                                     std::ranges::to<std::vector>(),
+                                                node.NamespacePath()));
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,

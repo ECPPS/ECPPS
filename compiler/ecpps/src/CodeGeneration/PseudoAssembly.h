@@ -48,7 +48,7 @@ namespace ecpps::codegen
 
      struct ParsingContext
      {
-          std::vector<ir::abstract::Instruction> instructions;
+          std::vector<ir::abstract::VirtualInstruction> instructions;
           ecpps::abi::ABI* abi;
           std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
           abi::api::Target* target;

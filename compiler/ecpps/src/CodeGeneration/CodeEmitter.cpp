@@ -7,19 +7,10 @@
 
 ecpps::codegen::CodeEmitter::~CodeEmitter(void) = default;
 
-std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
+std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine([[maybe_unused]] const Routine& routine,
+                                                                [[maybe_unused]] std::size_t displacement)
 {
      std::vector<std::byte> generated{};
-     generated.reserve(routine.instructions.size() * 2);
-     // TODO: Check preconditions
-
-     for (const auto& instruction : routine.instructions)
-     {
-          this->_currentInstructionBase = generated.size() + displacement;
-          generated.append_range(this->EmitInstruction(instruction));
-     }
-
-     // TODO: Check postconditions
      return generated;
 }
 
