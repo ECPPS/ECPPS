@@ -135,7 +135,14 @@ enum struct FileIterationStatus : bool
                     std::println("  {}", node.name);
                     for (const auto& instruction : node.instructions)
                     {
-                         std::println("    {}", ToString(instruction.type));
+                         std::string operands{};
+                         for (const auto operand : instruction.operands) operands += std::format("{}, ", operand.index);
+                         if (!operands.empty())
+                         {
+                              operands.pop_back();
+                              operands.pop_back();
+                         }
+                         std::println("    {} {}", ToString(instruction.type), operands);
                     }
                }
           }
