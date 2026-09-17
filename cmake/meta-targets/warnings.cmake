@@ -23,6 +23,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-pre-c++23-compat
           -Wno-c++98-compat-pedantic
           -Wno-c++98-c++11-compat-binary-literal
+			 -Wno-c++20-extensions
 
           # Don't care
           -Wno-global-constructors
