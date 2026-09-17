@@ -1,6 +1,9 @@
 #include "Execution/Context.h"
 #include "Machine/ABI.h"
+#include "Machine/Encoders/API/Target.h"
+#include "Machine/Encoders/Context.h"
 #include "Machine/Encoders/InstructionEncoder.h"
+#include "Machine/Machine.h"
 #include "TypeSystem/TypeBase.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -60,7 +63,8 @@ enum struct FileIterationStatus : bool
                                                          bool isExtraVerbose,
                                                          std::vector<std::byte>& generatedMachineCode,
                                                          std::vector<std::pair<std::string, std::size_t>>& functions,
-                                                         ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
+                                                         ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset,
+                                                         ecpps::abi::api::Target* target)
 {
      ecpps::g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
@@ -119,7 +123,22 @@ enum struct FileIterationStatus : bool
                for (const auto& node : ir) std::println("{}", node->ToString(0));
           ast.clear();
           astContext.Release();
-          ecpps::codegen::Compile(config, source, ir);
+          ecpps::codegen::Compile(config, source, ir, target);
+
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("Virtual Instructions:");
+
+          if (isExtraVerbose)
+          {
+               for (const auto& node : source.compiledRoutines)
+               {
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : node.instructions)
+                    {
+                         std::println("    {}", ToString(instruction.type));
+                    }
+               }
+          }
 
           if (isExtraVerbose) std::println();
           if (isExtraVerbose) std::println("Assembly:");
@@ -305,6 +324,13 @@ int main(int argc, char* argv[])
           ecpps::abi::ABI::Current().ptrdiffSize = translateSizes(config.ptrdiffSize);
           ecpps::abi::ABI::Current().intptrSize = translateSizes(config.intptrSize);
 
+          ecpps::abi::encoding::CompilationContext context{
+               .isa = ecpps::abi::ISA::x86_64,
+               .platform = ecpps::abi::encoding::Platform::Windows,
+               .sdk = ecpps::abi::encoding::SDK::WindowsSDK10,
+          };
+          auto& target = ecpps::abi::BackendRegistry::Get(context);
+
           auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
           if (emitter == nullptr)
           {
@@ -327,7 +353,7 @@ int main(int argc, char* argv[])
           for (ecpps::SourceFile& source : sources.files)
           {
                hadErrors |= DoFileIteration(source, config, isExtraVerbose, generatedMachineCode, functions, *emitter,
-                                            mainOffset) == FileIterationStatus::Failure;
+                                            mainOffset, &target) == FileIterationStatus::Failure;
           }
 
           if (hadErrors)
