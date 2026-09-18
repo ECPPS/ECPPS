@@ -1,11 +1,14 @@
 #pragma once
 #include <format>
 #include <functional>
+#include <limits>
+#include <ranges>
 #include <span>
 #include <stack>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
@@ -59,6 +62,8 @@ namespace ecpps::codegen
                Temporary,
                Allocation,
                ColdAllocation, // lowest priority
+
+               Invalid = std::numeric_limits<std::uint8_t>::max()
           };
           std::size_t size;
           std::size_t alignment;
@@ -76,7 +81,13 @@ namespace ecpps::codegen
           std::size_t EmplaceAllocate(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
                                       AllocationDescriptor::Type type)
           {
-               auto virtualIndex = _firstFreeEntry++;
+               auto virtualIndex = _firstFreeEntry;
+               for (auto i : std::views::iota(virtualIndex, this->_descriptorArrayWindow.size()))
+               {
+                    if (this->_descriptorArrayWindow[i] != std::numeric_limits<std::size_t>::max()) continue;
+                    _firstFreeEntry = i;
+               }
+               if (_firstFreeEntry == virtualIndex) _firstFreeEntry = this->_descriptorArrayWindow.size();
 
                if (this->_descriptorArray.size() <= virtualIndex) this->_descriptorArray.resize(virtualIndex + 1);
                if (this->_descriptorArrayWindow.size() <= ssaIndex) this->_descriptorArrayWindow.resize(ssaIndex + 1);
@@ -117,6 +128,14 @@ namespace ecpps::codegen
           {
                return this->_descriptorArray[virtualIndex];
           }
+          void ReleaseSSA(std::size_t ssa)
+          {
+               runtime_assert(this->_descriptorArrayWindow.size() > ssa, "invalid ssa register");
+               this->_firstFreeEntry = ssa;
+               auto oldVirtual =
+                    std::exchange(this->_descriptorArrayWindow[ssa], std::numeric_limits<std::size_t>::max());
+               this->_descriptorArray[oldVirtual].type = AllocationDescriptor::Type::Invalid;
+          }
 
      private:
           std::vector<std::size_t> _descriptorArrayWindow{};
@@ -140,7 +159,11 @@ namespace ecpps::codegen
           void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
           void ParseAddNode(const ir::SSAAddNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
+          void ParseIntNode(const ir::SSAImmNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
+
+     private:
+          void DereferenceSSA(std::size_t ssaIndex);
      };
 
      struct AssemblyContext

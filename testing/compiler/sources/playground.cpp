@@ -1,6 +1,6 @@
-void test()
+void meow()
 {
      int x = 0;
-     int y = 1;
-     x + y;
+     x + 1;
+     x + 2;
 }
