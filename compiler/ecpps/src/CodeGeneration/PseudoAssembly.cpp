@@ -67,6 +67,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseStoreNode(*storeNode);
           }
           break;
+          case ecpps::ir::NodeKind::Integer:
+          {
+               const auto* intNode = dynamic_cast<const ecpps::ir::SSAImmNode*>(node);
+               runtime_assert(intNode != nullptr, "Store node was not a store!");
+               this->ParseIntNode(*intNode);
+          }
+          break;
           case ecpps::ir::NodeKind::Addition:
           {
                const auto* addNode = dynamic_cast<const ecpps::ir::SSAAddNode*>(node);
@@ -94,9 +101,45 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 }
 void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::SSAReturnNode& node)
 {
+     if (!node.HasOperand())
+     {
+          ir::abstract::VirtualInstruction instruction{
+               .type = ir::abstract::VirtualInstructionType::Return,
+               .operands = {},
+          };
+          this->instructions.push_back(instruction);
+          return;
+     }
+     auto ssaSourceIndex = node.Operand()->Index();
+     auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+     this->DereferenceSSA(ssaSourceIndex);
+     ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Return,
+          .operands = {virtualSource},
+     };
+     this->instructions.push_back(instruction);
 }
-void ecpps::codegen::ParsingContext::ParseStoreNode([[maybe_unused]] const ir::SSAStoreNode& node)
+void ecpps::codegen::ParsingContext::ParseStoreNode(const ir::SSAStoreNode& node)
 {
+     auto ssaSourceIndex = node.Src().Index();
+     auto ssaTargetIndex = node.Target().Index();
+
+     auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+     auto virtualTargetIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
+     this->DereferenceSSA(ssaSourceIndex);
+     this->DereferenceSSA(virtualTargetIndex);
+
+     ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+     ir::abstract::VirtualRegister virtualTarget{virtualTargetIndex};
+
+     // TODO: Error check
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Copy,
+          .operands = {virtualTarget, virtualSource},
+     };
+     this->instructions.push_back(instruction);
 }
 void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreIntegerNode& node)
 {
@@ -119,6 +162,9 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
      auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
      auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
      auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     this->DereferenceSSA(virtualLeftIndex);
+     this->DereferenceSSA(virtualRightIndex);
 
      auto size = describedLeft.size;
      auto alignment = describedLeft.alignment;
@@ -151,6 +197,7 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 
      auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
      auto& describedSource = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex);
+     this->DereferenceSSA(ssaSourceIndex);
 
      auto size = describedSource.size;
      auto alignment = describedSource.alignment;
@@ -173,6 +220,33 @@ void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode&
      const auto allocatedIndex = this->virtualRegisterAllocationMap.EmplaceAllocate(
           node.Node().Index(), node.Size(), node.Alignment(), AllocationDescriptor::Type::Allocation);
      this->target->registerMap->ReferenceRegister(allocatedIndex);
+}
+void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
+{
+     auto size = node.Result().Width() / CHAR_BIT;
+     auto alignment = size;
+
+     auto ssaIndex = node.Result().Index();
+
+     ir::abstract::VirtualRegister virtualIndex{
+          this->virtualRegisterAllocationMap.EmplaceAllocate(ssaIndex, size, alignment,
+                                                             AllocationDescriptor::Type::Temporary),
+     };
+     this->target->registerMap->ReferenceRegister(virtualIndex);
+     ir::abstract::VirtualRegister sourceVirtualised{node.Value()};
+     // TODO: Error check
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::CopyInteger,
+          .operands = {virtualIndex, sourceVirtualised},
+     };
+     this->instructions.push_back(instruction);
+}
+
+void ecpps::codegen::ParsingContext::DereferenceSSA(const std::size_t ssaIndex)
+{
+     if (this->target->registerMap->DereferenceRegister(ssaIndex) != 0) return;
+
+     this->virtualRegisterAllocationMap.ReleaseSSA(ssaIndex);
 }
 
 static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& context,
