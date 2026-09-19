@@ -13,9 +13,24 @@
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyInteger>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Return>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
+          std::span<const std::byte> data);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::CopyInteger>(std::span<const std::byte> data);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
           std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
@@ -45,6 +60,13 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* add = std::launder(reinterpret_cast<const AddInstruction*>(instruction.description.data()));
           return std::format("ADD {}, {}", ToString(add->modifiedDestination), ToString(add->source));
      }
+     case X8664InstructionName::Ret:
+     {
+          runtime_assert(instruction.description.size() == sizeof(RetInstruction), "invalid RET");
+          const auto* ret = std::launder(reinterpret_cast<const RetInstruction*>(instruction.description.data()));
+          if (ret->value.has_value()) return std::format("RET {}", ToString(*ret->value));
+          return "RET";
+     }
      }
 
      return "__unknown";
@@ -65,6 +87,18 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Copy:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CopyInteger:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::CopyInteger>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Add:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Add>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Return:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
           break;
      default: throw TracedException("Invalid instruction"); // TODO: Diagnostics
      }
@@ -89,6 +123,12 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::abi::encoders::x8664::AssignedValueType::Copy:
           return MaterialisationImplementation<ir::abstract::VirtualInstructionType::Copy>(
                std::span<const std::byte>{value.data});
+     case ecpps::abi::encoders::x8664::AssignedValueType::CopyInteger:
+          return MaterialisationImplementation<ir::abstract::VirtualInstructionType::CopyInteger>(
+               std::span<const std::byte>{value.data});
+     case ecpps::abi::encoders::x8664::AssignedValueType::Add:
+          return MaterialisationImplementation<ir::abstract::VirtualInstructionType::Add>(
+               std::span<const std::byte>{value.data});
      }
 
      throw TracedException("Invalid opcode");
@@ -108,7 +148,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::abi::encoders::x8664::RegisterIndex::Rsi: formattedRegister = "rsi"; break;
      case ecpps::abi::encoders::x8664::RegisterIndex::Rdi: formattedRegister = "rdi"; break;
      case ecpps::abi::encoders::x8664::RegisterIndex::R8: formattedRegister = "r8"; break;
-     case ecpps::abi::encoders::x8664::RegisterIndex::R9: formattedRegister = "r8"; break;
+     case ecpps::abi::encoders::x8664::RegisterIndex::R9: formattedRegister = "r9"; break;
      case ecpps::abi::encoders::x8664::RegisterIndex::R10: formattedRegister = "r10"; break;
      case ecpps::abi::encoders::x8664::RegisterIndex::R11: formattedRegister = "r11"; break;
      case ecpps::abi::encoders::x8664::RegisterIndex::R12: formattedRegister = "r12"; break;
