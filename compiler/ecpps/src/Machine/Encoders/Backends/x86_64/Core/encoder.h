@@ -31,6 +31,9 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Mov = 0;
           constexpr static std::size_t Add = 1;
           constexpr static std::size_t Ret = 2;
+          constexpr static std::size_t Sub = 3;
+          constexpr static std::size_t Push = 4;
+          constexpr static std::size_t Pop = 5;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -74,6 +77,25 @@ namespace ecpps::abi::encoders::x8664
                Rip
           };
 
+          enum struct Width : std::uint8_t
+          {
+               W8 = 1,
+               W16 = 2,
+               W32 = 4,
+               W64 = 8
+          };
+          [[nodiscard]] std::string ToString(Width width);
+          [[nodiscard]] constexpr Width WidthFromSize(const std::size_t size)
+          {
+               switch (size)
+               {
+               case 1: return Width::W8;
+               case 2: return Width::W16;
+               case 4: return Width::W32;
+               case 8: return Width::W64;
+               default: throw TracedException(std::format("Unsupported register size for integer copy: {}", size));
+               }
+          }
           struct RegisterOperand
           {
                RegisterIndex index{};
@@ -91,13 +113,29 @@ namespace ecpps::abi::encoders::x8664
 
           struct AddInstruction
           {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
+          };
+          struct SubInstruction
+          {
+               Width width{};
                Operand modifiedDestination{};
                Operand source{};
           };
           struct MovInstruction
           {
+               Width width{};
                Operand destination{};
                Operand source{};
+          };
+          struct PushInstruction
+          {
+               RegisterOperand reg{};
+          };
+          struct PopInstruction
+          {
+               RegisterOperand reg{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -229,6 +267,8 @@ namespace ecpps::abi::encoders::x8664
                const std::vector<ir::abstract::VirtualInstruction>& input) final;
           [[nodiscard]] std::string Stringify(const ir::abstract::Instruction& instruction) const final;
 
+          void Finalise(std::vector<ir::abstract::Instruction>& instructions) final;
+
           [[nodiscard]] std::size_t StackFrameSize(void) const noexcept
           {
                return this->_stackFrameSize;
@@ -254,8 +294,13 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] RegisterIndex PhysicalRegisterOf(ir::abstract::VirtualRegister reg);
           [[nodiscard]] std::optional<std::uint64_t> ImmediateOf(ir::abstract::VirtualRegister reg);
 
-          [[nodiscard]] static ir::abstract::Instruction BuildMov(Operand destination, Operand source);
-          [[nodiscard]] static ir::abstract::Instruction BuildAdd(Operand modifiedDestination, Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildMov(Width width, Operand destination, Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildAdd(Width width, Operand modifiedDestination,
+                                                                  Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildSub(Width width, Operand modifiedDestination,
+                                                                  Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildPush(RegisterOperand reg);
+          [[nodiscard]] static ir::abstract::Instruction BuildPop(RegisterOperand reg);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
@@ -264,6 +309,9 @@ namespace ecpps::abi::encoders::x8664
           template <ir::abstract::VirtualInstructionType TType>
           MaterialisationOutcome MaterialisationImplementation(ir::abstract::VirtualRegister owner,
                                                                std::span<const std::byte> data);
+
+          void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
+          void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
 
           Optimisation _optimisation;
           PhysicalRegisterAllocator _registerAllocator{};

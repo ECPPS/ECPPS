@@ -24,9 +24,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsSpilled(destination))
      {
-          built.push_back(
-               BuildMov(MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
-                        IntegerOperand{immediate}));
+          const Width width = WidthFromSize(this->GetVRM().GetSize(destination));
+
+          built.push_back(BuildMov(
+               width, MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
+               IntegerOperand{immediate}));
           return built;
      }
 
@@ -52,8 +54,9 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::CopyIntegerToRegister*>(data.data()));
      const auto& [immediate] = copyValue.parameters;
 
+     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-     return {.instructions = {BuildMov(RegisterOperand{destinationRegister}, IntegerOperand{immediate})},
+     return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, IntegerOperand{immediate})},
              .assignedRegister = destinationRegister};
 }

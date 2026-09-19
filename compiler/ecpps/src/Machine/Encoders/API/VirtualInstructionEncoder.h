@@ -24,6 +24,8 @@ namespace ecpps::abi::api
 
           [[nodiscard]] virtual std::string Stringify(const ir::abstract::Instruction& instruction) const = 0;
 
+          virtual void Finalise(std::vector<ir::abstract::Instruction>& instructions) = 0;
+
      protected:
           Target* _target; // TODO: non-null pointer
 

@@ -26,9 +26,12 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsSpilled(destination))
      {
+          const Width width = WidthFromSize(this->GetVRM().GetSize(destination));
+
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
                built.push_back(BuildMov(
+                    width,
                     MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
                     IntegerOperand{*immediate}));
 
@@ -41,9 +44,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           built.append_range(EnsureMaterialisation(source));
 
           const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
-          built.push_back(
-               BuildMov(MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
-                        RegisterOperand{sourceRegister}));
+          built.push_back(BuildMov(
+               width, MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
+               RegisterOperand{sourceRegister}));
 
           this->DereferenceAndMaybeFree(source);
           return built;
@@ -92,13 +95,15 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::CopyRegisterToRegister*>(data.data()));
      const auto virtualSource = std::get<1>(copyValue.parameters);
 
+     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+
      if (this->IsSpilled(virtualSource))
      {
           const auto slot = this->EnsureStackSlot(virtualSource);
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
           std::ignore = this->ConsumeUse(virtualSource);
 
-          return {.instructions = {BuildMov(RegisterOperand{destinationRegister},
+          return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister},
                                             MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = slot})},
                   .assignedRegister = destinationRegister};
      }
@@ -115,6 +120,6 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
      if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
-     return {.instructions = {BuildMov(RegisterOperand{destinationRegister}, RegisterOperand{sourceRegister})},
+     return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, RegisterOperand{sourceRegister})},
              .assignedRegister = destinationRegister};
 }

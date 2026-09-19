@@ -9,9 +9,10 @@ namespace ecpps::abi::encoders::x8664::inline common
 {
      enum struct AssignedValueType : std::uint16_t // NOLINT(performance-enum-size)
      {
-          Copy,        // copies something to something
-          CopyInteger, // copies an integer literal to something
-          Add,         // sum of two virtual registers
+          Copy,
+          CopyInteger,
+          Add,
+          Sub,
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -62,6 +63,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           using CopyIntegerToRegister = AssignmentValue<AssignedValueType::CopyInteger, std::uint64_t>;
           using AddRegisters =
                AssignmentValue<AssignedValueType::Add, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
+          using SubRegisters =
+               AssignmentValue<AssignedValueType::Sub, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

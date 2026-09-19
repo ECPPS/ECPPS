@@ -12,7 +12,7 @@
 
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
-     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
+     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
 {
      std::vector<ecpps::ir::abstract::Instruction> built{};
@@ -26,7 +26,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& right = registerArray[2];
 
      runtime_assert(!this->IsSpilled(left) && !this->IsSpilled(right) && !this->IsSpilled(destination),
-                    "Add operands must not be spilled");
+                    "Sub operands must not be spilled");
 
      if (!this->ImmediateOf(left).has_value()) built.append_range(EnsureMaterialisation(left));
      if (!this->ImmediateOf(right).has_value()) built.append_range(EnsureMaterialisation(right));
@@ -34,8 +34,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
 
-     newState.data.resize(sizeof(values::AddRegisters));
-     values::AddRegisters& addValue = *new (newState.data.data()) values::AddRegisters{};
+     newState.data.resize(sizeof(values::SubRegisters));
+     values::SubRegisters& addValue = *new (newState.data.data()) values::SubRegisters{};
      addValue.parameters = std::make_tuple(left, right);
      this->Redefine(destination, newState);
 
@@ -47,10 +47,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
 template <>
 ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
-     MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
+     MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
-     const values::AddRegisters& addValue = *std::launder(reinterpret_cast<const values::AddRegisters*>(data.data()));
+     const values::SubRegisters& addValue = *std::launder(reinterpret_cast<const values::SubRegisters*>(data.data()));
      auto accumulator = std::get<0>(addValue.parameters);
      auto other = std::get<1>(addValue.parameters);
 
@@ -95,7 +95,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           }
      }
 
-     built.push_back(BuildAdd(width, RegisterOperand{destinationRegister}, source));
+     built.push_back(BuildSub(width, RegisterOperand{destinationRegister}, source));
      this->DereferenceAndMaybeFree(other);
 
      return {.instructions = std::move(built), .assignedRegister = destinationRegister};
