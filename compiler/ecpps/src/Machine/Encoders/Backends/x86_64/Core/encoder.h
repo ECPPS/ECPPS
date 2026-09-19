@@ -4,10 +4,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -157,24 +159,43 @@ namespace ecpps::abi::encoders::x8664
                     RegisterIndex reg;
                     std::optional<ir::abstract::VirtualRegister> owner;
                };
+               PhysicalRegisterAllocator(void) = default;
+
+               explicit PhysicalRegisterAllocator(const std::function<bool(RegisterIndex)>& isCalleeSaved)
+               {
+                    std::ranges::stable_partition(this->_pool,
+                                                  [&isCalleeSaved](const RegisterIndex candidate)
+                                                  {
+                                                       return !isCalleeSaved(candidate);
+                                                  });
+               }
 
                [[nodiscard]] RegisterIndex Allocate(ir::abstract::VirtualRegister owner)
                {
                     runtime_assert(!this->_colourOf.contains(owner.index),
                                    "Virtual register already holds a physical colour");
 
-                    if (this->_preferred.has_value() && std::ranges::contains(_pool, *this->_preferred) &&
-                        !this->_occupancy.contains(*this->_preferred))
-                         return this->Claim(owner, *this->_preferred);
-
-                    for (const auto candidate : _pool)
+                    while (true)
                     {
-                         if (this->_occupancy.contains(candidate)) continue;
+                         if (this->_preferred.has_value() && std::ranges::contains(_pool, *this->_preferred) &&
+                             !this->_occupancy.contains(*this->_preferred))
+                              return this->Claim(owner, *this->_preferred);
 
-                         return this->Claim(owner, candidate);
+                         for (const auto candidate : _pool)
+                         {
+                              if (this->_occupancy.contains(candidate)) continue;
+
+                              return this->Claim(owner, candidate);
+                         }
+
+                         if (!this->_onExhausted || !this->_onExhausted())
+                              throw TracedException("Out of physical registers and nothing could be evicted");
                     }
+               }
 
-                    throw TracedException("Out of physical registers: spilling is not implemented");
+               void SetExhaustionHandler(std::function<bool(void)> handler)
+               {
+                    this->_onExhausted = std::move(handler);
                }
 
                void Prefer(const RegisterIndex reg) noexcept
@@ -239,6 +260,11 @@ namespace ecpps::abi::encoders::x8664
                     return cells;
                }
 
+               [[nodiscard]] std::size_t FreeCount(void) const noexcept
+               {
+                    return _pool.size() - this->_occupancy.size();
+               }
+
           private:
                RegisterIndex Claim(ir::abstract::VirtualRegister owner, RegisterIndex candidate)
                {
@@ -247,7 +273,7 @@ namespace ecpps::abi::encoders::x8664
                     return candidate;
                }
 
-               constexpr static std::array<RegisterIndex, 13> _pool{
+               std::array<RegisterIndex, 13> _pool{
                     RegisterIndex::Rax, RegisterIndex::Rcx, RegisterIndex::Rdx, RegisterIndex::Rbx, RegisterIndex::Rsi,
                     RegisterIndex::Rdi, RegisterIndex::R8,  RegisterIndex::R9,  RegisterIndex::R10, RegisterIndex::R11,
                     RegisterIndex::R12, RegisterIndex::R13, RegisterIndex::R14,
@@ -256,6 +282,7 @@ namespace ecpps::abi::encoders::x8664
                std::unordered_map<RegisterIndex, ir::abstract::VirtualRegister> _occupancy;
                std::unordered_map<std::size_t, RegisterIndex> _colourOf;
                std::optional<RegisterIndex> _preferred{};
+               std::function<bool(void)> _onExhausted{};
           };
      } // namespace instructionSetData
 
@@ -286,6 +313,13 @@ namespace ecpps::abi::encoders::x8664
           }
 
      private:
+          [[nodiscard]] std::size_t NextUse(ir::abstract::VirtualRegister reg) const;
+          [[nodiscard]] std::vector<ir::abstract::Instruction> Evict(ir::abstract::VirtualRegister victim);
+          void SetMaterialisedRegister(ir::abstract::VirtualRegister reg, RegisterIndex physical);
+          [[nodiscard]] bool EvictOne(void);
+          void CollectDependencies(ir::abstract::VirtualRegister reg, std::unordered_set<std::size_t>& required);
+          [[nodiscard]] std::string DescribeRegisterState(void) const;
+
           std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
           [[nodiscard]] ir::abstract::VirtualRegisterMap& GetVRM(void) noexcept;
 
@@ -329,6 +363,13 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] Operand ResolveStackOperand(const Operand& operand) const;
           void ResolveStackOperands(std::vector<ir::abstract::Instruction>& instructions) const;
 
+          [[nodiscard]] std::vector<RegisterIndex> CollectCalleeSavedWrites(
+               const std::vector<ir::abstract::Instruction>& instructions) const;
+          [[nodiscard]] std::size_t SavedRegistersSize(void) const noexcept
+          {
+               return this->_savedRegisters.size() * sizeof(std::uint64_t);
+          }
+
           void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
           void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
 
@@ -340,5 +381,10 @@ namespace ecpps::abi::encoders::x8664
           std::size_t _localsSize{};
           std::size_t _outgoingReserve{};
           std::size_t _stackFrameSize{};
+          std::unordered_set<std::size_t> _evicted{};
+          std::unordered_map<std::size_t, std::vector<std::size_t>> _useSites{};
+          std::vector<ir::abstract::Instruction> _pendingSpills{};
+          std::unordered_set<std::size_t> _evictable{};
+          std::vector<RegisterIndex> _savedRegisters{};
      };
 } // namespace ecpps::abi::encoders::x8664

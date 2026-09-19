@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include "Machine/Encoders/API/SDK.h"
 namespace ecpps::abi::api
 {
@@ -21,6 +23,15 @@ namespace ecpps::abi::api
           [[nodiscard]] virtual std::size_t InitialStackReserve(void) const noexcept
           {
                return 0;
+          }
+          [[nodiscard]] virtual std::uint32_t CalleeSavedRegisterMask(void) const noexcept
+          {
+               return 0;
+          }
+          [[nodiscard]] bool IsCalleeSaved(const std::uint8_t registerIndex) const noexcept
+          {
+               if (registerIndex >= 32) return false;
+               return ((this->CalleeSavedRegisterMask() >> registerIndex) & 1U) != 0;
           }
 
      protected:

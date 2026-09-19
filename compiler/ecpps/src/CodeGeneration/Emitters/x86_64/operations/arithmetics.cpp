@@ -63,10 +63,10 @@ static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, Memory
 
      switch (width)
      {
-     case Width::W8: return GenerateAddRegToMem8(targetIndex, sourceOffset, sourceIndex);
-     case Width::W16: return GenerateAddRegToMem16(targetIndex, sourceOffset, sourceIndex);
-     case Width::W32: return GenerateAddRegToMem32(targetIndex, sourceOffset, sourceIndex);
-     case Width::W64: return GenerateAddRegToMem64(targetIndex, sourceOffset, sourceIndex);
+     case Width::W8: return GenerateAddMemToReg8(targetIndex, sourceOffset, sourceIndex);
+     case Width::W16: return GenerateAddMemToReg16(targetIndex, sourceOffset, sourceIndex);
+     case Width::W32: return GenerateAddMemToReg32(targetIndex, sourceOffset, sourceIndex);
+     case Width::W64: return GenerateAddMemToReg64(targetIndex, sourceOffset, sourceIndex);
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
@@ -218,10 +218,10 @@ static std::vector<std::byte> AsmSub(Width width, RegisterOperand target, Memory
 
      switch (width)
      {
-     case Width::W8: return GenerateSubRegToMem8(targetIndex, sourceOffset, sourceIndex);
-     case Width::W16: return GenerateSubRegToMem16(targetIndex, sourceOffset, sourceIndex);
-     case Width::W32: return GenerateSubRegToMem32(targetIndex, sourceOffset, sourceIndex);
-     case Width::W64: return GenerateSubRegToMem64(targetIndex, sourceOffset, sourceIndex);
+     case Width::W8: return GenerateSubMemToReg8(targetIndex, sourceOffset, sourceIndex);
+     case Width::W16: return GenerateSubMemToReg16(targetIndex, sourceOffset, sourceIndex);
+     case Width::W32: return GenerateSubMemToReg32(targetIndex, sourceOffset, sourceIndex);
+     case Width::W64: return GenerateSubMemToReg64(targetIndex, sourceOffset, sourceIndex);
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
