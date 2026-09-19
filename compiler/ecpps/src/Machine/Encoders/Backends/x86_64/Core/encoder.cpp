@@ -87,15 +87,6 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           }
      }
 
-     for (const auto& instruction : input)
-     {
-          if (instruction.type == ir::abstract::VirtualInstructionType::CopyInteger) continue;
-
-          const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
-          for (const auto& source : instruction.operands | std::views::drop(firstSource))
-               ++this->_remainingUses[source.index];
-     }
-
      std::vector<ecpps::ir::abstract::Instruction> instructions{};
 
      for (const auto& instruction : input) instructions.append_range(EncodeSingle(instruction));

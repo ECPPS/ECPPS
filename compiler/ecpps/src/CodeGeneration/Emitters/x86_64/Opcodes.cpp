@@ -1458,10 +1458,10 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToMem8(std::s
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg64(std::size_t destination, std::size_t source)
 {
      std::vector<std::byte> binary{};
-     Rex(MakePusher(binary), true, source >= 8, false, destination >= 8);
+     Rex(MakePusher(binary), true, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
      return binary;
 }
 
@@ -1479,20 +1479,20 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg16(std::
 {
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
-     Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
+     Rex(MakePusher(binary), false, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
      return binary;
 }
 
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg8(std::size_t destination, std::size_t source)
 {
      std::vector<std::byte> binary{};
-     Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
+     Rex(MakePusher(binary), false, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
      return binary;
 }
 
@@ -1667,6 +1667,43 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem8(std::size
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF6);
      ModRMMemory(MakePusher(binary), 6, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem64(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> binary{};
+     Rex(MakePusher(binary), true, false, false, baseReg >= 8);
+     Emit(MakePusher(binary), 0xF7);
+     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem32(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> binary{};
+     Rex(MakePusher(binary), false, false, false, baseReg >= 8);
+     Emit(MakePusher(binary), 0xF7);
+     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem16(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> binary{};
+     Emit(MakePusher(binary), 0x66);
+     Rex(MakePusher(binary), false, false, false, baseReg >= 8);
+     Emit(MakePusher(binary), 0xF7);
+     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     return binary;
+}
+
+std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem8(std::size_t baseReg, std::int32_t displacement)
+{
+     std::vector<std::byte> binary{};
+     Rex(MakePusher(binary), false, false, false, baseReg >= 8);
+     Emit(MakePusher(binary), 0xF6);
+     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
      return binary;
 }
 
