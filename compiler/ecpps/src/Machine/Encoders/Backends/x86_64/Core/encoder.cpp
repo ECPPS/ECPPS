@@ -266,7 +266,8 @@ ecpps::abi::encoders::x8664::RegisterIndex ecpps::abi::encoders::x8664::X8664Vir
      runtime_assert(optional.has_value() && optional->type == ir::abstract::StateType::Allocation,
                     "Register must be materialised");
 
-     const auto& base = *std::launder(reinterpret_cast<const MaterialisationBase*>(optional->data.data()));
+     [[maybe_unused]] const auto& base =
+          *std::launder(reinterpret_cast<const MaterialisationBase*>(optional->data.data()));
      runtime_assert(base.type == materialisations::PhysicalRegister::ConstType,
                     "Register must have been assigned a physical register");
 
