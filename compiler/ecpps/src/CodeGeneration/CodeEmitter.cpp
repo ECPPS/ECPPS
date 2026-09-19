@@ -1,16 +1,20 @@
 #include "CodeEmitter.h"
 #include <stdexcept>
-#include "../Parsing/Tokeniser.h"
 #include "../Shared/Diagnostics.h"
-#include "Emitters/x86_64.h"
+#include "Emitters/x86_64/x86_64.h"
 #include "Nodes.h"
 
 ecpps::codegen::CodeEmitter::~CodeEmitter(void) = default;
 
-std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine([[maybe_unused]] const Routine& routine,
-                                                                [[maybe_unused]] std::size_t displacement)
+std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
 {
      std::vector<std::byte> generated{};
+     generated.reserve(routine.physicalInstructions.size() * 2);
+     for (const auto& instruction : routine.physicalInstructions)
+     {
+          this->_currentInstructionBase = generated.size() + displacement;
+          generated.append_range(this->EmitInstruction(instruction));
+     }
      return generated;
 }
 

@@ -133,7 +133,7 @@ enum struct FileIterationStatus : bool
                for (const auto& node : source.compiledRoutines)
                {
                     std::println("  {}", node.name);
-                    for (const auto& instruction : node.instructions)
+                    for (const auto& instruction : node.virtualInstructions)
                     {
                          std::string operands{};
                          for (const auto operand : instruction.operands) operands += std::format("{}, ", operand.index);
@@ -147,25 +147,20 @@ enum struct FileIterationStatus : bool
                }
           }
 
-          for (const auto& node : source.compiledRoutines)
+          if (isExtraVerbose) std::println();
+          if (isExtraVerbose) std::println("Intermediate Instructions:");
+
+          for (auto& node : source.compiledRoutines)
           {
-               auto encoded = target->encoder->Encode(node.instructions);
+               node.physicalInstructions = target->encoder->Encode(node.virtualInstructions);
+               if (!isExtraVerbose) continue;
 
-               if (isExtraVerbose)
+               std::println("  {}", node.name);
+               for (const auto& instruction : node.physicalInstructions)
                {
-                    std::println();
-                    std::println("Intermediate Instructions:");
-
-                    std::println("  {}", node.name);
-                    for (const auto& instruction : encoded)
-                    {
-                         std::println("    {}", target->encoder->Stringify(instruction));
-                    }
+                    std::println("    {}", target->encoder->Stringify(instruction));
                }
           }
-
-          if (isExtraVerbose) std::println();
-          if (isExtraVerbose) std::println("Assembly:");
 
           std::unordered_map<std::string, std::size_t> routines{};
           routines.reserve(source.compiledRoutines.size());
@@ -178,8 +173,6 @@ enum struct FileIterationStatus : bool
                generatedMachineCode.append_range(machineCode);
                if (!isExtraVerbose) continue;
           }
-
-          emitter.PatchCalls(generatedMachineCode, routines);
 
           for (const auto placemenent : emitter._stringRelocation)
           {

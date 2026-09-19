@@ -1,11 +1,7 @@
 #pragma once
 #include <cstdint>
-#include <format>
-#include <memory>
 #include <string>
-#include <variant>
 #include <vector>
-#include "../Machine/Storage.h"
 #include "CodeGeneration/AbstractNodes.h"
 
 namespace ecpps::codegen
@@ -20,7 +16,9 @@ namespace ecpps::codegen
 
      struct Routine
      {
-          std::vector<ir::abstract::VirtualInstruction> instructions;
+          std::vector<ir::abstract::VirtualInstruction> virtualInstructions;
           std::string name;
+
+          std::vector<ir::abstract::Instruction> physicalInstructions;
      };
 } // namespace ecpps::codegen
