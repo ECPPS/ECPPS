@@ -10,10 +10,11 @@ namespace ecpps
 {
      enum struct CompilerStrategy : std::uint8_t
      {
-          HighMemory = 0, // the default
+          HighMemory = 0,
           Multithreaded = 1,
           LowMemory = 2
      };
+
      extern CompilerStrategy g_compilerStrategy;
 
      enum struct LinkerUsed : std::uint_fast8_t
@@ -25,32 +26,53 @@ namespace ecpps
           Windows64Coff
      };
 
-     constexpr LinkerUsed DefaultLinker = LinkerUsed::
+     constexpr LinkerUsed DefaultLinker =
 #ifdef _WIN64
-          Windows64;
+          LinkerUsed::Windows64;
 #elif defined(_WIN32)
-          Windows32;
+          LinkerUsed::Windows32;
 #else
-          Undefined;
+          LinkerUsed::Undefined;
 #endif
 
      enum struct DiagnosticType : std::uint_fast8_t
      {
           FileNotFound
      };
+
      enum struct DiagnosticState : std::uint_fast8_t
      {
-          Surpress,
+          Suppress,
           Warning,
           Error
      };
 
-     enum struct VerboseStatus : std::uint_fast8_t
+     enum struct VerboseFeature : std::uint16_t
      {
-          Default,
-          Verbose,
-          ExtraVerbose
+          Preprocessor = 1u << 0,
+          Tokens = 1u << 1,
+          AST = 1u << 2,
+          IR = 1u << 3,
+          VInst = 1u << 4,
+          IInst = 1u << 5,
+          PInst = 1u << 6,
+          Emit = 1u << 7,
+          FinalEmit = 1u << 8
      };
+
+     using VerboseFeatures = std::uint16_t;
+
+     constexpr VerboseFeatures VerboseFeatureMask(VerboseFeature feature) noexcept
+     {
+          return std::to_underlying(feature);
+     }
+
+     constexpr VerboseFeatures AllVerboseFeatures =
+          VerboseFeatureMask(VerboseFeature::Preprocessor) | VerboseFeatureMask(VerboseFeature::Tokens) |
+          VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR) |
+          VerboseFeatureMask(VerboseFeature::VInst) | VerboseFeatureMask(VerboseFeature::IInst) |
+          VerboseFeatureMask(VerboseFeature::PInst) | VerboseFeatureMask(VerboseFeature::Emit) |
+          VerboseFeatureMask(VerboseFeature::FinalEmit);
 
      enum struct StringPooling : std::uint8_t
      {
@@ -70,23 +92,36 @@ namespace ecpps
           TailJmp,
           XorToZero,
           EncoderOptimisations,
-          AggressiveEncoderOptimisations, // EncoderOptimisations has no effect as this is a superset
+          AggressiveEncoderOptimisations,
 
           Count
      };
+
      struct OptimisationFeatureSets
      {
           std::uint32_t maxConstantEvaluationDepth = 0x1000;
 
-          template <Optimisation TOptimisation> [[nodiscard]] constexpr bool IsEnabled(void) const noexcept
+          [[nodiscard]]
+          constexpr bool IsEnabled(Optimisation optimisation) const noexcept
           {
-               return this->features.test(std::to_underlying(TOptimisation));
+               return features.test(std::to_underlying(optimisation));
           }
 
-          template <Optimisation TOptimisation> constexpr void Enable(void) noexcept
+          constexpr void Enable(Optimisation optimisation) noexcept
           {
-               this->features.set(std::to_underlying(TOptimisation));
+               features.set(std::to_underlying(optimisation));
           }
+
+          constexpr void Disable(Optimisation optimisation) noexcept
+          {
+               features.reset(std::to_underlying(optimisation));
+          }
+
+          constexpr void Reset(void) noexcept
+          {
+               features.reset();
+          }
+
           std::bitset<std::to_underlying(Optimisation::Count)> features{};
      };
 
@@ -105,25 +140,56 @@ namespace ecpps
 
           std::vector<std::string> sourceFiles{};
           std::vector<std::string> includeDirectories{};
+
           std::unordered_map<DiagnosticType, DiagnosticState> diagnostics{};
+
           bool warningsAreErrors = false;
+
           std::string outputImage{};
+
           LinkerUsed linker = DefaultLinker;
-          VerboseStatus verboseStatus = VerboseStatus::Default;
+
+          VerboseFeatures verboseFeatures = 0;
+
           std::vector<std::string> importedLibraries{};
+
           bool useDebugger = false;
+
           StringPooling stringPooling = StringPooling::Exact;
+
           std::vector<char8_t> stringArray{};
+
           OptimisationFeatureSets optimisations{};
 
-          abi::encoding::CompilationId currentTarget;
+          abi::encoding::CompilationContext target{};
+          abi::encoding::CompilationId currentTarget{};
 
           Size sizeSize{};
           Size ptrdiffSize{};
           Size boolSize{};
           Size intptrSize{};
 
-          [[noreturn]] static void PrintVersionAndExit(void);
+          [[nodiscard]] bool IsVerbose(VerboseFeature feature) const noexcept
+          {
+               return (verboseFeatures & VerboseFeatureMask(feature)) != 0;
+          }
+          [[nodiscard]] bool IsVerbose(void) const noexcept
+          {
+               return verboseFeatures != 0;
+          }
+
+          void EnableVerbose(VerboseFeature feature) noexcept
+          {
+               verboseFeatures |= VerboseFeatureMask(feature);
+          }
+
+          void DisableVerbose(VerboseFeature feature) noexcept
+          {
+               verboseFeatures &= static_cast<VerboseFeatures>(~VerboseFeatureMask(feature));
+          }
+
+          [[noreturn]] static void PrintVersionAndExit(bool extended = false);
+
           [[noreturn]] static void PrintHelpAndExit(void);
      };
 } // namespace ecpps
