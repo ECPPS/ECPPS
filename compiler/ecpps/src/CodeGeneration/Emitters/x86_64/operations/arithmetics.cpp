@@ -1,5 +1,7 @@
 #include <cstddef>
+#include <cstdint>
 #include <format>
+#include <limits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -11,6 +13,16 @@
 
 using namespace ecpps::abi::encoders::x8664;
 using namespace ecpps::codegen::x86_64;
+
+static std::uint32_t Imm32SignExtended(const std::uint64_t value)
+{
+     const auto signedValue = static_cast<std::int64_t>(value);
+     if (signedValue < std::numeric_limits<std::int32_t>::min() ||
+         signedValue > std::numeric_limits<std::int32_t>::max())
+          throw TracedException(std::format("Immediate {} does not fit in a sign-extended 32-bit field", value));
+
+     return static_cast<std::uint32_t>(value);
+}
 
 static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, RegisterOperand source)
 {
@@ -70,7 +82,7 @@ static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, Intege
      case Width::W8: return GenerateAddImmToReg8(targetIndex, static_cast<std::uint8_t>(sourceValue));
      case Width::W16: return GenerateAddImmToReg16(targetIndex, static_cast<std::uint16_t>(sourceValue));
      case Width::W32: return GenerateAddImmToReg32(targetIndex, static_cast<std::uint32_t>(sourceValue));
-     case Width::W64: return GenerateAddImmToReg64(targetIndex, static_cast<std::uint64_t>(sourceValue));
+     case Width::W64: return GenerateAddImmToReg64(targetIndex, Imm32SignExtended(sourceValue));
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
@@ -87,7 +99,7 @@ static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, IntegerO
      case Width::W8: return GenerateAddImmToMem8(targetIndex, targetOffset, static_cast<std::uint8_t>(sourceValue));
      case Width::W16: return GenerateAddImmToMem16(targetIndex, targetOffset, static_cast<std::uint16_t>(sourceValue));
      case Width::W32: return GenerateAddImmToMem32(targetIndex, targetOffset, static_cast<std::uint32_t>(sourceValue));
-     case Width::W64: return GenerateAddImmToMem64(targetIndex, targetOffset, static_cast<std::uint32_t>(sourceValue));
+     case Width::W64: return GenerateAddImmToMem64(targetIndex, targetOffset, Imm32SignExtended(sourceValue));
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
@@ -107,9 +119,14 @@ static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, const 
                                                 {
                                                      return AsmAdd(width, target, mem);
                                                 },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
+                                                },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
-                                                     throw TracedException("invalid MOV source");
+                                                     throw TracedException("invalid ADD source");
                                                 }},
                        source);
 }
@@ -123,9 +140,14 @@ static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, const Op
                                                 {
                                                      return AsmAdd(width, target, integer);
                                                 },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
+                                                },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
-                                                     throw TracedException("invalid MOV source");
+                                                     throw TracedException("invalid ADD source");
                                                 }},
                        source);
 }
@@ -146,9 +168,13 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const ir:
                             {
                                  return AsmAdd(instructionWidth, mem, source);
                             },
+                            [](const StackOperand&) -> std::vector<std::byte>
+                            {
+                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
+                            },
                             [](auto&&...) -> std::vector<std::byte>
                             {
-                                 throw TracedException("invalid MOV source");
+                                 throw TracedException("invalid ADD source");
                             }},
           mov.modifiedDestination);
 }
@@ -211,7 +237,7 @@ static std::vector<std::byte> AsmSub(Width width, RegisterOperand target, Intege
      case Width::W8: return GenerateSubImmToReg8(targetIndex, static_cast<std::uint8_t>(sourceValue));
      case Width::W16: return GenerateSubImmToReg16(targetIndex, static_cast<std::uint16_t>(sourceValue));
      case Width::W32: return GenerateSubImmToReg32(targetIndex, static_cast<std::uint32_t>(sourceValue));
-     case Width::W64: return GenerateSubImmToReg64(targetIndex, static_cast<std::uint64_t>(sourceValue));
+     case Width::W64: return GenerateSubImmToReg64(targetIndex, Imm32SignExtended(sourceValue));
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
@@ -228,7 +254,7 @@ static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, IntegerO
      case Width::W8: return GenerateSubImmToMem8(targetIndex, targetOffset, static_cast<std::uint8_t>(sourceValue));
      case Width::W16: return GenerateSubImmToMem16(targetIndex, targetOffset, static_cast<std::uint16_t>(sourceValue));
      case Width::W32: return GenerateSubImmToMem32(targetIndex, targetOffset, static_cast<std::uint32_t>(sourceValue));
-     case Width::W64: return GenerateSubImmToMem64(targetIndex, targetOffset, static_cast<std::uint32_t>(sourceValue));
+     case Width::W64: return GenerateSubImmToMem64(targetIndex, targetOffset, Imm32SignExtended(sourceValue));
      }
 
      throw TracedException(std::format("Invalid instruction width: {}", std::to_underlying(width)));
@@ -248,9 +274,14 @@ static std::vector<std::byte> AsmSub(Width width, RegisterOperand target, const 
                                                 {
                                                      return AsmSub(width, target, mem);
                                                 },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
+                                                },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
-                                                     throw TracedException("invalid MOV source");
+                                                     throw TracedException("invalid SUB source");
                                                 }},
                        source);
 }
@@ -264,9 +295,14 @@ static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, const Op
                                                 {
                                                      return AsmSub(width, target, integer);
                                                 },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
+                                                },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
-                                                     throw TracedException("invalid MOV source");
+                                                     throw TracedException("invalid SUB source");
                                                 }},
                        source);
 }
@@ -287,9 +323,13 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const ir:
                             {
                                  return AsmSub(instructionWidth, mem, source);
                             },
+                            [](const StackOperand&) -> std::vector<std::byte>
+                            {
+                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
+                            },
                             [](auto&&...) -> std::vector<std::byte>
                             {
-                                 throw TracedException("invalid MOV source");
+                                 throw TracedException("invalid SUB source");
                             }},
           mov.modifiedDestination);
 }

@@ -153,11 +153,12 @@ enum struct FileIterationStatus : bool
           for (auto& node : source.compiledRoutines)
           {
                node.physicalInstructions = target->encoder->Encode(node.virtualInstructions);
-               if (!isExtraVerbose) continue;
-
-               std::println("  {}", node.name);
-               for (const auto& instruction : node.physicalInstructions)
-                    std::println("    {}", target->encoder->Stringify(instruction));
+               if (isExtraVerbose)
+               {
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : node.physicalInstructions)
+                         std::println("    {}", target->encoder->Stringify(instruction));
+               }
 
                target->encoder->Finalise(node.physicalInstructions);
           }

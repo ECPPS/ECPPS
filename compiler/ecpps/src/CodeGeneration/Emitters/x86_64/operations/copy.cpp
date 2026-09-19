@@ -106,6 +106,11 @@ static std::vector<std::byte> AsmCopy(Width width, RegisterOperand target, const
                                                 {
                                                      return AsmCopy(width, target, mem);
                                                 },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
+                                                },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid MOV source");
@@ -121,6 +126,11 @@ static std::vector<std::byte> AsmCopy(Width width, MemoryOperand target, const O
                                                 [width, target](const IntegerOperand integer) -> std::vector<std::byte>
                                                 {
                                                      return AsmCopy(width, target, integer);
+                                                },
+                                                [](const StackOperand&) -> std::vector<std::byte>
+                                                {
+                                                     throw TracedException(
+                                                          "unresolved StackOperand: Finalise must run before emission");
                                                 },
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
@@ -144,6 +154,10 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const ir:
                             [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
                             {
                                  return AsmCopy(instructionWidth, mem, source);
+                            },
+                            [](const StackOperand&) -> std::vector<std::byte>
+                            {
+                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
                             },
                             [](auto&&...) -> std::vector<std::byte>
                             {
