@@ -16,6 +16,12 @@ namespace ecpps
           using TVariants::operator()...;
      };
      template <typename... TVariants> OverloadedVisitor(TVariants...) -> OverloadedVisitor<TVariants...>;
+#define LIFT(expression)                                                                                               \
+     [](auto&&... args) noexcept(noexcept(expression(std::forward<decltype(args)>(args)...))) -> decltype(auto)        \
+          requires requires { expression(std::forward<decltype(args)>(args)...); }                                     \
+     {                                                                                                                 \
+          return expression(std::forward<decltype(args)>(args)...);                                                    \
+     }
 
      enum struct TokenType : std::uint_fast8_t
      {

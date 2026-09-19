@@ -11,7 +11,7 @@ _DLLEXPORT int putchar(int __character)
      return __std_console_write(__hConsole, &__buffer, __length);
 }
 
-_DLLEXPORT int getchar()
+int getchar()
 {
      _HANDLE __hConsole = __std_stdin_handle();
      return __std_console_read(__hConsole);
@@ -31,5 +31,17 @@ namespace std
           int count = __std_cwrite(__buffer);
           __std_cwrite("\n");
           return count;
+     }
+     int putchar(int __character)
+     {
+          _HANDLE __hConsole = __std_stdout_handle();
+          char __buffer = __character;
+          _DWORD __length = 1;
+          return __std_console_write(__hConsole, &__buffer, __length);
+     }
+     int getchar()
+     {
+          _HANDLE __hConsole = __std_stdin_handle();
+          return __std_console_read(__hConsole);
      }
 } // namespace std

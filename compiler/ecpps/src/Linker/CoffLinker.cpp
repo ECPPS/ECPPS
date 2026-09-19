@@ -304,6 +304,8 @@ std::vector<std::byte> CoffLinker::ToBytes([[maybe_unused]] const std::string& i
      for (std::size_t i = 0; i < numSections; i++)
      {
           const auto& sec = ownedSections[i];
+          if (sec.data.empty()) continue;
+
           const auto p = output.size();
           output.resize(p + sec.data.size());
           std::memcpy(output.data() + p, sec.data.data(), sec.data.size());

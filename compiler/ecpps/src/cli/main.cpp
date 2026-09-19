@@ -1,5 +1,9 @@
 #include "Execution/Context.h"
 #include "Machine/ABI.h"
+#include "Machine/Encoders/API/Target.h"
+#include "Machine/Encoders/Context.h"
+#include "Machine/Encoders/InstructionEncoder.h"
+#include "Machine/Machine.h"
 #include "TypeSystem/TypeBase.h"
 #ifdef _WIN32
 #include <Windows.h>
@@ -59,7 +63,8 @@ enum struct FileIterationStatus : bool
                                                          bool isExtraVerbose,
                                                          std::vector<std::byte>& generatedMachineCode,
                                                          std::vector<std::pair<std::string, std::size_t>>& functions,
-                                                         ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset)
+                                                         ecpps::codegen::CodeEmitter& emitter, std::size_t& mainOffset,
+                                                         ecpps::abi::api::Target* target)
 {
      ecpps::g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
@@ -118,33 +123,73 @@ enum struct FileIterationStatus : bool
                for (const auto& node : ir) std::println("{}", node->ToString(0));
           ast.clear();
           astContext.Release();
-          ecpps::codegen::Compile(config, source, ir);
+          ecpps::codegen::Compile(config, source, ir, target);
+
+          if (isExtraVerbose)
+          {
+               std::println();
+               std::println("Virtual Instructions:");
+
+               for (const auto& node : source.compiledRoutines)
+               {
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : node.virtualInstructions)
+                    {
+                         std::string operands{};
+                         for (const auto operand : instruction.operands) operands += std::format("{}, ", operand.index);
+                         if (!operands.empty())
+                         {
+                              operands.pop_back();
+                              operands.pop_back();
+                         }
+                         std::println("    {} {}", ToString(instruction.type), operands);
+                    }
+               }
+          }
 
           if (isExtraVerbose) std::println();
-          if (isExtraVerbose) std::println("Assembly:");
+          if (isExtraVerbose) std::println("Intermediate Instructions:");
+
+          for (auto& node : source.compiledRoutines)
+          {
+               node.physicalInstructions = target->encoder->Encode(node.virtualInstructions);
+               if (isExtraVerbose)
+               {
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : node.physicalInstructions)
+                         std::println("    {}", target->encoder->Stringify(instruction));
+               }
+
+               target->encoder->Finalise(node.physicalInstructions);
+          }
+
+          if (isExtraVerbose)
+          {
+               std::println();
+               std::println("Physical Instructions:");
+
+               for (auto& node : source.compiledRoutines)
+               {
+
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : node.physicalInstructions)
+                    {
+                         std::println("    {}", target->encoder->Stringify(instruction));
+                    }
+               }
+          }
 
           std::unordered_map<std::string, std::size_t> routines{};
           routines.reserve(source.compiledRoutines.size());
 
           for (const auto& procedure : source.compiledRoutines)
           {
-               if (isExtraVerbose)
-               {
-                    std::println("{}:", procedure.name);
-                    for (const auto& instruction : procedure.instructions)
-                    {
-                         std::println("     {}", ecpps::codegen::ToString(instruction));
-                    }
-               }
-
                const auto machineCode = emitter.EmitRoutine(procedure, generatedMachineCode.size());
 
                routines.emplace(procedure.name, generatedMachineCode.size());
                generatedMachineCode.append_range(machineCode);
                if (!isExtraVerbose) continue;
           }
-
-          emitter.PatchCalls(generatedMachineCode, routines);
 
           for (const auto placemenent : emitter._stringRelocation)
           {
@@ -285,6 +330,8 @@ int main(int argc, char* argv[])
 
           auto startTime = std::chrono::steady_clock::now();
 
+          ecpps::abi::BackendRegistry::RegisterTargets();
+
           ecpps::CompilerConfig config{argc, argv};
           ecpps::fs::GetSourceScanner().configuration = &config;
           ecpps::SourceMap sources{config};
@@ -311,6 +358,13 @@ int main(int argc, char* argv[])
           ecpps::abi::ABI::Current().ptrdiffSize = translateSizes(config.ptrdiffSize);
           ecpps::abi::ABI::Current().intptrSize = translateSizes(config.intptrSize);
 
+          ecpps::abi::encoding::CompilationContext context{
+               .isa = ecpps::abi::ISA::x86_64,
+               .platform = ecpps::abi::encoding::Platform::Windows,
+               .sdk = ecpps::abi::encoding::SDK::WindowsSDK10,
+          };
+          auto& target = ecpps::abi::BackendRegistry::Get(context);
+
           auto emitter = ecpps::codegen::CodeEmitter::New(ecpps::abi::ABI::Current().Isa());
           if (emitter == nullptr)
           {
@@ -333,7 +387,7 @@ int main(int argc, char* argv[])
           for (ecpps::SourceFile& source : sources.files)
           {
                hadErrors |= DoFileIteration(source, config, isExtraVerbose, generatedMachineCode, functions, *emitter,
-                                            mainOffset) == FileIterationStatus::Failure;
+                                            mainOffset, &target) == FileIterationStatus::Failure;
           }
 
           if (hadErrors)
