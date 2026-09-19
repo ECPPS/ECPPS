@@ -74,18 +74,38 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      {
           runtime_assert(instruction.description.size() == sizeof(MovInstruction), "invalid MOV");
           const auto* mov = std::launder(reinterpret_cast<const MovInstruction*>(instruction.description.data()));
-          return std::format("MOV {}, {}", ToString(mov->destination), ToString(mov->source));
+          return std::format("MOV.{} {}, {}", ToString(mov->width), ToString(mov->destination), ToString(mov->source));
      }
      case X8664InstructionName::Add:
      {
           runtime_assert(instruction.description.size() == sizeof(AddInstruction), "invalid ADD");
           const auto* add = std::launder(reinterpret_cast<const AddInstruction*>(instruction.description.data()));
-          return std::format("ADD {}, {}", ToString(add->modifiedDestination), ToString(add->source));
+          return std::format("ADD.{} {}, {}", ToString(add->width), ToString(add->modifiedDestination),
+                             ToString(add->source));
+     }
+     case X8664InstructionName::Sub:
+     {
+          runtime_assert(instruction.description.size() == sizeof(SubInstruction), "invalid SUB");
+          const auto* sub = std::launder(reinterpret_cast<const SubInstruction*>(instruction.description.data()));
+          return std::format("SUB.{} {}, {}", ToString(sub->width), ToString(sub->modifiedDestination),
+                             ToString(sub->source));
      }
      case X8664InstructionName::Ret:
      {
           runtime_assert(instruction.description.empty(), "invalid RET");
           return "RET";
+     }
+     case X8664InstructionName::Pop:
+     {
+          runtime_assert(instruction.description.size() == sizeof(PopInstruction), "invalid POP");
+          const auto* pop = std::launder(reinterpret_cast<const PopInstruction*>(instruction.description.data()));
+          return std::format("POP {}", ToString(pop->reg));
+     }
+     case X8664InstructionName::Push:
+     {
+          runtime_assert(instruction.description.size() == sizeof(PushInstruction), "invalid PUSH");
+          const auto* push = std::launder(reinterpret_cast<const PushInstruction*>(instruction.description.data()));
+          return std::format("PUSH {}", ToString(push->reg));
      }
      }
 
@@ -219,24 +239,60 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::TransferRegist
      this->_registerAllocator.Reassign(from, to);
      this->GetVRM().ClearMaterialisation(from);
 }
-
 ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildMov(
-     Operand destination, Operand source)
+     Width width, Operand destination, Operand source)
 {
      ir::abstract::Instruction instruction{};
      instruction.opcode = X8664InstructionName::Mov;
      instruction.description.resize(sizeof(MovInstruction));
-     new (instruction.description.data()) MovInstruction{.destination = destination, .source = source};
+
+     new (instruction.description.data()) MovInstruction{.width = width, .destination = destination, .source = source};
+
      return instruction;
 }
 
 ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildAdd(
-     Operand modifiedDestination, Operand source)
+     Width width, Operand modifiedDestination, Operand source)
 {
      ir::abstract::Instruction instruction{};
      instruction.opcode = X8664InstructionName::Add;
      instruction.description.resize(sizeof(AddInstruction));
-     new (instruction.description.data()) AddInstruction{.modifiedDestination = modifiedDestination, .source = source};
+
+     new (instruction.description.data())
+          AddInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+
+     return instruction;
+}
+
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildSub(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Sub;
+     instruction.description.resize(sizeof(SubInstruction));
+
+     new (instruction.description.data())
+          SubInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+
+     return instruction;
+}
+
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildPush(
+     RegisterOperand reg)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Push;
+     instruction.description.resize(sizeof(PopInstruction));
+     new (instruction.description.data()) PopInstruction{.reg = reg};
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildPop(
+     RegisterOperand reg)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Pop;
+     instruction.description.resize(sizeof(PopInstruction));
+     new (instruction.description.data()) PopInstruction{.reg = reg};
      return instruction;
 }
 
@@ -343,4 +399,59 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(ecpps
      }
 
      this->GetVRM().UpdateValue(reg, std::move(value));
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Finalise(
+     std::vector<ir::abstract::Instruction>& instructions)
+{
+     if (this->_stackFrameSize != 0)
+     {
+          InsertPrologue(instructions);
+          InsertEpilogue(instructions);
+     }
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::InsertPrologue(
+     std::vector<ir::abstract::Instruction>& instructions)
+{
+     instructions.insert(instructions.begin(), BuildPush(RegisterOperand{RegisterIndex::Rbp}));
+
+     instructions.insert(instructions.begin(), BuildMov(Width::W64, RegisterOperand{RegisterIndex::Rbp},
+                                                        RegisterOperand{RegisterIndex::Rsp}));
+
+     instructions.insert(instructions.begin(), BuildSub(Width::W64, RegisterOperand{RegisterIndex::Rsp},
+                                                        IntegerOperand{this->_stackFrameSize}));
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::InsertEpilogue(
+     std::vector<ir::abstract::Instruction>& instructions)
+{
+     std::vector<ir::abstract::Instruction> epilogue{
+          BuildAdd(Width::W64, RegisterOperand{RegisterIndex::Rsp}, IntegerOperand{this->_stackFrameSize}),
+          BuildMov(Width::W64, RegisterOperand{RegisterIndex::Rsp}, RegisterOperand{RegisterIndex::Rbp}),
+          BuildPop(RegisterOperand{RegisterIndex::Rbp}),
+     };
+
+     for (std::size_t index : std::views::iota(0uz, instructions.size()))
+     {
+          if (instructions[index].opcode != X8664InstructionName::Ret) continue;
+
+          instructions.insert(instructions.begin() + static_cast<std::ptrdiff_t>(index), epilogue.begin(),
+                              epilogue.end());
+
+          index += epilogue.size();
+     }
+}
+
+[[nodiscard]] std::string ecpps::abi::encoders::x8664::ToString(const Width width)
+{
+     switch (width)
+     {
+     case Width::W8: return "8";
+     case Width::W16: return "16";
+     case Width::W32: return "32";
+     case Width::W64: return "64";
+     }
+
+     std::unreachable();
 }

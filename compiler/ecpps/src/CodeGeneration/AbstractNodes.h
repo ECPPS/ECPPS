@@ -70,6 +70,7 @@ namespace ecpps::ir::abstract
           CopyInteger,
           Add,
           Return,
+          Sub
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -78,6 +79,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Copy: return "copy";
           case VirtualInstructionType::CopyInteger: return "copy-int";
           case VirtualInstructionType::Add: return "add";
+          case VirtualInstructionType::Sub: return "sub";
           case VirtualInstructionType::Return: return "return";
           }
           throw TracedException("control flow");

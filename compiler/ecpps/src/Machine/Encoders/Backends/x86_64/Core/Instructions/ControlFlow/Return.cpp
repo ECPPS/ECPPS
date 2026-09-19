@@ -23,10 +23,12 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           const auto& value = registerArray[0];
           const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
 
+          const Width width = WidthFromSize(this->GetVRM().GetSize(value.index));
+
           if (this->IsSpilled(value))
           {
                built.push_back(
-                    BuildMov(RegisterOperand{returnRegister},
+                    BuildMov(width, RegisterOperand{returnRegister},
                              MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(value)}));
           }
           else
@@ -37,7 +39,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
                const RegisterIndex valueRegister = this->PhysicalRegisterOf(value);
                if (valueRegister != returnRegister)
-                    built.push_back(BuildMov(RegisterOperand{returnRegister}, RegisterOperand{valueRegister}));
+                    built.push_back(BuildMov(width, RegisterOperand{returnRegister}, RegisterOperand{valueRegister}));
           }
 
           this->DereferenceAndMaybeFree(value);

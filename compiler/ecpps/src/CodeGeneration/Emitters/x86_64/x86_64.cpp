@@ -11,6 +11,9 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::Mov: return this->EmitMov(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Add: return this->EmitAdd(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Ret: return this->EmitRet(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Sub: return this->EmitSub(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Push: return this->EmitPush(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Pop: return this->EmitPop(instruction.description);
      default: throw TracedException("not implemented");
      }
 }
