@@ -4,9 +4,12 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "Shared/Diagnostics.h"
@@ -63,10 +66,10 @@ namespace ecpps::ir::abstract
      };
      enum struct VirtualInstructionType : std::uint32_t // NOLINT(performance-enum-size)
      {
-          Copy,        // copies A = B
-          CopyInteger, // copies A = B(int)
-          Add,         // A = B + C
-          Return,      // returns A
+          Copy,
+          CopyInteger,
+          Add,
+          Return,
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -92,13 +95,24 @@ namespace ecpps::ir::abstract
      struct VirtualInstruction
      {
           VirtualInstructionType type{};
-          std::vector<VirtualRegister> operands{}; // OPTIMISE: small vector
+          std::vector<VirtualRegister> operands{};
      };
      enum struct StateType : std::uint8_t
      {
           Unknown,
           Allocation,
           Impossible,
+     };
+     enum struct AllocationClass : std::uint8_t
+     {
+          Locked = 0,
+          HotTemporary,
+          HotAllocation,
+          Temporary,
+          Allocation,
+          ColdAllocation,
+
+          Invalid = std::numeric_limits<std::uint8_t>::max()
      };
 
      struct State
@@ -111,6 +125,9 @@ namespace ecpps::ir::abstract
           std::size_t useCount{};
           std::optional<State> materialised;
           State currentValue{};
+          std::size_t size{};
+          std::size_t alignment{};
+          AllocationClass allocationClass = AllocationClass::Temporary;
      };
 
      template <typename TPossibleRegister>
@@ -159,6 +176,27 @@ namespace ecpps::ir::abstract
           const State& GetValue(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).currentValue;
+          }
+
+          void Describe(VirtualRegisterUsable auto reg, const std::size_t size, const std::size_t alignment,
+                        const AllocationClass allocationClass)
+          {
+               auto& data = DataFromRegister(reg);
+               data.size = size;
+               data.alignment = alignment;
+               data.allocationClass = allocationClass;
+          }
+          std::size_t GetSize(VirtualRegisterUsable auto reg) const
+          {
+               return DataFromRegister(reg).size;
+          }
+          std::size_t GetAlignment(VirtualRegisterUsable auto reg) const
+          {
+               return DataFromRegister(reg).alignment;
+          }
+          AllocationClass GetAllocationClass(VirtualRegisterUsable auto reg) const
+          {
+               return DataFromRegister(reg).allocationClass;
           }
 
      private:

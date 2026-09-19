@@ -1,12 +1,16 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <unordered_map>
+#include <utility>
 #include <variant>
+#include <vector>
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/API/VirtualInstructionEncoder.h"
 #include "Machine/Machine.h"
@@ -24,10 +28,28 @@ namespace ecpps::abi::encoders::x8664
      {
           explicit X8664InstructionName(void) = delete;
 
-          constexpr static std::size_t Mov = 0; // b = a
-          constexpr static std::size_t Add = 1; // c = a + b
-          constexpr static std::size_t Ret = 2; // return [a]
+          constexpr static std::size_t Mov = 0;
+          constexpr static std::size_t Add = 1;
+          constexpr static std::size_t Ret = 2;
      };
+
+     enum struct Optimisation : std::uint8_t
+     {
+          None,
+          Moderate,
+          Aggressive
+     };
+
+     [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const Optimisation optimisation) noexcept
+     {
+          switch (optimisation)
+          {
+          case Optimisation::None: return ir::abstract::AllocationClass::Allocation;
+          case Optimisation::Moderate: return ir::abstract::AllocationClass::ColdAllocation;
+          case Optimisation::Aggressive: return ir::abstract::AllocationClass::Invalid;
+          }
+          std::unreachable();
+     }
 
      inline namespace instructionSetData
      {
@@ -59,7 +81,7 @@ namespace ecpps::abi::encoders::x8664
           struct MemoryOperand
           {
                RegisterIndex relativeTo{};
-               std::uint32_t offset{};
+               std::int32_t offset{};
           };
           struct IntegerOperand
           {
@@ -67,12 +89,12 @@ namespace ecpps::abi::encoders::x8664
           };
           using Operand = std::variant<RegisterOperand, MemoryOperand, IntegerOperand>;
 
-          struct AddInstruction // modifiedDestination += source
+          struct AddInstruction
           {
                Operand modifiedDestination{};
                Operand source{};
           };
-          struct MovInstruction // destination = source
+          struct MovInstruction
           {
                Operand destination{};
                Operand source{};
@@ -93,16 +115,28 @@ namespace ecpps::abi::encoders::x8664
                     runtime_assert(!this->_colourOf.contains(owner.index),
                                    "Virtual register already holds a physical colour");
 
+                    if (this->_preferred.has_value() && std::ranges::contains(_pool, *this->_preferred) &&
+                        !this->_occupancy.contains(*this->_preferred))
+                         return this->Claim(owner, *this->_preferred);
+
                     for (const auto candidate : _pool)
                     {
                          if (this->_occupancy.contains(candidate)) continue;
 
-                         this->_occupancy.emplace(candidate, owner);
-                         this->_colourOf.emplace(owner.index, candidate);
-                         return candidate;
+                         return this->Claim(owner, candidate);
                     }
 
                     throw TracedException("Out of physical registers: spilling is not implemented");
+               }
+
+               void Prefer(const RegisterIndex reg) noexcept
+               {
+                    this->_preferred = reg;
+               }
+
+               void ClearPreference(void) noexcept
+               {
+                    this->_preferred = std::nullopt;
                }
 
                void Free(ir::abstract::VirtualRegister owner) noexcept
@@ -112,6 +146,20 @@ namespace ecpps::abi::encoders::x8664
 
                     this->_occupancy.erase(colourIterator->second);
                     this->_colourOf.erase(colourIterator);
+               }
+
+               void Reassign(ir::abstract::VirtualRegister from, ir::abstract::VirtualRegister to)
+               {
+                    const auto colourIterator = this->_colourOf.find(from.index);
+                    runtime_assert(colourIterator != this->_colourOf.end(),
+                                   "Virtual register does not hold a physical colour");
+                    runtime_assert(!this->_colourOf.contains(to.index),
+                                   "Virtual register already holds a physical colour");
+
+                    const auto colour = colourIterator->second;
+                    this->_colourOf.erase(colourIterator);
+                    this->_occupancy.insert_or_assign(colour, to);
+                    this->_colourOf.emplace(to.index, colour);
                }
 
                [[nodiscard]] bool IsFree(RegisterIndex reg) const noexcept
@@ -144,6 +192,13 @@ namespace ecpps::abi::encoders::x8664
                }
 
           private:
+               RegisterIndex Claim(ir::abstract::VirtualRegister owner, RegisterIndex candidate)
+               {
+                    this->_occupancy.emplace(candidate, owner);
+                    this->_colourOf.emplace(owner.index, candidate);
+                    return candidate;
+               }
+
                constexpr static std::array<RegisterIndex, 13> _pool{
                     RegisterIndex::Rax, RegisterIndex::Rcx, RegisterIndex::Rdx, RegisterIndex::Rbx, RegisterIndex::Rsi,
                     RegisterIndex::Rdi, RegisterIndex::R8,  RegisterIndex::R9,  RegisterIndex::R10, RegisterIndex::R11,
@@ -152,6 +207,7 @@ namespace ecpps::abi::encoders::x8664
 
                std::unordered_map<RegisterIndex, ir::abstract::VirtualRegister> _occupancy;
                std::unordered_map<std::size_t, RegisterIndex> _colourOf;
+               std::optional<RegisterIndex> _preferred{};
           };
      } // namespace instructionSetData
 
@@ -163,13 +219,20 @@ namespace ecpps::abi::encoders::x8664
 
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
-          explicit X8664VirtualInstructionEncoder(api::Target& target) : VirtualInstructionEncoder(ISA::x86_64, target)
+          explicit X8664VirtualInstructionEncoder(api::Target& target,
+                                                  const Optimisation optimisation = Optimisation::None)
+              : VirtualInstructionEncoder(ISA::x86_64, target), _optimisation(optimisation)
           {
           }
 
           [[nodiscard]] std::vector<ir::abstract::Instruction> Encode(
                const std::vector<ir::abstract::VirtualInstruction>& input) final;
           [[nodiscard]] std::string Stringify(const ir::abstract::Instruction& instruction) const final;
+
+          [[nodiscard]] std::size_t StackFrameSize(void) const noexcept
+          {
+               return this->_stackFrameSize;
+          }
 
      private:
           std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
@@ -179,8 +242,20 @@ namespace ecpps::abi::encoders::x8664
                ir::abstract::VirtualRegister virtualRegister);
 
           void DereferenceAndMaybeFree(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] std::size_t ConsumeUse(ir::abstract::VirtualRegister reg);
+          void ReleaseRegister(ir::abstract::VirtualRegister reg);
+          void TransferRegister(ir::abstract::VirtualRegister from, ir::abstract::VirtualRegister to);
 
           void Redefine(ir::abstract::VirtualRegister reg, ir::abstract::State value);
+
+          [[nodiscard]] bool IsMutable(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] bool IsSpilled(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] std::int32_t EnsureStackSlot(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] RegisterIndex PhysicalRegisterOf(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] std::optional<std::uint64_t> ImmediateOf(ir::abstract::VirtualRegister reg);
+
+          [[nodiscard]] static ir::abstract::Instruction BuildMov(Operand destination, Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildAdd(Operand modifiedDestination, Operand source);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
@@ -190,6 +265,10 @@ namespace ecpps::abi::encoders::x8664
           MaterialisationOutcome MaterialisationImplementation(ir::abstract::VirtualRegister owner,
                                                                std::span<const std::byte> data);
 
+          Optimisation _optimisation;
           PhysicalRegisterAllocator _registerAllocator{};
+          std::unordered_map<std::size_t, std::int32_t> _stackSlots{};
+          std::unordered_map<std::size_t, std::size_t> _remainingUses{};
+          std::size_t _stackFrameSize{};
      };
 } // namespace ecpps::abi::encoders::x8664
