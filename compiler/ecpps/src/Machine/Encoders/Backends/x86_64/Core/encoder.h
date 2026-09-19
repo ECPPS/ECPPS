@@ -72,6 +72,8 @@ namespace ecpps::abi::encoders::x8664
                Operand destination{};
                Operand source{};
           };
+
+          [[nodiscard]] std::string ToString(const Operand& operand);
      } // namespace instructionSetData
 
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
@@ -82,6 +84,7 @@ namespace ecpps::abi::encoders::x8664
 
           [[nodiscard]] std::vector<ir::abstract::Instruction> Encode(
                const std::vector<ir::abstract::VirtualInstruction>& input) final;
+          [[nodiscard]] std::string Stringify(const ir::abstract::Instruction& instruction) const final;
 
      private:
           std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
