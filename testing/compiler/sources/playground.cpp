@@ -5,5 +5,5 @@ int main()
      x++;
      x++;
      x++;
-     return x;
+     return x + 2;
 }

@@ -248,6 +248,35 @@ namespace
      }
 } // namespace
 
+const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(Expression expression,
+                                                                                std::vector<NodePointer>& built)
+{
+     auto* savedPointer = expression->Value().get();
+     auto source = savedPointer->Source();
+     const auto* type = expression->Type();
+
+     const auto* resultReg = LowerExpression(std::move(expression), this->_built);
+
+     if (!dynamic_cast<const ReferenceNode*>(savedPointer)) return resultReg;
+
+     auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+
+     runtime_assert(function != nullptr, "Function was null when parsing the function");
+
+     auto& allocator = *this->GetContext().nodeAllocator;
+
+     auto makeReg = [&](Location source, std::size_t width) -> SingleAssignRegisterNode*
+     {
+          const auto idx = function->GetNextRegisterIndex();
+          RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
+          return new (allocator) SingleAssignRegisterNode(idx, info, width, source);
+     };
+
+     auto* loadedResult = makeReg(source, type->Size() * typeSystem::CharWidth);
+     built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
+          std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, source)});
+     return loadedResult;
+}
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expression expression,
                                                                           std::vector<IRNodePointer>& built)
 {
@@ -318,8 +347,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const addNode = dynamic_cast<high::AdditionNode*>(valueNode))
      {
-          const auto* leftReg = LowerExpression(std::move(*addNode).Left(), built);
-          const auto* rightReg = LowerExpression(std::move(*addNode).Right(), built);
+          const auto* leftReg = LowerExpressionLoaded(std::move(*addNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*addNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -331,8 +360,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const subNode = dynamic_cast<high::SubtractionNode*>(valueNode))
      {
-          const auto* leftReg = LowerExpression(std::move(*subNode).Left(), built);
-          const auto* rightReg = LowerExpression(std::move(*subNode).Right(), built);
+          const auto* leftReg = LowerExpressionLoaded(std::move(*subNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*subNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -344,8 +373,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const mulNode = dynamic_cast<high::MultiplicationNode*>(valueNode))
      {
-          const auto* leftReg = LowerExpression(std::move(*mulNode).Left(), built);
-          const auto* rightReg = LowerExpression(std::move(*mulNode).Right(), built);
+          const auto* leftReg = LowerExpressionLoaded(std::move(*mulNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*mulNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -357,8 +386,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const divNode = dynamic_cast<high::DivideNode*>(valueNode))
      {
-          const auto* leftReg = LowerExpression(std::move(*divNode).Left(), built);
-          const auto* rightReg = LowerExpression(std::move(*divNode).Right(), built);
+          const auto* leftReg = LowerExpressionLoaded(std::move(*divNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*divNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -370,8 +399,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const modNode = dynamic_cast<high::ModuloNode*>(valueNode))
      {
-          const auto* leftReg = LowerExpression(std::move(*modNode).Left(), built);
-          const auto* rightReg = LowerExpression(std::move(*modNode).Right(), built);
+          const auto* leftReg = LowerExpressionLoaded(std::move(*modNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*modNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -481,7 +510,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      if (auto* const addAssign = dynamic_cast<high::AdditionAssignNode*>(valueNode))
      {
           const auto* targetReg = LowerExpression(std::move(*addAssign).Left(), built);
-          const auto* rhsReg = LowerExpression(std::move(*addAssign).Right(), built);
+          const auto* rhsReg = LowerExpressionLoaded(std::move(*addAssign).Right(), built);
           if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
 
           auto loadResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -503,7 +532,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      if (auto* const subAssign = dynamic_cast<high::SubtractionAssignNode*>(valueNode))
      {
           const auto* targetReg = LowerExpression(std::move(*subAssign).Left(), built);
-          const auto* rhsReg = LowerExpression(std::move(*subAssign).Right(), built);
+          const auto* rhsReg = LowerExpressionLoaded(std::move(*subAssign).Right(), built);
           if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
 
           auto loadResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -1007,25 +1036,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      if (converted == nullptr) return;
 
-     auto* savedPointer = converted->Value().get();
-     auto source = savedPointer->Source();
-     const auto* type = converted->Type();
-
-     const auto* resultReg = LowerExpression(std::move(converted), this->_built);
-     if (dynamic_cast<ReferenceNode*>(savedPointer))
-     {
-          auto makeReg = [&](Location source, std::size_t width) -> SingleAssignRegisterNode*
-          {
-               const auto idx = function->GetNextRegisterIndex();
-               RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
-               return new (allocator) SingleAssignRegisterNode(idx, info, width, source);
-          };
-
-          auto* loadedResult = makeReg(source, type->Size() * typeSystem::CharWidth);
-          this->_built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
-               std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, source)});
-          resultReg = loadedResult;
-     }
+     const auto* resultReg = LowerExpressionLoaded(std::move(converted), this->_built);
      this->_built.push_back(
           std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(resultReg, node.Source())});
 }
