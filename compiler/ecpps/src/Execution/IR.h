@@ -124,6 +124,8 @@ namespace ecpps::ir
 
           const ecpps::ir::SingleAssignRegisterNode* LowerExpression(Expression expression,
                                                                      std::vector<NodePointer>& built);
+          const ecpps::ir::SingleAssignRegisterNode* LowerExpressionLoaded(Expression expression,
+                                                                           std::vector<NodePointer>& built);
           [[nodiscard]] const ecpps::ir::SingleAssignRegisterNode* ResolveAllocReg(const std::string& name) const;
 
           void ParseNode(const ast::NodePointer& node);
