@@ -135,6 +135,10 @@ namespace ecpps::ir::abstract
           {
                DataFromRegister(reg).materialised = bytecode;
           }
+          void ClearMaterialisation(VirtualRegisterUsable auto reg)
+          {
+               DataFromRegister(reg).materialised = std::nullopt;
+          }
           bool IsMaterialised(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).materialised.has_value();
