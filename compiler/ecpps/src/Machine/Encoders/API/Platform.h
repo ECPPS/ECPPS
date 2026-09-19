@@ -14,6 +14,14 @@ namespace ecpps::abi::api
           {
                return 0;
           }
+          [[nodiscard]] virtual std::size_t StackAlignment(void) const noexcept
+          {
+               return 0;
+          }
+          [[nodiscard]] virtual std::size_t InitialStackReserve(void) const noexcept
+          {
+               return 0;
+          }
 
      protected:
           SDKBase* _currentSdk; // TODO: non-null pointer

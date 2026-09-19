@@ -1,10 +1,7 @@
-#include <cstddef>
 #include <format>
-#include <new>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/API/Target.h"
-#include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
 
 template <>
@@ -27,9 +24,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
           if (this->IsSpilled(value))
           {
-               built.push_back(
-                    BuildMov(width, RegisterOperand{returnRegister},
-                             MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(value)}));
+               built.push_back(BuildMov(width, RegisterOperand{returnRegister}, this->EnsureStackSlot(value)));
           }
           else
           {
