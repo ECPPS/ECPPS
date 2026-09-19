@@ -41,12 +41,22 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
 
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
+          ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
+
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
 {
      this->_registerAllocator = PhysicalRegisterAllocator{};
      this->_stackSlots.clear();
      this->_remainingUses.clear();
+     this->_localsSize = 0;
+     this->_outgoingReserve = this->_target->platform->InitialStackReserve();
      this->_stackFrameSize = 0;
 
      for (const auto& instruction : input)
@@ -136,6 +146,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Add>(instruction.operands));
           break;
+     case ecpps::ir::abstract::VirtualInstructionType::Sub:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Sub>(instruction.operands));
+          break;
      case ecpps::ir::abstract::VirtualInstructionType::Return:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
@@ -173,20 +187,21 @@ std::optional<std::uint64_t> ecpps::abi::encoders::x8664::X8664VirtualInstructio
      return std::get<0>(copyValue.parameters);
 }
 
-std::int32_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EnsureStackSlot(
+ecpps::abi::encoders::x8664::StackOperand ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EnsureStackSlot(
      const ecpps::ir::abstract::VirtualRegister reg)
 {
      if (const auto iterator = this->_stackSlots.find(reg.index); iterator != this->_stackSlots.end())
-          return iterator->second;
+          return StackOperand{.offset = iterator->second};
 
      const auto size = std::max<std::size_t>(this->GetVRM().GetSize(reg), 1);
      const auto alignment = std::max<std::size_t>(this->GetVRM().GetAlignment(reg), 1);
 
-     this->_stackFrameSize = (this->_stackFrameSize + size + alignment - 1) / alignment * alignment;
+     const auto offset = (this->_localsSize + alignment - 1) / alignment * alignment;
+     this->_localsSize = offset + size;
 
-     const auto offset = -static_cast<std::int32_t>(this->_stackFrameSize);
-     this->_stackSlots.emplace(reg.index, offset);
-     return offset;
+     const auto slot = static_cast<std::uint32_t>(offset);
+     this->_stackSlots.emplace(reg.index, slot);
+     return StackOperand{.offset = slot};
 }
 
 ecpps::abi::encoders::x8664::RegisterIndex ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
@@ -282,8 +297,8 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
 {
      ir::abstract::Instruction instruction{};
      instruction.opcode = X8664InstructionName::Push;
-     instruction.description.resize(sizeof(PopInstruction));
-     new (instruction.description.data()) PopInstruction{.reg = reg};
+     instruction.description.resize(sizeof(PushInstruction));
+     new (instruction.description.data()) PushInstruction{.reg = reg};
      return instruction;
 }
 ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildPop(
@@ -327,6 +342,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Add:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Add>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Sub:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Sub>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");
@@ -386,6 +405,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                          [](const IntegerOperand& integer)
                                          {
                                               return std::format("{}", integer.value);
+                                         },
+                                         [](const StackOperand& stack)
+                                         {
+                                              return std::format("[locals + {}]", stack.offset);
                                          }},
                        operand);
 }
@@ -401,45 +424,112 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(ecpps
      this->GetVRM().UpdateValue(reg, std::move(value));
 }
 
+ecpps::abi::encoders::x8664::Operand ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOperand(
+     const Operand& operand) const
+{
+     const auto* stack = std::get_if<StackOperand>(&operand);
+     if (stack == nullptr) return operand;
+
+     const auto aboveRsp = this->_outgoingReserve + stack->offset;
+     runtime_assert(aboveRsp < this->_stackFrameSize, "Stack slot lies outside of the stack frame");
+
+     if (this->OmitsFramePointer())
+          return MemoryOperand{.relativeTo = RegisterIndex::Rsp, .offset = static_cast<std::int32_t>(aboveRsp)};
+
+     return MemoryOperand{.relativeTo = RegisterIndex::Rbp,
+                          .offset =
+                               static_cast<std::int32_t>(aboveRsp) - static_cast<std::int32_t>(this->_stackFrameSize)};
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOperands(
+     std::vector<ir::abstract::Instruction>& instructions) const
+{
+     for (auto& instruction : instructions)
+     {
+          switch (instruction.opcode)
+          {
+          case X8664InstructionName::Mov:
+          {
+               auto* mov = std::launder(reinterpret_cast<MovInstruction*>(instruction.description.data()));
+               mov->destination = this->ResolveStackOperand(mov->destination);
+               mov->source = this->ResolveStackOperand(mov->source);
+               break;
+          }
+          case X8664InstructionName::Add:
+          {
+               auto* add = std::launder(reinterpret_cast<AddInstruction*>(instruction.description.data()));
+               add->modifiedDestination = this->ResolveStackOperand(add->modifiedDestination);
+               add->source = this->ResolveStackOperand(add->source);
+               break;
+          }
+          case X8664InstructionName::Sub:
+          {
+               auto* sub = std::launder(reinterpret_cast<SubInstruction*>(instruction.description.data()));
+               sub->modifiedDestination = this->ResolveStackOperand(sub->modifiedDestination);
+               sub->source = this->ResolveStackOperand(sub->source);
+               break;
+          }
+          default: break;
+          }
+     }
+}
+
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Finalise(
      std::vector<ir::abstract::Instruction>& instructions)
 {
-     if (this->_stackFrameSize != 0)
+     const std::size_t rawSize = this->_outgoingReserve + this->_localsSize;
+     this->_stackFrameSize = rawSize;
+
+     if (rawSize != 0)
      {
-          InsertPrologue(instructions);
-          InsertEpilogue(instructions);
+          const std::size_t alignment = this->_target->platform->StackAlignment();
+          if (alignment != 0)
+          {
+               const std::size_t alreadyPushed = this->OmitsFramePointer() ? 8 : 16;
+               this->_stackFrameSize =
+                    ((rawSize + alreadyPushed + alignment - 1) / alignment * alignment) - alreadyPushed;
+          }
      }
+
+     this->ResolveStackOperands(instructions);
+
+     if (this->_stackFrameSize == 0) return;
+
+     this->InsertPrologue(instructions);
+     this->InsertEpilogue(instructions);
 }
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::InsertPrologue(
      std::vector<ir::abstract::Instruction>& instructions)
 {
-     instructions.insert(instructions.begin(), BuildPush(RegisterOperand{RegisterIndex::Rbp}));
+     std::vector<ir::abstract::Instruction> prologue{};
 
-     instructions.insert(instructions.begin(), BuildMov(Width::W64, RegisterOperand{RegisterIndex::Rbp},
-                                                        RegisterOperand{RegisterIndex::Rsp}));
+     if (!this->OmitsFramePointer())
+     {
+          prologue.push_back(BuildPush(RegisterOperand{RegisterIndex::Rbp}));
+          prologue.push_back(
+               BuildMov(Width::W64, RegisterOperand{RegisterIndex::Rbp}, RegisterOperand{RegisterIndex::Rsp}));
+     }
+     prologue.push_back(
+          BuildSub(Width::W64, RegisterOperand{RegisterIndex::Rsp}, IntegerOperand{this->_stackFrameSize}));
 
-     instructions.insert(instructions.begin(), BuildSub(Width::W64, RegisterOperand{RegisterIndex::Rsp},
-                                                        IntegerOperand{this->_stackFrameSize}));
+     instructions.insert(instructions.begin(), prologue.begin(), prologue.end());
 }
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::InsertEpilogue(
      std::vector<ir::abstract::Instruction>& instructions)
 {
-     std::vector<ir::abstract::Instruction> epilogue{
-          BuildAdd(Width::W64, RegisterOperand{RegisterIndex::Rsp}, IntegerOperand{this->_stackFrameSize}),
-          BuildMov(Width::W64, RegisterOperand{RegisterIndex::Rsp}, RegisterOperand{RegisterIndex::Rbp}),
-          BuildPop(RegisterOperand{RegisterIndex::Rbp}),
-     };
+     std::vector<ir::abstract::Instruction> epilogue{};
+     epilogue.push_back(
+          BuildAdd(Width::W64, RegisterOperand{RegisterIndex::Rsp}, IntegerOperand{this->_stackFrameSize}));
+     if (!this->OmitsFramePointer()) epilogue.push_back(BuildPop(RegisterOperand{RegisterIndex::Rbp}));
 
-     for (std::size_t index : std::views::iota(0uz, instructions.size()))
+     for (std::size_t index = instructions.size(); index-- > 0;)
      {
           if (instructions[index].opcode != X8664InstructionName::Ret) continue;
 
           instructions.insert(instructions.begin() + static_cast<std::ptrdiff_t>(index), epilogue.begin(),
                               epilogue.end());
-
-          index += epilogue.size();
      }
 }
 

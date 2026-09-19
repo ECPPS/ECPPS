@@ -1,5 +1,4 @@
 #include <cstddef>
-#include <cstdint>
 #include <format>
 #include <new>
 #include <optional>
@@ -30,10 +29,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
-               built.push_back(BuildMov(
-                    width,
-                    MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
-                    IntegerOperand{*immediate}));
+               built.push_back(BuildMov(width, this->EnsureStackSlot(destination), IntegerOperand{*immediate}));
 
                this->DereferenceAndMaybeFree(source);
                return built;
@@ -44,9 +40,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           built.append_range(EnsureMaterialisation(source));
 
           const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
-          built.push_back(BuildMov(
-               width, MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
-               RegisterOperand{sourceRegister}));
+          built.push_back(BuildMov(width, this->EnsureStackSlot(destination), RegisterOperand{sourceRegister}));
 
           this->DereferenceAndMaybeFree(source);
           return built;
@@ -103,8 +97,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
           std::ignore = this->ConsumeUse(virtualSource);
 
-          return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister},
-                                            MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = slot})},
+          return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, slot)},
                   .assignedRegister = destinationRegister};
      }
 

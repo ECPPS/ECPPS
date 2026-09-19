@@ -26,9 +26,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      {
           const Width width = WidthFromSize(this->GetVRM().GetSize(destination));
 
-          built.push_back(BuildMov(
-               width, MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
-               IntegerOperand{immediate}));
+          built.push_back(BuildMov(width, this->EnsureStackSlot(destination), IntegerOperand{immediate}));
           return built;
      }
 

@@ -43,6 +43,12 @@ namespace ecpps::abi::encoders::x8664
           Aggressive
      };
 
+     enum struct FramePointer : std::uint8_t
+     {
+          Keep,
+          Omit
+     };
+
      [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const Optimisation optimisation) noexcept
      {
           switch (optimisation)
@@ -109,7 +115,11 @@ namespace ecpps::abi::encoders::x8664
           {
                std::uint64_t value{};
           };
-          using Operand = std::variant<RegisterOperand, MemoryOperand, IntegerOperand>;
+          struct StackOperand
+          {
+               std::uint32_t offset{};
+          };
+          using Operand = std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand>;
 
           struct AddInstruction
           {
@@ -258,8 +268,9 @@ namespace ecpps::abi::encoders::x8664
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
           explicit X8664VirtualInstructionEncoder(api::Target& target,
-                                                  const Optimisation optimisation = Optimisation::None)
-              : VirtualInstructionEncoder(ISA::x86_64, target), _optimisation(optimisation)
+                                                  const Optimisation optimisation = Optimisation::None,
+                                                  const FramePointer framePointer = FramePointer::Keep)
+              : VirtualInstructionEncoder(ISA::x86_64, target), _optimisation(optimisation), _framePointer(framePointer)
           {
           }
 
@@ -290,7 +301,7 @@ namespace ecpps::abi::encoders::x8664
 
           [[nodiscard]] bool IsMutable(ir::abstract::VirtualRegister reg);
           [[nodiscard]] bool IsSpilled(ir::abstract::VirtualRegister reg);
-          [[nodiscard]] std::int32_t EnsureStackSlot(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] StackOperand EnsureStackSlot(ir::abstract::VirtualRegister reg);
           [[nodiscard]] RegisterIndex PhysicalRegisterOf(ir::abstract::VirtualRegister reg);
           [[nodiscard]] std::optional<std::uint64_t> ImmediateOf(ir::abstract::VirtualRegister reg);
 
@@ -310,13 +321,24 @@ namespace ecpps::abi::encoders::x8664
           MaterialisationOutcome MaterialisationImplementation(ir::abstract::VirtualRegister owner,
                                                                std::span<const std::byte> data);
 
+          [[nodiscard]] bool OmitsFramePointer(void) const noexcept
+          {
+               return this->_framePointer == FramePointer::Omit;
+          }
+
+          [[nodiscard]] Operand ResolveStackOperand(const Operand& operand) const;
+          void ResolveStackOperands(std::vector<ir::abstract::Instruction>& instructions) const;
+
           void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
           void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
 
           Optimisation _optimisation;
+          FramePointer _framePointer;
           PhysicalRegisterAllocator _registerAllocator{};
-          std::unordered_map<std::size_t, std::int32_t> _stackSlots{};
+          std::unordered_map<std::size_t, std::uint32_t> _stackSlots{};
           std::unordered_map<std::size_t, std::size_t> _remainingUses{};
+          std::size_t _localsSize{};
+          std::size_t _outgoingReserve{};
           std::size_t _stackFrameSize{};
      };
 } // namespace ecpps::abi::encoders::x8664

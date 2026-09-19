@@ -35,8 +35,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      newState.type = ir::abstract::StateType::Allocation;
 
      newState.data.resize(sizeof(values::SubRegisters));
-     values::SubRegisters& addValue = *new (newState.data.data()) values::SubRegisters{};
-     addValue.parameters = std::make_tuple(left, right);
+     values::SubRegisters& subValue = *new (newState.data.data()) values::SubRegisters{};
+     subValue.parameters = std::make_tuple(left, right);
      this->Redefine(destination, newState);
 
      if (this->IsMutable(left) || this->IsMutable(right) || this->IsMutable(destination))
@@ -50,14 +50,11 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
-     const values::SubRegisters& addValue = *std::launder(reinterpret_cast<const values::SubRegisters*>(data.data()));
-     auto accumulator = std::get<0>(addValue.parameters);
-     auto other = std::get<1>(addValue.parameters);
+     const values::SubRegisters& subValue = *std::launder(reinterpret_cast<const values::SubRegisters*>(data.data()));
+     const auto accumulator = std::get<0>(subValue.parameters);
+     const auto other = std::get<1>(subValue.parameters);
 
      const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
-
-     if (this->ImmediateOf(accumulator).has_value() && !this->ImmediateOf(other).has_value())
-          std::swap(accumulator, other);
 
      const auto accumulatorImmediate = this->ImmediateOf(accumulator);
      const auto otherImmediate = this->ImmediateOf(other);
