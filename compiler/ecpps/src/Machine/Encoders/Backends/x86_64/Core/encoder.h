@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <variant>
 #include "CodeGeneration/AbstractNodes.h"
@@ -22,6 +23,7 @@ namespace ecpps::abi::encoders::x8664
 
           constexpr static std::size_t Mov = 0; // b = a
           constexpr static std::size_t Add = 1; // c = a + b
+          constexpr static std::size_t Ret = 2; // return [a]
      };
 
      inline namespace instructionSetData
@@ -71,6 +73,10 @@ namespace ecpps::abi::encoders::x8664
           {
                Operand destination{};
                Operand source{};
+          };
+          struct RetInstruction // return value (if any)
+          {
+               std::optional<Operand> value{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
