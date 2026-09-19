@@ -1,15 +1,14 @@
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <new>
+#include <optional>
 #include <span>
 #include <tuple>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
-
-using ecpps::abi::encoders::x8664::X8664InstructionName;
-namespace instructionData = ecpps::abi::encoders::x8664::instructionSetData;
 
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
@@ -24,33 +23,62 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      const auto& destination = registerArray[0];
      const auto& source = registerArray[1];
+
+     if (this->IsSpilled(destination))
+     {
+          if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
+          {
+               built.push_back(BuildMov(
+                    MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
+                    IntegerOperand{*immediate}));
+
+               this->DereferenceAndMaybeFree(source);
+               return built;
+          }
+
+          runtime_assert(!this->IsSpilled(source), "Memory to memory copies are not supported");
+
+          built.append_range(EnsureMaterialisation(source));
+
+          const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
+          built.push_back(
+               BuildMov(MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = this->EnsureStackSlot(destination)},
+                        RegisterOperand{sourceRegister}));
+
+          this->DereferenceAndMaybeFree(source);
+          return built;
+     }
+
+     if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
+     {
+          ir::abstract::State immediateState{};
+          immediateState.type = ir::abstract::StateType::Allocation;
+
+          immediateState.data.resize(sizeof(values::CopyIntegerToRegister));
+          values::CopyIntegerToRegister& immediateValue =
+               *new (immediateState.data.data()) values::CopyIntegerToRegister{};
+          immediateValue.parameters = std::make_tuple(*immediate);
+          this->Redefine(destination, immediateState);
+
+          this->DereferenceAndMaybeFree(source);
+
+          if (this->IsMutable(destination)) built.append_range(EnsureMaterialisation(destination));
+
+          return built;
+     }
+
      built.append_range(EnsureMaterialisation(source));
 
-     this->DereferenceAndMaybeFree(source); // TODO: check use counter
-     runtime_assert(this->GetVRM().IsMaterialised(source),
-                    "Failed to materialise the source"); // TODO: Diagnostics
+     ir::abstract::State newState{};
+     newState.type = ir::abstract::StateType::Allocation;
 
-     const auto& materialisedSourceStateOptional = this->GetVRM().GetMaterialisation(source);
-     runtime_assert(materialisedSourceStateOptional.has_value(), "Invalid state for the materialised register");
-     const auto& materialisedSourceState = materialisedSourceStateOptional.value();
-     runtime_assert(materialisedSourceState.type == ecpps::ir::abstract::StateType::Allocation,
-                    "Unallocated states cannot be used as operands");
-     const auto& sourceBase =
-          *std::launder(reinterpret_cast<const MaterialisationBase*>(materialisedSourceState.data.data()));
-     switch (sourceBase.type)
-     {
-     case ecpps::abi::encoders::x8664::materialisations::PhysicalRegister::ConstType:
-     {
-          ir::abstract::State newState{};
-          newState.type = ir::abstract::StateType::Allocation;
+     newState.data.resize(sizeof(values::CopyRegisterToRegister));
+     values::CopyRegisterToRegister& copyValue = *new (newState.data.data()) values::CopyRegisterToRegister{};
+     copyValue.parameters = std::make_tuple(destination, source);
+     this->Redefine(destination, newState);
 
-          newState.data.resize(sizeof(values::CopyRegisterToRegister));
-          values::CopyRegisterToRegister& copyValue = *new (newState.data.data()) values::CopyRegisterToRegister{};
-          copyValue.parameters = std::make_tuple(destination, source);
-          this->Redefine(destination, newState);
-     }
-     break;
-     }
+     if (this->IsMutable(destination) || this->IsMutable(source))
+          built.append_range(EnsureMaterialisation(destination));
 
      return built;
 }
@@ -62,27 +90,31 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 {
      const values::CopyRegisterToRegister& copyValue =
           *std::launder(reinterpret_cast<const values::CopyRegisterToRegister*>(data.data()));
-     const auto& [virtualDestination, virtualSource] = copyValue.parameters;
+     const auto virtualSource = std::get<1>(copyValue.parameters);
 
-     runtime_assert(this->GetVRM().IsMaterialised(virtualSource), "Source must be materialised");
-     const auto& sourceOptional = this->GetVRM().GetMaterialisation(virtualSource);
-     runtime_assert(sourceOptional.has_value() && sourceOptional->type == ir::abstract::StateType::Allocation,
-                    "Source must be materialised");
-     const auto& sourceBase = *std::launder(reinterpret_cast<const MaterialisationBase*>(sourceOptional->data.data()));
-     runtime_assert(sourceBase.type == materialisations::PhysicalRegister::ConstType,
-                    "Source must have been assigned a physical register");
-     const auto& sourcePhysical =
-          *std::launder(reinterpret_cast<const materialisations::PhysicalRegister*>(sourceOptional->data.data()));
-     const auto& [sourceRegister] = sourcePhysical.parameters;
+     if (this->IsSpilled(virtualSource))
+     {
+          const auto slot = this->EnsureStackSlot(virtualSource);
+          const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
+          std::ignore = this->ConsumeUse(virtualSource);
+
+          return {.instructions = {BuildMov(RegisterOperand{destinationRegister},
+                                            MemoryOperand{.relativeTo = RegisterIndex::Rbp, .offset = slot})},
+                  .assignedRegister = destinationRegister};
+     }
+
+     const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
+     const auto remainingUses = this->ConsumeUse(virtualSource);
+
+     if (remainingUses == 0 && !this->IsMutable(virtualSource))
+     {
+          this->TransferRegister(virtualSource, owner);
+          return {.instructions = {}, .assignedRegister = sourceRegister};
+     }
 
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
+     if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
-     ir::abstract::Instruction instruction{};
-     instruction.opcode = X8664InstructionName::Mov;
-     instruction.description.resize(sizeof(MovInstruction));
-     MovInstruction& mov = *new (instruction.description.data()) MovInstruction{};
-     mov.destination = RegisterOperand{destinationRegister};
-     mov.source = RegisterOperand{sourceRegister};
-
-     return {.instructions = {instruction}, .assignedRegister = destinationRegister};
+     return {.instructions = {BuildMov(RegisterOperand{destinationRegister}, RegisterOperand{sourceRegister})},
+             .assignedRegister = destinationRegister};
 }
