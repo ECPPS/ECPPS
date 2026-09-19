@@ -22,6 +22,8 @@ namespace ecpps::abi::api
                return this->_isa;
           }
 
+          [[nodiscard]] virtual std::string Stringify(const ir::abstract::Instruction& instruction) const = 0;
+
      protected:
           Target* _target; // TODO: non-null pointer
 
