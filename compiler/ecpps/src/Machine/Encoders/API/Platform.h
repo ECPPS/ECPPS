@@ -10,6 +10,11 @@ namespace ecpps::abi::api
           }
           virtual ~PlatformBase(void) = default;
 
+          [[nodiscard]] virtual std::uint8_t IntegerReturnRegisterIndex(void) const noexcept
+          {
+               return 0;
+          }
+
      protected:
           SDKBase* _currentSdk; // TODO: non-null pointer
      };
