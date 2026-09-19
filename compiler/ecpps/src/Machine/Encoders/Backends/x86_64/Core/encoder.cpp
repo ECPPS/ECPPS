@@ -23,15 +23,18 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Return>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
-extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
-          std::span<const std::byte> data);
-extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+          ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
-          ecpps::ir::abstract::VirtualInstructionType::CopyInteger>(std::span<const std::byte> data);
-extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+          ecpps::ir::abstract::VirtualInstructionType::CopyInteger>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                    std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Add>(
-          std::span<const std::byte> data);
+          ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -62,9 +65,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      }
      case X8664InstructionName::Ret:
      {
-          runtime_assert(instruction.description.size() == sizeof(RetInstruction), "invalid RET");
-          const auto* ret = std::launder(reinterpret_cast<const RetInstruction*>(instruction.description.data()));
-          if (ret->value.has_value()) return std::format("RET {}", ToString(*ret->value));
+          runtime_assert(instruction.description.empty(), "invalid RET");
           return "RET";
      }
      }
@@ -106,6 +107,15 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      return instructions;
 }
 
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DereferenceAndMaybeFree(
+     ecpps::ir::abstract::VirtualRegister reg)
+{
+     if (this->GetVRM().DereferenceRegister(reg) != 0) return;
+     if (!this->GetVRM().IsMaterialised(reg)) return;
+
+     this->_registerAllocator.Free(reg);
+}
+
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EnsureMaterialisation(ecpps::ir::abstract::VirtualRegister virtualRegister)
 {
@@ -118,20 +128,34 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     "Cannot materialise a  register with impossible state"); // TODO: Diagnostics
 
      const auto& valueBase = *std::launder(reinterpret_cast<const AssignedValueBase*>(value.data.data()));
+
+     MaterialisationOutcome outcome;
      switch (valueBase.type)
      {
      case ecpps::abi::encoders::x8664::AssignedValueType::Copy:
-          return MaterialisationImplementation<ir::abstract::VirtualInstructionType::Copy>(
-               std::span<const std::byte>{value.data});
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Copy>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
      case ecpps::abi::encoders::x8664::AssignedValueType::CopyInteger:
-          return MaterialisationImplementation<ir::abstract::VirtualInstructionType::CopyInteger>(
-               std::span<const std::byte>{value.data});
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::CopyInteger>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Add:
-          return MaterialisationImplementation<ir::abstract::VirtualInstructionType::Add>(
-               std::span<const std::byte>{value.data});
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Add>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     default: throw TracedException("Invalid opcode");
      }
 
-     throw TracedException("Invalid opcode");
+     ir::abstract::State materialisedState{};
+     materialisedState.type = ir::abstract::StateType::Allocation;
+     materialisedState.data.resize(sizeof(materialisations::PhysicalRegister));
+     materialisations::PhysicalRegister& physical =
+          *new (materialisedState.data.data()) materialisations::PhysicalRegister{};
+     physical.parameters = std::make_tuple(outcome.assignedRegister);
+     this->GetVRM().Materialise(virtualRegister, materialisedState);
+
+     return std::move(outcome.instructions);
 }
 
 [[nodiscard]] static std::string FormatRegister(ecpps::abi::encoders::x8664::RegisterIndex index)
@@ -176,4 +200,15 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                               return std::format("{}", integer.value);
                                          }},
                        operand);
+}
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(ecpps::ir::abstract::VirtualRegister reg,
+                                                                           ecpps::ir::abstract::State value)
+{
+     if (this->GetVRM().IsMaterialised(reg))
+     {
+          this->_registerAllocator.Free(reg);
+          this->GetVRM().ClearMaterialisation(reg);
+     }
+
+     this->GetVRM().UpdateValue(reg, std::move(value));
 }
