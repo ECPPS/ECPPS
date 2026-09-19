@@ -96,7 +96,7 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                break;
           }
      }
-     catch (VirtualNotFoundError)
+     catch (const VirtualNotFoundError&)
      {
           this->diagnostics.push_back(
                std::make_unique<diagnostics::TypeError>("See earlier diagnostics", node->Source()));
@@ -287,7 +287,8 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
                                                                return parameter.type;
                                                           }) |
                                                      std::ranges::to<std::vector>(),
-                                                node.NamespacePath()));
+                                                node.NamespacePath()),
+                    std::vector<ecpps::ir::abstract::Instruction>{});
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
