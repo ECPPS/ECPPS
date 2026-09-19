@@ -52,9 +52,6 @@ namespace ecpps::codegen
                return this->_name;
           }
 
-          virtual void PatchCalls(std::vector<std::byte>& source,
-                                  std::unordered_map<std::string, std::size_t>& routines) = 0;
-
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API

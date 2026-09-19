@@ -310,20 +310,23 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg8(std::size_t 
      ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source), static_cast<std::uint8_t>(destination));
      return binary;
 }
-
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem64(std::size_t destination,
                                                                      std::size_t destinationOffset,
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(destinationOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(destinationOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
+
      Rex(MakePusher(binary), true, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+                 static_cast<std::uint8_t>(destination & 7), displacement);
+
      return binary;
 }
 
@@ -332,14 +335,18 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(destinationOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(destinationOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
+
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+                 static_cast<std::uint8_t>(destination & 7), displacement);
+
      return binary;
 }
 
@@ -348,15 +355,19 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem16(std::size_t
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(destinationOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(destinationOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
+
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+                 static_cast<std::uint8_t>(destination & 7), displacement);
+
      return binary;
 }
 
@@ -365,30 +376,37 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem8(std::size_t 
                                                                     std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(destinationOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(destinationOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
+
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x88);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+                 static_cast<std::uint8_t>(destination & 7), displacement);
+
      return binary;
 }
-
 std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg64(std::size_t destinationRegister,
                                                                      std::size_t sourceOffset,
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(sourceOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(sourceOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destinationRegister >= 8;
+
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+
      return binary;
 }
 
@@ -397,14 +415,18 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg32(std::size_t
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(sourceOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(sourceOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destinationRegister >= 8;
+
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+
      return binary;
 }
 
@@ -413,15 +435,19 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg16(std::size_t
                                                                      std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(sourceOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(sourceOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destinationRegister >= 8;
+
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+
      return binary;
 }
 
@@ -430,14 +456,18 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg8(std::size_t 
                                                                     std::size_t sourceRegister)
 {
      std::vector<std::byte> binary{};
-     runtime_assert(sourceOffset <= std::numeric_limits<std::uint32_t>::max(),
-                    "Displacement out of the 32-bit integer range");
+
+     const auto displacement = static_cast<std::int32_t>(static_cast<std::uint32_t>(sourceOffset));
+
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      const bool isDestinationExtendedRegister = destinationRegister >= 8;
+
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8a);
+
      ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+
      return binary;
 }
 

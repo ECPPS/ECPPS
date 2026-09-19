@@ -2,8 +2,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include "../CodeEmitter.h"
-#include "../Nodes.h"
+#include "../../CodeEmitter.h"
+#include "../../Nodes.h"
 #include "Machine/Storage.h"
 #include "TypeSystem/TypeBase.h"
 
@@ -26,11 +26,11 @@ namespace ecpps::codegen::emitters
                this->_stringRelocationSize = abi::dwordSize / typeSystem::CharWidth;
           }
 
-          void PatchCalls(std::vector<std::byte>& source,
-                          std::unordered_map<std::string, std::size_t>& routines) override;
-
           [[nodiscard]] std::vector<std::byte> EmitInstruction(const ir::abstract::Instruction& instruction) final;
 
      private:
+          [[nodiscard]] std::vector<std::byte> EmitMov(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitAdd(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitRet(const ir::abstract::DynamicBytecode& description);
      };
 } // namespace ecpps::codegen::emitters
