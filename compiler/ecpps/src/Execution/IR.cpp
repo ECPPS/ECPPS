@@ -297,8 +297,6 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      NodeBase* valueNode = expression->Value().get();
      const Location source = valueNode->Source();
 
-     std::println("parsing {}", valueNode->ToString(0));
-
      if (auto* const integralNode = dynamic_cast<IntegralNode*>(valueNode))
      {
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
