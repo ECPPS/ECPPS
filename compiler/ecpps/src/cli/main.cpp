@@ -125,11 +125,11 @@ enum struct FileIterationStatus : bool
           astContext.Release();
           ecpps::codegen::Compile(config, source, ir, target);
 
-          if (isExtraVerbose) std::println();
-          if (isExtraVerbose) std::println("Virtual Instructions:");
-
           if (isExtraVerbose)
           {
+               std::println();
+               std::println("Virtual Instructions:");
+
                for (const auto& node : source.compiledRoutines)
                {
                     std::println("  {}", node.name);
@@ -143,6 +143,23 @@ enum struct FileIterationStatus : bool
                               operands.pop_back();
                          }
                          std::println("    {} {}", ToString(instruction.type), operands);
+                    }
+               }
+          }
+
+          for (const auto& node : source.compiledRoutines)
+          {
+               auto encoded = target->encoder->Encode(node.instructions);
+
+               if (isExtraVerbose)
+               {
+                    std::println();
+                    std::println("Intermediate Instructions:");
+
+                    std::println("  {}", node.name);
+                    for (const auto& instruction : encoded)
+                    {
+                         std::println("    {}", target->encoder->Stringify(instruction));
                     }
                }
           }
