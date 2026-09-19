@@ -35,21 +35,22 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 }
 
 template <>
-std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyInteger>(
-          const std::span<const std::byte> data)
+          const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
      const values::CopyIntegerToRegister& copyValue =
           *std::launder(reinterpret_cast<const values::CopyIntegerToRegister*>(data.data()));
      const auto& [immediate] = copyValue.parameters;
 
+     const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
+
      ir::abstract::Instruction instruction{};
      instruction.opcode = X8664InstructionName::Mov;
      instruction.description.resize(sizeof(MovInstruction));
      MovInstruction& mov = *new (instruction.description.data()) MovInstruction{};
-
-     mov.destination = RegisterOperand{RegisterIndex::Rax};
+     mov.destination = RegisterOperand{destinationRegister};
      mov.source = IntegerOperand{immediate};
 
-     return {instruction};
+     return {.instructions = {instruction}, .assignedRegister = destinationRegister};
 }
