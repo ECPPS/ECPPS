@@ -59,7 +59,7 @@ namespace ecpps
           Substring
      };
 
-     enum struct Optimisation : std::uint8_t
+     enum struct Optimisation : std::uint64_t // NOLINT
      {
           ConstantFoldArithmetic,
           ConstantFoldArrayIndirections,
@@ -69,6 +69,8 @@ namespace ecpps
           OmitCallingFrame,
           TailJmp,
           XorToZero,
+          EncoderOptimisations,
+          AggressiveEncoderOptimisations, // EncoderOptimisations has no effect as this is a superset
 
           Count
      };

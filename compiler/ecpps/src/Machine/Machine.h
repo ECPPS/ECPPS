@@ -18,12 +18,6 @@ namespace ecpps::abi
           ARM64,
      };
 
-     enum struct Endianness : bool
-     {
-          Little,
-          Big
-     };
-
      enum struct ArchitectureExtensionFeatures : std::uint64_t // NOLINT(performance-enum-size)
      {
           None = 0,

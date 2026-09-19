@@ -32,39 +32,6 @@ ABI& ecpps::abi::ABI::Current(void)
      return ABI::_current;
 }
 
-template <std::size_t TTo, std::size_t TFrom>
-std::size_t ecpps::abi::ABI::ConvertEndian(std::size_t value) const noexcept
-{
-     if constexpr (TFrom == 1)
-     {
-          return value & ((std::size_t{1} << CHAR_BIT) - 1);
-     }
-
-     std::size_t result = 0;
-
-     switch (this->_endianness)
-     {
-     case ecpps::abi::Endianness::Big:
-          for (std::size_t i = 0; i < TFrom && i < TTo; i++)
-          {
-               const std::size_t byte = (value >> (i * 8)) & 0xFF;
-               result |= byte << ((TTo - 1 - i) * 8);
-          }
-          break;
-     case ecpps::abi::Endianness::Little:
-     {
-          for (std::size_t i = 0; i < TFrom && i < TTo; i++)
-          {
-               const std::size_t byte = (value >> (i * 8)) & 0xFF;
-               result |= byte << (i * 8);
-          }
-     }
-     break;
-     }
-
-     return result;
-}
-
 std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name,
                                         const CallingConventionName callingConvention,
                                         typeSystem::NonowningTypePointer returnType,

@@ -19,19 +19,6 @@ ecpps::CompilerConfig::CompilerConfig(
 
      if (argc <= 1) PrintVersionAndExit();
 
-     // ecpps::abi::ArchitectureExtensionFeatures simd{};
-     // switch (abi::ABI::Current().Isa())
-     // {
-     // case ecpps::abi::ISA::x86_32:
-     // case ecpps::abi::ISA::x86_64:
-     //      simd = ecpps::abi::ArchitectureExtensionFeatures::SSE; // default for SSE for x86
-     //      break;
-     // case ecpps::abi::ISA::ARM32:
-     // case ecpps::abi::ISA::ARM64:
-     //      simd = ecpps::abi::ArchitectureExtensionFeatures::NEON; // default for NEON for ARM
-     //      break;
-     // }
-
      for (std::size_t i = 1; std::cmp_less(i, argc); i++)
      {
           if (argv[i] == nullptr) break;
@@ -41,7 +28,7 @@ ecpps::CompilerConfig::CompilerConfig(
           if (fullArgument.starts_with('/')) // switch
           {
                auto flag = fullArgument.substr(1);
-               auto value = flag.find(':') == std::string::npos ? "" : flag.substr(flag.find(':') + 1);
+               auto value = !flag.contains(':') ? "" : flag.substr(flag.find(':') + 1);
                flag = flag.substr(0, flag.find(':'));
                const auto lowerFlag = flag |
                                       std::views::transform(

@@ -80,52 +80,6 @@ namespace ecpps::abi
                return this->boolSize;
           }
 
-          template <std::size_t TTo, std::size_t TFrom>
-          [[nodiscard]] std::size_t ConvertEndian(std::size_t value) const noexcept;
-          template <NarrowCharArray TArray, // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                            // modernize-avoid-c-arrays)
-                    std::size_t TFrom>
-          [[nodiscard]] auto ConvertEndian(std::size_t value) const noexcept
-          {
-               using T = std::remove_reference_t<decltype(std::declval<TArray>()[0])>;
-               std::array<T, TFrom> output{};
-
-               for (std::size_t i = 0; i < TFrom; i++)
-               {
-                    T byte = static_cast<T>(static_cast<unsigned char>((value >> (i * 8)) & 0xFF));
-                    if (this->_endianness == ecpps::abi::Endianness::Big) output[TFrom - 1 - i] = byte;
-                    else
-                         output[i] = byte;
-               }
-
-               return output;
-          }
-          template <std::size_t TTo, std::same_as<unsigned char[]> TArray> // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                           // modernize-avoid-c-arrays)
-          [[nodiscard]] std::size_t ConvertEndian(auto&& range) const noexcept
-          {
-               std::size_t value = 0;
-               using Range = std::remove_reference_t<decltype(range)>;
-               using IndexType = std::conditional_t<requires { typename Range::difference_type; },
-                                                    typename Range::difference_type, std::size_t>;
-
-               if (this->_endianness == ecpps::abi::Endianness::Big)
-               {
-                    for (std::size_t i = 0; i < TTo; i++)
-                    {
-                         value <<= 8;
-                         value |= static_cast<std::size_t>(range[static_cast<IndexType>(i)]);
-                    }
-               }
-               else
-               {
-                    for (std::size_t i = 0; i < TTo; i++)
-                         value |= static_cast<std::size_t>(range[static_cast<IndexType>(i)]) << (i * 8);
-               }
-
-               return value;
-          }
-
           typeSystem::TypeKind sizeSize{};
           typeSystem::TypeKind ptrdiffSize{};
           typeSystem::TypeKind boolSize{};
@@ -134,7 +88,6 @@ namespace ecpps::abi
      private:
           static ABI _current;
 
-          Endianness _endianness;
           ISA _isa;
 
           std::size_t _pointerSize{};
