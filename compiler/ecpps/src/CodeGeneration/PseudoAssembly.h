@@ -77,70 +77,118 @@ namespace ecpps::codegen
      };
      struct AllocationMap
      {
+          using Index = std::size_t;
+          static constexpr Index InvalidIndex = std::numeric_limits<Index>::max();
 
-          std::size_t EmplaceAllocate(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
-                                      AllocationDescriptor::Type type)
+          [[nodiscard]]
+          Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment, AllocationDescriptor::Type type)
           {
-               auto virtualIndex = _firstFreeEntry;
-               for (auto i : std::views::iota(virtualIndex, this->_descriptorArrayWindow.size()))
+               Index virtualIndex{};
+
+               if (!_freeVirtualEntries.empty())
                {
-                    if (this->_descriptorArrayWindow[i] != std::numeric_limits<std::size_t>::max()) continue;
-                    _firstFreeEntry = i;
+                    virtualIndex = _freeVirtualEntries.back();
+                    _freeVirtualEntries.pop_back();
+
+                    _descriptorArray[virtualIndex] = AllocationDescriptor{
+                         .size = size,
+                         .alignment = alignment,
+                         .type = type,
+                    };
                }
-               if (_firstFreeEntry == virtualIndex) _firstFreeEntry = this->_descriptorArrayWindow.size();
+               else
+               {
+                    virtualIndex = _descriptorArray.size();
 
-               if (this->_descriptorArray.size() <= virtualIndex) this->_descriptorArray.resize(virtualIndex + 1);
-               if (this->_descriptorArrayWindow.size() <= ssaIndex) this->_descriptorArrayWindow.resize(ssaIndex + 1);
+                    _descriptorArray.emplace_back(AllocationDescriptor{
+                         .size = size,
+                         .alignment = alignment,
+                         .type = type,
+                    });
 
-               this->_descriptorArray[virtualIndex] =
-                    AllocationDescriptor{.size = size, .alignment = alignment, .type = type};
-               this->_descriptorArrayWindow[ssaIndex] = virtualIndex;
+                    _ssaByVirtual.push_back(InvalidIndex);
+               }
+
+               if (ssaIndex >= _descriptorArrayWindow.size()) _descriptorArrayWindow.resize(ssaIndex + 1, InvalidIndex);
+
+               runtime_assert(_descriptorArrayWindow[ssaIndex] == InvalidIndex, "SSA register is already allocated");
+
+               _descriptorArrayWindow[ssaIndex] = virtualIndex;
+               _ssaByVirtual[virtualIndex] = ssaIndex;
 
                return virtualIndex;
           }
 
-          [[nodiscard]] std::size_t FindVirtualBySSA(std::size_t ssaIndex)
+          [[nodiscard]] Index FindVirtualBySSA(Index ssaIndex) const
           {
-               if (this->_descriptorArrayWindow.size() <= ssaIndex)
-                    throw VirtualNotFoundError(std::logic_error(std::format("Invalid index: {}", ssaIndex)));
-               return this->_descriptorArrayWindow[ssaIndex];
+               if (ssaIndex >= _descriptorArrayWindow.size())
+                    throw VirtualNotFoundError(std::logic_error(std::format("Invalid SSA index: {}", ssaIndex)));
+
+               const auto virtualIndex = _descriptorArrayWindow[ssaIndex];
+
+               if (virtualIndex == InvalidIndex)
+                    throw VirtualNotFoundError(
+                         std::logic_error(std::format("SSA index {} is not allocated", ssaIndex)));
+
+               return virtualIndex;
           }
 
-          [[nodiscard]] std::size_t FindSSAByVirtual(std::size_t virtualIndex)
+          [[nodiscard]] Index FindSSAByVirtual(Index virtualIndex) const
           {
-               auto remaining = static_cast<decltype(0z)>(this->_descriptorArrayWindow.size());
-               auto iterator = this->_descriptorArrayWindow.begin() + (remaining /= 2);
-               while (iterator != this->_descriptorArrayWindow.end() &&
-                      iterator != this->_descriptorArrayWindow.begin())
-               {
-                    auto ordering = *iterator <=> virtualIndex;
-                    if (is_eq(ordering)) break;
-                    if (is_lt(ordering)) iterator += (remaining /= 2);
-                    if (is_gt(ordering)) iterator -= (remaining /= 2);
-               }
-               return static_cast<std::size_t>(iterator - this->_descriptorArrayWindow.begin());
+               if (virtualIndex >= _ssaByVirtual.size() || _ssaByVirtual[virtualIndex] == InvalidIndex)
+                    throw VirtualNotFoundError(
+                         std::logic_error(std::format("Virtual index {} is not allocated", virtualIndex)));
+
+               return _ssaByVirtual[virtualIndex];
           }
-          [[nodiscard]] AllocationDescriptor& GetDescriptorFromSSA(std::size_t ssaIndex)
+
+          [[nodiscard]] AllocationDescriptor& GetDescriptorFromSSA(Index ssaIndex)
           {
-               return this->_descriptorArray[FindVirtualBySSA(ssaIndex)];
+               return GetDescriptorFromVirtual(FindVirtualBySSA(ssaIndex));
           }
-          [[nodiscard]] AllocationDescriptor& GetDescriptorFromVirtual(std::size_t virtualIndex)
+
+          [[nodiscard]] const AllocationDescriptor& GetDescriptorFromSSA(Index ssaIndex) const
           {
-               return this->_descriptorArray[virtualIndex];
+               return GetDescriptorFromVirtual(FindVirtualBySSA(ssaIndex));
           }
-          void ReleaseSSA(std::size_t ssa)
+
+          [[nodiscard]] AllocationDescriptor& GetDescriptorFromVirtual(Index virtualIndex)
           {
-               runtime_assert(this->_descriptorArrayWindow.size() > ssa, "invalid ssa register");
-               this->_firstFreeEntry = ssa;
-               auto oldVirtual =
-                    std::exchange(this->_descriptorArrayWindow[ssa], std::numeric_limits<std::size_t>::max());
-               this->_descriptorArray[oldVirtual].type = AllocationDescriptor::Type::Invalid;
+               if (virtualIndex >= _descriptorArray.size() || _ssaByVirtual[virtualIndex] == InvalidIndex)
+                    throw TracedException(std::format("Invalid virtual index {}", virtualIndex));
+
+               return _descriptorArray[virtualIndex];
+          }
+
+          [[nodiscard]] const AllocationDescriptor& GetDescriptorFromVirtual(Index virtualIndex) const
+          {
+               if (virtualIndex >= _descriptorArray.size() || _ssaByVirtual[virtualIndex] == InvalidIndex)
+                    throw TracedException(std::format("Invalid virtual index {}", virtualIndex));
+
+               return _descriptorArray[virtualIndex];
+          }
+
+          void ReleaseSSA(Index ssaIndex)
+          {
+               runtime_assert(ssaIndex < _descriptorArrayWindow.size(), "invalid ssa register");
+
+               const auto virtualIndex = std::exchange(_descriptorArrayWindow[ssaIndex], InvalidIndex);
+
+               if (virtualIndex == InvalidIndex) return;
+
+               runtime_assert(virtualIndex < _descriptorArray.size(), "invalid virtual index");
+
+               _ssaByVirtual[virtualIndex] = InvalidIndex;
+               _descriptorArray[virtualIndex].type = AllocationDescriptor::Type::Invalid;
+
+               _freeVirtualEntries.push_back(virtualIndex);
           }
 
      private:
-          std::vector<std::size_t> _descriptorArrayWindow{};
+          std::vector<Index> _descriptorArrayWindow{};
           std::vector<AllocationDescriptor> _descriptorArray{};
-          std::size_t _firstFreeEntry{};
+          std::vector<Index> _ssaByVirtual{};
+          std::vector<Index> _freeVirtualEntries{};
      };
 
      struct ParsingContext

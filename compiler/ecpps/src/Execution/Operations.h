@@ -78,6 +78,27 @@ namespace ecpps::ir
      private:
           std::string _address;
      };
+     class ReferenceNode final : public NodeBase
+     {
+     public:
+          explicit ReferenceNode(std::string address, Location source)
+              : NodeBase(NodeKind::Reference, source), _address(std::move(address))
+          {
+          }
+
+          [[nodiscard]] const std::string& Address(void) const noexcept
+          {
+               return this->_address;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "&" + this->_address;
+          }
+
+     private:
+          std::string _address;
+     };
 
      class SSALoadNode final : public NodeBase
      {

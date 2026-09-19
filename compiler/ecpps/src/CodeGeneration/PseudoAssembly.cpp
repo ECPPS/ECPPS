@@ -5,6 +5,7 @@
 #include <ranges>
 #include <utility>
 #include <variant>
+#include "../Execution/IR.h"
 #include "../Execution/Operations.h"
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
@@ -163,9 +164,6 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
      auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
      auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
 
-     this->DereferenceSSA(virtualLeftIndex);
-     this->DereferenceSSA(virtualRightIndex);
-
      auto size = describedLeft.size;
      auto alignment = describedLeft.alignment;
 
@@ -176,9 +174,11 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
                     "Alignments don't match while getting a common alignment");
 
+     this->DereferenceSSA(virtualLeftIndex);
+     this->DereferenceSSA(virtualRightIndex);
+
      ir::abstract::VirtualRegister allocatedIndex(this->virtualRegisterAllocationMap.EmplaceAllocate(
           ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
-     this->target->registerMap->ReferenceRegister(allocatedIndex);
 
      ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
      ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
@@ -204,7 +204,6 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 
      ir::abstract::VirtualRegister allocatedIndex(this->virtualRegisterAllocationMap.EmplaceAllocate(
           ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
-     this->target->registerMap->ReferenceRegister(allocatedIndex);
 
      ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
 
@@ -217,9 +216,8 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 }
 void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode& node)
 {
-     const auto allocatedIndex = this->virtualRegisterAllocationMap.EmplaceAllocate(
+     std::ignore = this->virtualRegisterAllocationMap.EmplaceAllocate(
           node.Node().Index(), node.Size(), node.Alignment(), AllocationDescriptor::Type::Allocation);
-     this->target->registerMap->ReferenceRegister(allocatedIndex);
 }
 void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 {
@@ -232,7 +230,6 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
           this->virtualRegisterAllocationMap.EmplaceAllocate(ssaIndex, size, alignment,
                                                              AllocationDescriptor::Type::Temporary),
      };
-     this->target->registerMap->ReferenceRegister(virtualIndex);
      ir::abstract::VirtualRegister sourceVirtualised{node.Value()};
      // TODO: Error check
      ir::abstract::VirtualInstruction instruction{
@@ -293,6 +290,9 @@ void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
                              ecpps::abi::api::Target* target)
 {
      AssemblyContext context{config};
+
+     ir::CreateReferenceMap(*target->registerMap, intermediateRepresentation);
+
      auto& patches = context.Patches();
      for (const auto& node : intermediateRepresentation)
      {
