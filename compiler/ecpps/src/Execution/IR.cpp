@@ -268,6 +268,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      NodeBase* valueNode = expression->Value().get();
      const Location source = valueNode->Source();
 
+     std::println("parsing {}", valueNode->ToString(0));
+
      if (auto* const integralNode = dynamic_cast<IntegralNode*>(valueNode))
      {
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
@@ -294,6 +296,19 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(result), allocReg, source)});
           return resultPtr;
+     }
+     if (auto* const referenceNode = dynamic_cast<ReferenceNode*>(valueNode))
+     {
+          const std::string& varName = referenceNode->Address();
+          const SingleAssignRegisterNode* allocReg = ResolveAllocReg(varName);
+          if (allocReg == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot resolve allocation register for variable '" + varName + "'", source));
+          }
+
+          return allocReg;
      }
 
      if (auto* const regRef = dynamic_cast<SSARegisterReferenceNode*>(valueNode))
@@ -992,7 +1007,25 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      if (converted == nullptr) return;
 
+     auto* savedPointer = converted->Value().get();
+     auto source = savedPointer->Source();
+     const auto* type = converted->Type();
+
      const auto* resultReg = LowerExpression(std::move(converted), this->_built);
+     if (dynamic_cast<ReferenceNode*>(savedPointer))
+     {
+          auto makeReg = [&](Location source, std::size_t width) -> SingleAssignRegisterNode*
+          {
+               const auto idx = function->GetNextRegisterIndex();
+               RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
+               return new (allocator) SingleAssignRegisterNode(idx, info, width, source);
+          };
+
+          auto* loadedResult = makeReg(source, type->Size() * typeSystem::CharWidth);
+          this->_built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
+               std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, source)});
+          resultReg = loadedResult;
+     }
      this->_built.push_back(
           std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(resultReg, node.Source())});
 }
@@ -2302,8 +2335,8 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
                          {
                               return std::make_unique<LValue>(
                                    variable.type,
-                                   std::unique_ptr<LoadNode, IRDeleter>{
-                                        new (*this->GetContext().nodeAllocator) LoadNode(
+                                   std::unique_ptr<ReferenceNode, IRDeleter>{
+                                        new (*this->GetContext().nodeAllocator) ReferenceNode(
                                              variable.Name().value_or("__unknown_local"), expression.Source())},
                                    false);
                          }
@@ -2888,4 +2921,56 @@ ecpps::ir::ImplicitConversion ecpps::ir::MatchImplicitConversion(const Expressio
                                              : ImplicitConversion::RefBindingKind::None;
 
      return ImplicitConversion{type->CompareTo(expression->Type()), referenceKind, true};
+}
+
+void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std::vector<NodePointer>& irNodes)
+{
+     for (const auto& node : irNodes)
+     {
+          switch (node->Kind())
+          {
+          case ecpps::ir::NodeKind::Allocate: break;
+          case ecpps::ir::NodeKind::Procedure:
+          {
+               const auto* procedureNode = dynamic_cast<const ProcedureNode*>(node.get());
+
+               CreateReferenceMap(map, procedureNode->Body());
+          }
+          break;
+          case ecpps::ir::NodeKind::Addition:
+          {
+               const auto* additionNode = dynamic_cast<const SSAAddNode*>(node.get());
+               map.ReferenceRegister(additionNode->Left().Index());
+               map.ReferenceRegister(additionNode->Right().Index());
+          }
+          break;
+          case ecpps::ir::NodeKind::Subtraction:
+          {
+               const auto* additionNode = dynamic_cast<const SSASubNode*>(node.get());
+               map.ReferenceRegister(additionNode->Left().Index());
+               map.ReferenceRegister(additionNode->Right().Index());
+          }
+          break;
+          case ecpps::ir::NodeKind::Store:
+          {
+               if (const auto* integerAdditionNode = dynamic_cast<const SSAStoreIntegerNode*>(node.get());
+                   integerAdditionNode != nullptr)
+               {
+                    map.ReferenceRegister(integerAdditionNode->Target().Index());
+                    break;
+               }
+               const auto* additionNode = dynamic_cast<const SSAStoreNode*>(node.get());
+               map.ReferenceRegister(additionNode->Target().Index());
+               map.ReferenceRegister(additionNode->Src().Index());
+          }
+          break;
+          case ecpps::ir::NodeKind::Load:
+          {
+               const auto* additionNode = dynamic_cast<const SSALoadNode*>(node.get());
+               map.ReferenceRegister(additionNode->Address().Index());
+          }
+          break;
+          default: break;
+          }
+     }
 }

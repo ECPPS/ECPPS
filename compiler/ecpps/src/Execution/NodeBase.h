@@ -44,7 +44,8 @@ namespace ecpps::ir
           IncomingParameter,
           SSA,
           Allocate,
-          Annotation
+          Annotation,
+          Reference
      };
 
      struct ConstantAggregateMap;
