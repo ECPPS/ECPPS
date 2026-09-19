@@ -268,8 +268,8 @@ namespace ecpps::abi::encoders::x8664
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
           explicit X8664VirtualInstructionEncoder(api::Target& target,
-                                                  const Optimisation optimisation = Optimisation::None,
-                                                  const FramePointer framePointer = FramePointer::Keep)
+                                                  const Optimisation optimisation = Optimisation::Aggressive,
+                                                  const FramePointer framePointer = FramePointer::Omit)
               : VirtualInstructionEncoder(ISA::x86_64, target), _optimisation(optimisation), _framePointer(framePointer)
           {
           }

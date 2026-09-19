@@ -21,7 +21,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitPush(
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitPop(const ir::abstract::DynamicBytecode& description)
 {
-     runtime_assert(description.size() == sizeof(abi::encoders::x8664::PopInstruction), "Invalid PUSH instruction");
+     runtime_assert(description.size() == sizeof(abi::encoders::x8664::PopInstruction), "Invalid POP instruction");
 
      const auto& pop = *std::launder(reinterpret_cast<const abi::encoders::x8664::PopInstruction*>(description.data()));
 
