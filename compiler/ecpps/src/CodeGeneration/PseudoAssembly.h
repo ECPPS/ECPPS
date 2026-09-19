@@ -54,24 +54,15 @@ namespace ecpps::codegen
 
      struct AllocationDescriptor
      {
-          enum struct Type : std::uint8_t
-          {
-               Locked = 0, // highest priority
-               HotTemporary,
-               HotAllocation,
-               Temporary,
-               Allocation,
-               ColdAllocation, // lowest priority
+          using Type = ir::abstract::AllocationClass;
 
-               Invalid = std::numeric_limits<std::uint8_t>::max()
-          };
           std::size_t size;
           std::size_t alignment;
           Type type;
      };
      struct VirtualNotFoundError : std::exception
      {
-          VirtualNotFoundError([[maybe_unused]] auto&&... args) // TODO: do something lol
+          VirtualNotFoundError([[maybe_unused]] auto&&... args)
           {
           }
      };
@@ -83,31 +74,15 @@ namespace ecpps::codegen
           [[nodiscard]]
           Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment, AllocationDescriptor::Type type)
           {
-               Index virtualIndex{};
+               const Index virtualIndex = _descriptorArray.size();
 
-               if (!_freeVirtualEntries.empty())
-               {
-                    virtualIndex = _freeVirtualEntries.back();
-                    _freeVirtualEntries.pop_back();
+               _descriptorArray.emplace_back(AllocationDescriptor{
+                    .size = size,
+                    .alignment = alignment,
+                    .type = type,
+               });
 
-                    _descriptorArray[virtualIndex] = AllocationDescriptor{
-                         .size = size,
-                         .alignment = alignment,
-                         .type = type,
-                    };
-               }
-               else
-               {
-                    virtualIndex = _descriptorArray.size();
-
-                    _descriptorArray.emplace_back(AllocationDescriptor{
-                         .size = size,
-                         .alignment = alignment,
-                         .type = type,
-                    });
-
-                    _ssaByVirtual.push_back(InvalidIndex);
-               }
+               _ssaByVirtual.push_back(InvalidIndex);
 
                if (ssaIndex >= _descriptorArrayWindow.size()) _descriptorArrayWindow.resize(ssaIndex + 1, InvalidIndex);
 
@@ -180,15 +155,12 @@ namespace ecpps::codegen
 
                _ssaByVirtual[virtualIndex] = InvalidIndex;
                _descriptorArray[virtualIndex].type = AllocationDescriptor::Type::Invalid;
-
-               _freeVirtualEntries.push_back(virtualIndex);
           }
 
      private:
           std::vector<Index> _descriptorArrayWindow{};
           std::vector<AllocationDescriptor> _descriptorArray{};
           std::vector<Index> _ssaByVirtual{};
-          std::vector<Index> _freeVirtualEntries{};
      };
 
      struct ParsingContext
@@ -212,6 +184,8 @@ namespace ecpps::codegen
 
      private:
           void DereferenceSSA(std::size_t ssaIndex);
+          [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
+                                                    AllocationDescriptor::Type type);
      };
 
      struct AssemblyContext
@@ -257,11 +231,6 @@ namespace ecpps::codegen
                     {
                          if (view.Size() >= probe.size())
                          {
-                              // if (const auto position = this->_arena.substr(view.begin, view.Size()).find(probe);
-                              // position != std::basic_string_view<Byte>::npos)
-                              // {
-                              //      return {.indexInTable = index, .offset = static_cast<std::uint32_t>(position)};
-                              // }
                               if (const auto position =
                                        std::basic_string_view<Byte>{this->_arena.data() + view.begin, view.Size()}.find(
                                             probe);
@@ -313,7 +282,7 @@ namespace ecpps::codegen
                const std::uint32_t offset = static_cast<std::uint32_t>(_arena.size());
 
                _arena.insert(_arena.end(), value.begin(), value.end());
-               _arena.push_back(Byte{0}); // still important
+               _arena.push_back(Byte{0});
 
                const std::uint32_t index = static_cast<std::uint32_t>(_stringTable.size());
 

@@ -1,8 +1,13 @@
 #include "encoder.h"
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <new>
+#include <optional>
+#include <ranges>
 #include <span>
+#include <tuple>
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
@@ -39,6 +44,20 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
 {
+     this->_registerAllocator = PhysicalRegisterAllocator{};
+     this->_stackSlots.clear();
+     this->_remainingUses.clear();
+     this->_stackFrameSize = 0;
+
+     for (const auto& instruction : input)
+     {
+          if (instruction.type == ir::abstract::VirtualInstructionType::CopyInteger) continue;
+
+          const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
+          for (const auto& source : instruction.operands | std::views::drop(firstSource))
+               ++this->_remainingUses[source.index];
+     }
+
      std::vector<ecpps::ir::abstract::Instruction> instructions{};
 
      for (const auto& instruction : input) instructions.append_range(EncodeSingle(instruction));
@@ -101,31 +120,141 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
           break;
-     default: throw TracedException("Invalid instruction"); // TODO: Diagnostics
+     default: throw TracedException("Invalid instruction");
      }
 
      return instructions;
 }
 
-void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DereferenceAndMaybeFree(
-     ecpps::ir::abstract::VirtualRegister reg)
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsMutable(
+     const ecpps::ir::abstract::VirtualRegister reg)
 {
-     if (this->GetVRM().DereferenceRegister(reg) != 0) return;
+     return this->GetVRM().GetAllocationClass(reg) >= ir::abstract::AllocationClass::Allocation;
+}
+
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsSpilled(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     return this->GetVRM().GetAllocationClass(reg) >= SpillThreshold(this->_optimisation);
+}
+
+std::optional<std::uint64_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ImmediateOf(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     if (this->IsSpilled(reg) || this->GetVRM().IsMaterialised(reg)) return std::nullopt;
+
+     const auto& value = this->GetVRM().GetValue(reg);
+     if (value.type != ir::abstract::StateType::Allocation) return std::nullopt;
+
+     const auto& valueBase = *std::launder(reinterpret_cast<const AssignedValueBase*>(value.data.data()));
+     if (valueBase.type != AssignedValueType::CopyInteger) return std::nullopt;
+
+     const auto& copyValue = *std::launder(reinterpret_cast<const values::CopyIntegerToRegister*>(value.data.data()));
+     return std::get<0>(copyValue.parameters);
+}
+
+std::int32_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EnsureStackSlot(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     if (const auto iterator = this->_stackSlots.find(reg.index); iterator != this->_stackSlots.end())
+          return iterator->second;
+
+     const auto size = std::max<std::size_t>(this->GetVRM().GetSize(reg), 1);
+     const auto alignment = std::max<std::size_t>(this->GetVRM().GetAlignment(reg), 1);
+
+     this->_stackFrameSize = (this->_stackFrameSize + size + alignment - 1) / alignment * alignment;
+
+     const auto offset = -static_cast<std::int32_t>(this->_stackFrameSize);
+     this->_stackSlots.emplace(reg.index, offset);
+     return offset;
+}
+
+ecpps::abi::encoders::x8664::RegisterIndex ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     PhysicalRegisterOf(const ecpps::ir::abstract::VirtualRegister reg)
+{
+     runtime_assert(this->GetVRM().IsMaterialised(reg), "Register must be materialised");
+     const auto& optional = this->GetVRM().GetMaterialisation(reg);
+     runtime_assert(optional.has_value() && optional->type == ir::abstract::StateType::Allocation,
+                    "Register must be materialised");
+
+     const auto& base = *std::launder(reinterpret_cast<const MaterialisationBase*>(optional->data.data()));
+     runtime_assert(base.type == materialisations::PhysicalRegister::ConstType,
+                    "Register must have been assigned a physical register");
+
+     const auto& physical =
+          *std::launder(reinterpret_cast<const materialisations::PhysicalRegister*>(optional->data.data()));
+     return std::get<0>(physical.parameters);
+}
+
+std::size_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ConsumeUse(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     const auto iterator = this->_remainingUses.find(reg.index);
+     runtime_assert(iterator != this->_remainingUses.end() && iterator->second != 0,
+                    "Virtual register consumed more often than it is used");
+     return --iterator->second;
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ReleaseRegister(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     if (this->IsSpilled(reg)) return;
      if (!this->GetVRM().IsMaterialised(reg)) return;
 
      this->_registerAllocator.Free(reg);
+     this->GetVRM().ClearMaterialisation(reg);
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DereferenceAndMaybeFree(
+     const ecpps::ir::abstract::VirtualRegister reg)
+{
+     if (this->ConsumeUse(reg) != 0) return;
+
+     this->ReleaseRegister(reg);
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::TransferRegister(
+     const ecpps::ir::abstract::VirtualRegister from, const ecpps::ir::abstract::VirtualRegister to)
+{
+     this->_registerAllocator.Reassign(from, to);
+     this->GetVRM().ClearMaterialisation(from);
+}
+
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildMov(
+     Operand destination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Mov;
+     instruction.description.resize(sizeof(MovInstruction));
+     new (instruction.description.data()) MovInstruction{.destination = destination, .source = source};
+     return instruction;
+}
+
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildAdd(
+     Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Add;
+     instruction.description.resize(sizeof(AddInstruction));
+     new (instruction.description.data()) AddInstruction{.modifiedDestination = modifiedDestination, .source = source};
+     return instruction;
 }
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EnsureMaterialisation(ecpps::ir::abstract::VirtualRegister virtualRegister)
 {
+     if (this->IsSpilled(virtualRegister))
+     {
+          std::ignore = this->EnsureStackSlot(virtualRegister);
+          return {};
+     }
+
      if (this->GetVRM().IsMaterialised(virtualRegister)) return {};
 
      const auto& value = this->GetVRM().GetValue(virtualRegister);
-     runtime_assert(value.type != ir::abstract::StateType::Unknown,
-                    "Cannot materialise a  register with unknown value"); // TODO: Diagnostics
+     runtime_assert(value.type != ir::abstract::StateType::Unknown, "Cannot materialise a register with unknown value");
      runtime_assert(value.type != ir::abstract::StateType::Impossible,
-                    "Cannot materialise a  register with impossible state"); // TODO: Diagnostics
+                    "Cannot materialise a register with impossible state");
 
      const auto& valueBase = *std::launder(reinterpret_cast<const AssignedValueBase*>(value.data.data()));
 
@@ -192,8 +321,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                          },
                                          [](const MemoryOperand& mem)
                                          {
-                                              return std::format("[{} + {}]", FormatRegister(mem.relativeTo),
-                                                                 mem.offset);
+                                              const auto base = FormatRegister(mem.relativeTo);
+                                              if (mem.offset < 0)
+                                                   return std::format("[{} - {}]", base,
+                                                                      -static_cast<std::int64_t>(mem.offset));
+                                              return std::format("[{} + {}]", base, mem.offset);
                                          },
                                          [](const IntegerOperand& integer)
                                          {
