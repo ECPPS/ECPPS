@@ -1,7 +1,7 @@
 function(add_compiler_test target_name SOURCES_FILES label)
     add_executable(${target_name} ${SOURCES_FILES})
 
-    target_link_libraries(${target_name} PRIVATE ecpps_options libecpps platformlib utilitieslib Catch2WithMain)
+    target_link_libraries(${target_name} PRIVATE ecpps_options libecpps platformlib utilitieslib Catch2::Catch2WithMain)
 
     target_include_directories(${target_name}
         PRIVATE
