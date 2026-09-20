@@ -384,6 +384,32 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           return resultPtr;
      }
 
+     if (auto* const leftShiftNode = dynamic_cast<high::LeftShiftNode*>(valueNode))
+     {
+          const auto* leftReg = LowerExpressionLoaded(std::move(*leftShiftNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*leftShiftNode).Right(), built);
+          if (leftReg == nullptr || rightReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSALeftShiftNode, IRDeleter>{
+               new (allocator) SSALeftShiftNode(std::move(result), leftReg, rightReg, source)});
+          return resultPtr;
+     }
+
+     if (auto* const rightShiftNode = dynamic_cast<high::RightShiftNode*>(valueNode))
+     {
+          const auto* leftReg = LowerExpressionLoaded(std::move(*rightShiftNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*rightShiftNode).Right(), built);
+          if (leftReg == nullptr || rightReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSARightShiftNode, IRDeleter>{
+               new (allocator) SSARightShiftNode(std::move(result), leftReg, rightReg, source)});
+          return resultPtr;
+     }
+
      if (auto* const divNode = dynamic_cast<high::DivideNode*>(valueNode))
      {
           const auto* leftReg = LowerExpressionLoaded(std::move(*divNode).Left(), built);
@@ -1667,7 +1693,69 @@ Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
      runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
                     "Invalid operator for a shift-expression");
 
-     throw ecpps::TracedException(std::logic_error("Not implemented"));
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+     if (left->Type() != leftIntegral)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(leftIntegral,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != rightIntegral)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(rightIntegral,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                            wasConstexpr);
+     }
+
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+
+     if (operator_ == ast::Operator::LeftShift)
+          return std::make_unique<PRValue>(resultType,
+                                           std::unique_ptr<high::LeftShiftNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::LeftShiftNode(std::move(left), std::move(right), source)},
+                                           false);
+
+     return std::make_unique<PRValue>(resultType,
+                                      std::unique_ptr<high::RightShiftNode, IRDeleter>{
+                                           new (*this->GetContext().nodeAllocator)
+                                                high::RightShiftNode(std::move(left), std::move(right), source)},
+                                      false);
 }
 
 Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const Location& source) const
