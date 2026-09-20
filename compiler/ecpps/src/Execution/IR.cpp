@@ -251,6 +251,8 @@ namespace
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(Expression expression,
                                                                                 std::vector<NodePointer>& built)
 {
+     if (expression == nullptr || expression->Value() == nullptr) return nullptr;
+
      auto* savedPointer = expression->Value().get();
      auto source = savedPointer->Source();
      const auto* type = expression->Type();
