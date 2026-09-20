@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <format>
 #include <print>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <utility>
