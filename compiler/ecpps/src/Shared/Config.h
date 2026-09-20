@@ -49,15 +49,16 @@ namespace ecpps
 
      enum struct VerboseFeature : std::uint16_t
      {
-          Preprocessor = 1u << 0,
-          Tokens = 1u << 1,
-          AST = 1u << 2,
-          IR = 1u << 3,
-          VInst = 1u << 4,
-          IInst = 1u << 5,
-          PInst = 1u << 6,
-          Emit = 1u << 7,
-          FinalEmit = 1u << 8
+          Preprocessor = 1uz << 0,
+          Tokens = 1uz << 1,
+          AST = 1uz << 2,
+          IR = 1uz << 3,
+          VInst = 1uz << 4,
+          IInst = 1uz << 5,
+          PInst = 1uz << 6,
+          Emit = 1uz << 7,
+          FinalEmit = 1uz << 8,
+          Time = 1uz << 9
      };
 
      using VerboseFeatures = std::uint16_t;
@@ -72,7 +73,7 @@ namespace ecpps
           VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR) |
           VerboseFeatureMask(VerboseFeature::VInst) | VerboseFeatureMask(VerboseFeature::IInst) |
           VerboseFeatureMask(VerboseFeature::PInst) | VerboseFeatureMask(VerboseFeature::Emit) |
-          VerboseFeatureMask(VerboseFeature::FinalEmit);
+          VerboseFeatureMask(VerboseFeature::FinalEmit) | VerboseFeatureMask(VerboseFeature::Time);
 
      enum struct StringPooling : std::uint8_t
      {

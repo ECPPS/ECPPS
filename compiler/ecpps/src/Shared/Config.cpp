@@ -253,6 +253,8 @@ namespace
                feature = VerboseFeature::Emit;
           else if (name == "femit" || name == "final-emit")
                feature = VerboseFeature::FinalEmit;
+          else if (name == "time")
+               feature = VerboseFeature::Time;
           else
                return false;
 
