@@ -37,6 +37,8 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Sub = 3;
           constexpr static std::size_t Push = 4;
           constexpr static std::size_t Pop = 5;
+          constexpr static std::size_t LeftShift = 6;
+          constexpr static std::size_t RightShift = 7;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -131,6 +133,12 @@ namespace ecpps::abi::encoders::x8664
                Operand source{};
           };
           struct SubInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
+          };
+          struct ShiftInstruction
           {
                Width width{};
                Operand modifiedDestination{};
@@ -347,6 +355,10 @@ namespace ecpps::abi::encoders::x8664
                                                                   Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildPush(RegisterOperand reg);
           [[nodiscard]] static ir::abstract::Instruction BuildPop(RegisterOperand reg);
+          [[nodiscard]] static ir::abstract::Instruction BuildLeftShift(Width width, Operand modifiedDestination,
+                                                                        Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildRightShift(Width width, Operand modifiedDestination,
+                                                                         Operand source);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(

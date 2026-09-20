@@ -294,11 +294,38 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg16(std::size_t reg, std::uint16_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg8(std::size_t reg, std::uint8_t imm);
 
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem64(std::size_t reg, std::size_t offset, std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
      // neg
 
      [[nodiscard]] std::vector<std::byte> GenerateNegReg8(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateNegReg16(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateNegReg32(std::size_t reg);
      [[nodiscard]] std::vector<std::byte> GenerateNegReg64(std::size_t reg);
+
+     // sal
+     [[nodiscard]] std::vector<std::byte> GenerateSalReg64(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalReg32(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalReg16(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSalMem64(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalMem32(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalMem16(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSalMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+
+     // sar
+     [[nodiscard]] std::vector<std::byte> GenerateSarReg64(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarReg32(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarReg16(std::size_t reg, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarReg8(std::size_t reg, std::uint8_t imm);
+
+     [[nodiscard]] std::vector<std::byte> GenerateSarMem64(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarMem32(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarMem16(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSarMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
 
 } // namespace ecpps::codegen::x86_64

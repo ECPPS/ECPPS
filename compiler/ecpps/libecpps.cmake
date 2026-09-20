@@ -18,6 +18,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/arithmetics.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/controlFlow.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/stack.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/shifts.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/Opcodes.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/x86_64.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/CodeEmitter.cpp"

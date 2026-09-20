@@ -27,6 +27,12 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Return>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::LeftShift>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::RightShift>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -48,6 +54,16 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Sub>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::LeftShift>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                  std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::RightShift>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                   std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -118,6 +134,20 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* sub = std::launder(reinterpret_cast<const SubInstruction*>(instruction.description.data()));
           return std::format("SUB.{} {}, {}", ToString(sub->width), ToString(sub->modifiedDestination),
                              ToString(sub->source));
+     }
+     case X8664InstructionName::LeftShift:
+     {
+          runtime_assert(instruction.description.size() == sizeof(SubInstruction), "invalid LEFT-SHIFT");
+          const auto* shift = std::launder(reinterpret_cast<const SubInstruction*>(instruction.description.data()));
+          return std::format("LEFT-SHIFT.{} {}, {}", ToString(shift->width), ToString(shift->modifiedDestination),
+                             ToString(shift->source));
+     }
+     case X8664InstructionName::RightShift:
+     {
+          runtime_assert(instruction.description.size() == sizeof(SubInstruction), "invalid RIGHT-SHIFT");
+          const auto* shift = std::launder(reinterpret_cast<const SubInstruction*>(instruction.description.data()));
+          return std::format("RIGHT-SHIFT.{} {}, {}", ToString(shift->width), ToString(shift->modifiedDestination),
+                             ToString(shift->source));
      }
      case X8664InstructionName::Ret:
      {
@@ -202,6 +232,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Return:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::LeftShift:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::LeftShift>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::RightShift:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::RightShift>(instruction.operands));
           break;
      default: throw TracedException("Invalid instruction");
      }
@@ -354,6 +392,30 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
 
      return instruction;
 }
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildLeftShift(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::LeftShift;
+     instruction.description.resize(sizeof(ShiftInstruction));
+
+     new (instruction.description.data())
+          ShiftInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildRightShift(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::RightShift;
+     instruction.description.resize(sizeof(ShiftInstruction));
+
+     new (instruction.description.data())
+          ShiftInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+
+     return instruction;
+}
 
 ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildPush(
      RegisterOperand reg)
@@ -403,6 +465,20 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           const auto& sub = *std::launder(reinterpret_cast<const values::SubRegisters*>(value.data.data()));
           sources.push_back(std::get<0>(sub.parameters));
           sources.push_back(std::get<1>(sub.parameters));
+          break;
+     }
+     case AssignedValueType::LeftShift:
+     {
+          const auto& shift = *std::launder(reinterpret_cast<const values::LeftShiftRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(shift.parameters));
+          sources.push_back(std::get<1>(shift.parameters));
+          break;
+     }
+     case AssignedValueType::RightShift:
+     {
+          const auto& shift = *std::launder(reinterpret_cast<const values::RightShiftRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(shift.parameters));
+          sources.push_back(std::get<1>(shift.parameters));
           break;
      }
      case AssignedValueType::CopyInteger: break;
@@ -459,6 +535,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Sub:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Sub>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::LeftShift:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::LeftShift>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::RightShift:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::RightShift>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");
