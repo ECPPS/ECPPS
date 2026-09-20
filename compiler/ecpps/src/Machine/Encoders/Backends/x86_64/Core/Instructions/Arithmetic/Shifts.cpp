@@ -102,18 +102,6 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      return {.instructions = std::move(built), .assignedRegister = destinationRegister};
 }
 
-#include <cstddef>
-#include <format>
-#include <new>
-#include <optional>
-#include <span>
-#include <tuple>
-#include <utility>
-#include "../../encoder.h"
-#include "CodeGeneration/AbstractNodes.h"
-#include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
-#include "RuntimeAssert.h"
-
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::RightShift>(
