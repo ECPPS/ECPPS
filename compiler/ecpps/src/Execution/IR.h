@@ -1,10 +1,12 @@
 #pragma once
+#include <span>
 #include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
 #include "../Parsing/ASTs/Type.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
+#include "CodeGeneration/AbstractNodes.h"
 #include "Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"
@@ -101,6 +103,8 @@ namespace ecpps::ir
           return destination += std::to_underlying(other);
      }
 
+     void CreateReferenceMap(abstract::VirtualRegisterMap& map, const std::vector<NodePointer>& irNodes);
+
      class IR
      {
      public:
@@ -117,6 +121,12 @@ namespace ecpps::ir
           {
                return *this->_context;
           }
+
+          const ecpps::ir::SingleAssignRegisterNode* LowerExpression(Expression expression,
+                                                                     std::vector<NodePointer>& built);
+          const ecpps::ir::SingleAssignRegisterNode* LowerExpressionLoaded(Expression expression,
+                                                                           std::vector<NodePointer>& built);
+          [[nodiscard]] const ecpps::ir::SingleAssignRegisterNode* ResolveAllocReg(const std::string& name) const;
 
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);

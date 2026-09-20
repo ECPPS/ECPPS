@@ -721,34 +721,63 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
 void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 {
-     Location previous{0, 0, 0};
-     const auto maxLine = ppTokens.back().source.line;
-     std::size_t maxLineWidth = ecpps::DigitCount(maxLine) + 1uz;
+     if (ppTokens.empty())
+     {
+          std::println("<no preprocessor tokens>");
+          return;
+     }
+
+     constexpr std::string_view Reset = "\x1b[0m";
+
+     const auto maxLine = std::ranges::max(ppTokens, {},
+                                           [](const auto& token)
+                                           {
+                                                return token.source.line;
+                                           })
+                               .source.line;
+
+     const std::size_t lineNumberWidth = ecpps::DigitCount(maxLine);
+
+     std::size_t currentLine = 0;
+     std::size_t currentColumn = 0;
+
+     const auto colourFor = [](const PreprocessingTokenType type) -> std::string_view
+     {
+          switch (type)
+          {
+          case PreprocessingTokenType::Identifier: return "\x1b[37m";
+          case PreprocessingTokenType::CharacterLiteral: return "\x1b[31m";
+          case PreprocessingTokenType::StringLiteral: return "\x1b[32m";
+          case PreprocessingTokenType::Number: return "\x1b[36m";
+          case PreprocessingTokenType::OperatorOrPunctuator: return "\x1b[35m";
+          }
+
+          return {};
+     };
 
      for (const auto& token : ppTokens)
      {
-          if (token.source.line != previous.line)
-          {
-               std::println();
-               previous.line = token.source.line;
-               previous.position = 0;
-               previous.endPosition = 0;
-          }
-          std::string colour{};
-          switch (token.type)
-          {
-          case PreprocessingTokenType::Identifier: colour = "\x1b[37m"; break;
-          case PreprocessingTokenType::CharacterLiteral: colour = "\x1b[31m"; break;
-          case PreprocessingTokenType::StringLiteral: colour = "\x1b[32m"; break;
-          case PreprocessingTokenType::Number: colour = "\x1b[36m"; break;
-          case PreprocessingTokenType::OperatorOrPunctuator: colour = "\x1b[35m"; break;
-          }
-          const std::string spaces(token.source.position - previous.endPosition - 1, ' ');
-          previous = token.source;
+          const auto line = token.source.line;
+          const auto position = token.source.position;
 
-          std::print("{:<{}}{}{}{}", token.source.line, maxLineWidth, spaces, colour, token.value);
+          if (line != currentLine)
+          {
+               if (currentLine != 0) std::println("{}", Reset);
+
+               currentLine = line;
+               currentColumn = 0;
+
+               std::print("{:>{}} | ", line, lineNumberWidth);
+          }
+
+          const auto spaces = position > currentColumn ? position - currentColumn : 0;
+          if (spaces != 0) std::print("{}", std::string(spaces, ' '));
+          std::print("{}{}{}", colourFor(token.type), token.value, Reset);
+
+          currentColumn = std::max(currentColumn, position + token.value.size());
      }
-     std::println("\x1b[0m");
+
+     std::println("{}", Reset);
 }
 
 bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)

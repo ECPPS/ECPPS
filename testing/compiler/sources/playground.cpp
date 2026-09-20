@@ -1,5 +1,7 @@
-#include <cstdio>
 int main()
 {
-     return 0;
+     int x = 1;
+     int y = 1000;
+     y++;
+     return x + y;
 }

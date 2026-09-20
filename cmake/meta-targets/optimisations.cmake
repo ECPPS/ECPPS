@@ -7,7 +7,7 @@ if(MSVC)
     )
 else()
     target_compile_options(ecpps_optimisations INTERFACE
-	     $<$<CONFIG:Debug>:-Og>
+	     $<$<CONFIG:Debug>:-g>
         $<$<CONFIG:Release>:-O3 -march=x86-64-v3>
         $<$<CONFIG:RelWithDebInfo>:-O3 -march=x86-64-v3>
     )

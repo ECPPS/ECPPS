@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include "../Machine/Machine.h"
+#include "CodeGeneration/AbstractNodes.h"
 #include "Nodes.h"
 
 define_number(ByteOffset, std::size_t);
@@ -27,8 +28,8 @@ namespace ecpps::codegen
      struct StringRelocation
      {
           std::size_t offset;
-          std::uint8_t register_;
-          std::function<std::vector<std::byte>(std::uint8_t register_, std::size_t stringTableOffset)> apply;
+          std::uint8_t _register;
+          std::function<std::vector<std::byte>(std::uint8_t _register, std::size_t stringTableOffset)> apply;
      };
      using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;
 
@@ -51,9 +52,6 @@ namespace ecpps::codegen
                return this->_name;
           }
 
-          virtual void PatchCalls(std::vector<std::byte>& source,
-                                  std::unordered_map<std::string, std::size_t>& routines) = 0;
-
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
@@ -71,26 +69,8 @@ namespace ecpps::codegen
           std::map<std::size_t, std::string> _relocationTable{};
 
      private:
-          [[nodiscard]] std::vector<std::byte> EmitInstruction(const Instruction& instruction);
-
-          // generic instruction emitters
-          [[nodiscard]] virtual std::vector<std::byte> EmitMov(const MovInstruction& mov) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitAdd(const AddInstruction& add) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitSub(const SubInstruction& sub) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitMul(const MulInstruction& mul) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitDiv(const DivInstruction& div) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitCall(const CallInstruction& call) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitLea(const TakeAddressInstruction& lea) = 0;
-          [[nodiscard]] virtual std::vector<std::byte> EmitReturn(void) = 0;
-
-          /// <summary>
-          /// Custom instruction emitter. By default a no-op.
-          /// </summary>
-          [[nodiscard]] virtual std::vector<std::byte> EmitCustomInstruction(
-               [[maybe_unused]] const CustomInstruction& instruction)
-          {
-               return {};
-          }
+          [[nodiscard]] virtual std::vector<std::byte> EmitInstruction(
+               const ir::abstract::Instruction& instruction) = 0;
 
           std::string _name;
      };
