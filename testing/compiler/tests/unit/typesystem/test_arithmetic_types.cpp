@@ -2,6 +2,7 @@
 #include <TestHelpers.h>
 #include <TypeSystem/ArithmeticTypes.h>
 #include <TypeSystem/CompoundTypes.h>
+#include "Machine/ABI.h"
 #define CATCH_CONFIG_MAIN
 #include <catch_amalgamated.hpp>
 
@@ -239,13 +240,9 @@ TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
                                             .qualifiers = Qualifiers::None,
                                             .data = ecpps::ir::PointerRequest{.elementType = intType}};
           const auto* intPtr = ecpps::ir::GetTypeContext().Get(ptrRequest);
+          ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
 
-// On x64, pointers should be 8 bytes
-#ifdef _WIN64
-          REQUIRE((intPtr->Size() == 8));
-#else
-          REQUIRE((intPtr->Size() >= 4));
-#endif
+          REQUIRE((intPtr->Size() == sizeof(std::uintptr_t)));
      }
 
      SECTION("Pointer to char")

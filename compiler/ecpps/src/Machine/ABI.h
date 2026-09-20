@@ -63,6 +63,10 @@ namespace ecpps::abi
           {
                return this->_pointerSize;
           }
+          void SetPointerSize(std::size_t newSize) noexcept
+          {
+               this->_pointerSize = newSize;
+          }
           [[nodiscard]] typeSystem::TypeKind SizeSize(void) const noexcept
           {
                return this->sizeSize;
