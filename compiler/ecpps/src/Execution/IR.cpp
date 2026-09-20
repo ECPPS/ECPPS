@@ -288,6 +288,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      auto* const functionCtx = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
      runtime_assert(functionCtx != nullptr, "LowerExpression called outside of a function context");
 
+     if (functionCtx == nullptr) return nullptr;
+
      auto makeReg = [&](Location source, std::size_t width) -> std::unique_ptr<SingleAssignRegisterNode, IRDeleter>
      {
           const auto idx = functionCtx->GetNextRegisterIndex();
