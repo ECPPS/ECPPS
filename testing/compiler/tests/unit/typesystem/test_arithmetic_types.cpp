@@ -227,6 +227,8 @@ TEST_CASE("ArithmeticTypes - Character types", "[typesystem][arithmetic_types]")
 
 TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
 {
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+
      ecpps::ir::TypeRequest intRequest{
           .kind = ecpps::ir::TypeKind::Fundamental,
           .qualifiers = Qualifiers::None,
@@ -240,7 +242,6 @@ TEST_CASE("ArithmeticTypes - Pointer types", "[typesystem][arithmetic_types]")
                                             .qualifiers = Qualifiers::None,
                                             .data = ecpps::ir::PointerRequest{.elementType = intType}};
           const auto* intPtr = ecpps::ir::GetTypeContext().Get(ptrRequest);
-          ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
 
           REQUIRE((intPtr->Size() == sizeof(std::uintptr_t)));
      }
