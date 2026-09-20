@@ -24,6 +24,7 @@ if(NOT EXISTS "${CATCH2_HPP}" OR NOT EXISTS "${CATCH2_CPP}")
      list(GET download_status_cpp 0 status_code_cpp)
      
      if(NOT status_code_hpp EQUAL 0 OR NOT status_code_cpp EQUAL 0)
+          file(REMOVE "${CATCH2_HPP}" "${CATCH2_CPP}")
           message(FATAL_ERROR "Failed to download Catch2 amalgamated files")
      endif()
      
@@ -35,7 +36,7 @@ target_include_directories(Catch2 SYSTEM PUBLIC "${CATCH2_DOWNLOAD_DIR}")
 target_compile_features(Catch2 PUBLIC cxx_std_17)
 
 target_compile_options(Catch2 PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W0>
+    $<$<CXX_COMPILER_ID:MSVC>:/W0 /bigobj>
     $<$<CXX_COMPILER_ID:Clang>:-w>
 )
 
