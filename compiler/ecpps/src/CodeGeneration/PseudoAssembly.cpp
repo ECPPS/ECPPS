@@ -107,7 +107,8 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           }
           break;
           default:
-               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
+               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+                    std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
                break;
           }
      }
@@ -393,7 +394,8 @@ void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
           patches = {};
 
           if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
-               source.compiledRoutines.push_back(CompileRoutine(context, *procedureNode, target, source.diagnostics.diagnosticsList));
+               source.compiledRoutines.push_back(
+                    CompileRoutine(context, *procedureNode, target, source.diagnostics.diagnosticsList));
 
           source.stringTranslation = patches;
      }

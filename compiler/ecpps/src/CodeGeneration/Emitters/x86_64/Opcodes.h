@@ -294,10 +294,14 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
      [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg16(std::size_t reg, std::uint16_t imm);
      [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToReg8(std::size_t reg, std::uint8_t imm);
 
-     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem64(std::size_t reg, std::size_t offset, std::uint64_t imm);
-     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem32(std::size_t reg, std::size_t offset, std::uint32_t imm);
-     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem16(std::size_t reg, std::size_t offset, std::uint16_t imm);
-     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem8(std::size_t reg, std::size_t offset, std::uint8_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem64(std::size_t reg, std::size_t offset,
+                                                                      std::uint64_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem32(std::size_t reg, std::size_t offset,
+                                                                      std::uint32_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem16(std::size_t reg, std::size_t offset,
+                                                                      std::uint16_t imm);
+     [[nodiscard]] std::vector<std::byte> GenerateSignedShrImmToMem8(std::size_t reg, std::size_t offset,
+                                                                     std::uint8_t imm);
 
      // neg
 

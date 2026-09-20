@@ -255,7 +255,7 @@ namespace ecpps::ir
      {
      public:
           explicit SSALeftShiftNode(SSAPointer result, const SingleAssignRegisterNode* left,
-                              const SingleAssignRegisterNode* right, Location source)
+                                    const SingleAssignRegisterNode* right, Location source)
               : NodeBase(NodeKind::LeftBitShift, source), _result(std::move(result)), _left(left), _right(right)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
@@ -294,7 +294,7 @@ namespace ecpps::ir
      {
      public:
           explicit SSARightShiftNode(SSAPointer result, const SingleAssignRegisterNode* left,
-                              const SingleAssignRegisterNode* right, Location source)
+                                     const SingleAssignRegisterNode* right, Location source)
               : NodeBase(NodeKind::Multiplication, source), _result(std::move(result)), _left(left), _right(right)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");

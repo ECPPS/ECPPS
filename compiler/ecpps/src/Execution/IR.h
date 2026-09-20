@@ -141,7 +141,7 @@ namespace ecpps::ir
           [[nodiscard]] Expression ParseMultiplicativeExpression(Expression left, ast::Operator operator_,
                                                                  Expression right, const Location& source) const;
           [[nodiscard]] Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
-                                                 const Location& source);
+                                                        const Location& source);
           [[nodiscard]] Expression ParseSubscriptExpression(Expression left, Expression right,
                                                             const Location& source) const;
           [[nodiscard]] Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
