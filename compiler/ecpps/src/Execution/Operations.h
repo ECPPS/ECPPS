@@ -295,7 +295,7 @@ namespace ecpps::ir
      public:
           explicit SSARightShiftNode(SSAPointer result, const SingleAssignRegisterNode* left,
                                      const SingleAssignRegisterNode* right, Location source)
-              : NodeBase(NodeKind::Multiplication, source), _result(std::move(result)), _left(left), _right(right)
+              : NodeBase(NodeKind::RightShift, source), _result(std::move(result)), _left(left), _right(right)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
