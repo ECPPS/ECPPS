@@ -14,7 +14,6 @@
 #include "../Machine/ABI.h"
 #include "AbstractNodes.h"
 #include "Execution/NodeBase.h"
-#include "Machine/Storage.h"
 #include "Nodes.h"
 #include "Shared/Error.h"
 
@@ -83,6 +82,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                const auto* addNode = dynamic_cast<const ecpps::ir::SSAAddNode*>(node);
                runtime_assert(addNode != nullptr, "Addition node was not an addition!");
                this->ParseAddNode(*addNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Subtraction:
+          {
+               const auto* subNode = dynamic_cast<const ecpps::ir::SSASubNode*>(node);
+               runtime_assert(subNode != nullptr, "Subtraction node was not a subtraction!");
+               this->ParseSubNode(*subNode);
           }
           break;
           case ecpps::ir::NodeKind::LeftBitShift:
@@ -201,6 +207,41 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::Add,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseSubNode(const ir::SSASubNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Sub,
           .operands = {allocatedIndex, virtualLeft, virtualRight},
      };
      this->instructions.push_back(instruction);

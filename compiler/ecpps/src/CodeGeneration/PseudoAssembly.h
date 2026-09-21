@@ -4,7 +4,6 @@
 #include <limits>
 #include <ranges>
 #include <span>
-#include <stack>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -13,10 +12,8 @@
 #include "../Execution/NodeBase.h"
 #include "../Parsing/SourceMap.h"
 #include "AbstractNodes.h"
-#include "CodeGeneration/Nodes.h"
 #include "Execution/Operations.h"
 #include "Machine/Encoders/API/Target.h"
-#include "Machine/Storage.h"
 #include "Shared/Config.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
@@ -178,6 +175,7 @@ namespace ecpps::codegen
           void ParseStoreNode(const ir::SSAStoreNode& node);
           void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
           void ParseAddNode(const ir::SSAAddNode& node);
+          void ParseSubNode(const ir::SSASubNode& node);
           void ParseLeftShiftNode(const ir::SSALeftShiftNode& node);
           void ParseRightShiftNode(const ir::SSARightShiftNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
