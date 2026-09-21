@@ -13,6 +13,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           CopyInteger,
           Add,
           Sub,
+          LeftShift,
+          RightShift
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -65,6 +67,10 @@ namespace ecpps::abi::encoders::x8664::inline common
                AssignmentValue<AssignedValueType::Add, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
           using SubRegisters =
                AssignmentValue<AssignedValueType::Sub, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
+          using LeftShiftRegisters = AssignmentValue<AssignedValueType::LeftShift, ir::abstract::VirtualRegister,
+                                                     ir::abstract::VirtualRegister>;
+          using RightShiftRegisters = AssignmentValue<AssignedValueType::RightShift, ir::abstract::VirtualRegister,
+                                                      ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

@@ -35,5 +35,8 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitRet(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitPop(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitPush(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitLeftShift(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitRightShift(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitXchg(const ir::abstract::DynamicBytecode& description);
      };
 } // namespace ecpps::codegen::emitters

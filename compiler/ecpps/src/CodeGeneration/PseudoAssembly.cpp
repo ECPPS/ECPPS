@@ -4,6 +4,7 @@
 #include <TypeSystem/TypeBase.h>
 #include <atomic>
 #include <climits>
+#include <format>
 #include <ranges>
 #include <utility>
 #include <variant>
@@ -13,7 +14,6 @@
 #include "../Machine/ABI.h"
 #include "AbstractNodes.h"
 #include "Execution/NodeBase.h"
-#include "Machine/Storage.h"
 #include "Nodes.h"
 #include "Shared/Error.h"
 
@@ -84,6 +84,27 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseAddNode(*addNode);
           }
           break;
+          case ecpps::ir::NodeKind::Subtraction:
+          {
+               const auto* subNode = dynamic_cast<const ecpps::ir::SSASubNode*>(node);
+               runtime_assert(subNode != nullptr, "Subtraction node was not a subtraction!");
+               this->ParseSubNode(*subNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::LeftBitShift:
+          {
+               const auto* leftShiftNode = dynamic_cast<const ecpps::ir::SSALeftShiftNode*>(node);
+               runtime_assert(leftShiftNode != nullptr, "Addition node was not a left-shift!");
+               this->ParseLeftShiftNode(*leftShiftNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::RightBitShift:
+          {
+               const auto* rightShiftNode = dynamic_cast<const ecpps::ir::SSARightShiftNode*>(node);
+               runtime_assert(rightShiftNode != nullptr, "Addition node was not a right-shift!");
+               this->ParseRightShiftNode(*rightShiftNode);
+          }
+          break;
           case ecpps::ir::NodeKind::Load:
           {
                const auto* loadNode = dynamic_cast<const ecpps::ir::SSALoadNode*>(node);
@@ -92,7 +113,8 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           }
           break;
           default:
-               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>("Not implemented", node->Source()));
+               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+                    std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
                break;
           }
      }
@@ -189,6 +211,111 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
      };
      this->instructions.push_back(instruction);
 }
+void ecpps::codegen::ParsingContext::ParseSubNode(const ir::SSASubNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Sub,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseLeftShiftNode(const ir::SSALeftShiftNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::LeftShift,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseRightShiftNode(const ir::SSARightShiftNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::RightShift,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
 void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 {
      auto ssaSourceIndex = node.Address().Index();
@@ -253,7 +380,8 @@ void ecpps::codegen::ParsingContext::DereferenceSSA(const std::size_t ssaIndex)
 }
 
 static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& context,
-                              const ecpps::ir::ProcedureNode& node, ecpps::abi::api::Target* target)
+                              const ecpps::ir::ProcedureNode& node, ecpps::abi::api::Target* target,
+                              std::vector<ecpps::diagnostics::DiagnosticsMessage>& diagnostics)
 {
      auto& currentAbi = ecpps::abi::ABI::Current();
 
@@ -276,6 +404,8 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
      parseContext.target = target;
 
      for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
+
+     diagnostics = std::move(parseContext.diagnostics);
 
      return Routine(std::move(parseContext.instructions),
                     ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
@@ -305,7 +435,8 @@ void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
           patches = {};
 
           if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
-               source.compiledRoutines.push_back(CompileRoutine(context, *procedureNode, target));
+               source.compiledRoutines.push_back(
+                    CompileRoutine(context, *procedureNode, target, source.diagnostics.diagnosticsList));
 
           source.stringTranslation = patches;
      }

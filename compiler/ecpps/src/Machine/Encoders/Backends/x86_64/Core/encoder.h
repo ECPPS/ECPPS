@@ -37,6 +37,9 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Sub = 3;
           constexpr static std::size_t Push = 4;
           constexpr static std::size_t Pop = 5;
+          constexpr static std::size_t LeftShift = 6;
+          constexpr static std::size_t RightShift = 7;
+          constexpr static std::size_t Xchg = 8;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -136,6 +139,12 @@ namespace ecpps::abi::encoders::x8664
                Operand modifiedDestination{};
                Operand source{};
           };
+          struct ShiftInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
+          };
           struct MovInstruction
           {
                Width width{};
@@ -149,6 +158,12 @@ namespace ecpps::abi::encoders::x8664
           struct PopInstruction
           {
                RegisterOperand reg{};
+          };
+          struct XchgInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand modifiedSource{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -347,6 +362,12 @@ namespace ecpps::abi::encoders::x8664
                                                                   Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildPush(RegisterOperand reg);
           [[nodiscard]] static ir::abstract::Instruction BuildPop(RegisterOperand reg);
+          [[nodiscard]] static ir::abstract::Instruction BuildLeftShift(Width width, Operand modifiedDestination,
+                                                                        Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildRightShift(Width width, Operand modifiedDestination,
+                                                                         Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildXchg(Width width, RegisterOperand modifiedDestination,
+                                                                   RegisterOperand source);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
@@ -359,6 +380,15 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] bool OmitsFramePointer(void) const noexcept
           {
                return this->_framePointer == FramePointer::Omit;
+          }
+
+          [[nodiscard]] bool IsClobberable(const RegisterIndex reg)
+          {
+               if (this->_registerAllocator.IsFree(reg)) return true;
+               for (const auto& cell : this->_registerAllocator.Snapshot())
+                    if (cell.reg == reg && cell.owner.has_value())
+                         return this->_remainingUses[cell.owner->index] == 0; // dead: nobody will read it again
+               return false;
           }
 
           [[nodiscard]] Operand ResolveStackOperand(const Operand& operand) const;

@@ -309,7 +309,7 @@ static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, const Op
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const ir::abstract::DynamicBytecode& description)
 {
-     runtime_assert(description.size() == sizeof(abi::encoders::x8664::SubInstruction), "Invalid MOV instruction");
+     runtime_assert(description.size() == sizeof(abi::encoders::x8664::SubInstruction), "Invalid SUB instruction");
 
      const auto& mov = *std::launder(reinterpret_cast<const abi::encoders::x8664::SubInstruction*>(description.data()));
      const auto instructionWidth = mov.width;

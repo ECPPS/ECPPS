@@ -70,7 +70,9 @@ namespace ecpps::ir::abstract
           CopyInteger,
           Add,
           Return,
-          Sub
+          Sub,
+          LeftShift,
+          RightShift
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -81,6 +83,8 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Add: return "add";
           case VirtualInstructionType::Sub: return "sub";
           case VirtualInstructionType::Return: return "return";
+          case VirtualInstructionType::LeftShift: return "left-shift";
+          case VirtualInstructionType::RightShift: return "right-shift";
           }
           throw TracedException("control flow");
      }
