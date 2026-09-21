@@ -112,6 +112,27 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseLoadNode(*loadNode);
           }
           break;
+          case ecpps::ir::NodeKind::Or:
+          {
+               const auto* orNode = dynamic_cast<const ecpps::ir::SSABinOrNode*>(node);
+               runtime_assert(orNode != nullptr, "Or node was not an or!");
+               this->ParseBinOrNode(*orNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::And:
+          {
+               const auto* andNode = dynamic_cast<const ecpps::ir::SSABinAndNode*>(node);
+               runtime_assert(andNode != nullptr, "And node was not an and!");
+               this->ParseBinAndNode(*andNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Xor:
+          {
+               const auto* xorNode = dynamic_cast<const ecpps::ir::SSABinXorNode*>(node);
+               runtime_assert(xorNode != nullptr, "Xor node was not a xor!");
+               this->ParseBinXorNode(*xorNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -312,6 +333,112 @@ void ecpps::codegen::ParsingContext::ParseRightShiftNode(const ir::SSARightShift
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::RightShift,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseBinOrNode(const ir::SSABinOrNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::BinaryOr,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseBinAndNode(const ir::SSABinAndNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::BinaryAnd,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseBinXorNode(const ir::SSABinXorNode& node)
+{
+
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::BinaryXor,
           .operands = {allocatedIndex, virtualLeft, virtualRight},
      };
      this->instructions.push_back(instruction);

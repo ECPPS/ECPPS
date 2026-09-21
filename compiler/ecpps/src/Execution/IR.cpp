@@ -425,6 +425,43 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           return resultPtr;
      }
 
+     if (auto* const orNode = dynamic_cast<high::BinaryOrNode*>(valueNode))
+     {
+          const auto* leftReg = LowerExpressionLoaded(std::move(*orNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*orNode).Right(), built);
+          if (leftReg == nullptr || rightReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSABinOrNode, IRDeleter>{
+               new (allocator) SSABinOrNode(std::move(result), leftReg, rightReg, source)});
+          return resultPtr;
+     }
+     if (auto* const andNode = dynamic_cast<high::BinaryAndNode*>(valueNode))
+     {
+          const auto* leftReg = LowerExpressionLoaded(std::move(*andNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*andNode).Right(), built);
+          if (leftReg == nullptr || rightReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSABinAndNode, IRDeleter>{
+               new (allocator) SSABinAndNode(std::move(result), leftReg, rightReg, source)});
+          return resultPtr;
+     }
+     if (auto* const xorNode = dynamic_cast<high::BinaryXorNode*>(valueNode))
+     {
+          const auto* leftReg = LowerExpressionLoaded(std::move(*xorNode).Left(), built);
+          const auto* rightReg = LowerExpressionLoaded(std::move(*xorNode).Right(), built);
+          if (leftReg == nullptr || rightReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSABinXorNode, IRDeleter>{
+               new (allocator) SSABinXorNode(std::move(result), leftReg, rightReg, source)});
+          return resultPtr;
+     }
+
      if (auto* const modNode = dynamic_cast<high::ModuloNode*>(valueNode))
      {
           const auto* leftReg = LowerExpressionLoaded(std::move(*modNode).Left(), built);
@@ -1687,10 +1724,8 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
                                       false);
 }
 
-Expression ecpps::ir::IR::ParseShiftExpression([[maybe_unused]] Expression left,
-                                               [[maybe_unused]] ast::Operator operator_,
-                                               [[maybe_unused]] Expression right,
-                                               [[maybe_unused]] const Location& source)
+Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
+                                               const Location& source)
 {
      runtime_assert(operator_ == ast::Operator::LeftShift || operator_ == ast::Operator::RightShift,
                     "Invalid operator for a shift-expression");
@@ -1891,6 +1926,180 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
      return std::make_unique<LValue>(dereferenceResult->Type(), std::move(*dereferenceResult).Value(),
                                      dereferenceResult->IsConstantExpression());
 }
+Expression ecpps::ir::IR::ParseBinaryOrExpression(Expression left, Expression right, const Location& source) const
+{
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+     if (left->Type() != leftIntegral)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(leftIntegral,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != rightIntegral)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(rightIntegral,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                            wasConstexpr);
+     }
+
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+     return std::make_unique<PRValue>(resultType,
+                                      std::unique_ptr<high::BinaryOrNode, IRDeleter>{
+                                           new (*this->GetContext().nodeAllocator)
+                                                high::BinaryOrNode(std::move(left), std::move(right), source)},
+                                      false);
+}
+Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression right, const Location& source) const
+{
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+     if (left->Type() != leftIntegral)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(leftIntegral,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != rightIntegral)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(rightIntegral,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                            wasConstexpr);
+     }
+
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+     return std::make_unique<PRValue>(resultType,
+                                      std::unique_ptr<high::BinaryAndNode, IRDeleter>{
+                                           new (*this->GetContext().nodeAllocator)
+                                                high::BinaryAndNode(std::move(left), std::move(right), source)},
+                                      false);
+}
+Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression right, const Location& source) const
+{
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     leftIntegral = typeSystem::PromoteInteger(leftIntegral);
+     rightIntegral = typeSystem::PromoteInteger(rightIntegral);
+
+     if (left->Type() != leftIntegral)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(leftIntegral,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != rightIntegral)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(rightIntegral,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
+                                            wasConstexpr);
+     }
+
+     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
+     if (resultType == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
+                         left->Type()->Name(),
+                    left->Value()->Source()));
+          return nullptr;
+     }
+     return std::make_unique<PRValue>(resultType,
+                                      std::unique_ptr<high::BinaryXorNode, IRDeleter>{
+                                           new (*this->GetContext().nodeAllocator)
+                                                high::BinaryXorNode(std::move(left), std::move(right), source)},
+                                      false);
+}
 
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
 {
@@ -2053,6 +2262,12 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return ecpps::ir::IR::ParseShiftExpression(std::move(left), operator_, std::move(right), node.Source());
      case ast::Operator::Subscript:
           return this->ParseSubscriptExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::VerticalLine:
+          return this->ParseBinaryOrExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::Ampersand:
+          return this->ParseBinaryAndExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::CircumflexAccent:
+          return this->ParseBinaryXorExpression(std::move(left), std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }

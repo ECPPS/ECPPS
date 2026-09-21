@@ -33,6 +33,15 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::RightShift>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryOr>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryAnd>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryXor>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -64,6 +73,21 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::RightShift>(ecpps::ir::abstract::VirtualRegister owner,
                                                                    std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::BinaryOr>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                 std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::BinaryAnd>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                  std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::BinaryXor>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                  std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -173,6 +197,30 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* push = std::launder(reinterpret_cast<const PushInstruction*>(instruction.description.data()));
           return std::format("PUSH {}", ToString(push->reg));
      }
+     case X8664InstructionName::BinaryOr:
+     {
+          runtime_assert(instruction.description.size() == sizeof(BinaryOrInstruction), "invalid BINARY-OR");
+          const auto* bitwise =
+               std::launder(reinterpret_cast<const BinaryOrInstruction*>(instruction.description.data()));
+          return std::format("BINARY-OR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+                             ToString(bitwise->source));
+     }
+     case X8664InstructionName::BinaryAnd:
+     {
+          runtime_assert(instruction.description.size() == sizeof(BinaryAndInstruction), "invalid BINARY-AND");
+          const auto* bitwise =
+               std::launder(reinterpret_cast<const BinaryAndInstruction*>(instruction.description.data()));
+          return std::format("BINARY-AND.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+                             ToString(bitwise->source));
+     }
+     case X8664InstructionName::BinaryXor:
+     {
+          runtime_assert(instruction.description.size() == sizeof(BinaryXorInstruction), "invalid BINARY-XOR");
+          const auto* bitwise =
+               std::launder(reinterpret_cast<const BinaryXorInstruction*>(instruction.description.data()));
+          return std::format("BINARY-XOR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+                             ToString(bitwise->source));
+     }
      }
 
      return "__unknown";
@@ -248,7 +296,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::RightShift>(instruction.operands));
           break;
-     default: throw TracedException("Invalid instruction");
+     case ecpps::ir::abstract::VirtualInstructionType::BinaryOr:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryOr>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::BinaryAnd:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryAnd>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::BinaryXor:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryXor>(instruction.operands));
+          break;
+     default: throw TracedException("Unknown instruction");
      }
 
      instructions.insert(instructions.begin(), this->_pendingSpills.begin(), this->_pendingSpills.end());
@@ -453,6 +513,36 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           XchgInstruction{.width = width, .modifiedDestination = modifiedDestination, .modifiedSource = modifiedSource};
      return instruction;
 }
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildBinaryOr(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::BinaryOr;
+     instruction.description.resize(sizeof(BinaryOrInstruction));
+     new (instruction.description.data())
+          BinaryOrInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildBinaryAnd(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::BinaryAnd;
+     instruction.description.resize(sizeof(BinaryAndInstruction));
+     new (instruction.description.data())
+          BinaryAndInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildBinaryXor(
+     Width width, Operand modifiedDestination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::BinaryXor;
+     instruction.description.resize(sizeof(BinaryXorInstruction));
+     new (instruction.description.data())
+          BinaryXorInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
+     return instruction;
+}
 
 [[nodiscard]] static std::vector<ecpps::ir::abstract::VirtualRegister> SourcesOf(
      const ecpps::ir::abstract::State& value)
@@ -497,6 +587,27 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           const auto& shift = *std::launder(reinterpret_cast<const values::RightShiftRegisters*>(value.data.data()));
           sources.push_back(std::get<0>(shift.parameters));
           sources.push_back(std::get<1>(shift.parameters));
+          break;
+     }
+     case AssignedValueType::BinaryOr:
+     {
+          const auto& binOr = *std::launder(reinterpret_cast<const values::BinaryOrRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(binOr.parameters));
+          sources.push_back(std::get<1>(binOr.parameters));
+          break;
+     }
+     case AssignedValueType::BinaryAnd:
+     {
+          const auto& binAnd = *std::launder(reinterpret_cast<const values::BinaryAndRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(binAnd.parameters));
+          sources.push_back(std::get<1>(binAnd.parameters));
+          break;
+     }
+     case AssignedValueType::BinaryXor:
+     {
+          const auto& binXor = *std::launder(reinterpret_cast<const values::BinaryXorRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(binXor.parameters));
+          sources.push_back(std::get<1>(binXor.parameters));
           break;
      }
      case AssignedValueType::CopyInteger: break;
@@ -561,6 +672,18 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::RightShift:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::RightShift>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::BinaryOr:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BinaryOr>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::BinaryAnd:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BinaryAnd>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::BinaryXor:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BinaryXor>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");

@@ -1,5 +1,4 @@
 #pragma once
-#include <span>
 #include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
@@ -143,6 +142,12 @@ namespace ecpps::ir
           [[nodiscard]] Expression ParseShiftExpression(Expression left, ast::Operator operator_, Expression right,
                                                         const Location& source);
           [[nodiscard]] Expression ParseSubscriptExpression(Expression left, Expression right,
+                                                            const Location& source) const;
+          [[nodiscard]] Expression ParseBinaryOrExpression(Expression left, Expression right,
+                                                           const Location& source) const;
+          [[nodiscard]] Expression ParseBinaryAndExpression(Expression left, Expression right,
+                                                            const Location& source) const;
+          [[nodiscard]] Expression ParseBinaryXorExpression(Expression left, Expression right,
                                                             const Location& source) const;
           [[nodiscard]] Expression ParseDereferenceExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParseAddressOfExpression(Expression operand, const Location& source) const;

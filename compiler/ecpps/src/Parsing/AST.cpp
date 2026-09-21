@@ -1712,28 +1712,85 @@ NodePointer ecpps::ast::AST::ParseEqualityExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseBinaryAndExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseEqualityExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               if (std::get<std::string>(currentToken.value) == "&")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = Operator::Ampersand;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseEqualityExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
 NodePointer ecpps::ast::AST::ParseBinaryExclusiveOrExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseBinaryAndExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               if (std::get<std::string>(currentToken.value) == "^")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = Operator::CircumflexAccent;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseBinaryAndExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
 NodePointer ecpps::ast::AST::ParseBinaryInclusiveOrExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseBinaryExclusiveOrExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               if (std::get<std::string>(currentToken.value) == "|")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = Operator::VerticalLine;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseBinaryExclusiveOrExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 

@@ -369,6 +369,123 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _left;
           const SingleAssignRegisterNode* _right;
      };
+     class SSABinOrNode final : public NodeBase
+     {
+     public:
+          explicit SSABinOrNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                                const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Or, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} | {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+     class SSABinAndNode final : public NodeBase
+     {
+     public:
+          explicit SSABinAndNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                                 const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::And, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} & {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
+     class SSABinXorNode final : public NodeBase
+     {
+     public:
+          explicit SSABinXorNode(SSAPointer result, const SingleAssignRegisterNode* left,
+                                 const SingleAssignRegisterNode* right, Location source)
+              : NodeBase(NodeKind::Xor, source), _result(std::move(result)), _left(left), _right(right)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
+               runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
+
+               this->_left->Use();
+               this->_right->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Left() const noexcept
+          {
+               return *this->_left;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Right() const noexcept
+          {
+               return *this->_right;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = {} ^ {}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_left->ToString(0), this->_right->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _left;
+          const SingleAssignRegisterNode* _right;
+     };
 
      class SSAModNode final : public NodeBase
      {
