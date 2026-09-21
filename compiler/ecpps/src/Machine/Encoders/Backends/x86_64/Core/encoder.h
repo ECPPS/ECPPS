@@ -40,6 +40,9 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t LeftShift = 6;
           constexpr static std::size_t RightShift = 7;
           constexpr static std::size_t Xchg = 8;
+          constexpr static std::size_t BinaryOr = 9;
+          constexpr static std::size_t BinaryAnd = 10;
+          constexpr static std::size_t BinaryXor = 11;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -164,6 +167,25 @@ namespace ecpps::abi::encoders::x8664
                Width width{};
                Operand modifiedDestination{};
                Operand modifiedSource{};
+          };
+          struct BinaryOrInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
+          };
+          struct BinaryAndInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
+          };
+
+          struct BinaryXorInstruction
+          {
+               Width width{};
+               Operand modifiedDestination{};
+               Operand source{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -368,6 +390,12 @@ namespace ecpps::abi::encoders::x8664
                                                                          Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildXchg(Width width, RegisterOperand modifiedDestination,
                                                                    RegisterOperand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildBinaryOr(Width width, Operand modifiedDestination,
+                                                                       Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildBinaryAnd(Width width, Operand modifiedDestination,
+                                                                        Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildBinaryXor(Width width, Operand modifiedDestination,
+                                                                        Operand source);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(

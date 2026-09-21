@@ -178,6 +178,9 @@ namespace ecpps::codegen
           void ParseSubNode(const ir::SSASubNode& node);
           void ParseLeftShiftNode(const ir::SSALeftShiftNode& node);
           void ParseRightShiftNode(const ir::SSARightShiftNode& node);
+          void ParseBinOrNode(const ir::SSABinOrNode& node);
+          void ParseBinAndNode(const ir::SSABinAndNode& node);
+          void ParseBinXorNode(const ir::SSABinXorNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
           void ParseIntNode(const ir::SSAImmNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);

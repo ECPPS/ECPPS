@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Execution/Expressions.h"
-#include "Operations.h"
-
 namespace ecpps::ir::high
 {
      class AdditionNode final : public NodeBase
@@ -245,6 +243,111 @@ namespace ecpps::ir::high
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " % " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+     class BinaryOrNode final : public NodeBase
+     {
+     public:
+          explicit BinaryOrNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Or, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const& noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const& noexcept
+          {
+               return this->_right;
+          }
+
+          [[nodiscard]] Expression Left(void) && noexcept
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) && noexcept
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " | " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+     class BinaryAndNode final : public NodeBase
+     {
+     public:
+          explicit BinaryAndNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::And, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const& noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const& noexcept
+          {
+               return this->_right;
+          }
+
+          [[nodiscard]] Expression Left(void) && noexcept
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) && noexcept
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " & " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
+     class BinaryXorNode final : public NodeBase
+     {
+     public:
+          explicit BinaryXorNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Xor, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const& noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const& noexcept
+          {
+               return this->_right;
+          }
+
+          [[nodiscard]] Expression Left(void) && noexcept
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) && noexcept
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " ^ " +
                       this->_right->Value()->ToString(0);
           }
 

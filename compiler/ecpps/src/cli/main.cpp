@@ -3,7 +3,6 @@
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Context.h"
 #include "Machine/Encoders/InstructionEncoder.h"
-#include "Machine/Machine.h"
 #include "TypeSystem/TypeBase.h"
 
 #ifdef _WIN32

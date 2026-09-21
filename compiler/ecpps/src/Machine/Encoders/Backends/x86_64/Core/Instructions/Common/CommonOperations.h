@@ -14,7 +14,10 @@ namespace ecpps::abi::encoders::x8664::inline common
           Add,
           Sub,
           LeftShift,
-          RightShift
+          RightShift,
+          BinaryOr,
+          BinaryAnd,
+          BinaryXor
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -71,6 +74,12 @@ namespace ecpps::abi::encoders::x8664::inline common
                                                      ir::abstract::VirtualRegister>;
           using RightShiftRegisters = AssignmentValue<AssignedValueType::RightShift, ir::abstract::VirtualRegister,
                                                       ir::abstract::VirtualRegister>;
+          using BinaryOrRegisters = AssignmentValue<AssignedValueType::BinaryOr, ir::abstract::VirtualRegister,
+                                                    ir::abstract::VirtualRegister>;
+          using BinaryAndRegisters = AssignmentValue<AssignedValueType::BinaryAnd, ir::abstract::VirtualRegister,
+                                                     ir::abstract::VirtualRegister>;
+          using BinaryXorRegisters = AssignmentValue<AssignedValueType::BinaryXor, ir::abstract::VirtualRegister,
+                                                     ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

@@ -72,7 +72,10 @@ namespace ecpps::ir::abstract
           Return,
           Sub,
           LeftShift,
-          RightShift
+          RightShift,
+          BinaryOr,
+          BinaryAnd,
+          BinaryXor
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -85,6 +88,9 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Return: return "return";
           case VirtualInstructionType::LeftShift: return "left-shift";
           case VirtualInstructionType::RightShift: return "right-shift";
+          case VirtualInstructionType::BinaryOr: return "bin-or";
+          case VirtualInstructionType::BinaryAnd: return "bin-and";
+          case VirtualInstructionType::BinaryXor: return "bin-xor";
           }
           throw TracedException("control flow");
      }
