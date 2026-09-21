@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include "Execution/Expressions.h"
 namespace ecpps::ir::high
 {
@@ -573,6 +574,31 @@ namespace ecpps::ir::high
      private:
           Expression _operand;
           std::size_t _increment;
+     };
+     class BinaryComplementNode final : public NodeBase
+     {
+     public:
+          explicit BinaryComplementNode(Expression operand, Location source)
+              : NodeBase(NodeKind::BinaryComplement, source), _operand(std::move(operand))
+          {
+          }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept
+          {
+               return this->_operand;
+          }
+          [[nodiscard]] Expression Operand(void) && noexcept
+          {
+               return std::move(this->_operand);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::format("{}~{}", std::string(indent * ast::PrettyIndent, ' '),
+                                  this->_operand->Value()->ToString(0));
+          }
+
+     private:
+          Expression _operand;
      };
 
      class PostDecrementNode final : public NodeBase

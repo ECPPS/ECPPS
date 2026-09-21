@@ -22,20 +22,18 @@ static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, R
 static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, RegisterOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceIndex = std::to_underlying(source.index);
 
-     return GenerateAluRegMem(AluOp::Or, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
-                              sourceIndex);
+     return GenerateAluRegMem(AluOp::Or, width, MemBase(targetIndex, targetOffset), sourceIndex);
 }
 static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, MemoryOperand source)
 {
      const auto targetIndex = std::to_underlying(target.index);
-     const auto sourceOffset = static_cast<std::size_t>(source.offset);
+     const auto sourceOffset = source.offset;
      const auto sourceIndex = std::to_underlying(source.relativeTo);
 
-     return GenerateAluMemReg(AluOp::Or, width, targetIndex,
-                              MemBase(sourceIndex, static_cast<std::int32_t>(sourceOffset)));
+     return GenerateAluMemReg(AluOp::Or, width, targetIndex, MemBase(sourceIndex, sourceOffset));
 }
 
 static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, IntegerOperand source)
@@ -48,10 +46,10 @@ static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, I
 static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, IntegerOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceValue = source.value;
 
-     return GenerateAluImmMem(AluOp::Or, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
+     return GenerateAluImmMem(AluOp::Or, width, MemBase(targetIndex, targetOffset),
                               static_cast<std::int64_t>(sourceValue));
 }
 
@@ -141,11 +139,10 @@ static std::vector<std::byte> AsmBinaryAnd(Width width, RegisterOperand target, 
 static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, RegisterOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceIndex = std::to_underlying(source.index);
 
-     return GenerateAluRegMem(AluOp::And, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
-                              sourceIndex);
+     return GenerateAluRegMem(AluOp::And, width, MemBase(targetIndex, targetOffset), sourceIndex);
 }
 static std::vector<std::byte> AsmBinaryAnd(Width width, RegisterOperand target, MemoryOperand source)
 {
@@ -167,10 +164,10 @@ static std::vector<std::byte> AsmBinaryAnd(Width width, RegisterOperand target, 
 static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, IntegerOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceValue = source.value;
 
-     return GenerateAluImmMem(AluOp::And, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
+     return GenerateAluImmMem(AluOp::And, width, MemBase(targetIndex, targetOffset),
                               static_cast<std::int64_t>(sourceValue));
 }
 
@@ -261,11 +258,10 @@ static std::vector<std::byte> AsmBinaryXor(Width width, RegisterOperand target, 
 static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, RegisterOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceIndex = std::to_underlying(source.index);
 
-     return GenerateAluRegMem(AluOp::Xor, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
-                              sourceIndex);
+     return GenerateAluRegMem(AluOp::Xor, width, MemBase(targetIndex, targetOffset), sourceIndex);
 }
 static std::vector<std::byte> AsmBinaryXor(Width width, RegisterOperand target, MemoryOperand source)
 {
@@ -287,10 +283,10 @@ static std::vector<std::byte> AsmBinaryXor(Width width, RegisterOperand target, 
 static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, IntegerOperand source)
 {
      const auto targetIndex = std::to_underlying(target.relativeTo);
-     const auto targetOffset = static_cast<std::size_t>(target.offset);
+     const auto targetOffset = target.offset;
      const auto sourceValue = source.value;
 
-     return GenerateAluImmMem(AluOp::Xor, width, MemBase(targetIndex, static_cast<std::int32_t>(targetOffset)),
+     return GenerateAluImmMem(AluOp::Xor, width, MemBase(targetIndex, targetOffset),
                               static_cast<std::int64_t>(sourceValue));
 }
 
@@ -369,4 +365,58 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryXor(
                                  throw TracedException("invalid ADD source");
                             }},
           bin.modifiedDestination);
+}
+
+static std::vector<std::byte> AsmBinaryComplement(Width width, RegisterOperand operand)
+{
+     const auto operandIndex = std::to_underlying(operand.index);
+
+     return GenerateUnaryReg(UnaryOp::Not, width, operandIndex);
+}
+
+static std::vector<std::byte> AsmBinaryComplement(Width width, MemoryOperand operand)
+{
+     const auto baseIndex = std::to_underlying(operand.relativeTo);
+     const auto offset = static_cast<std::int32_t>(operand.offset);
+
+     return GenerateUnaryMem(UnaryOp::Not, width, MemBase(baseIndex, offset));
+}
+
+static std::vector<std::byte> AsmBinaryComplement(Width width, const Operand& operand)
+{
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryComplement(width, reg);
+               },
+               [width](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryComplement(width, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](const IntegerOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid NOT operand: x86-64 NOT does not accept an immediate operand");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid NOT operand");
+               }},
+          operand);
+}
+
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryComplement(
+     const ir::abstract::DynamicBytecode& description)
+{
+     runtime_assert(description.size() == sizeof(abi::encoders::x8664::BinaryComplementInstruction),
+                    "Invalid binary complement instruction");
+
+     const auto& complement =
+          *std::launder(reinterpret_cast<const abi::encoders::x8664::BinaryComplementInstruction*>(description.data()));
+
+     return AsmBinaryComplement(complement.width, complement.modifiedOperand);
 }

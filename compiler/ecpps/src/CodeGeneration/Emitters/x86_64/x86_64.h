@@ -41,5 +41,6 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitBinaryOr(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitBinaryAnd(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitBinaryXor(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitBinaryComplement(const ir::abstract::DynamicBytecode& description);
      };
 } // namespace ecpps::codegen::emitters

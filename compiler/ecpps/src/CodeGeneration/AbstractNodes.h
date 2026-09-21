@@ -75,7 +75,8 @@ namespace ecpps::ir::abstract
           RightShift,
           BinaryOr,
           BinaryAnd,
-          BinaryXor
+          BinaryXor,
+          BinaryComplement
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -91,6 +92,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::BinaryOr: return "bin-or";
           case VirtualInstructionType::BinaryAnd: return "bin-and";
           case VirtualInstructionType::BinaryXor: return "bin-xor";
+          case VirtualInstructionType::BinaryComplement: return "compl";
           }
           throw TracedException("control flow");
      }

@@ -45,7 +45,8 @@ namespace ecpps::ir
           SSA,
           Allocate,
           Annotation,
-          Reference
+          Reference,
+          BinaryComplement
      };
 
      struct ConstantAggregateMap;

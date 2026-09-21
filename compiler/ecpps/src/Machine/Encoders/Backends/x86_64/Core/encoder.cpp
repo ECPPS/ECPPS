@@ -42,6 +42,10 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryXor>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::BinaryComplement>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -88,6 +92,11 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::BinaryXor>(ecpps::ir::abstract::VirtualRegister owner,
                                                                   std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::BinaryComplement>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                         std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -221,6 +230,13 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           return std::format("BINARY-XOR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
                              ToString(bitwise->source));
      }
+     case X8664InstructionName::BinaryComplement:
+     {
+          runtime_assert(instruction.description.size() == sizeof(BinaryComplementInstruction), "invalid BINARY-COMPL");
+          const auto* bitwise =
+               std::launder(reinterpret_cast<const BinaryComplementInstruction*>(instruction.description.data()));
+          return std::format("NOT.{} {}", ToString(bitwise->width), ToString(bitwise->modifiedOperand));
+     }
      }
 
      return "__unknown";
@@ -307,6 +323,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::BinaryXor:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryXor>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::BinaryComplement:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryComplement>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -543,6 +563,16 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           BinaryXorInstruction{.width = width, .modifiedDestination = modifiedDestination, .source = source};
      return instruction;
 }
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildBinaryComplement(
+     Width width, Operand modifiedOperand)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::BinaryComplement;
+     instruction.description.resize(sizeof(BinaryComplementInstruction));
+     new (instruction.description.data())
+          BinaryComplementInstruction{.width = width, .modifiedOperand = modifiedOperand};
+     return instruction;
+}
 
 [[nodiscard]] static std::vector<ecpps::ir::abstract::VirtualRegister> SourcesOf(
      const ecpps::ir::abstract::State& value)
@@ -608,6 +638,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           const auto& binXor = *std::launder(reinterpret_cast<const values::BinaryXorRegisters*>(value.data.data()));
           sources.push_back(std::get<0>(binXor.parameters));
           sources.push_back(std::get<1>(binXor.parameters));
+          break;
+     }
+     case AssignedValueType::BinaryComplement:
+     {
+          const auto& binXor =
+               *std::launder(reinterpret_cast<const values::BinaryComplementRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(binXor.parameters));
           break;
      }
      case AssignedValueType::CopyInteger: break;
@@ -684,6 +721,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::BinaryXor:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BinaryXor>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::BinaryComplement:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BinaryComplement>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");

@@ -133,6 +133,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBinXorNode(*xorNode);
           }
           break;
+          case ecpps::ir::NodeKind::BinaryComplement:
+          {
+               const auto* complementNode = dynamic_cast<const ecpps::ir::SSABinComplNode*>(node);
+               runtime_assert(complementNode != nullptr, "Complement node was not a complement!");
+               this->ParseBinComplementNode(*complementNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -443,6 +450,38 @@ void ecpps::codegen::ParsingContext::ParseBinXorNode(const ir::SSABinXorNode& no
      };
      this->instructions.push_back(instruction);
 }
+void ecpps::codegen::ParsingContext::ParseBinComplementNode(const ir::SSABinComplNode& node)
+{
+
+     auto ssaOperandIndex = node.Operand().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualOperandIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaOperandIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaOperandIndex);
+
+     ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::BinaryComplement,
+          .operands = {allocatedIndex, virtualOperand},
+     };
+     this->instructions.push_back(instruction);
+}
 void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 {
      auto ssaSourceIndex = node.Address().Index();
@@ -532,7 +571,7 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
 
      for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
 
-     diagnostics = std::move(parseContext.diagnostics);
+     diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 
      return Routine(std::move(parseContext.instructions),
                     ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
