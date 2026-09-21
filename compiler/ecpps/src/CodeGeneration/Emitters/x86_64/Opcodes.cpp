@@ -2594,7 +2594,7 @@ namespace
      {
           bool valid = false;
           std::size_t length = 0;
-          std::size_t bytes[2]{};
+          std::array<std::size_t, 2> bytes{};
           Width size = Width::W32;
      };
      ExtendEncoding PickExtend(const ExtendKind kind, const Width destination, const Width source)
