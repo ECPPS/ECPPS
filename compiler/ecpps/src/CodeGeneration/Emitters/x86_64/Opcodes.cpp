@@ -2503,14 +2503,17 @@ namespace
           switch (size)
           {
           case Width::W8:
-               return v >= std::numeric_limits<std::int8_t>::min() && std::cmp_less_equal(v, std::numeric_limits<std::uint8_t>::max());
+               return v >= std::numeric_limits<std::int8_t>::min() &&
+				  std::cmp_less_equal(v, std::numeric_limits<std::uint8_t>::max());
           case Width::W16:
-               return v >= std::numeric_limits<std::int16_t>::min() && std::cmp_less_equal(v, std::numeric_limits<std::uint16_t>::max());
+               return v >= std::numeric_limits<std::int16_t>::min() &&
+				  std::cmp_less_equal(v, std::numeric_limits<std::uint16_t>::max());
           case Width::W32:
                return v >= std::numeric_limits<std::int32_t>::min() &&
                       std::cmp_less_equal(v, static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max()));
           case Width::W64:
-               return v >= std::numeric_limits<std::int32_t>::min() && std::cmp_less_equal(v, std::numeric_limits<std::int32_t>::max());
+               return v >= std::numeric_limits<std::int32_t>::min() &&
+				  std::cmp_less_equal(v, std::numeric_limits<std::int32_t>::max());
           }
           return false;
      }
