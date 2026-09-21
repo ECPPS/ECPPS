@@ -25,7 +25,7 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                {
                     return GenerateShiftRegImm(op, width, reg, static_cast<std::uint8_t>(imm.value));
                },
-               [&](const RegisterOperand count) -> std::vector<std::byte>
+               [&]([[maybe_unused]] const RegisterOperand count) -> std::vector<std::byte>
                {
                     runtime_assert(count.index == RegisterIndex::Rcx,
                                    "invalid shift count register [expected CL, got a different register]");
@@ -53,7 +53,7 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                {
                     return GenerateShiftMemImm(op, width, mem, static_cast<std::uint8_t>(imm.value));
                },
-               [&](const RegisterOperand count) -> std::vector<std::byte>
+               [&]([[maybe_unused]] const RegisterOperand count) -> std::vector<std::byte>
                {
                     runtime_assert(count.index == RegisterIndex::Rcx,
                                    "invalid shift count register [expected CL, got a different register]");
