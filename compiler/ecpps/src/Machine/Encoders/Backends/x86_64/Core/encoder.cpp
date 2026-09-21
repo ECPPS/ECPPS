@@ -149,6 +149,13 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           return std::format("RIGHT-SHIFT.{} {}, {}", ToString(shift->width), ToString(shift->modifiedDestination),
                              ToString(shift->source));
      }
+     case X8664InstructionName::Xchg:
+     {
+          runtime_assert(instruction.description.size() == sizeof(XchgInstruction), "invalid XCHG");
+          const auto* xchg = std::launder(reinterpret_cast<const XchgInstruction*>(instruction.description.data()));
+          return std::format("XCHG.{} {}, {}", ToString(xchg->width), ToString(xchg->modifiedDestination),
+                             ToString(xchg->modifiedSource));
+     }
      case X8664InstructionName::Ret:
      {
           runtime_assert(instruction.description.empty(), "invalid RET");
@@ -433,6 +440,17 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.opcode = X8664InstructionName::Pop;
      instruction.description.resize(sizeof(PopInstruction));
      new (instruction.description.data()) PopInstruction{.reg = reg};
+     return instruction;
+}
+
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildXchg(
+     Width width, RegisterOperand modifiedDestination, RegisterOperand modifiedSource)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Xchg;
+     instruction.description.resize(sizeof(XchgInstruction));
+     new (instruction.description.data())
+          XchgInstruction{.width = width, .modifiedDestination = modifiedDestination, .modifiedSource = modifiedSource};
      return instruction;
 }
 
