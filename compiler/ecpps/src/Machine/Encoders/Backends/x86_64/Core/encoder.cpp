@@ -45,6 +45,10 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BitwiseNot>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -96,6 +100,11 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::BitwiseNot>(ecpps::ir::abstract::VirtualRegister owner,
                                                                    std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                         std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -236,6 +245,14 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
                std::launder(reinterpret_cast<const BitwiseNotInstruction*>(instruction.description.data()));
           return std::format("NOT.{} {}", ToString(bitwise->width), ToString(bitwise->modifiedOperand));
      }
+     case X8664InstructionName::Neg:
+     {
+          runtime_assert(instruction.description.size() == sizeof(ArithmeticNegationInstruction),
+                         "invalid BINARY-COMPL");
+          const auto* neg =
+               std::launder(reinterpret_cast<const ArithmeticNegationInstruction*>(instruction.description.data()));
+          return std::format("NEG.{} {}", ToString(neg->width), ToString(neg->modifiedOperand));
+     }
      }
 
      return "__unknown";
@@ -326,6 +343,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::BitwiseNot:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::BitwiseNot>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::ArithmeticNegate>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -571,6 +592,16 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      new (instruction.description.data()) BitwiseNotInstruction{.width = width, .modifiedOperand = modifiedOperand};
      return instruction;
 }
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildArithmeticNegatation(
+     Width width, Operand modifiedOperand)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Neg;
+     instruction.description.resize(sizeof(ArithmeticNegationInstruction));
+     new (instruction.description.data())
+          ArithmeticNegationInstruction{.width = width, .modifiedOperand = modifiedOperand};
+     return instruction;
+}
 
 [[nodiscard]] static std::vector<ecpps::ir::abstract::VirtualRegister> SourcesOf(
      const ecpps::ir::abstract::State& value)
@@ -642,6 +673,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      {
           const auto& binXor = *std::launder(reinterpret_cast<const values::BitwiseNotRegisters*>(value.data.data()));
           sources.push_back(std::get<0>(binXor.parameters));
+          break;
+     }
+     case AssignedValueType::Neg:
+     {
+          const auto& neg =
+               *std::launder(reinterpret_cast<const values::ArithmeticNegationRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(neg.parameters));
           break;
      }
      case AssignedValueType::CopyInteger: break;
@@ -722,6 +760,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::BitwiseNot:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::BitwiseNot>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Neg:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::ArithmeticNegate>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");

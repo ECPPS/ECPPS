@@ -140,6 +140,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBitwiseNotNode(*complementNode);
           }
           break;
+          case ecpps::ir::NodeKind::ArithmeticNegation:
+          {
+               const auto* negNode = dynamic_cast<const ecpps::ir::SSAArithmeticNegationNode*>(node);
+               runtime_assert(negNode != nullptr, "Arithmetic negation node was not an arithmetic negation!");
+               this->ParseArithmeticNegationNode(*negNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -478,6 +485,37 @@ void ecpps::codegen::ParsingContext::ParseBitwiseNotNode(const ir::SSABitwiseNot
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::BitwiseNot,
+          .operands = {allocatedIndex, virtualOperand},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseArithmeticNegationNode(const ir::SSAArithmeticNegationNode& node)
+{
+     auto ssaOperandIndex = node.Operand().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualOperandIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaOperandIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex);
+
+     auto size = describedLeft.size;
+     auto alignment = describedLeft.alignment;
+
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).size,
+                    "Sizes don't match while getting a common size");
+
+     runtime_assert(alignment ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).alignment,
+                    "Alignments don't match while getting a common alignment");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaOperandIndex);
+
+     ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::ArithmeticNegate,
           .operands = {allocatedIndex, virtualOperand},
      };
      this->instructions.push_back(instruction);

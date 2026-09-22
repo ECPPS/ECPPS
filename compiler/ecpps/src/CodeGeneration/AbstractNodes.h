@@ -76,7 +76,8 @@ namespace ecpps::ir::abstract
           BinaryOr,
           BinaryAnd,
           BinaryXor,
-          BitwiseNot
+          BitwiseNot,
+          ArithmeticNegate
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -93,6 +94,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::BinaryAnd: return "bin-and";
           case VirtualInstructionType::BinaryXor: return "bin-xor";
           case VirtualInstructionType::BitwiseNot: return "compl";
+          case VirtualInstructionType::ArithmeticNegate: return "negate";
           }
           throw TracedException("control flow");
      }
