@@ -517,6 +517,38 @@ namespace ecpps::ir
           SSAPointer _result;
           const SingleAssignRegisterNode* _operand;
      };
+     class SSAArithmeticNegationNode final : public NodeBase
+     {
+     public:
+          explicit SSAArithmeticNegationNode(SSAPointer result, const SingleAssignRegisterNode* operand,
+                                             Location source)
+              : NodeBase(NodeKind::ArithmeticNegation, source), _result(std::move(result)), _operand(operand)
+          {
+               runtime_assert(this->_result != nullptr, "Invalid SSA result");
+               runtime_assert(this->_operand != nullptr, "Invalid SSA operand");
+
+               this->_operand->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
+          {
+               return *this->_result;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Operand() const noexcept
+          {
+               return *this->_operand;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} = -{}", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
+                                  this->_operand->ToString(0));
+          }
+
+     private:
+          SSAPointer _result;
+          const SingleAssignRegisterNode* _operand;
+     };
 
      class SSAModNode final : public NodeBase
      {

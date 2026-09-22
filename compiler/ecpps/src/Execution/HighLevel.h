@@ -600,6 +600,31 @@ namespace ecpps::ir::high
      private:
           Expression _operand;
      };
+     class ArithmeticNegationNode final : public NodeBase
+     {
+     public:
+          explicit ArithmeticNegationNode(Expression operand, Location source)
+              : NodeBase(NodeKind::ArithmeticNegation, source), _operand(std::move(operand))
+          {
+          }
+          [[nodiscard]] const Expression& Operand(void) const& noexcept
+          {
+               return this->_operand;
+          }
+          [[nodiscard]] Expression Operand(void) && noexcept
+          {
+               return std::move(this->_operand);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::format("{}-{}", std::string(indent * ast::PrettyIndent, ' '),
+                                  this->_operand->Value()->ToString(0));
+          }
+
+     private:
+          Expression _operand;
+     };
 
      class PostDecrementNode final : public NodeBase
      {

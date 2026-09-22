@@ -667,15 +667,26 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
           return oldPtr;
      }
-     if (auto* const binaryComplement = dynamic_cast<high::BitwiseNotNode*>(valueNode))
+     if (auto* const bitwiseComplement = dynamic_cast<high::BitwiseNotNode*>(valueNode))
      {
-          const auto* operandReg = LowerExpressionLoaded(std::move(*binaryComplement).Operand(), built);
+          const auto* operandReg = LowerExpressionLoaded(std::move(*bitwiseComplement).Operand(), built);
           if (operandReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSABitwiseNotNode, IRDeleter>{
                new (allocator) SSABitwiseNotNode(std::move(result), operandReg, source)});
+          return resultPtr;
+     }
+     if (auto* const arithmeticNegation = dynamic_cast<high::ArithmeticNegationNode*>(valueNode))
+     {
+          const auto* operandReg = LowerExpressionLoaded(std::move(*arithmeticNegation).Operand(), built);
+          if (operandReg == nullptr) return nullptr;
+
+          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSAArithmeticNegationNode, IRDeleter>{
+               new (allocator) SSAArithmeticNegationNode(std::move(result), operandReg, source)});
           return resultPtr;
      }
 
@@ -2284,11 +2295,11 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
                                                    wasConstexpr);
           }
 
-          return std::make_unique<PRValue>(
-               operandType,
-               std::unique_ptr<high::BitwiseNotNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                     high::BitwiseNotNode(std::move(operand), source)},
-               false);
+          return std::make_unique<PRValue>(operandType,
+                                           std::unique_ptr<high::ArithmeticNegationNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ArithmeticNegationNode(std::move(operand), source)},
+                                           false);
      }
 
      throw TracedException("Not implemented");

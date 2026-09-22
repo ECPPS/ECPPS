@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
-#include <print>
 #include <stack>
 #include <string>
 #include <utility>
@@ -46,7 +45,8 @@ namespace ecpps::ir
           Allocate,
           Annotation,
           Reference,
-          BitwiseNot
+          BitwiseNot,
+          ArithmeticNegation
      };
 
      struct ConstantAggregateMap;
