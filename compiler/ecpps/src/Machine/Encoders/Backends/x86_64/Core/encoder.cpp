@@ -50,6 +50,11 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
           ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::SignExtension>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+     
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
@@ -105,6 +110,11 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate>(ecpps::ir::abstract::VirtualRegister owner,
                                                                          std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::SignExtension>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                           std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -253,6 +263,14 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
                std::launder(reinterpret_cast<const ArithmeticNegationInstruction*>(instruction.description.data()));
           return std::format("NEG.{} {}", ToString(neg->width), ToString(neg->modifiedOperand));
      }
+     case X8664InstructionName::SignExtend:
+     {
+          runtime_assert(instruction.description.size() == sizeof(MovExtendInstruction),
+                         "invalid MOVSX");
+          const auto* movsx =
+               std::launder(reinterpret_cast<const MovExtendInstruction*>(instruction.description.data()));
+          return std::format("MOVSX.{}<-{} {}, {}", ToString(movsx->destinationWidth), ToString(movsx->sourceWidth), ToString(movsx->destination), ToString(movsx->source));
+     }
      }
 
      return "__unknown";
@@ -343,6 +361,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::BitwiseNot:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::BitwiseNot>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::SignExtension:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::SignExtension>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate:
           instructions.append_range(
@@ -470,6 +492,17 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.description.resize(sizeof(MovInstruction));
 
      new (instruction.description.data()) MovInstruction{.width = width, .destination = destination, .source = source};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildMovsx(
+     Width destinationWidth, Width sourceWidth, Operand destination, Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::SignExtend;
+     instruction.description.resize(sizeof(MovExtendInstruction));
+
+     new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth, .sourceWidth = sourceWidth, .destination = destination, .source = source};
 
      return instruction;
 }
@@ -682,6 +715,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<0>(neg.parameters));
           break;
      }
+     case AssignedValueType::Movsx:
+     {
+          const auto& movsx = *std::launder(reinterpret_cast<const values::SignExtendToRegister*>(value.data.data()));
+          sources.push_back(std::get<0>(movsx.parameters));
+          sources.push_back(std::get<1>(movsx.parameters));
+          break;
+     }
      case AssignedValueType::CopyInteger: break;
      }
      return sources;
@@ -764,6 +804,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Neg:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::ArithmeticNegate>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Movsx:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::SignExtension>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");

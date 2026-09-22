@@ -45,6 +45,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t BinaryXor = 11;
           constexpr static std::size_t BitwiseNot = 12;
           constexpr static std::size_t Neg = 13;
+          constexpr static std::size_t SignExtend = 14;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -153,6 +154,13 @@ namespace ecpps::abi::encoders::x8664
           struct MovInstruction
           {
                Width width{};
+               Operand destination{};
+               Operand source{};
+          };
+          struct MovExtendInstruction
+          {
+               Width destinationWidth{};
+               Width sourceWidth{};
                Operand destination{};
                Operand source{};
           };
@@ -411,6 +419,7 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] static ir::abstract::Instruction BuildBitwiseNot(Width width, Operand modifiedOperand);
           [[nodiscard]] static ir::abstract::Instruction BuildArithmeticNegatation(Width width,
                                                                                    Operand modifiedOperand);
+          [[nodiscard]] static ir::abstract::Instruction BuildMovsx(Width destinationWidth, Width sourceWidth, Operand destination, Operand source);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
