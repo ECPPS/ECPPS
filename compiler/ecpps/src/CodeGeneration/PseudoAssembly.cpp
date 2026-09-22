@@ -133,11 +133,11 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBinXorNode(*xorNode);
           }
           break;
-          case ecpps::ir::NodeKind::BinaryComplement:
+          case ecpps::ir::NodeKind::BitwiseNot:
           {
-               const auto* complementNode = dynamic_cast<const ecpps::ir::SSABinComplNode*>(node);
+               const auto* complementNode = dynamic_cast<const ecpps::ir::SSABitwiseNotNode*>(node);
                runtime_assert(complementNode != nullptr, "Complement node was not a complement!");
-               this->ParseBinComplementNode(*complementNode);
+               this->ParseBitwiseNotNode(*complementNode);
           }
           break;
           default:
@@ -450,7 +450,7 @@ void ecpps::codegen::ParsingContext::ParseBinXorNode(const ir::SSABinXorNode& no
      };
      this->instructions.push_back(instruction);
 }
-void ecpps::codegen::ParsingContext::ParseBinComplementNode(const ir::SSABinComplNode& node)
+void ecpps::codegen::ParsingContext::ParseBitwiseNotNode(const ir::SSABitwiseNotNode& node)
 {
 
      auto ssaOperandIndex = node.Operand().Index();
@@ -477,7 +477,7 @@ void ecpps::codegen::ParsingContext::ParseBinComplementNode(const ir::SSABinComp
      ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
 
      ir::abstract::VirtualInstruction instruction{
-          .type = ir::abstract::VirtualInstructionType::BinaryComplement,
+          .type = ir::abstract::VirtualInstructionType::BitwiseNot,
           .operands = {allocatedIndex, virtualOperand},
      };
      this->instructions.push_back(instruction);

@@ -667,15 +667,15 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
           return oldPtr;
      }
-     if (auto* const binaryComplement = dynamic_cast<high::BinaryComplementNode*>(valueNode))
+     if (auto* const binaryComplement = dynamic_cast<high::BitwiseNotNode*>(valueNode))
      {
           const auto* operandReg = LowerExpressionLoaded(std::move(*binaryComplement).Operand(), built);
           if (operandReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
           auto* resultPtr = result.get();
-          built.push_back(std::unique_ptr<SSABinComplNode, IRDeleter>{
-               new (allocator) SSABinComplNode(std::move(result), operandReg, source)});
+          built.push_back(std::unique_ptr<SSABitwiseNotNode, IRDeleter>{
+               new (allocator) SSABitwiseNotNode(std::move(result), operandReg, source)});
           return resultPtr;
      }
 
@@ -2227,7 +2227,7 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
 
      throw TracedException("Not implemented");
 }
-Expression ecpps::ir::IR::ParseBinaryComplementExpression(Expression operand, const Location& source) const
+Expression ecpps::ir::IR::ParseBitwiseNotExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
 
@@ -2251,11 +2251,44 @@ Expression ecpps::ir::IR::ParseBinaryComplementExpression(Expression operand, co
                                                    wasConstexpr);
           }
 
-          return std::make_unique<PRValue>(operandType,
-                                           std::unique_ptr<high::BinaryComplementNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::BinaryComplementNode(std::move(operand), source)},
-                                           false);
+          return std::make_unique<PRValue>(
+               operandType,
+               std::unique_ptr<high::BitwiseNotNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                     high::BitwiseNotNode(std::move(operand), source)},
+               false);
+     }
+
+     throw TracedException("Not implemented");
+}
+Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, const Location& source) const
+{
+     runtime_assert(operand != nullptr, "Operand was null");
+
+     const auto& operandType = operand->Type();
+     if (IsIntegral(operandType))
+     {
+          const auto* integralType = operandType->CastTo<typeSystem::IntegralType>();
+
+          runtime_assert(integralType != nullptr, "Integral is required here");
+          integralType = typeSystem::PromoteInteger(integralType);
+
+          if (operandType != integralType)
+          {
+               const auto innerSource = operand->Value()->Source();
+               const auto wasConstexpr = operand->IsConstantExpression();
+
+               operand = std::make_unique<PRValue>(integralType,
+                                                   std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                        new (*this->GetContext().nodeAllocator) high::ConvertNode(
+                                                             std::move(operand), integralType, innerSource)},
+                                                   wasConstexpr);
+          }
+
+          return std::make_unique<PRValue>(
+               operandType,
+               std::unique_ptr<high::BitwiseNotNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                     high::BitwiseNotNode(std::move(operand), source)},
+               false);
      }
 
      throw TracedException("Not implemented");
@@ -2270,10 +2303,10 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
      switch (operator_)
      {
      case ast::Operator::Plus:
-     case ast::Operator::Minus: throw TracedException(std::logic_error("Not implemented"));
+     case ast::Operator::Minus: return this->ParseArithmeticNegationExpression(std::move(operand), node.Source());
      case ast::Operator::Asterisk: return this->ParseDereferenceExpression(std::move(operand), node.Source());
      case ast::Operator::Ampersand: return this->ParseAddressOfExpression(std::move(operand), node.Source());
-     case ast::Operator::Tilde: return this->ParseBinaryComplementExpression(std::move(operand), node.Source());
+     case ast::Operator::Tilde: return this->ParseBitwiseNotExpression(std::move(operand), node.Source());
      case ast::Operator::Increment:
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
                       ? this->ParsePreIncrementExpression(std::move(operand), node.Source())

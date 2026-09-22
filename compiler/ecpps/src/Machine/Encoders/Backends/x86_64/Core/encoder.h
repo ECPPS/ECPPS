@@ -43,7 +43,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t BinaryOr = 9;
           constexpr static std::size_t BinaryAnd = 10;
           constexpr static std::size_t BinaryXor = 11;
-          constexpr static std::size_t BinaryComplement = 12;
+          constexpr static std::size_t BitwiseNot = 12;
      };
 
      enum struct Optimisation : std::uint8_t
@@ -188,7 +188,7 @@ namespace ecpps::abi::encoders::x8664
                Operand modifiedDestination{};
                Operand source{};
           };
-          struct BinaryComplementInstruction
+          struct BitwiseNotInstruction
           {
                Width width{};
                Operand modifiedOperand{};
@@ -402,7 +402,7 @@ namespace ecpps::abi::encoders::x8664
                                                                         Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildBinaryXor(Width width, Operand modifiedDestination,
                                                                         Operand source);
-          [[nodiscard]] static ir::abstract::Instruction BuildBinaryComplement(Width width, Operand modifiedOperand);
+          [[nodiscard]] static ir::abstract::Instruction BuildBitwiseNot(Width width, Operand modifiedOperand);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(

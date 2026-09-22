@@ -575,11 +575,11 @@ namespace ecpps::ir::high
           Expression _operand;
           std::size_t _increment;
      };
-     class BinaryComplementNode final : public NodeBase
+     class BitwiseNotNode final : public NodeBase
      {
      public:
-          explicit BinaryComplementNode(Expression operand, Location source)
-              : NodeBase(NodeKind::BinaryComplement, source), _operand(std::move(operand))
+          explicit BitwiseNotNode(Expression operand, Location source)
+              : NodeBase(NodeKind::BitwiseNot, source), _operand(std::move(operand))
           {
           }
           [[nodiscard]] const Expression& Operand(void) const& noexcept

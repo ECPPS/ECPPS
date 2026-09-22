@@ -155,7 +155,8 @@ namespace ecpps::ir
           [[nodiscard]] Expression ParsePostIncrementExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParsePreDecrementExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParsePostDecrementExpression(Expression operand, const Location& source) const;
-          [[nodiscard]] Expression ParseBinaryComplementExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParseBitwiseNotExpression(Expression operand, const Location& source) const;
+          [[nodiscard]] Expression ParseArithmeticNegationExpression(Expression operand, const Location& source) const;
 
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);

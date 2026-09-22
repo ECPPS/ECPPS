@@ -367,14 +367,14 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryXor(
           bin.modifiedDestination);
 }
 
-static std::vector<std::byte> AsmBinaryComplement(Width width, RegisterOperand operand)
+static std::vector<std::byte> AsmBitwiseNot(Width width, RegisterOperand operand)
 {
      const auto operandIndex = std::to_underlying(operand.index);
 
      return GenerateUnaryReg(UnaryOp::Not, width, operandIndex);
 }
 
-static std::vector<std::byte> AsmBinaryComplement(Width width, MemoryOperand operand)
+static std::vector<std::byte> AsmBitwiseNot(Width width, MemoryOperand operand)
 {
      const auto baseIndex = std::to_underlying(operand.relativeTo);
      const auto offset = static_cast<std::int32_t>(operand.offset);
@@ -382,17 +382,17 @@ static std::vector<std::byte> AsmBinaryComplement(Width width, MemoryOperand ope
      return GenerateUnaryMem(UnaryOp::Not, width, MemBase(baseIndex, offset));
 }
 
-static std::vector<std::byte> AsmBinaryComplement(Width width, const Operand& operand)
+static std::vector<std::byte> AsmBitwiseNot(Width width, const Operand& operand)
 {
      return std::visit(
           ecpps::OverloadedVisitor{
                [width](const RegisterOperand reg) -> std::vector<std::byte>
                {
-                    return AsmBinaryComplement(width, reg);
+                    return AsmBitwiseNot(width, reg);
                },
                [width](const MemoryOperand mem) -> std::vector<std::byte>
                {
-                    return AsmBinaryComplement(width, mem);
+                    return AsmBitwiseNot(width, mem);
                },
                [](const StackOperand&) -> std::vector<std::byte>
                {
@@ -409,14 +409,14 @@ static std::vector<std::byte> AsmBinaryComplement(Width width, const Operand& op
           operand);
 }
 
-std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryComplement(
+std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBitwiseNot(
      const ir::abstract::DynamicBytecode& description)
 {
-     runtime_assert(description.size() == sizeof(abi::encoders::x8664::BinaryComplementInstruction),
+     runtime_assert(description.size() == sizeof(abi::encoders::x8664::BitwiseNotInstruction),
                     "Invalid binary complement instruction");
 
      const auto& complement =
-          *std::launder(reinterpret_cast<const abi::encoders::x8664::BinaryComplementInstruction*>(description.data()));
+          *std::launder(reinterpret_cast<const abi::encoders::x8664::BitwiseNotInstruction*>(description.data()));
 
-     return AsmBinaryComplement(complement.width, complement.modifiedOperand);
+     return AsmBitwiseNot(complement.width, complement.modifiedOperand);
 }

@@ -18,7 +18,7 @@ namespace ecpps::abi::encoders::x8664::inline common
           BinaryOr,
           BinaryAnd,
           BinaryXor,
-          BinaryComplement
+          BitwiseNot
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -81,8 +81,7 @@ namespace ecpps::abi::encoders::x8664::inline common
                                                      ir::abstract::VirtualRegister>;
           using BinaryXorRegisters = AssignmentValue<AssignedValueType::BinaryXor, ir::abstract::VirtualRegister,
                                                      ir::abstract::VirtualRegister>;
-          using BinaryComplementRegisters =
-               AssignmentValue<AssignedValueType::BinaryComplement, ir::abstract::VirtualRegister>;
+          using BitwiseNotRegisters = AssignmentValue<AssignedValueType::BitwiseNot, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

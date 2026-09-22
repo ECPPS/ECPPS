@@ -12,7 +12,7 @@
 
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
-     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryComplement>(
+     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::BitwiseNot>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
 {
      std::vector<ecpps::ir::abstract::Instruction> built{};
@@ -32,9 +32,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
 
-     newState.data.resize(sizeof(values::BinaryComplementRegisters));
-     values::BinaryComplementRegisters& complementValue =
-          *new (newState.data.data()) values::BinaryComplementRegisters{};
+     newState.data.resize(sizeof(values::BitwiseNotRegisters));
+     values::BitwiseNotRegisters& complementValue = *new (newState.data.data()) values::BitwiseNotRegisters{};
      complementValue.parameters = std::make_tuple(operand);
      this->Redefine(destination, newState);
 
@@ -46,11 +45,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
 template <>
 ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
-     MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::BinaryComplement>(
+     MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::BitwiseNot>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
-     const values::BinaryComplementRegisters& complementValue =
-          *std::launder(reinterpret_cast<const values::BinaryComplementRegisters*>(data.data()));
+     const values::BitwiseNotRegisters& complementValue =
+          *std::launder(reinterpret_cast<const values::BitwiseNotRegisters*>(data.data()));
      const auto operand = std::get<0>(complementValue.parameters);
 
      const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
@@ -83,7 +82,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           }
      }
 
-     built.push_back(BuildBinaryComplement(width, RegisterOperand{destinationRegister}));
+     built.push_back(BuildBitwiseNot(width, RegisterOperand{destinationRegister}));
 
      return {.instructions = std::move(built), .assignedRegister = destinationRegister};
 }

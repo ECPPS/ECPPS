@@ -486,11 +486,11 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _left;
           const SingleAssignRegisterNode* _right;
      };
-     class SSABinComplNode final : public NodeBase
+     class SSABitwiseNotNode final : public NodeBase
      {
      public:
-          explicit SSABinComplNode(SSAPointer result, const SingleAssignRegisterNode* operand, Location source)
-              : NodeBase(NodeKind::BinaryComplement, source), _result(std::move(result)), _operand(operand)
+          explicit SSABitwiseNotNode(SSAPointer result, const SingleAssignRegisterNode* operand, Location source)
+              : NodeBase(NodeKind::BitwiseNot, source), _result(std::move(result)), _operand(operand)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_operand != nullptr, "Invalid SSA operand");

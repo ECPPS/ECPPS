@@ -46,7 +46,7 @@ namespace ecpps::ir
           Allocate,
           Annotation,
           Reference,
-          BinaryComplement
+          BitwiseNot
      };
 
      struct ConstantAggregateMap;
