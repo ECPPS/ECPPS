@@ -1,4 +1,7 @@
+using LL = long long;
+
 int main()
 {
-     return -2;
+    LL x = 0;
+    return x;
 }

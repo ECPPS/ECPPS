@@ -183,6 +183,7 @@ namespace ecpps::codegen
           void ParseBinXorNode(const ir::SSABinXorNode& node);
           void ParseBitwiseNotNode(const ir::SSABitwiseNotNode& node);
           void ParseArithmeticNegationNode(const ir::SSAArithmeticNegationNode& node);
+          void ParseConvertNode(const ir::SSAConvertNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
           void ParseIntNode(const ir::SSAImmNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
