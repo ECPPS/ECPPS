@@ -25,11 +25,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& left = registerArray[1];
      const auto& right = registerArray[2];
 
-     runtime_assert(!this->IsSpilled(left) && !this->IsSpilled(right) && !this->IsSpilled(destination),
-                    "Sub operands must not be spilled");
-
      if (!this->ImmediateOf(left).has_value()) built.append_range(EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value()) built.append_range(EnsureMaterialisation(right));
+     if (!this->ImmediateOf(right).has_value() && right != left) built.append_range(EnsureMaterialisation(right));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -58,14 +55,28 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      const auto accumulatorImmediate = this->ImmediateOf(accumulator);
      const auto otherImmediate = this->ImmediateOf(other);
+     std::vector<ecpps::ir::abstract::Instruction> built{};
+     RegisterIndex destinationRegister{};
 
      Operand source{};
      if (otherImmediate.has_value()) source = IntegerOperand{*otherImmediate};
-     else
+     else if (this->GetVRM().IsMaterialised(other))
           source = RegisterOperand{this->PhysicalRegisterOf(other)};
+     else
+          source = MemoryOperand{.relativeTo = this->PhysicalRegisterOf(other)};
 
-     std::vector<ecpps::ir::abstract::Instruction> built{};
-     RegisterIndex destinationRegister{};
+     if (accumulator == other)
+     {
+          const auto remainingUses = this->ConsumeUse(accumulator);
+
+          destinationRegister = this->_registerAllocator.Allocate(owner);
+
+          built.push_back(BuildMov(width, RegisterOperand{destinationRegister}, IntegerOperand{0}));
+
+          if (remainingUses == 0 && !this->IsMutable(accumulator)) this->ReleaseRegister(accumulator);
+
+          return {.instructions = std::move(built), .assignedRegister = destinationRegister};
+     }
 
      if (accumulatorImmediate.has_value())
      {

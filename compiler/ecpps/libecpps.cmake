@@ -21,6 +21,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/xchg.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/shifts.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/bitwiseMath.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/operations/arithmeticNegation.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/Opcodes.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/Emitters/x86_64/x86_64.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/CodeGeneration/CodeEmitter.cpp"
