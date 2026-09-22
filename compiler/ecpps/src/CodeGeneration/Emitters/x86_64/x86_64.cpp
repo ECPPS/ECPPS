@@ -21,6 +21,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::BinaryAnd: return this->EmitBinaryAnd(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::BinaryXor: return this->EmitBinaryXor(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::BitwiseNot: return this->EmitBitwiseNot(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Neg: return this->EmitArithmeticNegation(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
      }
 }
