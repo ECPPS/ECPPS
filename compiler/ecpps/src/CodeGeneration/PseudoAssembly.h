@@ -48,6 +48,21 @@ template <> struct std::hash<ecpps::codegen::ByteView>
 namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
+     enum struct ValueProperty : std::uint8_t
+     {
+          None = 0,
+          Integer = 1 << 0,
+          Floating = 1 << 1,
+          Pointer = 1 << 2,
+          Aggregate = 1 << 3,
+          Array = 1 << 4,
+
+          Signed = 1 << 5,
+     };
+     constexpr bool operator&(const ValueProperty left, const ValueProperty right)
+     {
+          return (std::to_underlying(left) & std::to_underlying(right)) != 0;
+     }
 
      struct AllocationDescriptor
      {
@@ -55,6 +70,7 @@ namespace ecpps::codegen
 
           std::size_t size;
           std::size_t alignment;
+          ValueProperty properties;
           Type type;
      };
      struct VirtualNotFoundError : std::exception
@@ -74,10 +90,7 @@ namespace ecpps::codegen
                const Index virtualIndex = _descriptorArray.size();
 
                _descriptorArray.emplace_back(AllocationDescriptor{
-                    .size = size,
-                    .alignment = alignment,
-                    .type = type,
-               });
+                    .size = size, .alignment = alignment, .properties = ValueProperty::Integer, .type = type});
 
                _ssaByVirtual.push_back(InvalidIndex);
 

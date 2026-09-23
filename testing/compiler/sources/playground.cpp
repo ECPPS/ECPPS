@@ -2,6 +2,6 @@ using LL = long long;
 
 int main()
 {
-    LL x = 0;
-    return x;
+     LL x = 10;
+     return x;
 }

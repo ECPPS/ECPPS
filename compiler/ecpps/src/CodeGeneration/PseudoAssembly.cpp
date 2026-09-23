@@ -16,6 +16,7 @@
 #include "Execution/NodeBase.h"
 #include "Nodes.h"
 #include "Shared/Error.h"
+#include "TypeSystem/ArithmeticTypes.h"
 
 using ecpps::codegen::Routine;
 
@@ -146,7 +147,6 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                runtime_assert(negNode != nullptr, "Arithmetic negation node was not an arithmetic negation!");
                this->ParseArithmeticNegationNode(*negNode);
           }
-          break;
           break;
           case ecpps::ir::NodeKind::Convert:
           {
@@ -538,6 +538,16 @@ void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& 
 
      auto size = describedLeft.size;
      auto alignment = describedLeft.alignment;
+     auto fromSigned = describedLeft.properties & ValueProperty::Signed;
+
+     const auto* targetType = node.TargetType();
+     const auto* targetIntegral = targetType->CastTo<typeSystem::IntegralType>();
+     if (targetIntegral == nullptr)
+     {
+     }
+
+     const auto targetSize = targetIntegral->Size();
+     const auto targetSign = targetIntegral->Sign() == typeSystem::Signedness::Signed;
 
      runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).size,
                     "Sizes don't match while getting a common size");
@@ -552,10 +562,20 @@ void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& 
      this->DereferenceSSA(ssaOperandIndex);
 
      ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
-     // TODO: unsigned-signed conversions
+     ir::abstract::VirtualInstructionType type = ir::abstract::VirtualInstructionType::Copy;
+     if (fromSigned == targetSign && targetSize == size) type = ir::abstract::VirtualInstructionType::Copy;
+     if (fromSigned != targetSign && targetSize == size) type = ir::abstract::VirtualInstructionType::Reinterpret;
+     else if (targetSize < size && fromSigned == targetSign)
+          type = ir::abstract::VirtualInstructionType::Truncate;
+     else if (fromSigned == targetSign && targetSize > size)
+          type = targetSign ? ir::abstract::VirtualInstructionType::SignExtension
+                            : ir::abstract::VirtualInstructionType::ZeroExtension;
+     else if (fromSigned != targetSign && targetSize > size)
+          type = fromSigned ? ir::abstract::VirtualInstructionType::SignExtendAndReinterpret
+                            : ir::abstract::VirtualInstructionType::ZeroExtendAndReinterpret;
 
      ir::abstract::VirtualInstruction instruction{
-          .type = ir::abstract::VirtualInstructionType::SignExtension,
+          .type = type,
           .operands = {allocatedIndex, virtualOperand},
      };
      this->instructions.push_back(instruction);

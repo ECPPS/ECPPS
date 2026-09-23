@@ -78,7 +78,12 @@ namespace ecpps::ir::abstract
           BinaryXor,
           BitwiseNot,
           ArithmeticNegate,
-          SignExtension
+          Reinterpret,              // same width, different sign
+          ZeroExtension,            // widening (unsigned)
+          SignExtension,            // widening (signed)
+          SignExtendAndReinterpret, // widening (unsigned <- signed)
+          ZeroExtendAndReinterpret, // widening (signed <- unsigned)
+          Truncate                  // narrowing (signed/unsigned)
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -95,7 +100,13 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::BinaryAnd: return "bin-and";
           case VirtualInstructionType::BinaryXor: return "bin-xor";
           case VirtualInstructionType::BitwiseNot: return "compl";
-          case VirtualInstructionType::SignExtension: return "sign-extend";
+          case VirtualInstructionType::Reinterpret: return "reinterpret";
+          case VirtualInstructionType::ZeroExtension: return "zero-extension";
+          case VirtualInstructionType::SignExtension: return "sign-extension";
+          case VirtualInstructionType::SignExtendAndReinterpret: return "sign-extend-and-reinterpret";
+          case VirtualInstructionType::ZeroExtendAndReinterpret: return "zero-extend-and-reinterpret";
+          case VirtualInstructionType::Truncate: return "truncate";
+
           case VirtualInstructionType::ArithmeticNegate: return "negate";
           }
           throw TracedException("control flow");
