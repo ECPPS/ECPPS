@@ -1103,8 +1103,10 @@ namespace ecpps::ir
      {
      public:
           explicit AllocationNode(std::size_t size, std::size_t alignment,
-                                  std::unique_ptr<SingleAssignRegisterNode, IRDeleter> ssa, Location source)
-              : NodeBase(NodeKind::Allocate, source), _size(size), _alignment(alignment), _ssa(std::move(ssa))
+                                  std::unique_ptr<SingleAssignRegisterNode, IRDeleter> ssa, Location source,
+                                  ecpps::typeSystem::NonowningTypePointer type = nullptr)
+              : NodeBase(NodeKind::Allocate, source), _size(size), _alignment(alignment), _ssa(std::move(ssa)),
+                _type(type)
           {
                runtime_assert(this->_ssa != nullptr, "Invalid SSA node");
           }
@@ -1126,11 +1128,16 @@ namespace ecpps::ir
           {
                return *this->_ssa;
           }
+          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer Type() const noexcept
+          {
+               return this->_type;
+          }
 
      private:
           std::size_t _size;
           std::size_t _alignment;
           std::unique_ptr<SingleAssignRegisterNode, IRDeleter> _ssa;
+          ecpps::typeSystem::NonowningTypePointer _type{};
      };
 
      class ParameterNode final : public NodeBase

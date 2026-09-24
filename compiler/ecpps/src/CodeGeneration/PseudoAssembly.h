@@ -63,6 +63,10 @@ namespace ecpps::codegen
      {
           return (std::to_underlying(left) & std::to_underlying(right)) != 0;
      }
+     constexpr ValueProperty operator|(const ValueProperty left, const ValueProperty right)
+     {
+          return static_cast<ValueProperty>(std::to_underlying(left) | std::to_underlying(right));
+     }
 
      struct AllocationDescriptor
      {
@@ -84,13 +88,14 @@ namespace ecpps::codegen
           using Index = std::size_t;
           static constexpr Index InvalidIndex = std::numeric_limits<Index>::max();
 
-          [[nodiscard]]
-          Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment, AllocationDescriptor::Type type)
+          [[nodiscard]] Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment,
+                                              AllocationDescriptor::Type type,
+                                              ValueProperty extraProperties = ValueProperty::None)
           {
                const Index virtualIndex = _descriptorArray.size();
 
                _descriptorArray.emplace_back(AllocationDescriptor{
-                    .size = size, .alignment = alignment, .properties = ValueProperty::Integer, .type = type});
+                    .size = size, .alignment = alignment, .properties = extraProperties, .type = type});
 
                _ssaByVirtual.push_back(InvalidIndex);
 
@@ -204,7 +209,8 @@ namespace ecpps::codegen
      private:
           void DereferenceSSA(std::size_t ssaIndex);
           [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
-                                                    AllocationDescriptor::Type type);
+                                                    AllocationDescriptor::Type type,
+                                                    ValueProperty properties = ValueProperty::None);
      };
 
      struct AssemblyContext

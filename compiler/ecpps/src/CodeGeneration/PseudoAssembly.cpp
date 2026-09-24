@@ -213,10 +213,8 @@ void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreInteger
      auto ssaIndex = node.Target().Index();
      ir::abstract::VirtualRegister virtualIndex{this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaIndex)};
      ir::abstract::VirtualRegister sourceVirtualised{node.Src()};
-     ir::abstract::VirtualInstruction instruction{
-          .type = ir::abstract::VirtualInstructionType::CopyInteger,
-          .operands = {virtualIndex, sourceVirtualised},
-     };
+     ir::abstract::VirtualInstruction instruction{.type = ir::abstract::VirtualInstructionType::CopyInteger,
+                                                  .operands = {virtualIndex, sourceVirtualised}};
      this->instructions.push_back(instruction);
 }
 void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
@@ -239,8 +237,11 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
                     "Alignments don't match while getting a common alignment");
 
+     const auto signProperty =
+          (describedLeft.properties & ValueProperty::Signed) ? ValueProperty::Signed : ValueProperty::None;
+
      ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, signProperty));
 
      this->DereferenceSSA(ssaLeftIndex);
      this->DereferenceSSA(ssaRightIndex);
@@ -274,8 +275,11 @@ void ecpps::codegen::ParsingContext::ParseSubNode(const ir::SSASubNode& node)
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
                     "Alignments don't match while getting a common alignment");
 
+     const auto signProperty =
+          (describedLeft.properties & ValueProperty::Signed) ? ValueProperty::Signed : ValueProperty::None;
+
      ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, signProperty));
 
      this->DereferenceSSA(ssaLeftIndex);
      this->DereferenceSSA(ssaRightIndex);
@@ -308,9 +312,11 @@ void ecpps::codegen::ParsingContext::ParseLeftShiftNode(const ir::SSALeftShiftNo
      runtime_assert(alignment ==
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).alignment,
                     "Alignments don't match while getting a common alignment");
+     const auto signProperty =
+          (describedLeft.properties & ValueProperty::Signed) ? ValueProperty::Signed : ValueProperty::None;
 
      ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, signProperty));
 
      this->DereferenceSSA(ssaLeftIndex);
      this->DereferenceSSA(ssaRightIndex);
@@ -556,23 +562,34 @@ void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& 
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).alignment,
                     "Alignments don't match while getting a common alignment");
 
-     ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+     const auto resultProperty = targetSign ? ValueProperty::Signed : ValueProperty::None;
+
+     ir::abstract::VirtualRegister allocatedIndex(this->AllocateVirtual(
+          ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, resultProperty));
 
      this->DereferenceSSA(ssaOperandIndex);
 
      ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
      ir::abstract::VirtualInstructionType type = ir::abstract::VirtualInstructionType::Copy;
-     if (fromSigned == targetSign && targetSize == size) type = ir::abstract::VirtualInstructionType::Copy;
-     if (fromSigned != targetSign && targetSize == size) type = ir::abstract::VirtualInstructionType::Reinterpret;
-     else if (targetSize < size && fromSigned == targetSign)
-          type = ir::abstract::VirtualInstructionType::Truncate;
-     else if (fromSigned == targetSign && targetSize > size)
-          type = targetSign ? ir::abstract::VirtualInstructionType::SignExtension
-                            : ir::abstract::VirtualInstructionType::ZeroExtension;
-     else if (fromSigned != targetSign && targetSize > size)
-          type = fromSigned ? ir::abstract::VirtualInstructionType::SignExtendAndReinterpret
-                            : ir::abstract::VirtualInstructionType::ZeroExtendAndReinterpret;
+
+     if (fromSigned == targetSign)
+     {
+          if (targetSize == size) type = ir::abstract::VirtualInstructionType::Copy;
+          else if (targetSize > size)
+               type = targetSign ? ir::abstract::VirtualInstructionType::SignExtension
+                                 : ir::abstract::VirtualInstructionType::ZeroExtension;
+          else
+               type = ir::abstract::VirtualInstructionType::Truncate;
+     }
+     else
+     {
+          if (targetSize == size) type = ir::abstract::VirtualInstructionType::Reinterpret;
+          else if (targetSize > size)
+               type = targetSign ? ir::abstract::VirtualInstructionType::SignExtendAndReinterpret
+                                 : ir::abstract::VirtualInstructionType::ZeroExtendAndReinterpret;
+          else
+               type = ir::abstract::VirtualInstructionType::Truncate;
+     }
 
      ir::abstract::VirtualInstruction instruction{
           .type = type,
@@ -591,8 +608,11 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
      auto size = describedSource.size;
      auto alignment = describedSource.alignment;
 
+     const auto signProperty =
+          (describedSource.properties & ValueProperty::Signed) ? ValueProperty::Signed : ValueProperty::None;
+
      ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary));
+          this->AllocateVirtual(ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, signProperty));
 
      this->DereferenceSSA(ssaSourceIndex);
 
@@ -606,8 +626,18 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 }
 void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode& node)
 {
+     ValueProperty properties = ValueProperty::None;
+
+     if (const auto* type = node.Type(); type != nullptr)
+     {
+          if (const auto* integral = type->CastTo<typeSystem::IntegralType>(); integral != nullptr)
+          {
+               if (integral->Sign() == typeSystem::Signedness::Signed) properties = ValueProperty::Signed;
+          }
+     }
+
      std::ignore = this->AllocateVirtual(node.Node().Index(), node.Size(), node.Alignment(),
-                                         AllocationDescriptor::Type::Allocation);
+                                         AllocationDescriptor::Type::Allocation, properties);
 }
 void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 {
@@ -629,9 +659,11 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t size,
                                                             const std::size_t alignment,
-                                                            const AllocationDescriptor::Type type)
+                                                            const AllocationDescriptor::Type type,
+                                                            const ValueProperty properties)
 {
-     const auto virtualIndex = this->virtualRegisterAllocationMap.EmplaceAllocate(ssaIndex, size, alignment, type);
+     const auto virtualIndex =
+          this->virtualRegisterAllocationMap.EmplaceAllocate(ssaIndex, size, alignment, type, properties);
      this->target->registerMap->Describe(virtualIndex, size, alignment, type);
      return virtualIndex;
 }

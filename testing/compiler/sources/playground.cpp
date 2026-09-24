@@ -1,7 +1,7 @@
 using LL = long long;
 
-int main()
+LL test()
 {
-     LL x = 10;
-     return x;
+     int integer = 10;
+     return integer;
 }

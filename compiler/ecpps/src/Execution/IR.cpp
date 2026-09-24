@@ -1051,7 +1051,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           auto* allocRegPtr = allocReg.get();
 
           ir._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
-               new (allocator) AllocationNode(size, alignment, std::move(allocReg), node.Source())});
+               new (allocator) AllocationNode(size, alignment, std::move(allocReg), node.Source(), param.type)});
 
           ir._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
                new (allocator) SSAStoreNode(allocRegPtr, paramRegPtr, node.Source())});
@@ -1299,8 +1299,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           const auto size = variableType->Size();
           const auto alignment = variableType->Alignment();
-          this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{
-               new (allocator) ir::AllocationNode(size, alignment, std::move(ssaNodeUnique), decl.name->Source())});
+          this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{new (allocator) ir::AllocationNode(
+               size, alignment, std::move(ssaNodeUnique), decl.name->Source(), variableType)});
 
           if (inferLastArrayFromInitialiser)
           {
