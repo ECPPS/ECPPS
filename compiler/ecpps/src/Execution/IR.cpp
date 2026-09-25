@@ -3560,7 +3560,7 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
 
                for (const auto* argument : innerNode->Arguments())
                {
-                    runtime_assert(argument != nullptr, "Invalid call argument");
+                    if (argument == nullptr) throw TracedException("Invalid call argument");
                     map.ReferenceRegister(argument->Index());
                }
 
