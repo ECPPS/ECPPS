@@ -543,7 +543,7 @@ void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& 
      auto& describedSource = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex);
 
      auto size = describedSource.size;
-     auto alignment = describedSource.alignment;
+     [[maybe_unused]] auto alignment = describedSource.alignment;
      auto fromSigned = describedSource.properties & ValueProperty::Signed;
 
      const auto* targetType = node.TargetType();
