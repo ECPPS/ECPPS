@@ -20,7 +20,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           BinaryXor,
           BitwiseNot,
           Neg,
-          Movsx
+          Movsx,
+          Movzx
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -87,6 +88,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           using ArithmeticNegationRegisters = AssignmentValue<AssignedValueType::Neg, ir::abstract::VirtualRegister>;
           using SignExtendToRegister =
                AssignmentValue<AssignedValueType::Movsx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
+          using ZeroExtendToRegister =
+               AssignmentValue<AssignedValueType::Movzx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

@@ -7,6 +7,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <print>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -171,7 +172,10 @@ namespace ecpps::ir::abstract
           }
           std::size_t DereferenceRegister(VirtualRegisterUsable auto reg)
           {
-               return --DataFromRegister(reg).useCount;
+               const auto result = --DataFromRegister(reg).useCount;
+               if (static_cast<decltype(0z)>(result) < 0)
+                    std::println("WARNING: Reference count dropped below 0"); // TODO: ICE? ICW?!
+               return result;
           }
           void Materialise(VirtualRegisterUsable auto reg, State&& bytecode)
           {

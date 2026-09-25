@@ -3327,54 +3327,291 @@ ecpps::ir::ImplicitConversion ecpps::ir::MatchImplicitConversion(const Expressio
 
      return ImplicitConversion{type->CompareTo(expression->Type()), referenceKind, true};
 }
-
 void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std::vector<NodePointer>& irNodes)
 {
      for (const auto& node : irNodes)
      {
+          if (node == nullptr) continue;
+
           switch (node->Kind())
           {
           case ecpps::ir::NodeKind::Allocate: break;
           case ecpps::ir::NodeKind::Procedure:
           {
                const auto* procedureNode = dynamic_cast<const ProcedureNode*>(node.get());
+               runtime_assert(procedureNode != nullptr, "Invalid procedure node");
 
                CreateReferenceMap(map, procedureNode->Body());
+               break;
           }
-          break;
+
           case ecpps::ir::NodeKind::Addition:
           {
-               const auto* additionNode = dynamic_cast<const SSAAddNode*>(node.get());
-               map.ReferenceRegister(additionNode->Left().Index());
-               map.ReferenceRegister(additionNode->Right().Index());
+               const auto* innerNode = dynamic_cast<const SSAAddNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid addition node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
           }
-          break;
+
           case ecpps::ir::NodeKind::Subtraction:
           {
-               const auto* additionNode = dynamic_cast<const SSASubNode*>(node.get());
-               map.ReferenceRegister(additionNode->Left().Index());
-               map.ReferenceRegister(additionNode->Right().Index());
+               const auto* innerNode = dynamic_cast<const SSASubNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid subtraction node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
           }
-          break;
-          case ecpps::ir::NodeKind::Store:
+
+          case ecpps::ir::NodeKind::Multiplication:
           {
-               if (const auto* integerAdditionNode = dynamic_cast<const SSAStoreIntegerNode*>(node.get());
-                   integerAdditionNode != nullptr)
+               const auto* innerNode = dynamic_cast<const SSAMulNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid multiplication node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Division:
+          {
+               const auto* innerNode = dynamic_cast<const SSADivNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid division node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Modulo:
+          {
+               const auto* innerNode = dynamic_cast<const SSAModNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid modulo node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::LeftBitShift:
+          {
+               const auto* innerNode = dynamic_cast<const SSALeftShiftNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid left-shift node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::RightBitShift:
+          {
+               const auto* innerNode = dynamic_cast<const SSARightShiftNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid right-shift node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Or:
+          {
+               const auto* innerNode = dynamic_cast<const SSABinOrNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid OR node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::And:
+          {
+               const auto* innerNode = dynamic_cast<const SSABinAndNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid AND node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Xor:
+          {
+               const auto* innerNode = dynamic_cast<const SSABinXorNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid XOR node");
+
+               map.ReferenceRegister(innerNode->Left().Index());
+               map.ReferenceRegister(innerNode->Right().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::BitwiseNot:
+          {
+               const auto* innerNode = dynamic_cast<const SSABitwiseNotNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid bitwise-not node");
+
+               map.ReferenceRegister(innerNode->Operand().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::ArithmeticNegation:
+          {
+               const auto* innerNode = dynamic_cast<const SSAArithmeticNegationNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid arithmetic-negation node");
+
+               map.ReferenceRegister(innerNode->Operand().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Convert:
+          {
+               const auto* innerNode = dynamic_cast<const SSAConvertNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid conversion node");
+
+               map.ReferenceRegister(innerNode->Src().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::PointerConversion:
+          {
+               if (const auto* innerNode = dynamic_cast<const SSAPointerConvertNode*>(node.get()))
                {
-                    map.ReferenceRegister(integerAdditionNode->Target().Index());
+                    map.ReferenceRegister(innerNode->Src().Index());
                     break;
                }
-               const auto* additionNode = dynamic_cast<const SSAStoreNode*>(node.get());
-               map.ReferenceRegister(additionNode->Target().Index());
-               map.ReferenceRegister(additionNode->Src().Index());
+
+               // if (const auto* innerNode = dynamic_cast<const SSAPointerConvertFromDecayNode*>(node.get()))
+               // {
+               //      CreateReferenceMap(map, std::vector<NodePointer>{/* see note below */});
+               //      break;
+               // }
+
+               runtime_assert(false, "Invalid pointer-conversion node");
+               break;
           }
-          break;
+
+          case ecpps::ir::NodeKind::Store:
+          {
+               if (const auto* innerNode = dynamic_cast<const SSAStoreIntegerNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Target().Index());
+                    break;
+               }
+
+               if (const auto* innerNode = dynamic_cast<const SSAStoreNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Target().Index());
+                    map.ReferenceRegister(innerNode->Src().Index());
+                    break;
+               }
+
+               if (const auto* innerNode = dynamic_cast<const SSAArrayStoreNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Target().Index());
+                    break;
+               }
+
+               runtime_assert(false, "Invalid store node");
+               break;
+          }
+
           case ecpps::ir::NodeKind::Load:
           {
-               const auto* additionNode = dynamic_cast<const SSALoadNode*>(node.get());
-               map.ReferenceRegister(additionNode->Address().Index());
+               if (const auto* innerNode = dynamic_cast<const SSARegisterReferenceNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Reg().Index());
+                    break;
+               }
+
+               if (const auto* innerNode = dynamic_cast<const SSALoadNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Address().Index());
+                    break;
+               }
+
+               if (dynamic_cast<const LoadNode*>(node.get()) != nullptr) break;
+
+               runtime_assert(false, "Invalid load node");
+               break;
           }
-          break;
+
+          case ecpps::ir::NodeKind::AddressOf:
+          {
+               const auto* innerNode = dynamic_cast<const SSAAddressOfNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid address-of node");
+
+               map.ReferenceRegister(innerNode->Operand().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Dereference:
+          {
+               const auto* innerNode = dynamic_cast<const SSADerefNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid dereference node");
+
+               map.ReferenceRegister(innerNode->Ptr().Index());
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Call:
+          {
+               const auto* innerNode = dynamic_cast<const SSACallNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid call node");
+
+               for (const auto* argument : innerNode->Arguments())
+               {
+                    runtime_assert(argument != nullptr, "Invalid call argument");
+                    map.ReferenceRegister(argument->Index());
+               }
+
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Return:
+          {
+               const auto* innerNode = dynamic_cast<const SSAReturnNode*>(node.get());
+
+               if (innerNode != nullptr && innerNode->HasOperand())
+                    map.ReferenceRegister(innerNode->Operand()->Index());
+
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Integer:
+          {
+               break;
+          }
+
+          case ecpps::ir::NodeKind::Reference:
+          {
+               break;
+          }
+
+          case ecpps::ir::NodeKind::IncomingParameter:
+          {
+               break;
+          }
+
+          case ecpps::ir::NodeKind::IntegerArrayDecay:
+          {
+               break;
+          }
+
+          case ecpps::ir::NodeKind::LoadArrayDecay:
+          {
+               const auto* innerNode = dynamic_cast<const LoadArrayDecayNode*>(node.get());
+               runtime_assert(innerNode != nullptr, "Invalid load-array-decay node");
+
+               if (const auto* reg = innerNode->GetAllocReg()) map.ReferenceRegister(reg->Index());
+
+               break;
+          }
+
+          case ecpps::ir::NodeKind::CompareExchange:
+          {
+               break;
+          }
+
           default: break;
           }
      }
