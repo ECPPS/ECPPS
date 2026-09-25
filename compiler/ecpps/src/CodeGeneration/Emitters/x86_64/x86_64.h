@@ -43,5 +43,6 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitBinaryXor(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitBitwiseNot(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitArithmeticNegation(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitMovsx(const ir::abstract::DynamicBytecode& description);
      };
 } // namespace ecpps::codegen::emitters

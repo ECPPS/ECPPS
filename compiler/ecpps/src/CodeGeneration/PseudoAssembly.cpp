@@ -536,15 +536,15 @@ void ecpps::codegen::ParsingContext::ParseArithmeticNegationNode(const ir::SSAAr
 }
 void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& node)
 {
-     auto ssaOperandIndex = node.Src().Index();
+     auto ssaSourceIndex = node.Src().Index();
      auto ssaResultIndex = node.Result().Index();
 
-     auto virtualOperandIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaOperandIndex);
-     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex);
+     auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+     auto& describedSource = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex);
 
-     auto size = describedLeft.size;
-     auto alignment = describedLeft.alignment;
-     auto fromSigned = describedLeft.properties & ValueProperty::Signed;
+     auto size = describedSource.size;
+     auto alignment = describedSource.alignment;
+     auto fromSigned = describedSource.properties & ValueProperty::Signed;
 
      const auto* targetType = node.TargetType();
      const auto* targetIntegral = targetType->CastTo<typeSystem::IntegralType>();
@@ -553,23 +553,24 @@ void ecpps::codegen::ParsingContext::ParseConvertNode(const ir::SSAConvertNode& 
      }
 
      const auto targetSize = targetIntegral->Size();
+     const auto targetAlignment = targetIntegral->Alignment();
      const auto targetSign = targetIntegral->Sign() == typeSystem::Signedness::Signed;
 
-     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).size,
+     runtime_assert(size == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex).size,
                     "Sizes don't match while getting a common size");
 
      runtime_assert(alignment ==
-                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualOperandIndex).alignment,
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex).alignment,
                     "Alignments don't match while getting a common alignment");
 
      const auto resultProperty = targetSign ? ValueProperty::Signed : ValueProperty::None;
 
      ir::abstract::VirtualRegister allocatedIndex(this->AllocateVirtual(
-          ssaResultIndex, size, alignment, AllocationDescriptor::Type::Temporary, resultProperty));
+          ssaResultIndex, targetSize, targetAlignment, AllocationDescriptor::Type::Temporary, resultProperty));
 
-     this->DereferenceSSA(ssaOperandIndex);
+     this->DereferenceSSA(ssaSourceIndex);
 
-     ir::abstract::VirtualRegister virtualOperand{virtualOperandIndex};
+     ir::abstract::VirtualRegister virtualOperand{virtualSourceIndex};
      ir::abstract::VirtualInstructionType type = ir::abstract::VirtualInstructionType::Copy;
 
      if (fromSigned == targetSign)

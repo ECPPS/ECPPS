@@ -477,7 +477,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const convertNode = dynamic_cast<high::ConvertNode*>(valueNode))
      {
-          const auto* srcReg = LowerExpression(std::move(*convertNode).Operand(), built);
+          const auto* srcReg = LowerExpressionLoaded(std::move(*convertNode).Operand(), built);
           if (srcReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);

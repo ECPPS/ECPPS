@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <tuple>
+#include <utility>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
@@ -46,7 +47,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           return built;
      }
 
-     built.append_range(EnsureMaterialisation(source));
+     if (!this->ImmediateOf(source).has_value()) built.append_range(EnsureMaterialisation(source));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -80,22 +81,23 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
           std::ignore = this->ConsumeUse(virtualSource);
 
-          return {.instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, slot)},
-                  .assignedRegister = destinationRegister};
+          return {
+               .instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, slot)},
+               .assignedRegister = destinationRegister};
      }
-
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
      const auto remainingUses = this->ConsumeUse(virtualSource);
+
+     RegisterIndex destinationRegister{};
 
      if (remainingUses == 0 && !this->IsMutable(virtualSource))
      {
           this->TransferRegister(virtualSource, owner);
-          return {.instructions = {}, .assignedRegister = sourceRegister};
+          destinationRegister = sourceRegister;
      }
-
-     const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
      if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
-     return {.instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, RegisterOperand{sourceRegister})},
+     return {.instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister},
+                                         RegisterOperand{sourceRegister})},
              .assignedRegister = destinationRegister};
 }

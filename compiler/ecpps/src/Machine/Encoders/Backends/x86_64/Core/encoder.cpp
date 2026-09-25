@@ -51,10 +51,9 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
-X8664VirtualInstructionEncoder::EncoderImplementation<
-          ecpps::ir::abstract::VirtualInstructionType::SignExtension>(
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::SignExtension>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
-     
+
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
@@ -114,7 +113,7 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::SignExtension>(ecpps::ir::abstract::VirtualRegister owner,
-                                                                           std::span<const std::byte> data);
+                                                                      std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -265,11 +264,11 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      }
      case X8664InstructionName::SignExtend:
      {
-          runtime_assert(instruction.description.size() == sizeof(MovExtendInstruction),
-                         "invalid MOVSX");
+          runtime_assert(instruction.description.size() == sizeof(MovExtendInstruction), "invalid MOVSX");
           const auto* movsx =
                std::launder(reinterpret_cast<const MovExtendInstruction*>(instruction.description.data()));
-          return std::format("MOVSX.{}<-{} {}, {}", ToString(movsx->destinationWidth), ToString(movsx->sourceWidth), ToString(movsx->destination), ToString(movsx->source));
+          return std::format("MOVSX.{}<-{} {}, {}", ToString(movsx->destinationWidth), ToString(movsx->sourceWidth),
+                             ToString(movsx->destination), ToString(movsx->source));
      }
      }
 
@@ -363,12 +362,21 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                EncoderImplementation<ir::abstract::VirtualInstructionType::BitwiseNot>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::SignExtension:
+     case ecpps::ir::abstract::VirtualInstructionType::SignExtendAndReinterpret:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::SignExtension>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::ArithmeticNegate>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Truncate:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Reinterpret:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -502,7 +510,10 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.opcode = X8664InstructionName::SignExtend;
      instruction.description.resize(sizeof(MovExtendInstruction));
 
-     new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth, .sourceWidth = sourceWidth, .destination = destination, .source = source};
+     new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth,
+                                                               .sourceWidth = sourceWidth,
+                                                               .destination = destination,
+                                                               .source = source};
 
      return instruction;
 }
