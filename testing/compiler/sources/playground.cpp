@@ -1,4 +1,7 @@
+using LL = long long;
+
 int main()
 {
-     return -2;
+     short meow = -1;
+     return meow;
 }

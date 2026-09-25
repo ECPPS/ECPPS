@@ -48,6 +48,25 @@ template <> struct std::hash<ecpps::codegen::ByteView>
 namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
+     enum struct ValueProperty : std::uint8_t
+     {
+          None = 0,
+          Integer = 1 << 0,
+          Floating = 1 << 1,
+          Pointer = 1 << 2,
+          Aggregate = 1 << 3,
+          Array = 1 << 4,
+
+          Signed = 1 << 5,
+     };
+     constexpr bool operator&(const ValueProperty left, const ValueProperty right)
+     {
+          return (std::to_underlying(left) & std::to_underlying(right)) != 0;
+     }
+     constexpr ValueProperty operator|(const ValueProperty left, const ValueProperty right)
+     {
+          return static_cast<ValueProperty>(std::to_underlying(left) | std::to_underlying(right));
+     }
 
      struct AllocationDescriptor
      {
@@ -55,6 +74,7 @@ namespace ecpps::codegen
 
           std::size_t size;
           std::size_t alignment;
+          ValueProperty properties;
           Type type;
      };
      struct VirtualNotFoundError : std::exception
@@ -68,16 +88,14 @@ namespace ecpps::codegen
           using Index = std::size_t;
           static constexpr Index InvalidIndex = std::numeric_limits<Index>::max();
 
-          [[nodiscard]]
-          Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment, AllocationDescriptor::Type type)
+          [[nodiscard]] Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment,
+                                              AllocationDescriptor::Type type,
+                                              ValueProperty extraProperties = ValueProperty::None)
           {
                const Index virtualIndex = _descriptorArray.size();
 
                _descriptorArray.emplace_back(AllocationDescriptor{
-                    .size = size,
-                    .alignment = alignment,
-                    .type = type,
-               });
+                    .size = size, .alignment = alignment, .properties = extraProperties, .type = type});
 
                _ssaByVirtual.push_back(InvalidIndex);
 
@@ -183,6 +201,7 @@ namespace ecpps::codegen
           void ParseBinXorNode(const ir::SSABinXorNode& node);
           void ParseBitwiseNotNode(const ir::SSABitwiseNotNode& node);
           void ParseArithmeticNegationNode(const ir::SSAArithmeticNegationNode& node);
+          void ParseConvertNode(const ir::SSAConvertNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
           void ParseIntNode(const ir::SSAImmNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
@@ -190,7 +209,8 @@ namespace ecpps::codegen
      private:
           void DereferenceSSA(std::size_t ssaIndex);
           [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
-                                                    AllocationDescriptor::Type type);
+                                                    AllocationDescriptor::Type type,
+                                                    ValueProperty properties = ValueProperty::None);
      };
 
      struct AssemblyContext
