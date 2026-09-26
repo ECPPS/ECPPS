@@ -10,5 +10,9 @@ namespace ecpps::abi::encoders::x8664
           explicit LinuxPlatform(api::SDKBase* currentSdk) : PlatformBase(currentSdk)
           {
           }
+          [[nodiscard]] std::size_t StackAlignment(void) const noexcept final
+          {
+               return 16;
+          }
      };
 } // namespace ecpps::abi::encoders::x8664
