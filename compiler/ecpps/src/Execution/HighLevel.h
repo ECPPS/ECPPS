@@ -509,6 +509,41 @@ namespace ecpps::ir::high
           Expression _left;
           Expression _right;
      };
+     class AssignNode final : public NodeBase
+     {
+     public:
+          explicit AssignNode(Expression left, Expression right, Location source)
+              : NodeBase(NodeKind::Store, source), _left(std::move(left)), _right(std::move(right))
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const& noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const& noexcept
+          {
+               return this->_right;
+          }
+
+          [[nodiscard]] Expression Left(void) && noexcept
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) && noexcept
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " = " +
+                      this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+     };
      class SubtractionAssignNode final : public NodeBase
      {
      public:
