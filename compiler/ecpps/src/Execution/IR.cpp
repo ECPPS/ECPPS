@@ -756,10 +756,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::ResolveAllocReg(const 
      return nullptr;
 }
 
-std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAllocator& allocator,
-                                                const std::vector<ASTNodePointer>& ast)
+std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
 {
-     Context context{diagnostics, allocator};
      IR ir{&context};
      TypeRequest voidRequest{.kind = TypeKind::Fundamental, .data = VoidRequest{}};
      const auto* voidType = GetTypeContext().Get(voidRequest);
@@ -1077,23 +1075,16 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           RegisterPriorityInfo paramInfo{.regClass = RegisterClass::LocalVariable};
           auto* funcCtx = dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get());
           runtime_assert(funcCtx != nullptr, "Expected function context during parameter emission");
-          const auto regIdx = funcCtx->GetNextRegisterIndex();
-          auto paramReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
-               regIdx, paramInfo, param.type->Width(), param.type->Alignment(), node.Source())};
-          auto* paramRegPtr = paramReg.get();
-
-          funcCtx->RegisterParamAllocReg(param.name, paramRegPtr);
 
           const auto width = param.type->Width();
           auto allocReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
                funcCtx->GetNextRegisterIndex(), paramInfo, width, param.type->Alignment(), node.Source())};
           auto* allocRegPtr = allocReg.get();
 
+          funcCtx->RegisterParamAllocReg(param.name, allocRegPtr);
+
           ir._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
                new (allocator) AllocationNode(std::move(allocReg), node.Source())});
-
-          ir._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
-               new (allocator) SSAStoreNode(allocRegPtr, paramRegPtr, node.Source())});
 
           ir._built.push_back(
                std::unique_ptr<ParameterNode, IRDeleter>{new (allocator) ParameterNode(paramIndex++, node.Source())});

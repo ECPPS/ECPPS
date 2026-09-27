@@ -334,8 +334,9 @@ namespace
                }
 
                BumpAllocator irAllocator;
+               ir::Context context{source.diagnostics, irAllocator};
 
-               const auto ir = ir::IR::Parse(source.diagnostics, irAllocator, ast);
+               const auto ir = ir::IR::Parse(context, ast);
 
                if (config.IsVerbose(VerboseFeature::IR))
                {

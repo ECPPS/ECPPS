@@ -83,7 +83,9 @@ namespace ecpps::ir::abstract
           SignExtension,            // widening (signed)
           SignExtendAndReinterpret, // widening (unsigned <- signed)
           ZeroExtendAndReinterpret, // widening (signed <- unsigned)
-          Truncate                  // narrowing (signed/unsigned)
+          Truncate,                 // narrowing (signed/unsigned)
+          Call,
+          CallWithResult
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -106,6 +108,8 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::SignExtendAndReinterpret: return "sign-extend-and-reinterpret";
           case VirtualInstructionType::ZeroExtendAndReinterpret: return "zero-extend-and-reinterpret";
           case VirtualInstructionType::Truncate: return "truncate";
+          case VirtualInstructionType::Call: return "call";
+          case VirtualInstructionType::CallWithResult: return "call+";
 
           case VirtualInstructionType::ArithmeticNegate: return "negate";
           }

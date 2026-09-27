@@ -34,6 +34,18 @@ std::uint32_t ecpps::codegen::AssemblyContext::ReserveNextStringEntry(void) noex
      return next.fetch_add(1, std::memory_order::relaxed);
 }
 
+std::size_t ecpps::codegen::ParsingContext::CallFunctionIndex(const ir::FunctionScope* contextPointer)
+{
+     std::size_t foundIndex{};
+     for (const auto* pointer : this->functionUsageTable)
+     {
+          if (pointer == contextPointer) return foundIndex;
+          foundIndex++;
+     }
+     this->functionUsageTable.push_back(contextPointer);
+     return foundIndex;
+}
+
 void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
@@ -151,6 +163,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                const auto* convertNode = dynamic_cast<const ecpps::ir::SSAConvertNode*>(node);
                runtime_assert(convertNode != nullptr, "Arithmetic negation node was not an arithmetic negation!");
                this->ParseConvertNode(*convertNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Call:
+          {
+               const auto* callNode = dynamic_cast<const ecpps::ir::SSACallNode*>(node);
+               runtime_assert(callNode != nullptr, "Call node was not a call!");
+               this->ParseCallNode(*callNode);
           }
           break;
           default:
@@ -558,6 +577,33 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::CopyInteger,
           .operands = {virtualIndex, sourceVirtualised},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseCallNode([[maybe_unused]] const ir::SSACallNode& node)
+{
+     const auto callIndex = CallFunctionIndex(&node.Function());
+     if (node.HasResult())
+     {
+          auto width = node.Result().Width();
+          auto ssaIndex = node.Result().Index();
+
+          ir::abstract::VirtualRegister virtualIndex{
+               this->AllocateVirtual(ssaIndex, width, AllocationDescriptor::Type::Temporary),
+          };
+          ir::abstract::VirtualRegister sourceVirtualised{callIndex};
+          ir::abstract::VirtualInstruction instruction{
+               .type = ir::abstract::VirtualInstructionType::CallWithResult,
+               .operands = {virtualIndex, sourceVirtualised},
+          };
+          this->instructions.push_back(instruction);
+          return;
+     }
+
+     ir::abstract::VirtualRegister sourceVirtualised{callIndex};
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Call,
+          .operands = {sourceVirtualised},
      };
      this->instructions.push_back(instruction);
 }

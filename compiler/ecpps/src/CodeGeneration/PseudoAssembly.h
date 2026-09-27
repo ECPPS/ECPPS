@@ -45,6 +45,11 @@ template <> struct std::hash<ecpps::codegen::ByteView>
      }
 };
 
+namespace ecpps::ir
+{
+     struct FunctionScope;
+}
+
 namespace ecpps::codegen
 {
      extern std::unordered_map<std::string, std::string> g_functionImports;
@@ -179,6 +184,8 @@ namespace ecpps::codegen
           std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics{};
           abi::api::Target* target{};
           AllocationMap virtualRegisterAllocationMap;
+          std::vector<const ir::FunctionScope*> functionUsageTable{};
+          std::size_t CallFunctionIndex(const ir::FunctionScope* contextPointer);
 
           void ParseNode(const ir::NodeBase* node);
 
@@ -198,6 +205,7 @@ namespace ecpps::codegen
           void ParseConvertNode(const ir::SSAConvertNode& node);
           void ParseLoadNode(const ir::SSALoadNode& node);
           void ParseIntNode(const ir::SSAImmNode& node);
+          void ParseCallNode(const ir::SSACallNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
 
      private:
