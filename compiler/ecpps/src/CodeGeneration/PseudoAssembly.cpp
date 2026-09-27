@@ -648,6 +648,7 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
      parseContext.target = target;
 
      for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
+     target->encoder->SetFunctionCallTable(parseContext.functionUsageTable);
 
      diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 

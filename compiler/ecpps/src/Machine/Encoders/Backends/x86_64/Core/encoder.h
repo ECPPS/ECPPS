@@ -47,6 +47,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Neg = 13;
           constexpr static std::size_t SignExtend = 14;
           constexpr static std::size_t ZeroExtend = 15;
+          constexpr static std::size_t Call = 16;
      };
 
      enum struct EncodingSpillage : std::uint8_t
@@ -211,6 +212,10 @@ namespace ecpps::abi::encoders::x8664
           {
                Width width{};
                Operand modifiedOperand{};
+          };
+          struct CallInstruction
+          {
+               std::size_t indexToTable{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -440,6 +445,7 @@ namespace ecpps::abi::encoders::x8664
                                                                     Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildMovzx(Width destinationWidth, Width sourceWidth,
                                                                     Operand destination, Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildCall(std::size_t functionIndex);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(

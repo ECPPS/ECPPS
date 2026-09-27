@@ -24,6 +24,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::Neg: return this->EmitArithmeticNegation(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::SignExtend: return this->EmitMovsx(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::ZeroExtend: return this->EmitMovzx(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Call: return this->EmitCall(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
      }
 }

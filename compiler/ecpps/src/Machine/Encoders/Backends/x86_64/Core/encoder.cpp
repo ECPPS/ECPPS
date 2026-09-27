@@ -9,6 +9,7 @@
 #include <span>
 #include <tuple>
 #include "CodeGeneration/AbstractNodes.h"
+#include "Execution/Context.h"
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "Parsing/Tokeniser.h"
@@ -48,6 +49,9 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<
           ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Call>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
@@ -286,6 +290,13 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           return std::format("MOVZX.{}<-{} {}, {}", ToString(movsx->destinationWidth), ToString(movsx->sourceWidth),
                              ToString(movsx->destination), ToString(movsx->source));
      }
+     case X8664InstructionName::Call:
+     {
+          runtime_assert(instruction.description.size() == sizeof(CallInstruction), "invalid CALL");
+          const auto* call = std::launder(reinterpret_cast<const CallInstruction*>(instruction.description.data()));
+          const ir::FunctionScope* scope = this->_scopes[call->indexToTable];
+          return std::format("CALL {}", scope->ToString());
+     }
      }
 
      return "__unknown";
@@ -398,6 +409,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Reinterpret:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Call:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Call>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -549,6 +564,17 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
                                                                .sourceWidth = sourceWidth,
                                                                .destination = destination,
                                                                .source = source};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildCall(
+     std::size_t functionIndex)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Call;
+     instruction.description.resize(sizeof(CallInstruction));
+
+     new (instruction.description.data()) CallInstruction{.indexToTable = functionIndex};
 
      return instruction;
 }

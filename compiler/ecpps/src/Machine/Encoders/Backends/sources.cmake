@@ -14,4 +14,5 @@ list(APPEND BACKEND_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Arithmetic/BinaryComplement.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Arithmetic/ArithmeticNegation.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Return.cpp
+	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Call.cpp
 )
