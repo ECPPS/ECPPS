@@ -644,6 +644,18 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           return subPtr;
      }
 
+     if (auto* const assign = dynamic_cast<high::AssignNode*>(valueNode))
+     {
+          const auto* targetReg = LowerExpression(std::move(*assign).Left(), built);
+          const auto* rhsReg = LowerExpressionLoaded(std::move(*assign).Right(), built);
+          if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
+
+          built.push_back(
+               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, rhsReg, source)});
+
+          return targetReg;
+     }
+
      if (auto* const postInc = dynamic_cast<high::PostIncrementNode*>(valueNode))
      {
           const auto* targetReg = LowerExpression(std::move(*postInc).Operand(), built);
@@ -2329,6 +2341,56 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
 
      throw TracedException("Not implemented");
 }
+Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source) const
+{
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+
+     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     {
+          // TODO: Classes, floating point etc
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+
+          return nullptr;
+     }
+     if (!left->IsLValue())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
+     }
+     if (leftIntegral->IsConst())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Assignment expressions require modifiable lvalues. Cannot perform this binary operation on " +
+                         left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+     }
+
+     if (right->Type() != left->Type())
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(left->Type(),
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), left->Type(), innerSource)},
+                                            wasConstexpr);
+     }
+
+     const auto* resultType = left->Type();
+
+     return std::make_unique<LValue>(resultType,
+                                     std::unique_ptr<high::AssignNode, IRDeleter>{
+                                          new (*this->GetContext().nodeAllocator)
+                                               high::AssignNode(std::move(left), std::move(right), source)},
+                                     false);
+}
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
 {
@@ -2382,6 +2444,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return this->ParseBinaryAndExpression(std::move(left), std::move(right), node.Source());
      case ast::Operator::CircumflexAccent:
           return this->ParseBinaryXorExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::Assignment:
+          return this->ParseAssignmentExpression(std::move(left), std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }

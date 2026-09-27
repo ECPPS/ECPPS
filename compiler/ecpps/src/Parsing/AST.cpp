@@ -1823,10 +1823,29 @@ NodePointer ecpps::ast::AST::ParseConditionalExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseAssignmentExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseConditionalExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               if (std::get<std::string>(currentToken.value) == "=")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = Operator::Assignment;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseAssignmentExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
