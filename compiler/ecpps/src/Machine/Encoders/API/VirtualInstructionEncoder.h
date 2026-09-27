@@ -2,6 +2,7 @@
 
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Machine.h"
+#include "Shared/Config.h"
 
 namespace ecpps::abi::api
 {
@@ -25,6 +26,7 @@ namespace ecpps::abi::api
           [[nodiscard]] virtual std::string Stringify(const ir::abstract::Instruction& instruction) const = 0;
 
           virtual void Finalise(std::vector<ir::abstract::Instruction>& instructions) = 0;
+          virtual void ApplyOptimisations(OptimisationFeatureSets optimisations) = 0;
 
      protected:
           Target* _target; // TODO: non-null pointer

@@ -1,11 +1,9 @@
 #pragma once
 
-#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <map>
 #include <optional>
 #include <print>
 #include <string>
@@ -14,6 +12,7 @@
 #include <utility>
 #include <vector>
 #include "Shared/Diagnostics.h"
+#include "TypeSystem/TypeBase.h"
 
 namespace ecpps::ir::abstract
 {
@@ -135,7 +134,7 @@ namespace ecpps::ir::abstract
      };
      enum struct AllocationClass : std::uint8_t
      {
-          Locked = 0,
+          Locked,
           HotTemporary,
           HotAllocation,
           Temporary,
@@ -155,8 +154,7 @@ namespace ecpps::ir::abstract
           std::size_t useCount{};
           std::optional<State> materialised;
           State currentValue{};
-          std::size_t size{};
-          std::size_t alignment{};
+          std::size_t width{};
           AllocationClass allocationClass = AllocationClass::Temporary;
      };
 
@@ -211,21 +209,25 @@ namespace ecpps::ir::abstract
                return DataFromRegister(reg).currentValue;
           }
 
-          void Describe(VirtualRegisterUsable auto reg, const std::size_t size, const std::size_t alignment,
-                        const AllocationClass allocationClass)
+          void Describe(VirtualRegisterUsable auto reg, const std::size_t width, const AllocationClass allocationClass)
           {
                auto& data = DataFromRegister(reg);
-               data.size = size;
-               data.alignment = alignment;
+               data.width = width;
                data.allocationClass = allocationClass;
+          }
+          std::size_t GetWidth(VirtualRegisterUsable auto reg) const
+          {
+               return DataFromRegister(reg).width;
           }
           std::size_t GetSize(VirtualRegisterUsable auto reg) const
           {
-               return DataFromRegister(reg).size;
+               const auto width = GetWidth(reg);
+               const auto charBit = typeSystem::CharWidth;
+               return (width + charBit - 1) / charBit;
           }
           std::size_t GetAlignment(VirtualRegisterUsable auto reg) const
           {
-               return DataFromRegister(reg).alignment;
+               return GetSize(reg); // TODO: ??????
           }
           AllocationClass GetAllocationClass(VirtualRegisterUsable auto reg) const
           {

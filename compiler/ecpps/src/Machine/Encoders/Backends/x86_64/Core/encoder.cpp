@@ -805,8 +805,21 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           if (this->_evicted.contains(source.index)) reloads.append_range(this->EnsureMaterialisation(source));
 
      const auto& value = this->GetVRM().GetValue(virtualRegister);
+     if (value.type == ir::abstract::StateType::Unknown)
+     {
+          ir::abstract::State materialisedState{};
+          const auto assigned = this->_registerAllocator.Allocate(virtualRegister);
+          materialisedState.type = ir::abstract::StateType::Allocation;
+          materialisedState.data.resize(sizeof(materialisations::PhysicalRegister));
+          materialisations::PhysicalRegister& physical =
+               *new (materialisedState.data.data()) materialisations::PhysicalRegister{};
+          physical.parameters = std::make_tuple(assigned);
+          this->GetVRM().Materialise(virtualRegister, materialisedState);
+          this->SetMaterialisedRegister(virtualRegister, assigned);
 
-     runtime_assert(value.type != ir::abstract::StateType::Unknown, "Cannot materialise a register with unknown value");
+          return {};
+     }
+
      runtime_assert(value.type != ir::abstract::StateType::Impossible,
                     "Cannot materialise a register with impossible state");
 

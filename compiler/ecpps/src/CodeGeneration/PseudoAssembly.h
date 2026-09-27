@@ -72,9 +72,7 @@ namespace ecpps::codegen
      {
           using Type = ir::abstract::AllocationClass;
 
-          std::size_t size;
-          std::size_t alignment;
-          ValueProperty properties;
+          std::size_t width;
           Type type;
      };
      struct VirtualNotFoundError : std::exception
@@ -88,14 +86,11 @@ namespace ecpps::codegen
           using Index = std::size_t;
           static constexpr Index InvalidIndex = std::numeric_limits<Index>::max();
 
-          [[nodiscard]] Index EmplaceAllocate(Index ssaIndex, Index size, Index alignment,
-                                              AllocationDescriptor::Type type,
-                                              ValueProperty extraProperties = ValueProperty::None)
+          [[nodiscard]] Index EmplaceAllocate(Index ssaIndex, Index width, AllocationDescriptor::Type type)
           {
                const Index virtualIndex = _descriptorArray.size();
 
-               _descriptorArray.emplace_back(AllocationDescriptor{
-                    .size = size, .alignment = alignment, .properties = extraProperties, .type = type});
+               _descriptorArray.emplace_back(AllocationDescriptor{.width = width, .type = type});
 
                _ssaByVirtual.push_back(InvalidIndex);
 
@@ -169,7 +164,6 @@ namespace ecpps::codegen
                runtime_assert(virtualIndex < _descriptorArray.size(), "invalid virtual index");
 
                _ssaByVirtual[virtualIndex] = InvalidIndex;
-               _descriptorArray[virtualIndex].type = AllocationDescriptor::Type::Invalid;
           }
 
      private:
@@ -208,9 +202,8 @@ namespace ecpps::codegen
 
      private:
           void DereferenceSSA(std::size_t ssaIndex);
-          [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t size, std::size_t alignment,
-                                                    AllocationDescriptor::Type type,
-                                                    ValueProperty properties = ValueProperty::None);
+          [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t width,
+                                                    AllocationDescriptor::Type type);
      };
 
      struct AssemblyContext

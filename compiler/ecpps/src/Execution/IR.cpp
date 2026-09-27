@@ -267,14 +267,10 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(
 
      auto& allocator = *this->GetContext().nodeAllocator;
 
-     auto makeReg = [&](Location source, std::size_t width) -> SingleAssignRegisterNode*
-     {
-          const auto idx = function->GetNextRegisterIndex();
-          RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
-          return new (allocator) SingleAssignRegisterNode(idx, info, width, source);
-     };
+     const auto idx = function->GetNextRegisterIndex();
+     RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
+     auto* loadedResult = new (allocator) SingleAssignRegisterNode(idx, info, type->Width(), source);
 
-     auto* loadedResult = makeReg(source, type->Size() * typeSystem::CharWidth);
      built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
           std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, source)});
      return loadedResult;
@@ -303,7 +299,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const integralNode = dynamic_cast<IntegralNode*>(valueNode))
      {
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAImmNode, IRDeleter>{
                new (allocator) SSAImmNode(std::move(result), integralNode->Value(), source)});
@@ -322,7 +318,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
                return nullptr;
           }
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(result), allocReg, source)});
@@ -353,7 +349,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*addNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
                new (allocator) SSAAddNode(std::move(result), leftReg, rightReg, source)});
@@ -366,7 +362,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*subNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSASubNode, IRDeleter>{
                new (allocator) SSASubNode(std::move(result), leftReg, rightReg, source)});
@@ -379,7 +375,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*mulNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAMulNode, IRDeleter>{
                new (allocator) SSAMulNode(std::move(result), leftReg, rightReg, source)});
@@ -392,7 +388,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*leftShiftNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSALeftShiftNode, IRDeleter>{
                new (allocator) SSALeftShiftNode(std::move(result), leftReg, rightReg, source)});
@@ -405,7 +401,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*rightShiftNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSARightShiftNode, IRDeleter>{
                new (allocator) SSARightShiftNode(std::move(result), leftReg, rightReg, source)});
@@ -418,7 +414,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*divNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSADivNode, IRDeleter>{
                new (allocator) SSADivNode(std::move(result), leftReg, rightReg, source)});
@@ -431,7 +427,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*orNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSABinOrNode, IRDeleter>{
                new (allocator) SSABinOrNode(std::move(result), leftReg, rightReg, source)});
@@ -443,7 +439,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*andNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSABinAndNode, IRDeleter>{
                new (allocator) SSABinAndNode(std::move(result), leftReg, rightReg, source)});
@@ -455,7 +451,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*xorNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSABinXorNode, IRDeleter>{
                new (allocator) SSABinXorNode(std::move(result), leftReg, rightReg, source)});
@@ -468,7 +464,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rightReg = LowerExpressionLoaded(std::move(*modNode).Right(), built);
           if (leftReg == nullptr || rightReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAModNode, IRDeleter>{
                new (allocator) SSAModNode(std::move(result), leftReg, rightReg, source)});
@@ -477,13 +473,44 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const convertNode = dynamic_cast<high::ConvertNode*>(valueNode))
      {
+          const auto* targetType = convertNode->TargetType();
+          const auto* fromType = convertNode->Operand()->Type();
+
           const auto* srcReg = LowerExpressionLoaded(std::move(*convertNode).Operand(), built);
           if (srcReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
+          ConversionType type{};
+
+          const auto* targetIntegral = targetType->CastTo<typeSystem::IntegralType>();
+          const bool targetSign = targetIntegral->Sign() == typeSystem::Signedness::Signed;
+          const auto targetSize = targetIntegral->Size();
+
+          const auto* fromIntegral = fromType->CastTo<typeSystem::IntegralType>();
+          const bool fromSigned = fromIntegral->Sign() == typeSystem::Signedness::Signed;
+          const auto fromSize = fromIntegral->Size();
+
+          if (fromSigned == targetSign)
+          {
+               if (targetSize == fromSize) type = ConversionType::Reinterpret; // warn?
+               else if (targetSize > fromSize)
+                    type = targetSign ? ConversionType::SignExtension : ConversionType::ZeroExtension;
+               else
+                    type = ConversionType::Truncate;
+          }
+          else
+          {
+               if (targetSize == fromSize) type = ConversionType::Reinterpret;
+               else if (targetSize > fromSize)
+                    type = targetSign ? ConversionType::SignExtendAndReinterpret
+                                      : ConversionType::ZeroExtendAndReinterpret;
+               else
+                    type = ConversionType::Truncate;
+          }
+
           built.push_back(std::unique_ptr<SSAConvertNode, IRDeleter>{
-               new (allocator) SSAConvertNode(std::move(result), srcReg, expression->Type(), source)});
+               new (allocator) SSAConvertNode(std::move(result), srcReg, type, source)});
           return resultPtr;
      }
 
@@ -492,7 +519,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* srcReg = LowerExpression(std::move(*ptrConvNode).Operand(), built);
           if (srcReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAPointerConvertNode, IRDeleter>{
                new (allocator) SSAPointerConvertNode(std::move(result), srcReg, expression->Type(), source)});
@@ -502,7 +529,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      if ([[maybe_unused]] auto* const decayNode = dynamic_cast<TemporaryIntegerArrayDecayNode*>(valueNode))
      {
           auto ownedDecay = std::move(*expression).Value();
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAPointerConvertFromDecayNode, IRDeleter>{
                new (allocator) SSAPointerConvertFromDecayNode(std::move(result), std::move(ownedDecay),
@@ -513,7 +540,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      if ([[maybe_unused]] auto* const loadDecayNode = dynamic_cast<LoadArrayDecayNode*>(valueNode))
      {
           auto ownedDecay = std::move(*expression).Value();
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAPointerConvertFromDecayNode, IRDeleter>{
                new (allocator) SSAPointerConvertFromDecayNode(std::move(result), std::move(ownedDecay),
@@ -526,7 +553,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* operandReg = LowerExpression(std::move(*addrOfNode).Operand(), built);
           if (operandReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAAddressOfNode, IRDeleter>{
                new (allocator) SSAAddressOfNode(std::move(result), operandReg, source)});
@@ -538,7 +565,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* ptrReg = LowerExpression(std::move(*derefNode).Operand(), built);
           if (ptrReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSADerefNode, IRDeleter>{
                new (allocator) SSADerefNode(std::move(result), ptrReg, source)});
@@ -559,7 +586,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const bool hasResult = expression->Type() != nullptr && !typeSystem::g_void->CommonWith(expression->Type());
           if (hasResult)
           {
-               auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+               auto result = makeReg(source, expression->Type()->Width());
                auto* resultPtr = result.get();
                built.push_back(std::unique_ptr<SSACallNode, IRDeleter>{
                     new (allocator) SSACallNode(std::optional<SSAPointer>{std::move(result)},
@@ -578,12 +605,12 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rhsReg = LowerExpressionLoaded(std::move(*addAssign).Right(), built);
           if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
 
-          auto loadResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto loadResult = makeReg(source, expression->Type()->Width());
           auto* loadPtr = loadResult.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(loadResult), targetReg, source)});
 
-          auto addResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto addResult = makeReg(source, expression->Type()->Width());
           auto* addPtr = addResult.get();
           built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
                new (allocator) SSAAddNode(std::move(addResult), loadPtr, rhsReg, source)});
@@ -600,12 +627,12 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* rhsReg = LowerExpressionLoaded(std::move(*subAssign).Right(), built);
           if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
 
-          auto loadResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto loadResult = makeReg(source, expression->Type()->Width());
           auto* loadPtr = loadResult.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(loadResult), targetReg, source)});
 
-          auto subResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto subResult = makeReg(source, expression->Type()->Width());
           auto* subPtr = subResult.get();
           built.push_back(std::unique_ptr<SSASubNode, IRDeleter>{
                new (allocator) SSASubNode(std::move(subResult), loadPtr, rhsReg, source)});
@@ -621,17 +648,17 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* targetReg = LowerExpression(std::move(*postInc).Operand(), built);
           if (targetReg == nullptr) return nullptr;
 
-          auto oldResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto oldResult = makeReg(source, expression->Type()->Width());
           auto* oldPtr = oldResult.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(oldResult), targetReg, source)});
 
-          auto oneResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto oneResult = makeReg(source, expression->Type()->Width());
           auto* onePtr = oneResult.get();
           built.push_back(std::unique_ptr<SSAImmNode, IRDeleter>{
                new (allocator) SSAImmNode(std::move(oneResult), postInc->IncrementValue(), source)});
 
-          auto newResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto newResult = makeReg(source, expression->Type()->Width());
           auto* newPtr = newResult.get();
           built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
                new (allocator) SSAAddNode(std::move(newResult), oldPtr, onePtr, source)});
@@ -647,17 +674,17 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* targetReg = LowerExpression(std::move(*postDec).Operand(), built);
           if (targetReg == nullptr) return nullptr;
 
-          auto oldResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto oldResult = makeReg(source, expression->Type()->Width());
           auto* oldPtr = oldResult.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
                new (allocator) SSALoadNode(std::move(oldResult), targetReg, source)});
 
-          auto oneResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto oneResult = makeReg(source, expression->Type()->Width());
           auto* onePtr = oneResult.get();
           built.push_back(std::unique_ptr<SSAImmNode, IRDeleter>{
                new (allocator) SSAImmNode(std::move(oneResult), postDec->IncrementValue(), source)});
 
-          auto newResult = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto newResult = makeReg(source, expression->Type()->Width());
           auto* newPtr = newResult.get();
           built.push_back(std::unique_ptr<SSASubNode, IRDeleter>{
                new (allocator) SSASubNode(std::move(newResult), oldPtr, onePtr, source)});
@@ -672,7 +699,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* operandReg = LowerExpressionLoaded(std::move(*bitwiseComplement).Operand(), built);
           if (operandReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSABitwiseNotNode, IRDeleter>{
                new (allocator) SSABitwiseNotNode(std::move(result), operandReg, source)});
@@ -683,7 +710,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* operandReg = LowerExpressionLoaded(std::move(*arithmeticNegation).Operand(), built);
           if (operandReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Size() * typeSystem::CharWidth);
+          auto result = makeReg(source, expression->Type()->Width());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAArithmeticNegationNode, IRDeleter>{
                new (allocator) SSAArithmeticNegationNode(std::move(result), operandReg, source)});
@@ -1044,14 +1071,13 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
           funcCtx->RegisterParamAllocReg(param.name, paramRegPtr);
 
-          const auto size = param.type->Size();
-          const auto alignment = param.type->Alignment();
+          const auto width = param.type->Width();
           auto allocReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
-               funcCtx->GetNextRegisterIndex(), paramInfo, param.type->Size() * typeSystem::CharWidth, node.Source())};
+               funcCtx->GetNextRegisterIndex(), paramInfo, width, node.Source())};
           auto* allocRegPtr = allocReg.get();
 
           ir._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
-               new (allocator) AllocationNode(size, alignment, std::move(allocReg), node.Source(), param.type)});
+               new (allocator) AllocationNode(std::move(allocReg), node.Source())});
 
           ir._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
                new (allocator) SSAStoreNode(allocRegPtr, paramRegPtr, node.Source())});
@@ -1297,10 +1323,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           function->RegisterAllocReg(varName, ssaNode);
 
-          const auto size = variableType->Size();
-          const auto alignment = variableType->Alignment();
-          this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{new (allocator) ir::AllocationNode(
-               size, alignment, std::move(ssaNodeUnique), decl.name->Source(), variableType)});
+          this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{
+               new (allocator) ir::AllocationNode(std::move(ssaNodeUnique), decl.name->Source())});
 
           if (inferLastArrayFromInitialiser)
           {
