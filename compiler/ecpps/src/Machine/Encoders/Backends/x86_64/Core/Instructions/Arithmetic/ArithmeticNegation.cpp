@@ -53,7 +53,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::ArithmeticNegationRegisters*>(data.data()));
      const auto operand = std::get<0>(complementValue.parameters);
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      const auto operandImmediate = this->ImmediateOf(operand);
 
      std::vector<ecpps::ir::abstract::Instruction> built{};

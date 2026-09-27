@@ -596,6 +596,8 @@ int main(int argc, char* argv[])
                return -1;
           }
 
+          target.encoder->ApplyOptimisations(config.optimisations);
+
           auto emitter = CreateEmitter(config);
 
           if (emitter == nullptr) return -1;

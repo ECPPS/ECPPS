@@ -59,7 +59,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const auto accumulator = std::get<0>(value.parameters);
      const auto count = std::get<1>(value.parameters);
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      constexpr auto rcx = RegisterIndex::Rcx;
 
      const auto accumulatorImmediate = this->ImmediateOf(accumulator);
@@ -172,7 +172,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const auto accumulator = std::get<0>(value.parameters);
      const auto count = std::get<1>(value.parameters);
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      constexpr auto rcx = RegisterIndex::Rcx;
 
      const auto accumulatorImmediate = this->ImmediateOf(accumulator);

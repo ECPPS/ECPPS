@@ -145,6 +145,13 @@ namespace ecpps::typeSystem
           /// </summary>
           [[nodiscard]] virtual std::size_t Size(void) const noexcept = 0;
           /// <summary>
+          /// Returns width in bits. For non-integral types, this is Size() * bits-in-byte
+          /// </summary>
+          [[nodiscard]] virtual std::size_t Width(void) const noexcept
+          {
+               return Size() * CharWidth;
+          }
+          /// <summary>
           /// Returns alignment in bytes. For references, returns the alignment of the object
           /// </summary>
           [[nodiscard]] virtual std::size_t Alignment(void) const noexcept = 0;

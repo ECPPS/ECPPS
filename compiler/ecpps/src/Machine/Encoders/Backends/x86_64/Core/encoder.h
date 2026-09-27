@@ -49,7 +49,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t ZeroExtend = 15;
      };
 
-     enum struct Optimisation : std::uint8_t
+     enum struct EncodingSpillage : std::uint8_t
      {
           None,
           Moderate,
@@ -62,13 +62,13 @@ namespace ecpps::abi::encoders::x8664
           Omit
      };
 
-     [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const Optimisation optimisation) noexcept
+     [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const EncodingSpillage optimisation) noexcept
      {
           switch (optimisation)
           {
-          case Optimisation::None: return ir::abstract::AllocationClass::Allocation;
-          case Optimisation::Moderate: return ir::abstract::AllocationClass::ColdAllocation;
-          case Optimisation::Aggressive: return ir::abstract::AllocationClass::Invalid;
+          case EncodingSpillage::None: return ir::abstract::AllocationClass::Allocation;
+          case EncodingSpillage::Moderate: return ir::abstract::AllocationClass::ColdAllocation;
+          case EncodingSpillage::Aggressive: return ir::abstract::AllocationClass::Invalid;
           }
           std::unreachable();
      }
@@ -98,13 +98,13 @@ namespace ecpps::abi::encoders::x8664
 
           enum struct Width : std::uint8_t
           {
-               W8 = 1,
-               W16 = 2,
-               W32 = 4,
-               W64 = 8
+               W8 = 8,
+               W16 = 16,
+               W32 = 32,
+               W64 = 64
           };
           [[nodiscard]] std::string ToString(Width width);
-          [[nodiscard]] constexpr Width WidthFromSize(const std::size_t size)
+          [[nodiscard]] [[deprecated]] constexpr Width WidthFromSize(const std::size_t size)
           {
                switch (size)
                {
@@ -114,6 +114,10 @@ namespace ecpps::abi::encoders::x8664
                case 8: return Width::W64;
                default: throw TracedException(std::format("Unsupported register size for integer copy: {}", size));
                }
+          }
+          [[nodiscard]] constexpr Width MapWidth(const std::size_t size)
+          {
+               return static_cast<Width>(size);
           }
           struct RegisterOperand
           {
@@ -354,7 +358,7 @@ namespace ecpps::abi::encoders::x8664
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
           explicit X8664VirtualInstructionEncoder(api::Target& target,
-                                                  const Optimisation optimisation = Optimisation::Aggressive,
+                                                  const EncodingSpillage optimisation = EncodingSpillage::Aggressive,
                                                   const FramePointer framePointer = FramePointer::Keep)
               : VirtualInstructionEncoder(ISA::x86_64, target), _optimisation(optimisation), _framePointer(framePointer)
           {
@@ -369,6 +373,18 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] std::size_t StackFrameSize(void) const noexcept
           {
                return this->_stackFrameSize;
+          }
+          void ApplyOptimisations(OptimisationFeatureSets optimisations) final
+          {
+               if (optimisations.IsEnabled(Optimisation::AggressiveEncoderOptimisations))
+                    this->_optimisation = EncodingSpillage::Aggressive;
+               else if (optimisations.IsEnabled(Optimisation::EncoderOptimisations))
+                    this->_optimisation = EncodingSpillage::Moderate;
+               else
+                    this->_optimisation = EncodingSpillage::None;
+
+               this->_framePointer =
+                    optimisations.IsEnabled(Optimisation::OmitCallingFrame) ? FramePointer::Omit : FramePointer::Keep;
           }
 
      private:
@@ -460,7 +476,7 @@ namespace ecpps::abi::encoders::x8664
           void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
           void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
 
-          Optimisation _optimisation;
+          EncodingSpillage _optimisation;
           FramePointer _framePointer;
           PhysicalRegisterAllocator _registerAllocator{};
           std::unordered_map<std::size_t, std::uint32_t> _stackSlots{};

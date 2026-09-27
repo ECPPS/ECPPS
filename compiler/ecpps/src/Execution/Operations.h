@@ -619,12 +619,23 @@ namespace ecpps::ir
           std::uint64_t _value;
      };
 
+     enum struct ConversionType : std::uint8_t
+     {
+          Reinterpret,              // same width, different sign
+          ZeroExtension,            // widening (unsigned)
+          SignExtension,            // widening (signed)
+          SignExtendAndReinterpret, // widening (unsigned <- signed)
+          ZeroExtendAndReinterpret, // widening (signed <- unsigned)
+          Truncate                  // narrowing (signed/unsigned)
+     };
+
      class SSAConvertNode final : public NodeBase
      {
      public:
           explicit SSAConvertNode(SSAPointer result, const SingleAssignRegisterNode* src,
-                                  ecpps::typeSystem::NonowningTypePointer targetType, Location source)
-              : NodeBase(NodeKind::Convert, source), _result(std::move(result)), _src(src), _targetType(targetType)
+                                  const ConversionType conversionType, Location source)
+              : NodeBase(NodeKind::Convert, source), _result(std::move(result)), _src(src),
+                _conversionType(conversionType)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
@@ -636,25 +647,40 @@ namespace ecpps::ir
           {
                return *this->_result;
           }
-          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Src(void) const noexcept
           {
                return *this->_src;
-          }
-          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer TargetType() const noexcept
-          {
-               return this->_targetType;
           }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{: <{}}{} = __convert<{}>({}) ", ' ', indent * ast::PrettyIndent,
-                                  this->_result->ToString(0), this->_targetType->RawName(), this->_src->ToString(0));
+               std::string_view nodeName = "__unknown_conversion";
+               switch (this->_conversionType)
+               {
+               case ecpps::ir::ConversionType::Reinterpret: nodeName = "__reinterpret"; break;
+               case ecpps::ir::ConversionType::SignExtendAndReinterpret:
+                    nodeName = "__sign_extend_and_reinterpret";
+                    break;
+               case ecpps::ir::ConversionType::ZeroExtendAndReinterpret:
+                    nodeName = "__zero_extend_and_reinterpret";
+                    break;
+               case ecpps::ir::ConversionType::SignExtension: nodeName = "__sign_extend"; break;
+               case ecpps::ir::ConversionType::ZeroExtension: nodeName = "__zero_extend"; break;
+               case ecpps::ir::ConversionType::Truncate: nodeName = "__truncate"; break;
+               }
+               return std::format("{: <{}}{} = {}<{}>({}) ", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), nodeName, this->_result->Width(),
+                                  this->_src->ToString(0));
+          }
+          [[nodiscard]] ConversionType Type(void) const noexcept
+          {
+               return this->_conversionType;
           }
 
      private:
           SSAPointer _result;
           const SingleAssignRegisterNode* _src;
-          ecpps::typeSystem::NonowningTypePointer _targetType;
+          ConversionType _conversionType;
      };
 
      class SSAPointerConvertNode final : public NodeBase
@@ -675,7 +701,7 @@ namespace ecpps::ir
           {
                return *this->_result;
           }
-          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Src(void) const noexcept
           {
                return *this->_src;
           }
@@ -752,7 +778,7 @@ namespace ecpps::ir
           {
                return *this->_target;
           }
-          [[nodiscard]] const SingleAssignRegisterNode& Src() const noexcept
+          [[nodiscard]] const SingleAssignRegisterNode& Src(void) const noexcept
           {
                return *this->_src;
           }
@@ -1102,42 +1128,23 @@ namespace ecpps::ir
      class AllocationNode final : public NodeBase
      {
      public:
-          explicit AllocationNode(std::size_t size, std::size_t alignment,
-                                  std::unique_ptr<SingleAssignRegisterNode, IRDeleter> ssa, Location source,
-                                  ecpps::typeSystem::NonowningTypePointer type = nullptr)
-              : NodeBase(NodeKind::Allocate, source), _size(size), _alignment(alignment), _ssa(std::move(ssa)),
-                _type(type)
+          explicit AllocationNode(std::unique_ptr<SingleAssignRegisterNode, IRDeleter> ssa, Location source)
+              : NodeBase(NodeKind::Allocate, source), _ssa(std::move(ssa))
           {
                runtime_assert(this->_ssa != nullptr, "Invalid SSA node");
           }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{} = alloc[size={}, align={}]", this->_ssa->ToString(indent), this->_size,
-                                  this->_alignment);
-          }
-          [[nodiscard]] std::size_t Size() const noexcept
-          {
-               return this->_size;
-          }
-          [[nodiscard]] std::size_t Alignment() const noexcept
-          {
-               return this->_alignment;
+               return std::format("{} = alloc[width={}]", this->_ssa->ToString(indent), this->_ssa->Width());
           }
           [[nodiscard]] const SingleAssignRegisterNode& Node() const noexcept
           {
                return *this->_ssa;
           }
-          [[nodiscard]] ecpps::typeSystem::NonowningTypePointer Type() const noexcept
-          {
-               return this->_type;
-          }
 
      private:
-          std::size_t _size;
-          std::size_t _alignment;
           std::unique_ptr<SingleAssignRegisterNode, IRDeleter> _ssa;
-          ecpps::typeSystem::NonowningTypePointer _type{};
      };
 
      class ParameterNode final : public NodeBase

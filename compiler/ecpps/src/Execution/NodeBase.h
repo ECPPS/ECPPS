@@ -221,14 +221,9 @@ namespace ecpps::ir
      {
      public:
           explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, std::size_t width,
-                                            Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _width(width)
-          {
-          }
-          explicit SingleAssignRegisterNode(std::size_t index, RegisterPriorityInfo info, std::string name,
-                                            std::size_t width, Location source)
-              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _optionalName(std::move(name)),
-                _width(width)
+                                            std::size_t alignment, Location source)
+              : NodeBase(NodeKind::SSA, source), _index(index), _priorityInfo(info), _width(width),
+                _alignmentRequirement(alignment)
           {
           }
           [[nodiscard]] std::size_t Index(void) const noexcept
@@ -255,6 +250,10 @@ namespace ecpps::ir
           {
                return this->_width;
           }
+          [[nodiscard]] std::size_t AlignmentRequirement(void) const noexcept
+          {
+               return this->_alignmentRequirement;
+          }
           // In lower mode: returns true if the node is no longer used; otherwise always true
           bool Use(void) const noexcept
           {
@@ -274,7 +273,8 @@ namespace ecpps::ir
           RegisterPriorityInfo _priorityInfo;
           std::string _optionalName;
           mutable std::size_t _useCount{};
-          std::size_t _width; // TODO: Complex layout, not width+alignment
+          std::size_t _width;
+          std::size_t _alignmentRequirement;
 
           static bool _usageIsDecrement;
      };

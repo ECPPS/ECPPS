@@ -2,6 +2,7 @@ using LL = long long;
 
 int main()
 {
-     short meow = -1;
-     return meow;
+     char x = 0;
+     int y = 1;
+     return x + y;
 }

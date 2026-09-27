@@ -26,7 +26,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsSpilled(destination))
      {
-          const Width width = WidthFromSize(this->GetVRM().GetSize(destination));
+          const Width width = MapWidth(this->GetVRM().GetWidth(destination));
 
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
@@ -72,8 +72,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::SignExtendToRegister*>(data.data()));
      const auto virtualSource = std::get<1>(copyValue.parameters);
 
-     const Width sourceWidth = WidthFromSize(this->GetVRM().GetSize(virtualSource));
-     const Width destinationWidth = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width sourceWidth = MapWidth(this->GetVRM().GetWidth(virtualSource));
+     const Width destinationWidth = MapWidth(this->GetVRM().GetWidth(owner));
 
      if (this->IsSpilled(virtualSource))
      {
