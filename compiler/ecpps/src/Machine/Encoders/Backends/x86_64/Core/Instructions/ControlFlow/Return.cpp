@@ -20,7 +20,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           const auto& value = registerArray[0];
           const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
 
-          const Width width = WidthFromSize(this->GetVRM().GetSize(value.index));
+          const Width width = MapWidth(this->GetVRM().GetWidth(value.index));
 
           if (this->IsSpilled(value))
           {

@@ -51,7 +51,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const auto accumulator = std::get<0>(subValue.parameters);
      const auto other = std::get<1>(subValue.parameters);
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
 
      const auto accumulatorImmediate = this->ImmediateOf(accumulator);
      const auto otherImmediate = this->ImmediateOf(other);

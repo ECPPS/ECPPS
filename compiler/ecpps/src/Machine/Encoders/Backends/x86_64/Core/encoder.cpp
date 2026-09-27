@@ -791,7 +791,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (this->_evicted.contains(virtualRegister.index))
      {
           const auto slot = this->EnsureStackSlot(virtualRegister);
-          const auto width = WidthFromSize(this->GetVRM().GetSize(virtualRegister));
+          const auto width = MapWidth(this->GetVRM().GetWidth(virtualRegister));
           const auto physical = this->_registerAllocator.Allocate(virtualRegister);
 
           this->_evicted.erase(virtualRegister.index);
@@ -1219,7 +1219,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (dead) return {};
 
      const auto slot = this->EnsureStackSlot(victim);
-     const auto width = WidthFromSize(this->GetVRM().GetSize(victim));
+     const auto width = MapWidth(this->GetVRM().GetWidth(victim));
      this->_evicted.insert(victim.index);
 
      return {BuildMov(width, slot, RegisterOperand{physical})};

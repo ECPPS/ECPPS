@@ -54,7 +54,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      auto accumulator = std::get<0>(addValue.parameters);
      auto other = std::get<1>(addValue.parameters);
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
 
      if (this->ImmediateOf(accumulator).has_value() && !this->ImmediateOf(other).has_value())
           std::swap(accumulator, other);

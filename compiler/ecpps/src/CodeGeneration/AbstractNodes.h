@@ -156,6 +156,8 @@ namespace ecpps::ir::abstract
           State currentValue{};
           std::size_t width{};
           AllocationClass allocationClass = AllocationClass::Temporary;
+
+          std::size_t alignmentRequirements = 1;
      };
 
      template <typename TPossibleRegister>
@@ -227,7 +229,11 @@ namespace ecpps::ir::abstract
           }
           std::size_t GetAlignment(VirtualRegisterUsable auto reg) const
           {
-               return GetSize(reg); // TODO: ??????
+               return DataFromRegister(reg).alignmentRequirements;
+          }
+          void SetAlignment(VirtualRegisterUsable auto reg, std::size_t newRequirement)
+          {
+               DataFromRegister(reg).alignmentRequirements = newRequirement;
           }
           AllocationClass GetAllocationClass(VirtualRegisterUsable auto reg) const
           {

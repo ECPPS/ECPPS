@@ -98,13 +98,13 @@ namespace ecpps::abi::encoders::x8664
 
           enum struct Width : std::uint8_t
           {
-               W8 = 1,
-               W16 = 2,
-               W32 = 4,
-               W64 = 8
+               W8 = 8,
+               W16 = 16,
+               W32 = 32,
+               W64 = 64
           };
           [[nodiscard]] std::string ToString(Width width);
-          [[nodiscard]] constexpr Width WidthFromSize(const std::size_t size)
+          [[nodiscard]] [[deprecated]] constexpr Width WidthFromSize(const std::size_t size)
           {
                switch (size)
                {
@@ -114,6 +114,10 @@ namespace ecpps::abi::encoders::x8664
                case 8: return Width::W64;
                default: throw TracedException(std::format("Unsupported register size for integer copy: {}", size));
                }
+          }
+          [[nodiscard]] constexpr Width MapWidth(const std::size_t size)
+          {
+               return static_cast<Width>(size);
           }
           struct RegisterOperand
           {

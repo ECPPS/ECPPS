@@ -24,7 +24,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsSpilled(destination))
      {
-          const Width width = WidthFromSize(this->GetVRM().GetSize(destination));
+          const Width width = MapWidth(this->GetVRM().GetWidth(destination));
 
           built.push_back(BuildMov(width, this->EnsureStackSlot(destination), IntegerOperand{immediate}));
           return built;
@@ -52,7 +52,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::CopyIntegerToRegister*>(data.data()));
      const auto& [immediate] = copyValue.parameters;
 
-     const Width width = WidthFromSize(this->GetVRM().GetSize(owner));
+     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
      return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, IntegerOperand{immediate})},

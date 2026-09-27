@@ -541,8 +541,9 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 }
 void ecpps::codegen::ParsingContext::ParseAllocateNode(const ir::AllocationNode& node)
 {
-     std::ignore =
+     const auto index =
           this->AllocateVirtual(node.Node().Index(), node.Node().Width(), AllocationDescriptor::Type::Allocation);
+     this->target->registerMap->SetAlignment(index, node.Node().AlignmentRequirement());
 }
 void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 {
