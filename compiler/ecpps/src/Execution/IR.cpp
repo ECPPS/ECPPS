@@ -2356,6 +2356,20 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
 
           return nullptr;
      }
+     if (!left->IsLValue())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
+     }
+     if (leftIntegral->IsConst())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Assignment expressions require modifiable lvalues. Cannot perform this binary operation on " +
+                         left->Type()->Name() + " and " + right->Type()->Name(),
+                    left->Value()->Source()));
+     }
 
      if (right->Type() != left->Type())
      {
@@ -2371,11 +2385,11 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
 
      const auto* resultType = left->Type();
 
-     return std::make_unique<PRValue>(resultType,
-                                      std::unique_ptr<high::AssignNode, IRDeleter>{
-                                           new (*this->GetContext().nodeAllocator)
-                                                high::AssignNode(std::move(left), std::move(right), source)},
-                                      false);
+     return std::make_unique<LValue>(resultType,
+                                     std::unique_ptr<high::AssignNode, IRDeleter>{
+                                          new (*this->GetContext().nodeAllocator)
+                                               high::AssignNode(std::move(left), std::move(right), source)},
+                                     false);
 }
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
