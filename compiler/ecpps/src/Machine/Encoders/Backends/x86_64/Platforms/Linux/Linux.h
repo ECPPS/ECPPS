@@ -35,6 +35,11 @@ namespace ecpps::abi::encoders::x8664
                       MaskOf(RegisterIndex::R15);
           }
 
+          [[nodiscard]] std::size_t StackAlignment(void) const noexcept final
+          {
+               return 16;
+          }
+
      private:
           [[nodiscard]] static constexpr std::uint32_t MaskOf(const RegisterIndex index) noexcept
           {
