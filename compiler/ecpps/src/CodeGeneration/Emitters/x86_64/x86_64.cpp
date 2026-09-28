@@ -47,4 +47,5 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                             static_cast<std::int32_t>(offset + routine.emittedOffset) - 5;
           std::memcpy(instructions.data() + offset + 1uz, &displacement, sizeof(std::int32_t));
      }
+     this->_callPatches.clear();
 }
