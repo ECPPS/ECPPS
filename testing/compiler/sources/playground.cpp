@@ -1,13 +1,10 @@
-void NoWork()
+int DoWork(int a)
 {
-}
-
-void DoWork()
-{
+     return a;
 }
 
 int main()
 {
-     DoWork();
-     return 0;
+     int x = DoWork(100);
+     return x + 1;
 }

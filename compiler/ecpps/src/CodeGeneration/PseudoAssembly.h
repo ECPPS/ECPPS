@@ -206,6 +206,7 @@ namespace ecpps::codegen
           void ParseLoadNode(const ir::SSALoadNode& node);
           void ParseIntNode(const ir::SSAImmNode& node);
           void ParseCallNode(const ir::SSACallNode& node);
+          void ParseParameterStoreNode(const ir::ParameterNode& node);
           explicit ParsingContext(ecpps::abi::ABI& abi);
 
      private:

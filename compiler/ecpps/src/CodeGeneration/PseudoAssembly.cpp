@@ -172,6 +172,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseCallNode(*callNode);
           }
           break;
+          case ecpps::ir::NodeKind::IncomingParameter:
+          {
+               const auto* paramNode = dynamic_cast<const ecpps::ir::ParameterNode*>(node);
+               runtime_assert(paramNode != nullptr, "Invalid node type!");
+               this->ParseParameterStoreNode(*paramNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -580,7 +587,7 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
      };
      this->instructions.push_back(instruction);
 }
-void ecpps::codegen::ParsingContext::ParseCallNode([[maybe_unused]] const ir::SSACallNode& node)
+void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 {
      const auto callIndex = CallFunctionIndex(&node.Function());
      if (node.HasResult())
@@ -608,6 +615,22 @@ void ecpps::codegen::ParsingContext::ParseCallNode([[maybe_unused]] const ir::SS
      this->instructions.push_back(instruction);
 }
 
+void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::ParameterNode& node)
+{
+     auto ssaTargetIndex = node.Result()->Index();
+     auto paramtIndex = node.Index();
+
+     auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
+
+     ir::abstract::VirtualRegister virtualTarget{virtualSourceIndex};
+     ir::abstract::VirtualRegister virtualSource{paramtIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::CopyParameter,
+          .operands = {virtualTarget, virtualSource},
+     };
+     this->instructions.push_back(instruction);
+}
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t width,
                                                             AllocationDescriptor::Type type)
 {

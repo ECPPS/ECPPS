@@ -16,6 +16,8 @@ namespace ecpps::abi::api
           {
                return 0;
           }
+          [[nodiscard]] virtual std::size_t IntegerParameterRegisterCount(void) const noexcept = 0;
+          [[nodiscard]] virtual std::size_t IntegerParameterRegisterIndex(std::size_t reg) const = 0;
           [[nodiscard]] virtual std::size_t StackAlignment(void) const noexcept
           {
                return 0;

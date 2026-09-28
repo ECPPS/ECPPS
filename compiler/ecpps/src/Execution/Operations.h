@@ -1150,22 +1150,28 @@ namespace ecpps::ir
      class ParameterNode final : public NodeBase
      {
      public:
-          explicit ParameterNode(std::uint64_t index, Location source)
-              : NodeBase(NodeKind::IncomingParameter, source), _index(index)
+          explicit ParameterNode(std::uint64_t index, const SingleAssignRegisterNode* result, Location source)
+              : NodeBase(NodeKind::IncomingParameter, source), _index(index), _result(result)
           {
           }
 
-          [[nodiscard]] std::uint64_t Index() const noexcept
+          [[nodiscard]] std::uint64_t Index(void) const noexcept
           {
                return this->_index;
           }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + std::format("__param#{}", this->_index);
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("store {}, __param#{}", this->_result->ToString(0), this->_index);
+          }
+          [[nodiscard]] const SingleAssignRegisterNode* Result(void) const noexcept
+          {
+               return this->_result;
           }
 
      private:
           std::uint64_t _index;
+          const SingleAssignRegisterNode* _result;
      };
 } // namespace ecpps::ir

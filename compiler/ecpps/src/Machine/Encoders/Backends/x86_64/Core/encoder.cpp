@@ -8,6 +8,7 @@
 #include <ranges>
 #include <span>
 #include <tuple>
+#include <utility>
 #include "CodeGeneration/AbstractNodes.h"
 #include "Execution/Context.h"
 #include "Machine/Encoders/API/Target.h"
@@ -52,6 +53,12 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Call>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CallWithResult>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyParameter>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
@@ -126,6 +133,11 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::ZeroExtension>(ecpps::ir::abstract::VirtualRegister owner,
                                                                       std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::CallWithResult>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                       std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -413,6 +425,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Call:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Call>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CallWithResult:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithResult>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CopyParameter:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::CopyParameter>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -801,6 +821,18 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<1>(movzx.parameters));
           break;
      }
+     case AssignedValueType::Call:
+     {
+          const auto& call = *std::launder(reinterpret_cast<const values::CallResult*>(value.data.data()));
+          sources.push_back(std::get<0>(call.parameters));
+          break;
+     }
+     case AssignedValueType::CopyParameter:
+     {
+          const auto& call = *std::launder(reinterpret_cast<const values::CopyParameterFromAbi*>(value.data.data()));
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::to_underlying(std::get<0>(call.parameters))});
+          break;
+     }
      case AssignedValueType::CopyInteger: break;
      }
      return sources;
@@ -904,6 +936,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Movzx:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::ZeroExtension>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Call:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::CallWithResult>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException("Invalid opcode");
