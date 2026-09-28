@@ -590,6 +590,25 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 {
      const auto callIndex = CallFunctionIndex(&node.Function());
+
+     std::size_t nextIndex{};
+     for (const auto& argument : node.Arguments())
+     {
+          const auto argumentIndex = nextIndex++;
+          auto ssaTargetIndex = argument->Index();
+
+          auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
+
+          ir::abstract::VirtualRegister virtualTarget{virtualSourceIndex};
+          ir::abstract::VirtualRegister virtualSource{argumentIndex};
+
+          ir::abstract::VirtualInstruction instruction{
+               .type = ir::abstract::VirtualInstructionType::PassArgument,
+               .operands = {virtualTarget, virtualSource},
+          };
+          this->instructions.push_back(instruction);
+     }
+
      if (node.HasResult())
      {
           auto width = node.Result().Width();

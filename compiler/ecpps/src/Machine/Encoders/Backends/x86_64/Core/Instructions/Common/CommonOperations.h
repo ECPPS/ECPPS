@@ -23,7 +23,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           Movsx,
           Movzx,
           Call,
-          CopyParameter
+          CopyParameter,
+          PassArgument
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -94,6 +95,8 @@ namespace ecpps::abi::encoders::x8664::inline common
                AssignmentValue<AssignedValueType::Movzx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
           using CallResult = AssignmentValue<AssignedValueType::Call, ir::abstract::VirtualRegister>;
           using CopyParameterFromAbi = AssignmentValue<AssignedValueType::CopyParameter, RegisterIndex>;
+          using PassArgumentFromAbi =
+               AssignmentValue<AssignedValueType::PassArgument, RegisterIndex, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

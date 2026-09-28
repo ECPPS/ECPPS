@@ -46,7 +46,5 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
           const std::int32_t displacement = static_cast<std::int32_t>(function->emittedOffset) -
                                             static_cast<std::int32_t>(offset + routine.emittedOffset) - 5;
           std::memcpy(instructions.data() + offset + 1uz, &displacement, sizeof(std::int32_t));
-
-          std::println("Index = {}, displacement = {}", function->ToString(), displacement);
      }
 }

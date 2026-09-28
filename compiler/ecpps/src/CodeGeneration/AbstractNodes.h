@@ -86,7 +86,8 @@ namespace ecpps::ir::abstract
           Truncate,                 // narrowing (signed/unsigned)
           Call,
           CallWithResult,
-          CopyParameter
+          CopyParameter,
+          PassArgument
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -112,6 +113,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Call: return "call";
           case VirtualInstructionType::CallWithResult: return "call+";
           case VirtualInstructionType::CopyParameter: return "copy-param";
+          case VirtualInstructionType::PassArgument: return "pass-argument";
           case VirtualInstructionType::ArithmeticNegate: return "negate";
           }
           throw TracedException("control flow");

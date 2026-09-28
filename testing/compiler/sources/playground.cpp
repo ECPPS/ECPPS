@@ -1,10 +1,8 @@
-int DoWork(int a)
+int Add(int a, int b)
 {
-     return a;
+     return a + b;
 }
-
 int main()
 {
-     int x = DoWork(100);
-     return x + 1;
+     return Add(10, -10);
 }
