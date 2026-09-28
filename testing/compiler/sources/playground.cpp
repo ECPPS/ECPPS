@@ -1,11 +1,6 @@
-using ULL = unsigned long long;
-using LL = long long;
+extern "C" void exit(int);
 
-short Add(short a, ULL b)
-{
-     return a + b;
-}
 int main()
 {
-     return Add(10, -2);
+     exit(100);
 }

@@ -89,6 +89,8 @@ namespace ecpps::abi
           typeSystem::TypeKind boolSize{};
           typeSystem::TypeKind intptrSize{};
 
+          std::string importPrefix{};
+
      private:
           static ABI _current;
 

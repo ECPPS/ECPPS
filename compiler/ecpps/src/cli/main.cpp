@@ -602,6 +602,7 @@ int main(int argc, char* argv[])
           }
 
           target.encoder->ApplyOptimisations(config.optimisations);
+          target.platform->PrepareABI();
 
           auto emitter = CreateEmitter(config);
 

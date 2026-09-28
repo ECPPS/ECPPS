@@ -51,8 +51,12 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built(indent * ast::PrettyIndent, ' ');
+               std::string builtName{};
+               for (const auto& path : this->_scope->namespacePath) builtName += std::format("{}::", path);
+               builtName += Name();
+
                built += this->_scope->returnType->RawName() + " " + ::ToString(this->_scope->callingConvention) + " " +
-                        Name() + "(";
+                        builtName + "(";
                built += ")\n" + std::string(indent * ast::PrettyIndent, ' ') + "{\n";
                for (const auto& line : this->_body) built += line->ToString(indent + 1) + "\n";
                return built + std::string(indent * ast::PrettyIndent, ' ') + "}";

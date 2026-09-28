@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+#include "Machine/ABI.h"
 #include "Machine/Encoders/API/Platform.h"
 #include "Machine/Encoders/API/SDK.h"
 #include "Machine/Encoders/Backends/x86_64/Core/encoder.h"
@@ -43,6 +44,10 @@ namespace ecpps::abi::encoders::x8664
                return MaskOf(RegisterIndex::Rbx) | MaskOf(RegisterIndex::Rbp) | MaskOf(RegisterIndex::Rsi) |
                       MaskOf(RegisterIndex::Rdi) | MaskOf(RegisterIndex::R12) | MaskOf(RegisterIndex::R13) |
                       MaskOf(RegisterIndex::R14) | MaskOf(RegisterIndex::R15);
+          }
+          void PrepareABI(void) final
+          {
+               ecpps::abi::ABI::Current().importPrefix = "__imp_";
           }
 
      private:

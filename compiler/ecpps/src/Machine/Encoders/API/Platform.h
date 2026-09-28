@@ -35,6 +35,9 @@ namespace ecpps::abi::api
                if (registerIndex >= 32) return false;
                return ((this->CalleeSavedRegisterMask() >> registerIndex) & 1U) != 0;
           }
+          virtual void PrepareABI(void)
+          {
+          }
 
      protected:
           SDKBase* _currentSdk; // TODO: non-null pointer

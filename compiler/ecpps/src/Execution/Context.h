@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <deque>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -567,7 +568,7 @@ namespace ecpps::ir
           bool isDllImportExport = false;
           std::string dllImportName{};
           Location source{0, 0, 0};
-          std::size_t emittedOffset{};
+          std::size_t emittedOffset = std::numeric_limits<std::size_t>::max();
 
           struct Parameter
           {
