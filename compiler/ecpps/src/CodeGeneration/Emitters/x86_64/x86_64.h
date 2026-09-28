@@ -27,6 +27,7 @@ namespace ecpps::codegen::emitters
           }
 
           [[nodiscard]] std::vector<std::byte> EmitInstruction(const ir::abstract::Instruction& instruction) final;
+          void PatchCalls(std::vector<std::byte>& instructions, const Routine& routine) final;
 
      private:
           [[nodiscard]] std::vector<std::byte> EmitMov(const ir::abstract::DynamicBytecode& description);
@@ -46,5 +47,7 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitMovsx(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitMovzx(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitCall(const ir::abstract::DynamicBytecode& description);
+
+          std::vector<std::size_t> _callPatches{};
      };
 } // namespace ecpps::codegen::emitters

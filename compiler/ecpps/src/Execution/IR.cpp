@@ -1110,9 +1110,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
-          new (*this->GetContext().nodeAllocator) ecpps::ir::ProcedureNode(
-               linkage, node.Signature().callingConvention, returnType, name, std::move(parameters), std::move(locals),
-               std::move(ir._built), node.Source(), NamespacePathFromContext())});
+          new (*this->GetContext().nodeAllocator)
+               ecpps::ir::ProcedureNode(vFunctionScope, std::move(locals), std::move(ir._built), node.Source())});
 
      this->GetContext().contextSequence.pop_back();
 }

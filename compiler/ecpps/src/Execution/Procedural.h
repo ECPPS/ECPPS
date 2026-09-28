@@ -5,6 +5,7 @@
 #include "../Parsing/AST.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Context.h"
+#include "Execution/Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 
@@ -19,28 +20,23 @@ namespace ecpps::ir
      class ProcedureNode final : public NodeBase
      {
      public:
-          explicit ProcedureNode(const abi::Linkage linkage, const abi::CallingConventionName callingConvention,
-                                 typeSystem::NonowningTypePointer returnType, std::string name,
-                                 std::vector<FunctionScope::Parameter> parameterList,
-                                 std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals,
-                                 std::vector<NodePointer> body, Location source, std::vector<std::string> namespacePath)
-              : NodeBase(NodeKind::Procedure, source), _linkage(linkage), _callingConvention(callingConvention),
-                _returnType(returnType), _name(std::move(name)), _namespacePath(std::move(namespacePath)),
-                _parameterList(std::move(parameterList)), _locals(std::move(locals)), _body(std::move(body))
+          explicit ProcedureNode(FunctionScope* scope, std::shared_ptr<std::vector<FunctionScope::LocalEntity>> locals,
+                                 std::vector<NodePointer> body, Location source)
+              : NodeBase(NodeKind::Procedure, source), _locals(std::move(locals)), _body(std::move(body)), _scope(scope)
           {
           }
 
           [[nodiscard]] const std::string& Name(void) const noexcept
           {
-               return this->_name;
+               return this->_scope->Name().value();
           }
           [[nodiscard]] const std::vector<std::string>& NamespacePath(void) const noexcept
           {
-               return this->_namespacePath;
+               return this->_scope->namespacePath;
           }
           [[nodiscard]] const std::vector<FunctionScope::Parameter>& ParameterList(void) const noexcept
           {
-               return this->_parameterList;
+               return this->_scope->parameters;
           }
           [[nodiscard]] const std::vector<FunctionScope::LocalEntity>& Locals(void) const noexcept
           {
@@ -55,34 +51,34 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built(indent * ast::PrettyIndent, ' ');
-               built +=
-                    this->_returnType->RawName() + " " + ::ToString(this->_callingConvention) + " " + this->_name + "(";
+               built += this->_scope->returnType->RawName() + " " + ::ToString(this->_scope->callingConvention) + " " +
+                        Name() + "(";
                built += ")\n" + std::string(indent * ast::PrettyIndent, ' ') + "{\n";
                for (const auto& line : this->_body) built += line->ToString(indent + 1) + "\n";
                return built + std::string(indent * ast::PrettyIndent, ' ') + "}";
           }
           [[nodiscard]] abi::CallingConventionName CallingConvention(void) const noexcept
           {
-               return this->_callingConvention;
+               return this->_scope->callingConvention;
           }
           [[nodiscard]] abi::Linkage Linkage(void) const noexcept
           {
-               return this->_linkage;
+               return this->_scope->linkage;
           }
           [[nodiscard]] typeSystem::NonowningTypePointer ReturnType(void) const noexcept
           {
-               return this->_returnType;
+               return this->_scope->returnType;
+          }
+          [[nodiscard]] FunctionScope* Scope(void) const noexcept
+          {
+               return this->_scope;
           }
 
      private:
-          abi::Linkage _linkage;
-          abi::CallingConventionName _callingConvention;
-          typeSystem::NonowningTypePointer _returnType;
-          std::string _name;
-          std::vector<std::string> _namespacePath;
-          std::vector<FunctionScope::Parameter> _parameterList;
           std::shared_ptr<std::vector<FunctionScope::LocalEntity>> _locals;
           std::vector<NodePointer> _body;
+
+          FunctionScope* _scope;
      };
 
      class FunctionCallNode final : public NodeBase

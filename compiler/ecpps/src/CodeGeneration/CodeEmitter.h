@@ -15,6 +15,11 @@
 define_number(ByteOffset, std::size_t);
 define_number(Address, std::size_t);
 
+namespace ecpps::ir
+{
+     struct FunctionScope;
+}
+
 namespace ecpps::codegen
 {
      struct Relocation
@@ -46,13 +51,14 @@ namespace ecpps::codegen
      {
      public:
           virtual ~CodeEmitter(void);
-          [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine, std::size_t displacement);
+          [[nodiscard]] std::vector<std::byte> EmitRoutine(const Routine& routine);
           [[nodiscard]] const std::string& Name(void) const noexcept
           {
                return this->_name;
           }
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
+          virtual void PatchCalls(std::vector<std::byte>& instructions, const Routine& routine) = 0;
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
           std::size_t _stringRelocationSize{};              // in bytes

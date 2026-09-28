@@ -1,6 +1,10 @@
 // NOLINT(readability-identifier-length)
 
 #include "x86_64.h"
+#include <cstddef>
+#include <print>
+#include <utility>
+#include "Execution/Context.h"
 #include "Machine/Encoders/Backends/x86_64/Core/encoder.h"
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
@@ -26,5 +30,23 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::ZeroExtend: return this->EmitMovzx(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Call: return this->EmitCall(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
+     }
+}
+
+void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& instructions, const Routine& routine)
+{
+     for (const auto offset : this->_callPatches)
+     {
+          if (instructions.size() <= offset) continue; // ???
+          runtime_assert(instructions[offset] == std::byte{0xe8}, "Invalid offset");
+          std::int32_t index{};
+          std::memcpy(&index, instructions.data() + offset + 1uz, sizeof(std::int32_t));
+
+          const ir::FunctionScope* function = routine.scopes[static_cast<std::size_t>(index)];
+          const std::int32_t displacement = static_cast<std::int32_t>(function->emittedOffset) -
+                                            static_cast<std::int32_t>(offset + routine.emittedOffset) - 5;
+          std::memcpy(instructions.data() + offset + 1uz, &displacement, sizeof(std::int32_t));
+
+          std::println("Index = {}, displacement = {}", function->ToString(), displacement);
      }
 }

@@ -376,9 +376,13 @@ namespace
                std::unordered_map<std::string, std::size_t> routines;
                routines.reserve(source.compiledRoutines.size());
 
-               for (const auto& routine : source.compiledRoutines)
+               for (auto& routine : source.compiledRoutines)
                {
-                    const auto machineCode = emitter.EmitRoutine(routine, generatedMachineCode.size());
+                    routine.emittedOffset = generatedMachineCode.size();
+
+                    auto machineCode = emitter.EmitRoutine(routine);
+                    routine.currentScope->emittedOffset = routine.emittedOffset;
+                    emitter.PatchCalls(machineCode, routine);
 
                     routines.emplace(routine.name, generatedMachineCode.size());
 

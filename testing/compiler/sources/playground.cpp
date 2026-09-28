@@ -1,4 +1,6 @@
-using LL = long long;
+void NoWork()
+{
+}
 
 void DoWork()
 {
@@ -7,4 +9,5 @@ void DoWork()
 int main()
 {
      DoWork();
+     return 0;
 }

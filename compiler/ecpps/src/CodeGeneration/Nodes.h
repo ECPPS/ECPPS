@@ -4,9 +4,13 @@
 #include <vector>
 #include "CodeGeneration/AbstractNodes.h"
 
+namespace ecpps::ir
+{
+     struct FunctionScope;
+}
+
 namespace ecpps::codegen
 {
-
      enum struct InstructionAlignment : std::uint_fast8_t
      {
           None,
@@ -20,5 +24,8 @@ namespace ecpps::codegen
           std::string name;
 
           std::vector<ir::abstract::Instruction> physicalInstructions;
+          std::vector<const ir::FunctionScope*> scopes;
+          ir::FunctionScope* currentScope;
+          std::size_t emittedOffset{};
      };
 } // namespace ecpps::codegen

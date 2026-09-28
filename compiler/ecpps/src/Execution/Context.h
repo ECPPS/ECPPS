@@ -567,6 +567,7 @@ namespace ecpps::ir
           bool isDllImportExport = false;
           std::string dllImportName{};
           Location source{0, 0, 0};
+          std::size_t emittedOffset{};
 
           struct Parameter
           {

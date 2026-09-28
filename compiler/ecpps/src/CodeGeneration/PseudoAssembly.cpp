@@ -663,7 +663,7 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
                                                           }) |
                                                      std::ranges::to<std::vector>(),
                                                 node.NamespacePath()),
-                    std::vector<ecpps::ir::abstract::Instruction>{});
+                    std::vector<ecpps::ir::abstract::Instruction>{}, parseContext.functionUsageTable, node.Scope());
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
