@@ -93,7 +93,8 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           // Generate IR
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+          ir::Context context{source.diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
 
           INFO("Generated IR from AST");
           REQUIRE((!ir.empty()));
