@@ -105,6 +105,10 @@ namespace ecpps::abi::encoders::x8664
                W32 = 32,
                W64 = 64
           };
+          [[nodiscard]] constexpr auto operator<(const Width left, const Width right)
+          {
+               return std::to_underlying(left) < std::to_underlying(right);
+          }
           [[nodiscard]] std::string ToString(Width width);
           [[nodiscard]] [[deprecated]] constexpr Width WidthFromSize(const std::size_t size)
           {
@@ -138,7 +142,13 @@ namespace ecpps::abi::encoders::x8664
           {
                std::uint32_t offset{};
           };
-          using Operand = std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand>;
+          struct StringAddressOperand
+          {
+               std::uint32_t tableIndex{};
+               std::uint32_t offset{};
+          };
+          using Operand =
+               std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand, StringAddressOperand>;
 
           struct AddInstruction
           {

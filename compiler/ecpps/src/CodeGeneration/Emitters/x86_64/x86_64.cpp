@@ -2,6 +2,7 @@
 
 #include "x86_64.h"
 #include <cstddef>
+#include <cstring>
 #include <limits>
 #include "CodeGeneration/Emitters/x86_64/Opcodes.h"
 #include "CodeGeneration/PseudoAssembly.h"
@@ -31,6 +32,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::SignExtend: return this->EmitMovsx(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::ZeroExtend: return this->EmitMovzx(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Call: return this->EmitCall(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Lea: return this->EmitLea(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
      }
 }
@@ -84,4 +86,17 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
           std::memcpy(instructions.data() + offset + 1uz, &displacement, sizeof(std::int32_t));
      }
      this->_callPatches.clear();
+}
+
+void ecpps::codegen::emitters::X8664Emitter::PatchStrings(std::vector<std::byte>& instructions,
+                                                          std::vector<StringPatch> patches,
+                                                          const AssemblyContext& asmContext, const Routine& routine)
+{
+     this->_stringRelocation.reserve(patches.size());
+     for (const auto& patch : patches)
+     {
+          const auto index = asmContext.GetStringOffset(patch.string);
+          std::memcpy(&instructions[patch.instructionOffset + 3], &index, sizeof(std::uint32_t));
+          this->_stringRelocation.push_back(patch.instructionOffset + routine.emittedOffset + 3);
+     }
 }

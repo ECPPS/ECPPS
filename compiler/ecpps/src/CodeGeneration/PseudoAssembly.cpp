@@ -161,7 +161,7 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           case ecpps::ir::NodeKind::Convert:
           {
                const auto* convertNode = dynamic_cast<const ecpps::ir::SSAConvertNode*>(node);
-               runtime_assert(convertNode != nullptr, "Arithmetic negation node was not an arithmetic negation!");
+               runtime_assert(convertNode != nullptr, "Integral conversion was not a conversion!");
                this->ParseConvertNode(*convertNode);
           }
           break;
@@ -179,16 +179,30 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseParameterStoreNode(*paramNode);
           }
           break;
+          case ecpps::ir::NodeKind::PointerConversion:
+          {
+               const auto* convertNode = dynamic_cast<const ecpps::ir::SSAPointerConvertFromDecayNode*>(node);
+               runtime_assert(convertNode != nullptr, "Pointer conversion was not a conversion!");
+               this->ParsePointerConvertNode(*convertNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::AddressOf:
+          {
+               const auto* addressOfNode = dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node);
+               runtime_assert(addressOfNode != nullptr, "Address-of was not an address-of!");
+               this->ParseAddressOfNode(*addressOfNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
                break;
           }
      }
-     catch (const VirtualNotFoundError&)
+     catch (const VirtualNotFoundError& error)
      {
-          this->diagnostics.push_back(
-               std::make_unique<diagnostics::TypeError>("See earlier diagnostics", node->Source()));
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("See earlier diagnostics [{}]", error.what()), node->Source()));
      }
 }
 void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::SSAReturnNode& node)
@@ -651,6 +665,87 @@ void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::Parameter
      };
      this->instructions.push_back(instruction);
 }
+void ecpps::codegen::ParsingContext::ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node)
+{
+     const auto ssaResultIndex = node.Result().Index();
+     const auto resultWidth = node.Result().Width();
+
+     if (const auto* loadDecayNode = dynamic_cast<const ir::LoadArrayDecayNode*>(&node.DecayNode());
+         loadDecayNode != nullptr)
+     {
+          const auto* allocationRegister = loadDecayNode->GetAllocReg();
+          runtime_assert(allocationRegister != nullptr, "Array decay has no allocation register");
+
+          const auto ssaSourceIndex = allocationRegister->Index();
+          const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+
+          ir::abstract::VirtualRegister allocatedIndex(
+               this->AllocateVirtual(ssaResultIndex, resultWidth, AllocationDescriptor::Type::Temporary));
+
+          this->DereferenceSSA(ssaSourceIndex);
+
+          ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+          ir::abstract::VirtualInstruction instruction{
+               .type = ir::abstract::VirtualInstructionType::AddressOf,
+               .operands = {allocatedIndex, virtualSource},
+          };
+          this->instructions.push_back(instruction);
+          return;
+     }
+
+     if (const auto* temporaryDecayNode = dynamic_cast<const ir::TemporaryIntegerArrayDecayNode*>(&node.DecayNode());
+         temporaryDecayNode != nullptr)
+     {
+          runtime_assert(this->assembly != nullptr, "String pool is unavailable while lowering array decay");
+
+          const auto& arrayNode = temporaryDecayNode;
+          const auto elementSize = arrayNode->Type()->Size();
+
+          std::vector<Byte> bytes{};
+          bytes.reserve(arrayNode->Values().size() * elementSize);
+          for (const auto value : arrayNode->Values())
+          {
+               for (std::size_t byteIndex = 0; byteIndex < elementSize; byteIndex++)
+                    bytes.push_back(static_cast<Byte>((value >> (byteIndex * 8)) & 0xFFu));
+          }
+
+          const auto stringIndex = this->assembly->AddString(bytes);
+
+          ir::abstract::VirtualRegister allocatedIndex(
+               this->AllocateVirtual(ssaResultIndex, resultWidth, AllocationDescriptor::Type::Temporary));
+          ir::abstract::VirtualRegister tableIndex{static_cast<std::size_t>(stringIndex.indexInTable)};
+          ir::abstract::VirtualRegister tableOffset{static_cast<std::size_t>(stringIndex.offset)};
+
+          ir::abstract::VirtualInstruction instruction{
+               .type = ir::abstract::VirtualInstructionType::LoadStringAddress,
+               .operands = {allocatedIndex, tableIndex, tableOffset},
+          };
+          this->instructions.push_back(instruction);
+          return;
+     }
+
+     this->diagnostics.push_back(
+          std::make_unique<diagnostics::TypeError>("Unsupported array-to-pointer conversion source", node.Source()));
+}
+void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNode& node)
+{
+     const auto* resultRegister = &node.Result();
+     const auto* operandRegister = &node.Operand();
+
+     const auto virtualResultIndex =
+          AllocateVirtual(resultRegister->Index(), resultRegister->Width(), ir::abstract::AllocationClass::Temporary);
+     const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(operandRegister->Index());
+
+     ir::abstract::VirtualRegister virtualResult{virtualResultIndex};
+     ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::AddressOf,
+          .operands = {virtualResult, virtualSource},
+     };
+     this->instructions.push_back(instruction);
+}
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t width,
                                                             AllocationDescriptor::Type type)
 {
@@ -666,8 +761,8 @@ void ecpps::codegen::ParsingContext::DereferenceSSA(const std::size_t ssaIndex)
      this->virtualRegisterAllocationMap.ReleaseSSA(ssaIndex);
 }
 
-static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& context,
-                              const ecpps::ir::ProcedureNode& node, ecpps::abi::api::Target* target,
+static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node,
+                              ecpps::abi::api::Target* target,
                               std::vector<ecpps::diagnostics::DiagnosticsMessage>& diagnostics)
 {
      auto& currentAbi = ecpps::abi::ABI::Current();
@@ -689,6 +784,7 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
 
      ecpps::codegen::ParsingContext parseContext(currentAbi);
      parseContext.target = target;
+     parseContext.assembly = &context;
 
      for (const auto& line : node.Body())
      {
@@ -712,24 +808,17 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
                     parseContext.functionUsageTable);
 }
 
-void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
+void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, SourceFile& source,
                              const std::vector<ecpps::ir::NodePointer>& intermediateRepresentation,
                              ecpps::abi::api::Target* target)
 {
-     AssemblyContext context{config};
-
      ir::CreateReferenceMap(*target->registerMap, intermediateRepresentation);
 
-     auto& patches = context.Patches();
      for (const auto& node : intermediateRepresentation)
      {
-          patches = {};
-
           if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
                source.compiledRoutines.push_back(
                     CompileRoutine(context, *procedureNode, target, source.diagnostics.diagnosticsList));
-
-          source.stringTranslation = patches;
      }
      config.stringArray = context.GetStringSection();
 }

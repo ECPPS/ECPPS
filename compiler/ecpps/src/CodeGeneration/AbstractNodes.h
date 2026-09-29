@@ -87,7 +87,9 @@ namespace ecpps::ir::abstract
           Call,
           CallWithResult,
           CopyParameter,
-          PassArgument
+          PassArgument,
+          AddressOf,
+          LoadStringAddress
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -115,6 +117,8 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::CopyParameter: return "copy-param";
           case VirtualInstructionType::PassArgument: return "pass-argument";
           case VirtualInstructionType::ArithmeticNegate: return "negate";
+          case VirtualInstructionType::AddressOf: return "address-of";
+          case VirtualInstructionType::LoadStringAddress: return "string";
           }
           throw TracedException("control flow");
      }
@@ -139,7 +143,7 @@ namespace ecpps::ir::abstract
           Allocation,
           Impossible,
      };
-     enum struct AllocationClass : std::uint8_t
+     enum struct AllocationClass : std::uint8_t // NOLINT
      {
           Locked,
           HotTemporary,

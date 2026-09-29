@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <format>
 #include <limits>
-#include <new>
 #include <span>
 #include <tuple>
 #include <utility>
@@ -14,7 +13,6 @@
 #include "Execution/Context.h"
 #include "Machine/Encoders/API/Platform.h"
 #include "Machine/Encoders/API/Target.h"
-#include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
 
 constexpr bool FitsImm32(const std::uint64_t value) noexcept
@@ -55,10 +53,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      runtime_assert(parameterIndex < numberOfParameters,
                     std::format("Parameter index {} out of range ({} parameters)", parameterIndex, numberOfParameters));
 
-     ir::abstract::State newState{};
-     newState.type = ir::abstract::StateType::Allocation;
-     newState.data.resize(sizeof(values::PassArgumentFromAbi));
-     values::PassArgumentFromAbi& parameterValue = *new (newState.data.data()) values::PassArgumentFromAbi{};
+     const auto immediate = ImmediateOf(source);
 
      if (parameterIndex >= platform.IntegerParameterRegisterCount())
      {
@@ -67,14 +62,13 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                       ? stackParameterOffset
                                       : (numberOfParameters - 1 - parameterIndex);
 
-          Width width = MapWidth(this->GetVRM().GetWidth(source));
           const auto minWidth = static_cast<Width>(platform.ParameterStackSlotWidth());
-          width = std::max(width, minWidth);
+          const auto originalWidth = MapWidth(this->GetVRM().GetWidth(source));
+          const Width width = std::max(originalWidth, minWidth);
           const auto slotSize = WidthBytes(minWidth);
           const auto rspOffset = platform.InitialStackReserve() + (slotSize * stackSlot);
           this->_outgoingReserve = std::max(this->_outgoingReserve, rspOffset + slotSize);
 
-          const auto immediate = ImmediateOf(source);
           if (immediate)
           {
                if (width != Width::W64 || FitsImm32(*immediate))
@@ -84,110 +78,73 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     return built;
                }
 
-               const auto existing = this->_registerAllocator.ColourOf(source);
-               const RegisterIndex tempReg = existing ? *existing : this->_registerAllocator.Allocate(source);
+               const RegisterIndex tempReg = this->_registerAllocator.Allocate(source);
                built.push_back(BuildMov(width, RegisterOperand{tempReg}, IntegerOperand{*immediate}));
                built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{tempReg}));
-               if (!existing) this->ReleaseRegister(source);
+               this->ReleaseRegister(source);
                std::ignore = this->ConsumeUse(source);
                return built;
           }
 
-          parameterValue.parameters = std::make_tuple(rspOffset, true, source);
+          if (this->IsSpilled(source))
+          {
+               const auto sourceSlot = this->EnsureStackSlot(source);
+               const RegisterIndex tempReg = this->_registerAllocator.Allocate(source);
+               built.push_back(BuildMov(width, RegisterOperand{tempReg}, sourceSlot));
+               built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{tempReg}));
+               this->ReleaseRegister(source);
+               std::ignore = this->ConsumeUse(source);
+               return built;
+          }
 
-          this->Redefine(source, newState);
           built.append_range(EnsureMaterialisation(source));
-          return built;
-     }
-     const auto abiRegister = static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
-     const Width width = MapWidth(this->GetVRM().GetWidth(source));
+          const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
+          built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{sourceRegister}));
 
-     if (this->IsSpilled(source))
-     {
-          built.append_range(this->ClearRegister(abiRegister, source));
-          built.push_back(BuildMov(width, RegisterOperand{abiRegister}, this->EnsureStackSlot(source)));
-          std::ignore = this->ConsumeUse(source);
+          const auto remainingUses = this->ConsumeUse(source);
+          if (remainingUses == 0 && !this->IsMutable(source)) this->ReleaseRegister(source);
           return built;
      }
-     if (const auto immediate = ImmediateOf(source))
+
+     const auto abiRegister = static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
+
+     if (immediate)
      {
+          const Width width = MapWidth(this->GetVRM().GetWidth(source));
           built.append_range(this->ClearRegister(abiRegister, source));
           built.push_back(BuildMov(width, RegisterOperand{abiRegister}, IntegerOperand{*immediate}));
           std::ignore = this->ConsumeUse(source);
           return built;
      }
 
-     parameterValue.parameters = std::make_tuple(static_cast<std::size_t>(abiRegister), false, source);
-     this->Redefine(source, newState);
+     if (this->IsSpilled(source))
+     {
+          const Width width = MapWidth(this->GetVRM().GetWidth(source));
+          built.append_range(this->ClearRegister(abiRegister, source));
+          built.push_back(BuildMov(width, RegisterOperand{abiRegister}, this->EnsureStackSlot(source)));
+          std::ignore = this->ConsumeUse(source);
+          return built;
+     }
 
      built.append_range(EnsureMaterialisation(source));
+     const Width width = MapWidth(this->GetVRM().GetWidth(source));
+     const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
+     const auto remainingUses = this->ConsumeUse(source);
+
+     if (sourceRegister == abiRegister) return built;
+
+     built.append_range(this->ClearRegister(abiRegister, source));
+     if (remainingUses == 0 && !this->IsMutable(source)) this->ReleaseRegister(source);
+     built.push_back(BuildMov(width, RegisterOperand{abiRegister}, RegisterOperand{sourceRegister}));
      return built;
 }
 
 template <>
 ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::PassArgument>(
-          const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
+          [[maybe_unused]] const ecpps::ir::abstract::VirtualRegister owner,
+          [[maybe_unused]] const std::span<const std::byte> data)
 {
-     runtime_assert(data.size() >= sizeof(values::PassArgumentFromAbi), "PassArgument state is truncated");
-
-     const values::PassArgumentFromAbi& parameterValue =
-          *std::launder(reinterpret_cast<const values::PassArgumentFromAbi*>(data.data()));
-
-     const auto rawValue = std::get<0>(parameterValue.parameters);
-     const bool isStack = std::get<1>(parameterValue.parameters);
-     const auto virtualSource = std::get<2>(parameterValue.parameters);
-
-     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
-
-     if (isStack)
-     {
-          const auto slot = OutgoingSlot(rawValue);
-
-          if (this->IsSpilled(virtualSource))
-          {
-               const auto sourceSlot = this->EnsureStackSlot(virtualSource);
-               std::ignore = this->ConsumeUse(virtualSource);
-               const RegisterIndex tempReg = this->_registerAllocator.Allocate(owner);
-
-               return {.instructions = {BuildMov(width, RegisterOperand{tempReg}, sourceSlot),
-                                        BuildMov(width, slot, RegisterOperand{tempReg})},
-                       .assignedRegister = tempReg};
-          }
-
-          const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
-          const auto remainingUses = this->ConsumeUse(virtualSource);
-
-          if (remainingUses == 0 && !this->IsMutable(virtualSource)) this->ReleaseRegister(virtualSource);
-
-          return {.instructions = {BuildMov(width, slot, RegisterOperand{sourceRegister})},
-                  .assignedRegister = sourceRegister};
-     }
-
-     const RegisterIndex abiRegister = static_cast<RegisterIndex>(rawValue);
-
-     if (this->IsSpilled(virtualSource))
-     {
-          const auto slot = this->EnsureStackSlot(virtualSource);
-          std::ignore = this->ConsumeUse(virtualSource);
-
-          auto instructions = this->ClearRegister(abiRegister, virtualSource);
-          instructions.push_back(BuildMov(width, RegisterOperand{abiRegister}, slot));
-          return {.instructions = std::move(instructions), .assignedRegister = abiRegister};
-     }
-
-     const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
-     const auto remainingUses = this->ConsumeUse(virtualSource);
-
-     if (sourceRegister == abiRegister)
-     {
-          return {.instructions = {}, .assignedRegister = abiRegister};
-     }
-
-     auto instructions = this->ClearRegister(abiRegister, virtualSource);
-
-     if (remainingUses == 0 && !this->IsMutable(virtualSource)) this->ReleaseRegister(virtualSource);
-
-     instructions.push_back(BuildMov(width, RegisterOperand{abiRegister}, RegisterOperand{sourceRegister}));
-     return {.instructions = std::move(instructions), .assignedRegister = abiRegister};
+     runtime_assert(false, "PassArgument is lowered eagerly and must never be materialised lazily");
+     return {};
 }

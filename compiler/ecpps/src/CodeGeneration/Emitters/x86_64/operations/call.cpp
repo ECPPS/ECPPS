@@ -16,5 +16,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(
           *std::launder(reinterpret_cast<const abi::encoders::x8664::CallInstruction*>(description.data()));
      this->_callPatches.push_back(this->_currentInstructionBase);
 
-     return GenerateCallRel32(static_cast<std::int32_t>(call.indexToTable));
+     auto rel = GenerateCallRel32(static_cast<std::int32_t>(call.indexToTable));
+     rel.append_range(GenerateNopN(2));
+     return rel;
 }

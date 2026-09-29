@@ -11,6 +11,8 @@
 #include "../Machine/Machine.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Nodes.h"
+#include "Parsing/SourceMap.h"
+#include "PseudoAssembly.h"
 
 define_number(ByteOffset, std::size_t);
 define_number(Address, std::size_t);
@@ -59,10 +61,17 @@ namespace ecpps::codegen
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
           virtual void PatchCalls(std::vector<std::byte>& instructions, const Routine& routine) = 0;
+          virtual void PatchStrings(std::vector<std::byte>& instructions, std::vector<StringPatch> patches,
+                                    const AssemblyContext& asmContext, const Routine& routine) = 0;
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
           std::size_t _stringRelocationSize{};              // in bytes
           std::vector<std::size_t> _stringRelocation{};
+          std::vector<StringPatch> _patches;
+          void AddStringPatch(std::uint32_t instructionOffset, InstructionPatchType patchType, StringIndex index)
+          {
+               this->_patches.emplace_back(index, instructionOffset, patchType);
+          }
 
      protected:
           explicit CodeEmitter(std::string name) : _name(std::move(name))

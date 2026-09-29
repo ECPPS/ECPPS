@@ -70,6 +70,13 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ZeroExtension>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::AddressOf>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -151,6 +158,16 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
           ecpps::ir::abstract::VirtualInstructionType::PassArgument>(ecpps::ir::abstract::VirtualRegister owner,
                                                                      std::span<const std::byte> data);
 
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::AddressOf>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                  std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                          std::span<const std::byte> data);
+
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
 {
@@ -180,7 +197,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      for (std::size_t index : std::views::iota(0uz, input.size()))
      {
           const auto& instruction = input[index];
-          if (instruction.type == ir::abstract::VirtualInstructionType::CopyInteger) continue;
+          if (instruction.type == ir::abstract::VirtualInstructionType::CopyInteger ||
+              instruction.type == ir::abstract::VirtualInstructionType::LoadStringAddress)
+               continue;
 
           const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
           for (const auto& source : instruction.operands | std::views::drop(firstSource))
@@ -323,6 +342,12 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
                call->indexToTable < this->Scopes().size() ? this->Scopes()[call->indexToTable] : nullptr;
           return std::format("CALL {}", scope ? scope->ToString() : "__invalid_function");
      }
+     case X8664InstructionName::Lea:
+     {
+          runtime_assert(instruction.description.size() == sizeof(LeaInstruction), "invalid LEA");
+          const auto* lea = std::launder(reinterpret_cast<const LeaInstruction*>(instruction.description.data()));
+          return std::format("LEA.{} {}, {}", ToString(lea->width), ToString(lea->destination), ToString(lea->address));
+     }
      }
 
      return "__unknown";
@@ -340,8 +365,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      this->_pendingSpills.clear();
      this->_evictable.clear();
-
-     const bool hasSources = instruction.type != ir::abstract::VirtualInstructionType::CopyInteger;
+     const bool hasSources = instruction.type != ir::abstract::VirtualInstructionType::CopyInteger &&
+                             instruction.type != ir::abstract::VirtualInstructionType::LoadStringAddress;
      const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
 
      std::unordered_set<std::size_t> required{};
@@ -451,6 +476,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::PassArgument:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::PassArgument>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::AddressOf:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::AddressOf>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::LoadStringAddress>(instruction.operands));
           break;
      default: throw TracedException("Unknown instruction");
      }
@@ -882,6 +915,20 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<2>(pass.parameters));
           break;
      }
+     case AssignedValueType::AddressOf:
+     {
+          const auto& addressOf =
+               *std::launder(reinterpret_cast<const values::AddressOfAllocation*>(value.data.data()));
+          sources.push_back(std::get<0>(addressOf.parameters));
+          break;
+     }
+     case AssignedValueType::LoadStringAddress:
+     {
+          const auto& stringAddress = *std::launder(reinterpret_cast<const values::StringAddress*>(value.data.data()));
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(stringAddress.parameters)});
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(stringAddress.parameters)});
+          break;
+     }
      case AssignedValueType::CopyInteger: break;
      }
      return sources;
@@ -999,6 +1046,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::CopyParameter>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::AddressOf:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::AddressOf>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::LoadStringAddress:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::LoadStringAddress>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
      default: throw TracedException(std::format("Invalid opcode: {}", std::to_underlying(valueBase.type)));
      }
 
@@ -1043,27 +1098,31 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
 [[nodiscard]] std::string ecpps::abi::encoders::x8664::ToString(const Operand& operand)
 {
-     return std::visit(OverloadedVisitor{[](const RegisterOperand& reg)
-                                         {
-                                              return FormatRegister(reg.index);
-                                         },
-                                         [](const MemoryOperand& mem)
-                                         {
-                                              const auto base = FormatRegister(mem.relativeTo);
-                                              if (mem.offset < 0)
-                                                   return std::format("[{} - {}]", base,
-                                                                      -static_cast<std::int64_t>(mem.offset));
-                                              return std::format("[{} + {}]", base, mem.offset);
-                                         },
-                                         [](const IntegerOperand& integer)
-                                         {
-                                              return std::format("{}", integer.value);
-                                         },
-                                         [](const StackOperand& stack)
-                                         {
-                                              return std::format("[locals + {}]", stack.offset);
-                                         }},
-                       operand);
+     return std::visit(
+          OverloadedVisitor{[](const RegisterOperand& reg)
+                            {
+                                 return FormatRegister(reg.index);
+                            },
+                            [](const MemoryOperand& mem)
+                            {
+                                 const auto base = FormatRegister(mem.relativeTo);
+                                 if (mem.offset < 0)
+                                      return std::format("[{} - {}]", base, -static_cast<std::int64_t>(mem.offset));
+                                 return std::format("[{} + {}]", base, mem.offset);
+                            },
+                            [](const IntegerOperand& integer)
+                            {
+                                 return std::format("{}", integer.value);
+                            },
+                            [](const StringAddressOperand& string)
+                            {
+                                 return std::format("[rip + string#{} + {}]", string.tableIndex, string.offset);
+                            },
+                            [](const StackOperand& stack)
+                            {
+                                 return std::format("[locals + {}]", stack.offset);
+                            }},
+          operand);
 }
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(ecpps::ir::abstract::VirtualRegister reg,
                                                                            ecpps::ir::abstract::State value)
@@ -1107,6 +1166,12 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOp
                auto* mov = std::launder(reinterpret_cast<MovInstruction*>(instruction.description.data()));
                mov->destination = this->ResolveStackOperand(mov->destination);
                mov->source = this->ResolveStackOperand(mov->source);
+               break;
+          }
+          case X8664InstructionName::Lea:
+          {
+               auto* lea = std::launder(reinterpret_cast<LeaInstruction*>(instruction.description.data()));
+               lea->address = this->ResolveStackOperand(lea->address);
                break;
           }
           case X8664InstructionName::Add:
@@ -1188,6 +1253,12 @@ std::vector<ecpps::abi::encoders::x8664::RegisterIndex> ecpps::abi::encoders::x8
           {
                const auto* add = std::launder(reinterpret_cast<const AddInstruction*>(instruction.description.data()));
                record(add->modifiedDestination);
+               break;
+          }
+          case X8664InstructionName::Lea:
+          {
+               const auto* lea = std::launder(reinterpret_cast<const LeaInstruction*>(instruction.description.data()));
+               record(lea->destination);
                break;
           }
           case X8664InstructionName::Sub:

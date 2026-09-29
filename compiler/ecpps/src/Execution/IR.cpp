@@ -517,6 +517,9 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const ptrConvNode = dynamic_cast<high::PointerConversionNode*>(valueNode))
      {
+          if (ptrConvNode->TargetType() == ptrConvNode->Operand()->Type())
+               return LowerExpressionLoaded(std::move(*ptrConvNode).Operand(), built);
+
           const auto* srcReg = LowerExpression(std::move(*ptrConvNode).Operand(), built);
           if (srcReg == nullptr) return nullptr;
 
@@ -3562,11 +3565,13 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
                     break;
                }
 
-               // if (const auto* innerNode = dynamic_cast<const SSAPointerConvertFromDecayNode*>(node.get()))
-               // {
-               //      CreateReferenceMap(map, std::vector<NodePointer>{/* see note below */});
-               //      break;
-               // }
+               if (const auto* innerNode = dynamic_cast<const SSAPointerConvertFromDecayNode*>(node.get()))
+               {
+                    if (const auto* loadDecayNode = dynamic_cast<const LoadArrayDecayNode*>(&innerNode->DecayNode());
+                        loadDecayNode != nullptr && loadDecayNode->GetAllocReg() != nullptr)
+                         map.ReferenceRegister(loadDecayNode->GetAllocReg()->Index());
+                    break;
+               }
 
                runtime_assert(false, "Invalid pointer-conversion node");
                break;
@@ -3622,6 +3627,7 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
                const auto* innerNode = dynamic_cast<const SSAAddressOfNode*>(node.get());
                runtime_assert(innerNode != nullptr, "Invalid address-of node");
 
+               map.ReferenceRegister(innerNode->Result().Index());
                map.ReferenceRegister(innerNode->Operand().Index());
                break;
           }

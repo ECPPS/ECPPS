@@ -80,9 +80,9 @@ namespace ecpps::codegen
           std::size_t width;
           Type type;
      };
-     struct VirtualNotFoundError : std::exception
+     struct VirtualNotFoundError : std::logic_error
      {
-          VirtualNotFoundError([[maybe_unused]] auto&&... args)
+          VirtualNotFoundError(std::logic_error error) : logic_error(std::move(error))
           {
           }
      };
@@ -176,7 +176,7 @@ namespace ecpps::codegen
           std::vector<AllocationDescriptor> _descriptorArray{};
           std::vector<Index> _ssaByVirtual{};
      };
-
+     struct AssemblyContext;
      struct ParsingContext
      {
           std::vector<ir::abstract::VirtualInstruction> instructions;
@@ -185,6 +185,7 @@ namespace ecpps::codegen
           abi::api::Target* target{};
           AllocationMap virtualRegisterAllocationMap;
           std::vector<const ir::FunctionScope*> functionUsageTable{};
+          AssemblyContext* assembly{};
           std::size_t CallFunctionIndex(const ir::FunctionScope* contextPointer);
 
           void ParseNode(const ir::NodeBase* node);
@@ -207,6 +208,9 @@ namespace ecpps::codegen
           void ParseIntNode(const ir::SSAImmNode& node);
           void ParseCallNode(const ir::SSACallNode& node);
           void ParseParameterStoreNode(const ir::ParameterNode& node);
+          void ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node);
+          void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
+
           explicit ParsingContext(ecpps::abi::ABI& abi);
 
      private:
@@ -291,16 +295,6 @@ namespace ecpps::codegen
                return this->_arena;
           }
 
-          void AddStringPatch(std::uint32_t instructionOffset, InstructionPatchType patchType, StringIndex index)
-          {
-               this->_patches.emplace_back(index, instructionOffset, patchType);
-          }
-
-          [[nodiscard]] auto& Patches(void) noexcept
-          {
-               return this->_patches;
-          }
-
      private:
           static std::uint32_t ReserveNextStringEntry(void) noexcept;
 
@@ -327,9 +321,8 @@ namespace ecpps::codegen
           std::unordered_map<ByteView, std::uint32_t, std::hash<ByteView>, std::equal_to<>> _exactLookup;
 
           std::reference_wrapper<CompilerConfig> _config;
-          std::vector<StringPatch> _patches;
      };
 
-     void Compile(CompilerConfig& config, SourceFile& source,
+     void Compile(AssemblyContext& context, CompilerConfig& config, SourceFile& source,
                   const std::vector<ir::NodePointer>& intermediateRepresentation, ecpps::abi::api::Target* target);
 } // namespace ecpps::codegen
