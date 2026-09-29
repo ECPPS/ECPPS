@@ -604,7 +604,7 @@ void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 
           ir::abstract::VirtualInstruction instruction{
                .type = ir::abstract::VirtualInstructionType::PassArgument,
-               .operands = {virtualTarget, virtualSource},
+               .operands = {ir::abstract::VirtualRegister{callIndex}, virtualTarget, virtualSource},
           };
           this->instructions.push_back(instruction);
      }

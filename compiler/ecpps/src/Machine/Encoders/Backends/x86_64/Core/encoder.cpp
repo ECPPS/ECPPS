@@ -158,6 +158,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->_savedRegisters.clear();
      this->_remainingUses.clear();
      this->_localsSize = 0;
+     this->_parameterReserve = 0;
      this->_outgoingReserve = this->_target->platform->InitialStackReserve();
      this->_stackFrameSize = 0;
      this->_evicted.clear();
@@ -854,8 +855,9 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      case AssignedValueType::PassArgument:
      {
           const auto& pass = *std::launder(reinterpret_cast<const values::PassArgumentFromAbi*>(value.data.data()));
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::to_underlying(std::get<0>(pass.parameters))});
-          sources.push_back(std::get<1>(pass.parameters));
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(pass.parameters)});
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(pass.parameters)});
+          sources.push_back(std::get<2>(pass.parameters));
           break;
      }
      case AssignedValueType::CopyInteger: break;
@@ -1109,7 +1111,7 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Finalise(
 {
      this->_savedRegisters = this->CollectCalleeSavedWrites(instructions);
 
-     const std::size_t rawSize = this->_outgoingReserve + this->_localsSize;
+     const std::size_t rawSize = this->_outgoingReserve + this->_localsSize + this->_parameterReserve;
      this->_stackFrameSize = rawSize;
 
      if (rawSize != 0 || !this->_savedRegisters.empty())

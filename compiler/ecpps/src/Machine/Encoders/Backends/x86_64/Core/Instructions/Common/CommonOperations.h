@@ -96,7 +96,7 @@ namespace ecpps::abi::encoders::x8664::inline common
           using CallResult = AssignmentValue<AssignedValueType::Call, ir::abstract::VirtualRegister>;
           using CopyParameterFromAbi = AssignmentValue<AssignedValueType::CopyParameter, std::size_t, bool>;
           using PassArgumentFromAbi =
-               AssignmentValue<AssignedValueType::PassArgument, RegisterIndex, ir::abstract::VirtualRegister>;
+               AssignmentValue<AssignedValueType::PassArgument, std::size_t, bool, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {
