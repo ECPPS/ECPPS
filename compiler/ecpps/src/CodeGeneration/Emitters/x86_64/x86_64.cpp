@@ -67,7 +67,7 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                                      std::ranges::to<std::vector>(),
                                                 function->namespacePath);
                this->linkerForwardedRelocations.emplace(
-                    ByteOffset(static_cast<std::uint32_t>(index)),
+                    ByteOffset(offset + routine.emittedOffset),
                     Relocation{.symbolName = mangled,
                                .apply = ApplyImportLambda,
                                .applyOutputSize = 2uz}); // Linker pass handles that, hopefully
