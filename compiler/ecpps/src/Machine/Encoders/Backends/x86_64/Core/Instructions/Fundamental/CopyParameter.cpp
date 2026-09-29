@@ -47,6 +47,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           const auto minWidth = static_cast<Width>(platform.ParameterStackSlotWidth());
           width = std::max(width, minWidth);
           const auto displacement = std::to_underlying(width) * stackSlot;
+          this->_parameterReserve = std::max(this->_parameterReserve, displacement);
           parameterValue.parameters = std::make_tuple(displacement, true);
 
           this->Redefine(destination, newState);
