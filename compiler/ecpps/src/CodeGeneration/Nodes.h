@@ -26,6 +26,8 @@ namespace ecpps::codegen
           std::vector<ir::abstract::Instruction> physicalInstructions;
           std::vector<const ir::FunctionScope*> scopes;
           ir::FunctionScope* currentScope;
+          std::vector<const ir::FunctionScope*> copyOfUsageTable;
+
           std::size_t emittedOffset{};
      };
 } // namespace ecpps::codegen

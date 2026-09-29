@@ -1087,7 +1087,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                new (allocator) AllocationNode(std::move(allocReg), node.Source())});
 
           ir._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
-               new (allocator) ParameterNode(paramIndex++, allocRegPtr, node.Source())});
+               new (allocator) ParameterNode(vFunctionScope, paramIndex++, allocRegPtr, node.Source())});
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);

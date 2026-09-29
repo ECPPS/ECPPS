@@ -413,6 +413,7 @@ namespace ecpps::abi::encoders::x8664
 
           void Redefine(ir::abstract::VirtualRegister reg, ir::abstract::State value);
 
+          [[nodiscard]] StackOperand PassParameterViaStack(std::size_t stackIndex);
           [[nodiscard]] bool IsMutable(ir::abstract::VirtualRegister reg);
           [[nodiscard]] bool IsSpilled(ir::abstract::VirtualRegister reg);
           [[nodiscard]] StackOperand EnsureStackSlot(ir::abstract::VirtualRegister reg);

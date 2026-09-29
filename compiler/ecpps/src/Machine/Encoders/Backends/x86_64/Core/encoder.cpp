@@ -319,7 +319,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.size() == sizeof(CallInstruction), "invalid CALL");
           const auto* call = std::launder(reinterpret_cast<const CallInstruction*>(instruction.description.data()));
           const ir::FunctionScope* scope =
-               call->indexToTable < this->_scopes.size() ? this->_scopes[call->indexToTable] : nullptr;
+               call->indexToTable < this->Scopes().size() ? this->Scopes()[call->indexToTable] : nullptr;
           return std::format("CALL {}", scope ? scope->ToString() : "__invalid_function");
      }
      }
@@ -847,7 +847,8 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      case AssignedValueType::CopyParameter:
      {
           const auto& call = *std::launder(reinterpret_cast<const values::CopyParameterFromAbi*>(value.data.data()));
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::to_underlying(std::get<0>(call.parameters))});
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(call.parameters)});
+          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(call.parameters)});
           break;
      }
      case AssignedValueType::PassArgument:

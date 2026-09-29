@@ -94,7 +94,7 @@ namespace ecpps::abi::encoders::x8664::inline common
           using ZeroExtendToRegister =
                AssignmentValue<AssignedValueType::Movzx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
           using CallResult = AssignmentValue<AssignedValueType::Call, ir::abstract::VirtualRegister>;
-          using CopyParameterFromAbi = AssignmentValue<AssignedValueType::CopyParameter, RegisterIndex>;
+          using CopyParameterFromAbi = AssignmentValue<AssignedValueType::CopyParameter, std::size_t, bool>;
           using PassArgumentFromAbi =
                AssignmentValue<AssignedValueType::PassArgument, RegisterIndex, ir::abstract::VirtualRegister>;
      } // namespace values

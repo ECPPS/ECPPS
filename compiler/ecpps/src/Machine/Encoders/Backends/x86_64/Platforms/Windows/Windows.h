@@ -37,7 +37,7 @@ namespace ecpps::abi::encoders::x8664
                case 2: return std::to_underlying(RegisterIndex::R8);
                case 3: return std::to_underlying(RegisterIndex::R9);
                }
-               throw TracedException("Invalid");
+               throw TracedException(std::format("Invalid parameter register: passed {}", reg));
           }
           [[nodiscard]] std::uint32_t CalleeSavedRegisterMask(void) const noexcept final
           {
@@ -48,6 +48,39 @@ namespace ecpps::abi::encoders::x8664
           void PrepareABI(void) final
           {
                ecpps::abi::ABI::Current().importPrefix = "__imp_";
+          }
+          [[nodiscard]] std::uint8_t ThisPointerRegisterIndex(void) const noexcept final
+          {
+               return std::to_underlying(RegisterIndex::Rcx);
+          }
+
+          [[nodiscard]] bool HasSharedParameterRegisterAllocation(void) const noexcept final
+          {
+               return true;
+          }
+
+          [[nodiscard]] std::size_t MaxStructRegisterPassingSize(void) const noexcept final
+          {
+               return 8;
+          }
+
+          [[nodiscard]] bool CanSplitStructAcrossRegisters(void) const noexcept final
+          {
+               return false;
+          }
+
+          [[nodiscard]] std::size_t ParameterStackSlotWidth(void) const noexcept final
+          {
+               return 64;
+          }
+
+          [[nodiscard]] api::ExtensionRuling SubWordExtensionPolicy(void) const noexcept final
+          {
+               return api::ExtensionRuling::CallerExtendsZero;
+          }
+          [[nodiscard]] api::StackParameterOrdering StackParameterOrder(void) const noexcept final
+          {
+               return api::StackParameterOrdering::Reverse;
           }
 
      private:

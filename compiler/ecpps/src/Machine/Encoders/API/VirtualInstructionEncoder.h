@@ -37,12 +37,20 @@ namespace ecpps::abi::api
           {
                this->_scopes = std::move(scopes);
           }
+          [[nodiscard]] const std::vector<const ir::FunctionScope*>& Scopes(void) const noexcept
+          {
+               return this->_scopes;
+          }
 
      protected:
           Target* _target; // TODO: non-null pointer
-          std::vector<const ir::FunctionScope*> _scopes;
+          [[nodiscard]] std::vector<const ir::FunctionScope*>& Scopes(void) noexcept
+          {
+               return this->_scopes;
+          }
 
      private:
           ISA _isa;
+          std::vector<const ir::FunctionScope*> _scopes{};
      };
 } // namespace ecpps::abi::api

@@ -643,10 +643,11 @@ void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::Parameter
 
      ir::abstract::VirtualRegister virtualTarget{virtualSourceIndex};
      ir::abstract::VirtualRegister virtualSource{paramtIndex};
+     const auto functionIndex = this->CallFunctionIndex(node.GetFunctionScope());
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::CopyParameter,
-          .operands = {virtualTarget, virtualSource},
+          .operands = {ir::abstract::VirtualRegister{functionIndex}, virtualTarget, virtualSource},
      };
      this->instructions.push_back(instruction);
 }
@@ -689,8 +690,10 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
      ecpps::codegen::ParsingContext parseContext(currentAbi);
      parseContext.target = target;
 
-     for (const auto& line : node.Body()) parseContext.ParseNode(line.get());
-     target->encoder->SetFunctionCallTable(parseContext.functionUsageTable);
+     for (const auto& line : node.Body())
+     {
+          parseContext.ParseNode(line.get());
+     }
 
      diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 
@@ -705,7 +708,8 @@ static Routine CompileRoutine([[maybe_unused]] ecpps::codegen::AssemblyContext& 
                                                           }) |
                                                      std::ranges::to<std::vector>(),
                                                 node.NamespacePath()),
-                    std::vector<ecpps::ir::abstract::Instruction>{}, parseContext.functionUsageTable, node.Scope());
+                    std::vector<ecpps::ir::abstract::Instruction>{}, parseContext.functionUsageTable, node.Scope(),
+                    parseContext.functionUsageTable);
 }
 
 void ecpps::codegen::Compile(CompilerConfig& config, SourceFile& source,
