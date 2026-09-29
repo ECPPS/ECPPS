@@ -48,6 +48,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t SignExtend = 14;
           constexpr static std::size_t ZeroExtend = 15;
           constexpr static std::size_t Call = 16;
+          constexpr static std::size_t Lea = 17;
      };
 
      enum struct EncodingSpillage : std::uint8_t
@@ -196,7 +197,12 @@ namespace ecpps::abi::encoders::x8664
                Operand modifiedDestination{};
                Operand source{};
           };
-
+          struct LeaInstruction
+          {
+               Width width{};
+               RegisterOperand destination{};
+               Operand address{};
+          };
           struct BinaryXorInstruction
           {
                Width width{};
@@ -419,6 +425,8 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] StackOperand EnsureStackSlot(ir::abstract::VirtualRegister reg);
           [[nodiscard]] RegisterIndex PhysicalRegisterOf(ir::abstract::VirtualRegister reg);
           [[nodiscard]] std::optional<std::uint64_t> ImmediateOf(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] std::vector<ir::abstract::Instruction> ClearRegister(RegisterIndex reg,
+                                                                             ir::abstract::VirtualRegister keep);
 
           [[nodiscard]] static ir::abstract::Instruction BuildMov(Width width, Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildAdd(Width width, Operand modifiedDestination,
@@ -447,6 +455,8 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] static ir::abstract::Instruction BuildMovzx(Width destinationWidth, Width sourceWidth,
                                                                     Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildCall(std::size_t functionIndex);
+          [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
+                                                                  Operand address);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(

@@ -489,6 +489,16 @@ std::optional<std::uint64_t> ecpps::abi::encoders::x8664::X8664VirtualInstructio
      const auto& copyValue = *std::launder(reinterpret_cast<const values::CopyIntegerToRegister*>(value.data.data()));
      return std::get<0>(copyValue.parameters);
 }
+std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     ClearRegister(RegisterIndex reg, ir::abstract::VirtualRegister keep)
+{
+     std::vector<ir::abstract::Instruction> out{};
+     for (const auto& cell : this->_registerAllocator.Snapshot())
+          if (cell.reg == reg && cell.owner && cell.owner->index != keep.index &&
+              this->_remainingUses[cell.owner->index] != 0)
+               out.append_range(this->Evict(*cell.owner));
+     return out;
+}
 
 ecpps::abi::encoders::x8664::StackOperand ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EnsureStackSlot(
      const ecpps::ir::abstract::VirtualRegister reg)
@@ -613,6 +623,18 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.description.resize(sizeof(CallInstruction));
 
      new (instruction.description.data()) CallInstruction{.indexToTable = functionIndex};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildLea(
+     Width width, RegisterOperand destination, Operand address)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Lea;
+     instruction.description.resize(sizeof(LeaInstruction));
+
+     new (instruction.description.data())
+          LeaInstruction{.width = width, .destination = destination, .address = address};
 
      return instruction;
 }
