@@ -38,10 +38,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (parameterIndex >= platform.IntegerParameterRegisterCount())
      {
-          const auto stackParameterOffset = parameterIndex - platform.IntegerParameterRegisterCount();
-          const auto stackSlot = platform.StackParameterOrder() == api::StackParameterOrdering::Forward
-                                      ? stackParameterOffset
-                                      : (numberOfParameters - parameterIndex);
+          const auto stackSlot = this->StackParameterSlot(parameterIndex, numberOfParameters);
 
           Width width = MapWidth(this->GetVRM().GetWidth(destination));
           const auto minWidth = static_cast<Width>(platform.ParameterStackSlotWidth());

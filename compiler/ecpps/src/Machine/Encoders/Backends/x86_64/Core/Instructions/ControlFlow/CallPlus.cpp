@@ -31,8 +31,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      callValue.parameters = std::make_tuple(function);
      this->Redefine(destination, newState);
 
-     built.append_range(EnsureMaterialisation(destination));
+     if (this->IsSpilled(destination))
+     {
+          const Width width = MapWidth(this->GetVRM().GetWidth(destination));
+          const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
 
+          built = this->PrepareForCall();
+          built.push_back(BuildCall(function.index));
+          this->ReleaseArgumentRegisters();
+          built.push_back(BuildMov(width, this->EnsureStackSlot(destination), RegisterOperand{returnRegister}));
+          return built;
+     }
+
+     built.append_range(EnsureMaterialisation(destination));
      return built;
 }
 
@@ -46,8 +57,9 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
 
-     std::vector<ecpps::ir::abstract::Instruction> built{};
+     auto built = this->PrepareForCall();
      built.push_back(BuildCall(std::get<0>(callValue.parameters).index));
+     this->ReleaseArgumentRegisters();
 
      this->_registerAllocator.Prefer(returnRegister);
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);

@@ -18,7 +18,7 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
 {
      PESection textSection{};
      std::unordered_map<std::string, std::vector<std::byte>> relocationThunks{};
-     auto codeSize = data.size();
+     // auto codeSize = data.size();
 
      std::vector<std::pair<ByteOffset, codegen::Relocation>> sortedRelocations(relocationMap.begin(),
                                                                                relocationMap.end());
@@ -28,24 +28,21 @@ std::vector<std::byte> ecpps::linker::win::WindowsLinker::CodeSection(std::vecto
                             return a.first.Value() > b.first.Value();
                        });
 
-     std::size_t cumulativeShift = 0;
-
      for (const auto& [where, relocation] : sortedRelocations)
      {
-          const auto resolvedAddress = this->LookupSymbol(relocation.symbolName, static_cast<std::uint32_t>(codeSize));
           auto toInsert =
-               relocation.apply(Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks);
+               relocation.apply(false); // Address{resolvedAddress - where.Value() - cumulativeShift}, relocationThunks
 
           const auto pos = where.Value();
           for (std::size_t i = 0; i < toInsert.size() && (pos + i) < data.size(); i++) data[pos + i] = toInsert[i];
 
           if (toInsert.size() > relocation.applyOutputSize)
           {
-               const auto extraBytes = toInsert.size() - relocation.applyOutputSize;
+               // const auto extraBytes = toInsert.size() - relocation.applyOutputSize;
                const auto insertPos = data.begin() + static_cast<std::streamsize>(pos + relocation.applyOutputSize);
                const auto extraBegin = toInsert.begin() + static_cast<std::streamsize>(relocation.applyOutputSize);
                data.insert(insertPos, extraBegin, toInsert.end());
-               cumulativeShift += extraBytes;
+               // cumulativeShift += extraBytes;
           }
      }
 

@@ -232,6 +232,7 @@ namespace ecpps::abi::encoders::x8664
           struct CallInstruction
           {
                std::size_t indexToTable{};
+               const ir::FunctionScope* scope{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -262,8 +263,14 @@ namespace ecpps::abi::encoders::x8664
                     while (true)
                     {
                          if (this->_preferred.has_value() && std::ranges::contains(_pool, *this->_preferred) &&
-                             !this->_occupancy.contains(*this->_preferred))
+                             !this->_occupancy.contains(*this->_preferred) && !this->IsReserved(*this->_preferred))
                               return this->Claim(owner, *this->_preferred);
+
+                         for (const auto candidate : _pool)
+                         {
+                              if (this->_occupancy.contains(candidate) || this->IsReserved(candidate)) continue;
+                              return this->Claim(owner, candidate);
+                         }
 
                          for (const auto candidate : _pool)
                          {
@@ -275,6 +282,16 @@ namespace ecpps::abi::encoders::x8664
                          if (!this->_onExhausted || !this->_onExhausted())
                               throw TracedException("Out of physical registers and nothing could be evicted");
                     }
+               }
+
+               void SetReservedPredicate(std::function<bool(RegisterIndex)> predicate)
+               {
+                    this->_reserved = std::move(predicate);
+               }
+
+               [[nodiscard]] bool IsReserved(const RegisterIndex reg) const
+               {
+                    return this->_reserved && this->_reserved(reg);
                }
 
                void SetExhaustionHandler(std::function<bool(void)> handler)
@@ -346,7 +363,12 @@ namespace ecpps::abi::encoders::x8664
 
                [[nodiscard]] std::size_t FreeCount(void) const noexcept
                {
-                    return _pool.size() - this->_occupancy.size();
+                    return static_cast<std::size_t>(std::ranges::count_if(this->_pool,
+                                                                          [this](const RegisterIndex reg)
+                                                                          {
+                                                                               return !this->_occupancy.contains(reg) &&
+                                                                                      !this->IsReserved(reg);
+                                                                          }));
                }
 
           private:
@@ -367,6 +389,7 @@ namespace ecpps::abi::encoders::x8664
                std::unordered_map<std::size_t, RegisterIndex> _colourOf;
                std::optional<RegisterIndex> _preferred{};
                std::function<bool(void)> _onExhausted{};
+               std::function<bool(RegisterIndex)> _reserved{};
           };
      } // namespace instructionSetData
 
@@ -424,6 +447,9 @@ namespace ecpps::abi::encoders::x8664
 
           void DereferenceAndMaybeFree(ir::abstract::VirtualRegister reg);
           [[nodiscard]] std::size_t ConsumeUse(ir::abstract::VirtualRegister reg);
+          void Lock(ecpps::abi::encoders::x8664::RegisterIndex reg);
+          void Unlock(ecpps::abi::encoders::x8664::RegisterIndex reg);
+          [[nodiscard]] bool IsLocked(RegisterIndex reg) const noexcept;
           void ReleaseRegister(ir::abstract::VirtualRegister reg);
           void TransferRegister(ir::abstract::VirtualRegister from, ir::abstract::VirtualRegister to);
 
@@ -480,6 +506,8 @@ namespace ecpps::abi::encoders::x8664
           {
                return this->_framePointer == FramePointer::Omit;
           }
+          [[nodiscard]] std::vector<ir::abstract::Instruction> PrepareForCall(void);
+          void ReleaseArgumentRegisters(void);
 
           [[nodiscard]] bool IsClobberable(const RegisterIndex reg)
           {
@@ -500,6 +528,9 @@ namespace ecpps::abi::encoders::x8664
                return this->_savedRegisters.size() * sizeof(std::uint64_t);
           }
 
+          [[nodiscard]] std::size_t StackParameterSlot(std::size_t parameterIndex,
+                                                       std::size_t numberOfParameters) const;
+
           void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
           void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
 
@@ -517,5 +548,6 @@ namespace ecpps::abi::encoders::x8664
           std::vector<ir::abstract::Instruction> _pendingSpills{};
           std::unordered_set<std::size_t> _evictable{};
           std::vector<RegisterIndex> _savedRegisters{};
+          std::unordered_set<RegisterIndex> _lockedRegisters;
      };
 } // namespace ecpps::abi::encoders::x8664
