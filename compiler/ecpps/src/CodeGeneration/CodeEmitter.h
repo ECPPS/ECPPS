@@ -27,10 +27,9 @@ namespace ecpps::codegen
      struct Relocation
      {
           std::string symbolName;
-          std::function<std::vector<std::byte>(
-               Address, std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)>
-               apply;
+          std::function<std::vector<std::byte>(bool isIndirect)> apply;
           std::size_t applyOutputSize;
+          bool isIndirect = false;
      };
      struct StringRelocation
      {

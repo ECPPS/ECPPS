@@ -17,6 +17,6 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitCall(
      this->_callPatches.push_back(this->_currentInstructionBase);
 
      auto rel = GenerateCallRel32(static_cast<std::int32_t>(call.indexToTable));
-     rel.append_range(GenerateNopN(2));
+     rel.append_range(GenerateNop());
      return rel;
 }

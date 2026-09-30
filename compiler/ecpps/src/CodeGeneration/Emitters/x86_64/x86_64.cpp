@@ -39,12 +39,9 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
 
 void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& instructions, const Routine& routine)
 {
-     constexpr static auto ApplyImportLambda =
-          [](Address resolved,
-             [[maybe_unused]] std::unordered_map<std::string, std::vector<std::byte>>& thunkProcedures)
-          -> std::vector<std::byte>
+     constexpr static auto ApplyImportLambda = [](const bool isIndirect) -> std::vector<std::byte>
      {
-          return x86_64::GenerateIndirectCall2(static_cast<std::int32_t>(resolved.Value()));
+          return isIndirect ? x86_64::GenerateIndirectCall2(0) : x86_64::GenerateCallRel32(0);
      };
 
      for (const auto offset : this->_callPatches)
@@ -72,11 +69,13 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                     ByteOffset(offset + routine.emittedOffset),
                     Relocation{.symbolName = mangled,
                                .apply = ApplyImportLambda,
-                               .applyOutputSize = 2uz}); // Linker pass handles that, hopefully
+                               .applyOutputSize = 2uz,
+                               .isIndirect = function->isDllImportExport}); // Linker pass handles that, hopefully
 
+               const auto prefix = function->isDllImportExport ? ecpps::abi::ABI::Current().importPrefix : "";
                if (!ecpps::codegen::g_functionImports.contains(mangled))
                     ecpps::codegen::g_functionImports[mangled] =
-                         function->dllImportName.empty() ? mangled : function->dllImportName;
+                         prefix + (function->dllImportName.empty() ? mangled : function->dllImportName);
 
                continue;
           }

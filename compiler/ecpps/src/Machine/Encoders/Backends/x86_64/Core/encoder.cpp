@@ -17,6 +17,8 @@
 #include "RuntimeAssert.h"
 #include "Shared/Diagnostics.h"
 
+[[nodiscard]] static std::string FormatRegister(ecpps::abi::encoders::x8664::RegisterIndex index);
+
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
@@ -180,12 +182,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->_stackFrameSize = 0;
      this->_evicted.clear();
      this->_useSites.clear();
+     this->_lockedRegisters.clear();
 
      this->_registerAllocator = PhysicalRegisterAllocator{std::function<bool(RegisterIndex)>{
           [this](const RegisterIndex candidate)
           {
                return this->_target->platform->IsCalleeSaved(std::to_underlying(candidate));
           }}};
+     this->_registerAllocator.SetReservedPredicate(
+          [this](const RegisterIndex reg)
+          {
+               return this->IsLocked(reg);
+          });
+
      this->_registerAllocator.SetExhaustionHandler(
           [this]
           {
@@ -212,7 +221,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      std::vector<ecpps::ir::abstract::Instruction> instructions{};
 
      for (const auto& instruction : input) instructions.append_range(EncodeSingle(instruction));
-
+     runtime_assert(this->_lockedRegisters.empty(),
+                    "Argument registers were locked by PassArgument but no call consumed them");
      return instructions;
 }
 std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringify(
@@ -580,6 +590,20 @@ std::size_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Consume
      runtime_assert(iterator != this->_remainingUses.end() && iterator->second != 0,
                     "Virtual register consumed more often than it is used");
      return --iterator->second;
+}
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsLocked(const RegisterIndex reg) const noexcept
+{
+     return this->_lockedRegisters.contains(reg);
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Lock(const RegisterIndex reg)
+{
+     this->_lockedRegisters.insert(reg);
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Unlock(const RegisterIndex reg)
+{
+     this->_lockedRegisters.erase(reg);
 }
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ReleaseRegister(
@@ -1355,6 +1379,7 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EvictOne(void)
      for (const auto& cell : this->_registerAllocator.Snapshot())
      {
           if (!cell.owner.has_value() || !this->_evictable.contains(cell.owner->index)) continue;
+          if (this->IsLocked(cell.reg)) continue;
 
           const auto distance = this->NextUse(*cell.owner);
           if (victim.has_value() && distance <= furthest) continue;
@@ -1424,4 +1449,12 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::SetMaterialise
      auto& physical = *new (state.data.data()) materialisations::PhysicalRegister{};
      physical.parameters = std::make_tuple(physicalRegister);
      this->GetVRM().Materialise(reg, std::move(state));
+}
+std::size_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::StackParameterSlot(
+     const std::size_t parameterIndex, const std::size_t numberOfParameters) const
+{
+     const auto& platform = *this->_target->platform;
+     if (platform.StackParameterOrder() == api::StackParameterOrdering::Forward)
+          return parameterIndex - platform.IntegerParameterRegisterCount();
+     return numberOfParameters - 1 - parameterIndex;
 }

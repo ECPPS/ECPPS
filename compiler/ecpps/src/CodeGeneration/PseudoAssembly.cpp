@@ -562,9 +562,8 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
      auto ssaResultIndex = node.Result().Index();
 
      auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
-     auto& describedSource = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualSourceIndex);
 
-     auto width = describedSource.width;
+     const auto width = node.Result().Width();
 
      ir::abstract::VirtualRegister allocatedIndex(
           this->AllocateVirtual(ssaResultIndex, width, AllocationDescriptor::Type::Temporary));
@@ -734,7 +733,8 @@ void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNo
      const auto* operandRegister = &node.Operand();
 
      const auto virtualResultIndex =
-          AllocateVirtual(resultRegister->Index(), resultRegister->Width(), ir::abstract::AllocationClass::Temporary);
+          AllocateVirtual(resultRegister->Index(), abi->PointerSize() * typeSystem::CharWidth,
+                          ir::abstract::AllocationClass::Temporary);
      const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(operandRegister->Index());
 
      ir::abstract::VirtualRegister virtualResult{virtualResultIndex};

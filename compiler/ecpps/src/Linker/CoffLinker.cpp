@@ -99,16 +99,17 @@ std::vector<std::byte> CoffLinker::CodeSection(std::vector<std::byte> data,
      for (const auto& [where, relocation] : relocationMap)
      {
           std::unordered_map<std::string, std::vector<std::byte>> meow{};
-          const auto call = relocation.apply(Address{0}, meow);
+          const auto call = relocation.apply(relocation.isIndirect);
           const auto pos = where.Value();
 
           for (std::size_t i = 0; i < call.size() && (pos + i) < section.data.size(); i++)
                section.data[pos + i] = call[i];
 
-          for (std::size_t i = 2; i < 6 && (pos + i) < section.data.size(); i++) section.data[pos + i] = std::byte{0};
+          for (std::size_t i = 2; i < call.size() && (pos + i) < section.data.size(); i++)
+               section.data[pos + i] = std::byte{0};
 
           COFFRelocation r{};
-          r.offset = static_cast<std::uint32_t>(pos) + 2;
+          r.offset = static_cast<std::uint32_t>(pos) + (call.size() == 6 ? 2 : 1);
           r.symbolName = _symbols.at(this->_symbolOffsets.at(relocation.symbolName)).name;
           r.type = REL_REL32;
           r.sectionIndex = 0;
@@ -146,11 +147,10 @@ void CoffLinker::ExportFunction(const std::string& name, std::uint32_t address)
 void CoffLinker::ImportFunction(const std::string& symbolName, const std::string& importName,
                                 [[maybe_unused]] const std::string& dll)
 {
-     const std::string impName = ecpps::abi::ABI::Current().importPrefix + importName;
-     if (_symbolOffsets.contains(impName)) return;
+     if (_symbolOffsets.contains(importName)) return;
 
      COFFSymbol symbol{};
-     symbol.name = impName;
+     symbol.name = importName;
      symbol.value = 0;
      symbol.sectionIndex = 0;
      symbol.storageClass = COFFStorageClass::External;
@@ -159,7 +159,6 @@ void CoffLinker::ImportFunction(const std::string& symbolName, const std::string
      const auto idx = static_cast<std::uint32_t>(_symbols.size());
      this->_symbolOffsets[symbolName] = idx;
      this->_symbolOffsets[importName] = idx;
-     this->_symbolOffsets[impName] = idx;
      this->_symbols.emplace_back(std::move(symbol));
 }
 

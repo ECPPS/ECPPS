@@ -57,10 +57,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (parameterIndex >= platform.IntegerParameterRegisterCount())
      {
-          const auto stackParameterOffset = parameterIndex - platform.IntegerParameterRegisterCount();
-          const auto stackSlot = platform.StackParameterOrder() == api::StackParameterOrdering::Forward
-                                      ? stackParameterOffset
-                                      : (numberOfParameters - 1 - parameterIndex);
+          const auto stackSlot = this->StackParameterSlot(parameterIndex, numberOfParameters);
 
           const auto minWidth = static_cast<Width>(platform.ParameterStackSlotWidth());
           const auto originalWidth = MapWidth(this->GetVRM().GetWidth(source));
@@ -77,11 +74,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     std::ignore = this->ConsumeUse(source);
                     return built;
                }
-
                const RegisterIndex tempReg = this->_registerAllocator.Allocate(source);
                built.push_back(BuildMov(width, RegisterOperand{tempReg}, IntegerOperand{*immediate}));
                built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{tempReg}));
-               this->ReleaseRegister(source);
+               this->_registerAllocator.Free(source);
                std::ignore = this->ConsumeUse(source);
                return built;
           }
@@ -92,7 +88,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                const RegisterIndex tempReg = this->_registerAllocator.Allocate(source);
                built.push_back(BuildMov(width, RegisterOperand{tempReg}, sourceSlot));
                built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{tempReg}));
-               this->ReleaseRegister(source);
+               this->_registerAllocator.Free(source);
                std::ignore = this->ConsumeUse(source);
                return built;
           }
@@ -102,11 +98,12 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{sourceRegister}));
 
           const auto remainingUses = this->ConsumeUse(source);
-          if (remainingUses == 0 && !this->IsMutable(source)) this->ReleaseRegister(source);
+          if (remainingUses == 0) this->ReleaseRegister(source);
           return built;
      }
 
      const auto abiRegister = static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
+     this->Lock(abiRegister);
 
      if (immediate)
      {
@@ -134,7 +131,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (sourceRegister == abiRegister) return built;
 
      built.append_range(this->ClearRegister(abiRegister, source));
-     if (remainingUses == 0 && !this->IsMutable(source)) this->ReleaseRegister(source);
+     if (remainingUses == 0) this->ReleaseRegister(source);
      built.push_back(BuildMov(width, RegisterOperand{abiRegister}, RegisterOperand{sourceRegister}));
      return built;
 }
