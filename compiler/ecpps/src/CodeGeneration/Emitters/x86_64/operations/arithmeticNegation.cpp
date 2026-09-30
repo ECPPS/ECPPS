@@ -22,7 +22,7 @@ static std::vector<std::byte> AsmBitwiseNeg(Width width, RegisterOperand operand
 static std::vector<std::byte> AsmBitwiseNeg(Width width, MemoryOperand operand)
 {
      const auto baseIndex = std::to_underlying(operand.relativeTo);
-     const auto offset = static_cast<std::int32_t>(operand.offset);
+     const auto offset = operand.offset;
 
      return GenerateUnaryMem(UnaryOp::Neg, width, MemBase(baseIndex, offset));
 }
