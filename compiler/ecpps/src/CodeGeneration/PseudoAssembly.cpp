@@ -674,7 +674,7 @@ void ecpps::codegen::ParsingContext::ParsePointerConvertNode(const ir::SSAPointe
          loadDecayNode != nullptr)
      {
           const auto* allocationRegister = loadDecayNode->GetAllocReg();
-          runtime_assert(allocationRegister != nullptr, "Array decay has no allocation register");
+          if (allocationRegister == nullptr) throw TracedException("Array decay has no allocation register");
 
           const auto ssaSourceIndex = allocationRegister->Index();
           const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
