@@ -93,7 +93,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           // Generate IR
           BumpAllocator irAllocator(64uz * 1024);
-          ir::Context context{source.diagnostics, irAllocator};
+          ir::Context context{diagnostics, irAllocator};
           auto ir = IR::Parse(context, ast);
 
           INFO("Generated IR from AST");
@@ -111,7 +111,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           BumpAllocator irAllocator(64uz * 1024);
 
-          ir::Context context{source.diagnostics, irAllocator};
+          ir::Context context{diagnostics, irAllocator};
           auto ir = IR::Parse(context, ast);
 
           INFO("Generated IR with arithmetic operations");
@@ -138,7 +138,7 @@ TEST_CASE("Integration - Full pipeline to code generation", "[integration][full_
           // Step 3: Generate IR
           BumpAllocator irAllocator(64uz * 1024);
 
-          ir::Context context{source.diagnostics, irAllocator};
+          ir::Context context{diagnostics, irAllocator};
           auto ir = IR::Parse(context, ast);
           REQUIRE((!ir.empty()));
 
@@ -214,7 +214,7 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
                BumpAllocator irAllocator(64uz * 1024);
                // IR generation should detect type error
 
-               ir::Context context{source.diagnostics, irAllocator};
+               ir::Context context{diagnostics, irAllocator};
                auto ir = IR::Parse(context, ast);
                INFO("Type error should be caught");
                REQUIRE(!diagnostics.diagnosticsList.empty());
@@ -238,7 +238,7 @@ TEST_CASE("Integration - Multiple functions", "[integration][multiple_functions]
 
           BumpAllocator irAllocator(64uz * 1024);
 
-          ir::Context context{source.diagnostics, irAllocator};
+          ir::Context context{diagnostics, irAllocator};
           auto ir = IR::Parse(context, ast);
 
           INFO("Multiple functions compiled");
@@ -265,7 +265,7 @@ TEST_CASE("Integration - Complex expressions", "[integration][complex_expr]")
 
           BumpAllocator irAllocator(64uz * 1024);
 
-          ir::Context context{source.diagnostics, irAllocator};
+          ir::Context context{diagnostics, irAllocator};
           auto ir = IR::Parse(context, ast);
 
           INFO("Complex nested expressions compiled");
