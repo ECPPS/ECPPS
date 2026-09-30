@@ -5,6 +5,18 @@
 #include "Machine/Encoders/API/SDK.h"
 namespace ecpps::abi::api
 {
+     enum struct ExtensionRuling : std::uint8_t
+     {
+          CallerExtendsSigned,
+          CallerExtendsZero,
+          CalleeExtends
+     };
+     enum struct StackParameterOrdering : std::uint8_t
+     {
+          Forward,
+          Reverse
+     };
+
      struct PlatformBase
      {
           explicit PlatformBase(SDKBase* currentSdk) : _currentSdk(currentSdk)
@@ -16,6 +28,20 @@ namespace ecpps::abi::api
           {
                return 0;
           }
+          [[nodiscard]] virtual std::uint8_t ThisPointerRegisterIndex(void) const noexcept
+          {
+               return 0;
+          }
+          [[nodiscard]] virtual bool HasSharedParameterRegisterAllocation(void) const noexcept = 0;
+          [[nodiscard]] virtual bool CanSplitStructAcrossRegisters(void) const noexcept = 0;
+
+          [[nodiscard]] virtual ExtensionRuling SubWordExtensionPolicy(void) const noexcept = 0;
+          [[nodiscard]] virtual StackParameterOrdering StackParameterOrder(void) const noexcept = 0;
+
+          [[nodiscard]] virtual std::size_t IntegerParameterRegisterCount(void) const noexcept = 0;
+          [[nodiscard]] virtual std::size_t ParameterStackSlotWidth(void) const noexcept = 0;
+          [[nodiscard]] virtual std::size_t MaxStructRegisterPassingSize(void) const noexcept = 0;
+          [[nodiscard]] virtual std::size_t IntegerParameterRegisterIndex(std::size_t reg) const = 0;
           [[nodiscard]] virtual std::size_t StackAlignment(void) const noexcept
           {
                return 0;
@@ -32,6 +58,9 @@ namespace ecpps::abi::api
           {
                if (registerIndex >= 32) return false;
                return ((this->CalleeSavedRegisterMask() >> registerIndex) & 1U) != 0;
+          }
+          virtual void PrepareABI(void)
+          {
           }
 
      protected:

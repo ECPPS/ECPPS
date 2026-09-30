@@ -64,6 +64,22 @@ ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::IntegralType::CommonW
      const ecpps::typeSystem::NonowningTypePointer other) const
 {
      if (other == nullptr) return nullptr;
+     if (this == other) return this;
+
+     if (IsIntegral(other))
+     {
+          const auto* otherIntegral = other->CastTo<IntegralType>();
+
+          if (this->Sign() == otherIntegral->Sign())
+               return RankInteger(this) > RankInteger(otherIntegral) ? this : otherIntegral;
+
+          const auto* unsignedType = this->Sign() == typeSystem::Signedness::Unsigned ? this : otherIntegral;
+          const auto* signedType = this->Sign() == typeSystem::Signedness::Signed ? this : otherIntegral;
+
+          if (unsignedType->Kind() > signedType->Kind()) return unsignedType;
+          if (signedType->Width() >= unsignedType->Width()) return signedType;
+          return unsignedType;
+     }
 
      if (CompareTo(other).SameAs()) return other;
      if (!IsIntegral(other)) return nullptr;

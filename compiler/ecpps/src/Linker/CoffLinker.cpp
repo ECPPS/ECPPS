@@ -3,6 +3,7 @@
 #include <ranges>
 #include <unordered_map>
 #include <vector>
+#include "Machine/ABI.h"
 
 using namespace ecpps::linker::win;
 
@@ -118,13 +119,6 @@ std::vector<std::byte> CoffLinker::CodeSection(std::vector<std::byte> data,
      {
           if (slotOffset + 4 > section.data.size()) continue;
 
-          std::int32_t wrongDisp = 0;
-          std::memcpy(&wrongDisp, section.data.data() + slotOffset, 4);
-
-          const std::int32_t stringOffset = wrongDisp + static_cast<std::int32_t>(slotOffset) + 4 - 0x3000;
-
-          std::memcpy(section.data.data() + slotOffset, &stringOffset, 4);
-
           COFFRelocation r{};
           r.offset = static_cast<std::uint32_t>(slotOffset);
           r.symbolName = std::string(RdataSymbolName);
@@ -152,7 +146,7 @@ void CoffLinker::ExportFunction(const std::string& name, std::uint32_t address)
 void CoffLinker::ImportFunction(const std::string& symbolName, const std::string& importName,
                                 [[maybe_unused]] const std::string& dll)
 {
-     const std::string impName = "__imp_" + importName;
+     const std::string impName = ecpps::abi::ABI::Current().importPrefix + importName;
      if (_symbolOffsets.contains(impName)) return;
 
      COFFSymbol symbol{};

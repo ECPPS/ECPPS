@@ -93,7 +93,8 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           // Generate IR
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+          ir::Context context{diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
 
           INFO("Generated IR from AST");
           REQUIRE((!ir.empty()));
@@ -109,7 +110,9 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
           auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
 
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+
+          ir::Context context{diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
 
           INFO("Generated IR with arithmetic operations");
           REQUIRE((!ir.empty()));
@@ -134,7 +137,9 @@ TEST_CASE("Integration - Full pipeline to code generation", "[integration][full_
 
           // Step 3: Generate IR
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+
+          ir::Context context{diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
           REQUIRE((!ir.empty()));
 
           // Step 4: Code generation would go here
@@ -208,7 +213,9 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
           {
                BumpAllocator irAllocator(64uz * 1024);
                // IR generation should detect type error
-               auto ir = IR::Parse(diagnostics, irAllocator, ast);
+
+               ir::Context context{diagnostics, irAllocator};
+               auto ir = IR::Parse(context, ast);
                INFO("Type error should be caught");
                REQUIRE(!diagnostics.diagnosticsList.empty());
           }
@@ -230,7 +237,9 @@ TEST_CASE("Integration - Multiple functions", "[integration][multiple_functions]
           REQUIRE((!ast.empty())); // NOLINT
 
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+
+          ir::Context context{diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
 
           INFO("Multiple functions compiled");
           REQUIRE((ir.size() >= 2)); // NOLINT
@@ -255,7 +264,9 @@ TEST_CASE("Integration - Complex expressions", "[integration][complex_expr]")
           REQUIRE((!ast.empty())); // NOLINT
 
           BumpAllocator irAllocator(64uz * 1024);
-          auto ir = IR::Parse(diagnostics, irAllocator, ast);
+
+          ir::Context context{diagnostics, irAllocator};
+          auto ir = IR::Parse(context, ast);
 
           INFO("Complex nested expressions compiled");
      }

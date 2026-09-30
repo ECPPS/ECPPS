@@ -36,7 +36,6 @@ namespace ecpps
           std::string contents{};
           Diagnostics diagnostics{};
           std::vector<codegen::Routine> compiledRoutines{};
-          std::vector<StringPatch> stringTranslation{};
 
           explicit SourceFile(void) = default;
      };

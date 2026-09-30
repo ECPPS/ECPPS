@@ -334,8 +334,9 @@ namespace
                }
 
                BumpAllocator irAllocator;
+               ir::Context context{source.diagnostics, irAllocator};
 
-               const auto ir = ir::IR::Parse(source.diagnostics, irAllocator, ast);
+               const auto ir = ir::IR::Parse(context, ast);
 
                if (config.IsVerbose(VerboseFeature::IR))
                {
@@ -348,12 +349,14 @@ namespace
                ast.clear();
                astContext.Release();
 
-               codegen::Compile(config, source, ir, &target);
+               codegen::AssemblyContext asmContext{config};
+               codegen::Compile(asmContext, config, source, ir, &target);
 
                if (config.IsVerbose(VerboseFeature::VInst)) PrintVirtualInstructions(source);
 
                for (auto& routine : source.compiledRoutines)
                {
+                    target.encoder->SetFunctionCallTable(routine.copyOfUsageTable);
                     routine.physicalInstructions = target.encoder->Encode(routine.virtualInstructions);
 
                     if (config.IsVerbose(VerboseFeature::IInst))
@@ -375,24 +378,18 @@ namespace
                std::unordered_map<std::string, std::size_t> routines;
                routines.reserve(source.compiledRoutines.size());
 
-               for (const auto& routine : source.compiledRoutines)
+               for (auto& routine : source.compiledRoutines)
                {
-                    const auto machineCode = emitter.EmitRoutine(routine, generatedMachineCode.size());
+                    routine.emittedOffset = generatedMachineCode.size();
+
+                    auto machineCode = emitter.EmitRoutine(routine);
+                    routine.currentScope->emittedOffset = routine.emittedOffset;
+                    emitter.PatchCalls(machineCode, routine);
+                    emitter.PatchStrings(machineCode, std::exchange(emitter._patches, {}), asmContext, routine);
 
                     routines.emplace(routine.name, generatedMachineCode.size());
 
                     generatedMachineCode.append_range(machineCode);
-               }
-
-               for (const auto placement : emitter._stringRelocation)
-               {
-                    auto bytes = std::span{generatedMachineCode.data() + placement, emitter._stringRelocationSize};
-
-                    auto* dword = std::bit_cast<std::uint32_t*>(bytes.data());
-
-                    *dword += 0x4000 - 0x1000;
-
-                    std::memcpy(bytes.data(), dword, sizeof(*dword));
                }
 
                for (const auto& [procedureName, procedureOffset] : routines)
@@ -597,6 +594,8 @@ int main(int argc, char* argv[])
           }
 
           target.encoder->ApplyOptimisations(config.optimisations);
+          target.platform->PrepareABI();
+          ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
 
           auto emitter = CreateEmitter(config);
 

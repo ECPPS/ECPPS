@@ -83,7 +83,13 @@ namespace ecpps::ir::abstract
           SignExtension,            // widening (signed)
           SignExtendAndReinterpret, // widening (unsigned <- signed)
           ZeroExtendAndReinterpret, // widening (signed <- unsigned)
-          Truncate                  // narrowing (signed/unsigned)
+          Truncate,                 // narrowing (signed/unsigned)
+          Call,
+          CallWithResult,
+          CopyParameter,
+          PassArgument,
+          AddressOf,
+          LoadStringAddress
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -106,8 +112,13 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::SignExtendAndReinterpret: return "sign-extend-and-reinterpret";
           case VirtualInstructionType::ZeroExtendAndReinterpret: return "zero-extend-and-reinterpret";
           case VirtualInstructionType::Truncate: return "truncate";
-
+          case VirtualInstructionType::Call: return "call";
+          case VirtualInstructionType::CallWithResult: return "call+";
+          case VirtualInstructionType::CopyParameter: return "copy-param";
+          case VirtualInstructionType::PassArgument: return "pass-argument";
           case VirtualInstructionType::ArithmeticNegate: return "negate";
+          case VirtualInstructionType::AddressOf: return "address-of";
+          case VirtualInstructionType::LoadStringAddress: return "string";
           }
           throw TracedException("control flow");
      }
@@ -132,7 +143,7 @@ namespace ecpps::ir::abstract
           Allocation,
           Impossible,
      };
-     enum struct AllocationClass : std::uint8_t
+     enum struct AllocationClass : std::uint8_t // NOLINT
      {
           Locked,
           HotTemporary,

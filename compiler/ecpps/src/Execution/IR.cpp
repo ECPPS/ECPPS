@@ -517,6 +517,9 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const ptrConvNode = dynamic_cast<high::PointerConversionNode*>(valueNode))
      {
+          if (ptrConvNode->TargetType() == ptrConvNode->Operand()->Type())
+               return LowerExpressionLoaded(std::move(*ptrConvNode).Operand(), built);
+
           const auto* srcReg = LowerExpression(std::move(*ptrConvNode).Operand(), built);
           if (srcReg == nullptr) return nullptr;
 
@@ -756,10 +759,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::ResolveAllocReg(const 
      return nullptr;
 }
 
-std::vector<IRNodePointer> ecpps::ir::IR::Parse(Diagnostics& diagnostics, BumpAllocator& allocator,
-                                                const std::vector<ASTNodePointer>& ast)
+std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
 {
-     Context context{diagnostics, allocator};
      IR ir{&context};
      TypeRequest voidRequest{.kind = TypeKind::Fundamental, .data = VoidRequest{}};
      const auto* voidType = GetTypeContext().Get(voidRequest);
@@ -1077,26 +1078,19 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           RegisterPriorityInfo paramInfo{.regClass = RegisterClass::LocalVariable};
           auto* funcCtx = dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get());
           runtime_assert(funcCtx != nullptr, "Expected function context during parameter emission");
-          const auto regIdx = funcCtx->GetNextRegisterIndex();
-          auto paramReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
-               regIdx, paramInfo, param.type->Width(), param.type->Alignment(), node.Source())};
-          auto* paramRegPtr = paramReg.get();
-
-          funcCtx->RegisterParamAllocReg(param.name, paramRegPtr);
 
           const auto width = param.type->Width();
           auto allocReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
                funcCtx->GetNextRegisterIndex(), paramInfo, width, param.type->Alignment(), node.Source())};
           auto* allocRegPtr = allocReg.get();
 
+          funcCtx->RegisterParamAllocReg(param.name, allocRegPtr);
+
           ir._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
                new (allocator) AllocationNode(std::move(allocReg), node.Source())});
 
-          ir._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
-               new (allocator) SSAStoreNode(allocRegPtr, paramRegPtr, node.Source())});
-
-          ir._built.push_back(
-               std::unique_ptr<ParameterNode, IRDeleter>{new (allocator) ParameterNode(paramIndex++, node.Source())});
+          ir._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+               new (allocator) ParameterNode(vFunctionScope, paramIndex++, allocRegPtr, node.Source())});
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
@@ -1119,9 +1113,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{
-          new (*this->GetContext().nodeAllocator) ecpps::ir::ProcedureNode(
-               linkage, node.Signature().callingConvention, returnType, name, std::move(parameters), std::move(locals),
-               std::move(ir._built), node.Source(), NamespacePathFromContext())});
+          new (*this->GetContext().nodeAllocator)
+               ecpps::ir::ProcedureNode(vFunctionScope, std::move(locals), std::move(ir._built), node.Source())});
 
      this->GetContext().contextSequence.pop_back();
 }
@@ -1655,32 +1648,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1690,14 +1659,38 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           return nullptr;
      }
 
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
      if (operator_ == ast::Operator::Plus)
-          return std::make_unique<PRValue>(resultType,
+          return std::make_unique<PRValue>(commonType,
                                            std::unique_ptr<high::AdditionNode, IRDeleter>{
                                                 new (*this->GetContext().nodeAllocator)
                                                      high::AdditionNode(std::move(left), std::move(right), source)},
                                            false);
 
-     return std::make_unique<PRValue>(resultType,
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::SubtractionNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::SubtractionNode(std::move(left), std::move(right), source)},
@@ -1727,32 +1720,8 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1762,21 +1731,45 @@ Expression ecpps::ir::IR::ParseMultiplicativeExpression(Expression left, ast::Op
           return nullptr;
      }
 
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
      if (operator_ == ast::Operator::Asterisk)
-          return std::make_unique<PRValue>(resultType,
+          return std::make_unique<PRValue>(commonType,
                                            std::unique_ptr<high::MultiplicationNode, IRDeleter>{
                                                 new (*this->GetContext().nodeAllocator) high::MultiplicationNode(
                                                      std::move(left), std::move(right), source)},
                                            false);
 
      if (operator_ == ast::Operator::Solidus)
-          return std::make_unique<PRValue>(resultType,
+          return std::make_unique<PRValue>(commonType,
                                            std::unique_ptr<high::DivideNode, IRDeleter>{
                                                 new (*this->GetContext().nodeAllocator)
                                                      high::DivideNode(std::move(left), std::move(right), source)},
                                            false);
 
-     return std::make_unique<PRValue>(resultType,
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::ModuloNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::ModuloNode(std::move(left), std::move(right), source)},
@@ -1805,32 +1798,8 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1840,14 +1809,38 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
           return nullptr;
      }
 
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
      if (operator_ == ast::Operator::LeftShift)
-          return std::make_unique<PRValue>(resultType,
+          return std::make_unique<PRValue>(commonType,
                                            std::unique_ptr<high::LeftShiftNode, IRDeleter>{
                                                 new (*this->GetContext().nodeAllocator)
                                                      high::LeftShiftNode(std::move(left), std::move(right), source)},
                                            false);
 
-     return std::make_unique<PRValue>(resultType,
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::RightShiftNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::RightShiftNode(std::move(left), std::move(right), source)},
@@ -2003,32 +1996,8 @@ Expression ecpps::ir::IR::ParseBinaryOrExpression(Expression left, Expression ri
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -2037,7 +2006,32 @@ Expression ecpps::ir::IR::ParseBinaryOrExpression(Expression left, Expression ri
                     left->Value()->Source()));
           return nullptr;
      }
-     return std::make_unique<PRValue>(resultType,
+
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::BinaryOrNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::BinaryOrNode(std::move(left), std::move(right), source)},
@@ -2061,32 +2055,8 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -2095,7 +2065,32 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
                     left->Value()->Source()));
           return nullptr;
      }
-     return std::make_unique<PRValue>(resultType,
+
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::BinaryAndNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::BinaryAndNode(std::move(left), std::move(right), source)},
@@ -2119,32 +2114,8 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
      rightIntegral = typeSystem::PromoteInteger(rightIntegral);
 
-     if (left->Type() != leftIntegral)
-     {
-          const auto innerSource = left->Value()->Source();
-          const auto wasConstexpr = left->IsConstantExpression();
-
-          left = std::make_unique<PRValue>(leftIntegral,
-                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ConvertNode(std::move(left), leftIntegral, innerSource)},
-                                           wasConstexpr);
-     }
-
-     if (right->Type() != rightIntegral)
-     {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(rightIntegral,
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), rightIntegral, innerSource)},
-                                            wasConstexpr);
-     }
-
-     const auto* resultType = leftIntegral->CommonWith(rightIntegral);
-     if (resultType == nullptr)
+     const auto* commonType = leftIntegral->CommonWith(rightIntegral);
+     if (commonType == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -2153,7 +2124,32 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
                     left->Value()->Source()));
           return nullptr;
      }
-     return std::make_unique<PRValue>(resultType,
+
+     if (left->Type() != commonType)
+     {
+          const auto innerSource = left->Value()->Source();
+          const auto wasConstexpr = left->IsConstantExpression();
+
+          left = std::make_unique<PRValue>(commonType,
+                                           std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ConvertNode(std::move(left), commonType, innerSource)},
+                                           wasConstexpr);
+     }
+
+     if (right->Type() != commonType)
+     {
+          const auto innerSource = right->Value()->Source();
+          const auto wasConstexpr = right->IsConstantExpression();
+
+          right = std::make_unique<PRValue>(commonType,
+                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                 new (*this->GetContext().nodeAllocator)
+                                                      high::ConvertNode(std::move(right), commonType, innerSource)},
+                                            wasConstexpr);
+     }
+
+     return std::make_unique<PRValue>(commonType,
                                       std::unique_ptr<high::BinaryXorNode, IRDeleter>{
                                            new (*this->GetContext().nodeAllocator)
                                                 high::BinaryXorNode(std::move(left), std::move(right), source)},
@@ -3569,11 +3565,13 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
                     break;
                }
 
-               // if (const auto* innerNode = dynamic_cast<const SSAPointerConvertFromDecayNode*>(node.get()))
-               // {
-               //      CreateReferenceMap(map, std::vector<NodePointer>{/* see note below */});
-               //      break;
-               // }
+               if (const auto* innerNode = dynamic_cast<const SSAPointerConvertFromDecayNode*>(node.get()))
+               {
+                    if (const auto* loadDecayNode = dynamic_cast<const LoadArrayDecayNode*>(&innerNode->DecayNode());
+                        loadDecayNode != nullptr && loadDecayNode->GetAllocReg() != nullptr)
+                         map.ReferenceRegister(loadDecayNode->GetAllocReg()->Index());
+                    break;
+               }
 
                runtime_assert(false, "Invalid pointer-conversion node");
                break;
@@ -3629,6 +3627,7 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
                const auto* innerNode = dynamic_cast<const SSAAddressOfNode*>(node.get());
                runtime_assert(innerNode != nullptr, "Invalid address-of node");
 
+               map.ReferenceRegister(innerNode->Result().Index());
                map.ReferenceRegister(innerNode->Operand().Index());
                break;
           }

@@ -21,7 +21,12 @@ namespace ecpps::abi::encoders::x8664::inline common
           BitwiseNot,
           Neg,
           Movsx,
-          Movzx
+          Movzx,
+          Call,
+          CopyParameter,
+          PassArgument,
+          AddressOf,
+          LoadStringAddress
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -90,6 +95,12 @@ namespace ecpps::abi::encoders::x8664::inline common
                AssignmentValue<AssignedValueType::Movsx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
           using ZeroExtendToRegister =
                AssignmentValue<AssignedValueType::Movzx, ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
+          using CallResult = AssignmentValue<AssignedValueType::Call, ir::abstract::VirtualRegister>;
+          using CopyParameterFromAbi = AssignmentValue<AssignedValueType::CopyParameter, std::size_t, bool>;
+          using PassArgumentFromAbi =
+               AssignmentValue<AssignedValueType::PassArgument, std::size_t, bool, ir::abstract::VirtualRegister>;
+          using AddressOfAllocation = AssignmentValue<AssignedValueType::AddressOf, ir::abstract::VirtualRegister>;
+          using StringAddress = AssignmentValue<AssignedValueType::LoadStringAddress, std::size_t, std::size_t>;
      } // namespace values
      namespace materialisations
      {

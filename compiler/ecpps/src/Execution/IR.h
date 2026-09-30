@@ -107,8 +107,7 @@ namespace ecpps::ir
      class IR
      {
      public:
-          static std::vector<NodePointer> Parse(Diagnostics& diagnostics, BumpAllocator& allocator,
-                                                const std::vector<ast::NodePointer>& ast);
+          static std::vector<NodePointer> Parse(Context& context, const std::vector<ast::NodePointer>& ast);
 
      private:
           explicit IR(Context* context) : _context(context)

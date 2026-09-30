@@ -47,6 +47,8 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Neg = 13;
           constexpr static std::size_t SignExtend = 14;
           constexpr static std::size_t ZeroExtend = 15;
+          constexpr static std::size_t Call = 16;
+          constexpr static std::size_t Lea = 17;
      };
 
      enum struct EncodingSpillage : std::uint8_t
@@ -103,6 +105,10 @@ namespace ecpps::abi::encoders::x8664
                W32 = 32,
                W64 = 64
           };
+          [[nodiscard]] constexpr auto operator<(const Width left, const Width right)
+          {
+               return std::to_underlying(left) < std::to_underlying(right);
+          }
           [[nodiscard]] std::string ToString(Width width);
           [[nodiscard]] [[deprecated]] constexpr Width WidthFromSize(const std::size_t size)
           {
@@ -136,7 +142,13 @@ namespace ecpps::abi::encoders::x8664
           {
                std::uint32_t offset{};
           };
-          using Operand = std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand>;
+          struct StringAddressOperand
+          {
+               std::uint32_t tableIndex{};
+               std::uint32_t offset{};
+          };
+          using Operand =
+               std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand, StringAddressOperand>;
 
           struct AddInstruction
           {
@@ -195,7 +207,12 @@ namespace ecpps::abi::encoders::x8664
                Operand modifiedDestination{};
                Operand source{};
           };
-
+          struct LeaInstruction
+          {
+               Width width{};
+               RegisterOperand destination{};
+               Operand address{};
+          };
           struct BinaryXorInstruction
           {
                Width width{};
@@ -211,6 +228,10 @@ namespace ecpps::abi::encoders::x8664
           {
                Width width{};
                Operand modifiedOperand{};
+          };
+          struct CallInstruction
+          {
+               std::size_t indexToTable{};
           };
 
           [[nodiscard]] std::string ToString(const Operand& operand);
@@ -408,11 +429,14 @@ namespace ecpps::abi::encoders::x8664
 
           void Redefine(ir::abstract::VirtualRegister reg, ir::abstract::State value);
 
+          [[nodiscard]] StackOperand PassParameterViaStack(std::size_t stackIndex);
           [[nodiscard]] bool IsMutable(ir::abstract::VirtualRegister reg);
           [[nodiscard]] bool IsSpilled(ir::abstract::VirtualRegister reg);
           [[nodiscard]] StackOperand EnsureStackSlot(ir::abstract::VirtualRegister reg);
           [[nodiscard]] RegisterIndex PhysicalRegisterOf(ir::abstract::VirtualRegister reg);
           [[nodiscard]] std::optional<std::uint64_t> ImmediateOf(ir::abstract::VirtualRegister reg);
+          [[nodiscard]] std::vector<ir::abstract::Instruction> ClearRegister(RegisterIndex reg,
+                                                                             ir::abstract::VirtualRegister keep);
 
           [[nodiscard]] static ir::abstract::Instruction BuildMov(Width width, Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildAdd(Width width, Operand modifiedDestination,
@@ -440,6 +464,9 @@ namespace ecpps::abi::encoders::x8664
                                                                     Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildMovzx(Width destinationWidth, Width sourceWidth,
                                                                     Operand destination, Operand source);
+          [[nodiscard]] static ir::abstract::Instruction BuildCall(std::size_t functionIndex);
+          [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
+                                                                  Operand address);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
@@ -481,6 +508,7 @@ namespace ecpps::abi::encoders::x8664
           PhysicalRegisterAllocator _registerAllocator{};
           std::unordered_map<std::size_t, std::uint32_t> _stackSlots{};
           std::unordered_map<std::size_t, std::size_t> _remainingUses{};
+          std::size_t _parameterReserve{};
           std::size_t _localsSize{};
           std::size_t _outgoingReserve{};
           std::size_t _stackFrameSize{};

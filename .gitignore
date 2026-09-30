@@ -424,3 +424,4 @@ build/
 *.exe
 *.profraw
 *.o
+*.out

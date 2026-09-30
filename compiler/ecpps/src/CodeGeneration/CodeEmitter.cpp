@@ -6,13 +6,13 @@
 
 ecpps::codegen::CodeEmitter::~CodeEmitter(void) = default;
 
-std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine, std::size_t displacement)
+std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& routine)
 {
      std::vector<std::byte> generated{};
      generated.reserve(routine.physicalInstructions.size() * 2);
      for (const auto& instruction : routine.physicalInstructions)
      {
-          this->_currentInstructionBase = generated.size() + displacement;
+          this->_currentInstructionBase = generated.size();
           generated.append_range(this->EmitInstruction(instruction));
      }
      return generated;

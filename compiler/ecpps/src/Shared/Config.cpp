@@ -590,7 +590,7 @@ namespace
                return true;
           }
 
-          if (preset == "windows-x64-coff" || preset == "win64-coff" || preset == "coff64")
+          if (preset == "windows-x64-coff" || preset == "win64-coff")
           {
                config.linker = ecpps::LinkerUsed::Windows64Coff;
 
@@ -599,6 +599,18 @@ namespace
                config.target.sdk = SDK::WindowsSDK10;
                config.target.cpu = MicroArch::Unknown;
                config.target.extensions = ArchitectureExtensionFeatures::None;
+
+               config.sizeSize = ecpps::Size::LongLong;
+               config.intptrSize = ecpps::Size::LongLong;
+               config.ptrdiffSize = ecpps::Size::LongLong;
+
+               return true;
+          }
+          if (preset == "coff64")
+          {
+               config.linker = ecpps::LinkerUsed::Windows64Coff;
+
+               config.target.isa = ISA::x86_64;
 
                config.sizeSize = ecpps::Size::LongLong;
                config.intptrSize = ecpps::Size::LongLong;
