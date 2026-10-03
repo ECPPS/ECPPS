@@ -35,7 +35,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                return built;
           }
 
-          runtime_assert(!this->IsSpilled(source), "Memory to memory copies are not supported");
+          if (this->IsSpilled(source))
+          {
+               const StackOperand sourceSlot = this->EnsureStackSlot(source);
+               const StackOperand destinationSlot = this->EnsureStackSlot(destination);
+               const RegisterIndex scratchRegister = this->_registerAllocator.Allocate(destination);
+
+               built.push_back(BuildMov(width, RegisterOperand{scratchRegister}, sourceSlot));
+               built.push_back(BuildMov(width, destinationSlot, RegisterOperand{scratchRegister}));
+
+               this->_registerAllocator.Free(destination);
+               this->DereferenceAndMaybeFree(source);
+               return built;
+          }
 
           built.append_range(EnsureMaterialisation(source));
 
@@ -64,7 +76,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           return built;
      }
 
-     built.append_range(EnsureMaterialisation(source));
+     if (!this->IsSpilled(source)) built.append_range(EnsureMaterialisation(source));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -95,7 +107,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      {
           const auto slot = this->EnsureStackSlot(virtualSource);
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
-          std::ignore = this->ConsumeUse(virtualSource);
+          const auto remainingUses = this->ConsumeUse(virtualSource);
+          if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
           return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, slot)},
                   .assignedRegister = destinationRegister};

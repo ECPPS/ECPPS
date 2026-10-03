@@ -46,13 +46,11 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           *std::launder(reinterpret_cast<const values::AddressOfAllocation*>(data.data()));
      const auto virtualSource = std::get<0>(addressValue.parameters);
 
-     const Width width = MapWidth(this->GetVRM().GetWidth(owner));
-
      const auto slot = this->EnsureStackSlot(virtualSource);
      std::ignore = this->ConsumeUse(virtualSource);
 
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-     return {.instructions = {BuildLea(width, RegisterOperand{destinationRegister}, slot)},
+     return {.instructions = {BuildLea(Width::W64, RegisterOperand{destinationRegister}, slot)},
              .assignedRegister = destinationRegister};
 }

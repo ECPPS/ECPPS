@@ -202,21 +202,22 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                throw TracedException(std::format("Out of physical registers and nothing is evictable:\n{}",
                                                  this->DescribeRegisterState()));
           });
-
-     for (std::size_t index : std::views::iota(0uz, input.size()))
+     const auto& platform = *this->_target->platform;
+     for (const auto& instruction : input)
      {
-          const auto& instruction = input[index];
-          if (instruction.type == ir::abstract::VirtualInstructionType::CopyInteger ||
-              instruction.type == ir::abstract::VirtualInstructionType::LoadStringAddress)
-               continue;
+          if (instruction.type != ir::abstract::VirtualInstructionType::CopyParameter) continue;
 
-          const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
-          for (const auto& source : instruction.operands | std::views::drop(firstSource))
+          const auto parameterIndex = static_cast<std::size_t>(instruction.operands[2].index);
+          if (parameterIndex >= platform.IntegerParameterRegisterCount()) continue;
+
+          this->Lock(static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex)));
+     }
+     for (const std::size_t index : std::views::iota(0uz, input.size()))
+          for (const auto& source : SourceRegistersOf(input[index]))
           {
                this->_remainingUses[source.index]++;
                this->_useSites[source.index].push_back(index);
           }
-     }
 
      std::vector<ecpps::ir::abstract::Instruction> instructions{};
 
@@ -348,9 +349,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      {
           runtime_assert(instruction.description.size() == sizeof(CallInstruction), "invalid CALL");
           const auto* call = std::launder(reinterpret_cast<const CallInstruction*>(instruction.description.data()));
-          const ir::FunctionScope* scope =
-               call->indexToTable < this->Scopes().size() ? this->Scopes()[call->indexToTable] : nullptr;
-          return std::format("CALL {}", scope ? scope->ToString() : "__invalid_function");
+          return std::format("CALL {}", call->scope != nullptr ? call->scope->ToString() : "__invalid_function");
      }
      case X8664InstructionName::Lea:
      {
@@ -361,6 +360,29 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      }
 
      return "__unknown";
+}
+
+std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     SourceRegistersOf(const ir::abstract::VirtualInstruction& instruction)
+{
+     using Type = ir::abstract::VirtualInstructionType;
+     const auto& operands = instruction.operands;
+
+     switch (instruction.type)
+     {
+     case Type::CopyInteger:
+     case Type::LoadStringAddress:
+     case Type::Call:
+     case Type::CallWithResult:
+     case Type::CopyParameter: return {};
+     case Type::Return: return operands;
+     case Type::PassArgument:
+          if (operands.size() < 2) return {};
+          return std::vector<ir::abstract::VirtualRegister>{operands[1]};
+     default:
+          if (operands.size() < 2) return {};
+          return std::vector<ir::abstract::VirtualRegister>(operands.begin() + 1, operands.end());
+     }
 }
 
 [[nodiscard]] ecpps::ir::abstract::VirtualRegisterMap& ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
@@ -375,21 +397,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      this->_pendingSpills.clear();
      this->_evictable.clear();
-     const bool hasSources = instruction.type != ir::abstract::VirtualInstructionType::CopyInteger &&
-                             instruction.type != ir::abstract::VirtualInstructionType::LoadStringAddress;
-     const std::size_t firstSource = instruction.type == ir::abstract::VirtualInstructionType::Return ? 0 : 1;
-
      std::unordered_set<std::size_t> required{};
-     if (hasSources)
-          for (const auto& source : instruction.operands | std::views::drop(firstSource))
-               this->CollectDependencies(source, required);
+     for (const auto& source : SourceRegistersOf(instruction)) this->CollectDependencies(source, required);
 
      for (const auto& cell : this->_registerAllocator.Snapshot())
           if (cell.owner.has_value() && !required.contains(cell.owner->index))
                this->_evictable.insert(cell.owner->index);
 
-     if (instruction.type != ir::abstract::VirtualInstructionType::Return && !instruction.operands.empty())
-          this->_evictable.erase(instruction.operands[0].index);
+     const bool hasDestination = instruction.type != ir::abstract::VirtualInstructionType::Return &&
+                                 instruction.type != ir::abstract::VirtualInstructionType::Call &&
+                                 instruction.type != ir::abstract::VirtualInstructionType::PassArgument &&
+                                 instruction.type != ir::abstract::VirtualInstructionType::CopyParameter &&
+                                 !instruction.operands.empty();
+     if (hasDestination) this->_evictable.erase(instruction.operands[0].index);
 
      std::size_t needed = 1;
      for (const auto index : required)
@@ -610,7 +630,6 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ReleaseRegiste
      const ecpps::ir::abstract::VirtualRegister reg)
 {
      this->_evicted.erase(reg.index);
-     if (this->IsSpilled(reg)) return;
      if (!this->GetVRM().IsMaterialised(reg)) return;
 
      this->_registerAllocator.Free(reg);
@@ -679,7 +698,8 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.opcode = X8664InstructionName::Call;
      instruction.description.resize(sizeof(CallInstruction));
 
-     new (instruction.description.data()) CallInstruction{.indexToTable = functionIndex};
+     const ir::FunctionScope* scope = functionIndex < this->Scopes().size() ? this->Scopes()[functionIndex] : nullptr;
+     new (instruction.description.data()) CallInstruction{.indexToTable = functionIndex, .scope = scope};
 
      return instruction;
 }
@@ -893,8 +913,9 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      }
      case AssignedValueType::BitwiseNot:
      {
-          const auto& binXor = *std::launder(reinterpret_cast<const values::BitwiseNotRegisters*>(value.data.data()));
-          sources.push_back(std::get<0>(binXor.parameters));
+          const auto& bitwiseNot =
+               *std::launder(reinterpret_cast<const values::BitwiseNotRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(bitwiseNot.parameters));
           break;
      }
      case AssignedValueType::Neg:
@@ -907,36 +928,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      case AssignedValueType::Movsx:
      {
           const auto& movsx = *std::launder(reinterpret_cast<const values::SignExtendToRegister*>(value.data.data()));
-          sources.push_back(std::get<0>(movsx.parameters));
           sources.push_back(std::get<1>(movsx.parameters));
           break;
      }
      case AssignedValueType::Movzx:
      {
           const auto& movzx = *std::launder(reinterpret_cast<const values::ZeroExtendToRegister*>(value.data.data()));
-          sources.push_back(std::get<0>(movzx.parameters));
           sources.push_back(std::get<1>(movzx.parameters));
-          break;
-     }
-     case AssignedValueType::Call:
-     {
-          const auto& call = *std::launder(reinterpret_cast<const values::CallResult*>(value.data.data()));
-          sources.push_back(std::get<0>(call.parameters));
-          break;
-     }
-     case AssignedValueType::CopyParameter:
-     {
-          const auto& call = *std::launder(reinterpret_cast<const values::CopyParameterFromAbi*>(value.data.data()));
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(call.parameters)});
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(call.parameters)});
-          break;
-     }
-     case AssignedValueType::PassArgument:
-     {
-          const auto& pass = *std::launder(reinterpret_cast<const values::PassArgumentFromAbi*>(value.data.data()));
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(pass.parameters)});
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(pass.parameters)});
-          sources.push_back(std::get<2>(pass.parameters));
           break;
      }
      case AssignedValueType::AddressOf:
@@ -946,13 +944,10 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<0>(addressOf.parameters));
           break;
      }
+     case AssignedValueType::Call:
+     case AssignedValueType::CopyParameter:
+     case AssignedValueType::PassArgument:
      case AssignedValueType::LoadStringAddress:
-     {
-          const auto& stringAddress = *std::launder(reinterpret_cast<const values::StringAddress*>(value.data.data()));
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<0>(stringAddress.parameters)});
-          sources.push_back(ecpps::ir::abstract::VirtualRegister{std::get<1>(stringAddress.parameters)});
-          break;
-     }
      case AssignedValueType::CopyInteger: break;
      }
      return sources;
@@ -961,11 +956,8 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EnsureMaterialisation(ecpps::ir::abstract::VirtualRegister virtualRegister)
 {
-     if (this->IsSpilled(virtualRegister))
-     {
-          std::ignore = this->EnsureStackSlot(virtualRegister);
-          return {};
-     }
+     const bool spilled = this->IsSpilled(virtualRegister);
+
      if (this->_evicted.contains(virtualRegister.index))
      {
           const auto slot = this->EnsureStackSlot(virtualRegister);
@@ -975,6 +967,12 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           this->_evicted.erase(virtualRegister.index);
           this->SetMaterialisedRegister(virtualRegister, physical);
           return {BuildMov(width, RegisterOperand{physical}, slot)};
+     }
+
+     if (spilled && this->GetVRM().GetValue(virtualRegister).type != ir::abstract::StateType::Allocation)
+     {
+          std::ignore = this->EnsureStackSlot(virtualRegister);
+          return {};
      }
 
      if (this->GetVRM().IsMaterialised(virtualRegister)) return {};
@@ -1091,6 +1089,18 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->SetMaterialisedRegister(virtualRegister, outcome.assignedRegister);
 
      outcome.instructions.insert(outcome.instructions.begin(), reloads.begin(), reloads.end());
+
+     if (spilled)
+     {
+          const auto slot = this->EnsureStackSlot(virtualRegister);
+          const auto width = MapWidth(this->GetVRM().GetWidth(virtualRegister));
+
+          outcome.instructions.push_back(BuildMov(width, slot, RegisterOperand{outcome.assignedRegister}));
+          this->_registerAllocator.Free(virtualRegister);
+          this->GetVRM().ClearMaterialisation(virtualRegister);
+          this->_evicted.insert(virtualRegister.index);
+     }
+
      return std::move(outcome.instructions);
 }
 

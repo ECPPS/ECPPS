@@ -26,28 +26,39 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsSpilled(destination))
      {
-          const Width width = MapWidth(this->GetVRM().GetWidth(destination));
+          const Width destinationWidth = MapWidth(this->GetVRM().GetWidth(destination));
+          const Width sourceWidth = MapWidth(this->GetVRM().GetWidth(source));
 
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
-               built.push_back(BuildMov(width, this->EnsureStackSlot(destination), IntegerOperand{*immediate}));
+               built.push_back(
+                    BuildMov(destinationWidth, this->EnsureStackSlot(destination), IntegerOperand{*immediate}));
 
                this->DereferenceAndMaybeFree(source);
                return built;
           }
 
-          runtime_assert(!this->IsSpilled(source), "Memory to memory copies are not supported");
+          Operand sourceOperand{};
+          if (this->IsSpilled(source)) sourceOperand = this->EnsureStackSlot(source);
+          else
+          {
+               built.append_range(EnsureMaterialisation(source));
+               sourceOperand = RegisterOperand{this->PhysicalRegisterOf(source)};
+          }
 
-          built.append_range(EnsureMaterialisation(source));
+          const StackOperand destinationSlot = this->EnsureStackSlot(destination);
+          const RegisterIndex scratchRegister = this->_registerAllocator.Allocate(destination);
 
-          const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
-          built.push_back(BuildMov(width, this->EnsureStackSlot(destination), RegisterOperand{sourceRegister}));
+          built.push_back(BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{scratchRegister}, sourceOperand));
+          built.push_back(BuildMov(destinationWidth, destinationSlot, RegisterOperand{scratchRegister}));
 
+          this->_registerAllocator.Free(destination);
           this->DereferenceAndMaybeFree(source);
           return built;
      }
 
-     if (!this->ImmediateOf(source).has_value()) built.append_range(EnsureMaterialisation(source));
+     if (!this->ImmediateOf(source).has_value() && !this->IsSpilled(source))
+          built.append_range(EnsureMaterialisation(source));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -79,12 +90,14 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      {
           const auto slot = this->EnsureStackSlot(virtualSource);
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
-          std::ignore = this->ConsumeUse(virtualSource);
+          const auto remainingUses = this->ConsumeUse(virtualSource);
+          if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
           return {
                .instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, slot)},
                .assignedRegister = destinationRegister};
      }
+
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
      const auto remainingUses = this->ConsumeUse(virtualSource);
 
@@ -95,7 +108,11 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           this->TransferRegister(virtualSource, owner);
           destinationRegister = sourceRegister;
      }
-     if (remainingUses == 0) this->ReleaseRegister(virtualSource);
+     else
+     {
+          destinationRegister = this->_registerAllocator.Allocate(owner);
+          if (remainingUses == 0) this->ReleaseRegister(virtualSource);
+     }
 
      return {.instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister},
                                          RegisterOperand{sourceRegister})},

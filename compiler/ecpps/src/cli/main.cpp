@@ -357,6 +357,7 @@ namespace
                for (auto& routine : source.compiledRoutines)
                {
                     target.encoder->SetFunctionCallTable(routine.copyOfUsageTable);
+                    *target.registerMap = routine.registerState;
                     routine.physicalInstructions = target.encoder->Encode(routine.virtualInstructions);
 
                     if (config.IsVerbose(VerboseFeature::IInst))
