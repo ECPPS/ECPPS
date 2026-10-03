@@ -381,7 +381,7 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
           return std::vector<ir::abstract::VirtualRegister>{operands[1]};
      default:
           if (operands.size() < 2) return {};
-          return std::vector<ir::abstract::VirtualRegister>(operands.begin() + 1, operands.end());
+          return {operands.begin() + 1, operands.end()};
      }
 }
 
