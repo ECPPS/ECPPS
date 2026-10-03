@@ -24,9 +24,6 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& destination = registerArray[0];
      const auto& operand = registerArray[1];
 
-     runtime_assert(!this->IsSpilled(operand) && !this->IsSpilled(destination),
-                    "Binary complement operands must not be spilled");
-
      if (!this->ImmediateOf(operand).has_value()) built.append_range(EnsureMaterialisation(operand));
 
      ir::abstract::State newState{};

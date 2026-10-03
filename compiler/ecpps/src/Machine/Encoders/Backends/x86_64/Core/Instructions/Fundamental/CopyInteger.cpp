@@ -27,6 +27,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           const Width width = MapWidth(this->GetVRM().GetWidth(destination));
 
           built.push_back(BuildMov(width, this->EnsureStackSlot(destination), IntegerOperand{immediate}));
+          this->_evicted.insert(destination.index);
           return built;
      }
 

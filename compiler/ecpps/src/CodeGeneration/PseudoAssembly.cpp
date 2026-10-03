@@ -733,8 +733,7 @@ void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNo
      const auto* operandRegister = &node.Operand();
 
      const auto virtualResultIndex =
-          AllocateVirtual(resultRegister->Index(), abi->PointerSize() * typeSystem::CharWidth,
-                          ir::abstract::AllocationClass::Temporary);
+          AllocateVirtual(resultRegister->Index(), resultRegister->Width(), ir::abstract::AllocationClass::Temporary);
      const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(operandRegister->Index());
 
      ir::abstract::VirtualRegister virtualResult{virtualResultIndex};
@@ -816,9 +815,15 @@ void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, S
 
      for (const auto& node : intermediateRepresentation)
      {
-          if (auto* const procedureNode = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get()); procedureNode != nullptr)
-               source.compiledRoutines.push_back(
-                    CompileRoutine(context, *procedureNode, target, source.diagnostics.diagnosticsList));
+          auto* proc = dynamic_cast<ecpps::ir::ProcedureNode*>(node.get());
+          if (!proc) continue;
+
+          target->registerMap->Reset();
+          ir::CreateReferenceMap(*target->registerMap, proc->Body()); // per routine, not global
+
+          auto routine = CompileRoutine(context, *proc, target, source.diagnostics.diagnosticsList);
+          routine.registerState = *target->registerMap;
+          source.compiledRoutines.push_back(std::move(routine));
      }
      config.stringArray = context.GetStringSection();
 }

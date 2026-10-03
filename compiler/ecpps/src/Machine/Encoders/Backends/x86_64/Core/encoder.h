@@ -272,13 +272,6 @@ namespace ecpps::abi::encoders::x8664
                               return this->Claim(owner, candidate);
                          }
 
-                         for (const auto candidate : _pool)
-                         {
-                              if (this->_occupancy.contains(candidate)) continue;
-
-                              return this->Claim(owner, candidate);
-                         }
-
                          if (!this->_onExhausted || !this->_onExhausted())
                               throw TracedException("Out of physical registers and nothing could be evicted");
                     }
@@ -430,6 +423,8 @@ namespace ecpps::abi::encoders::x8664
                this->_framePointer =
                     optimisations.IsEnabled(Optimisation::OmitCallingFrame) ? FramePointer::Omit : FramePointer::Keep;
           }
+          [[nodiscard]] static std::vector<ir::abstract::VirtualRegister> SourceRegistersOf(
+               const ir::abstract::VirtualInstruction& instruction);
 
      private:
           [[nodiscard]] std::size_t NextUse(ir::abstract::VirtualRegister reg) const;
@@ -490,7 +485,7 @@ namespace ecpps::abi::encoders::x8664
                                                                     Operand destination, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildMovzx(Width destinationWidth, Width sourceWidth,
                                                                     Operand destination, Operand source);
-          [[nodiscard]] static ir::abstract::Instruction BuildCall(std::size_t functionIndex);
+          [[nodiscard]] ir::abstract::Instruction BuildCall(std::size_t functionIndex);
           [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
                                                                   Operand address);
 

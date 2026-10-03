@@ -188,6 +188,10 @@ namespace ecpps::ir::abstract
                     std::println("WARNING: Reference count dropped below 0"); // TODO: ICE? ICW?!
                return result;
           }
+          void Reset()
+          {
+               _map.clear();
+          }
           void Materialise(VirtualRegisterUsable auto reg, State&& bytecode)
           {
                DataFromRegister(reg).materialised = std::move(bytecode);

@@ -29,5 +29,6 @@ namespace ecpps::codegen
           std::vector<const ir::FunctionScope*> copyOfUsageTable;
 
           std::size_t emittedOffset{};
+          ir::abstract::VirtualRegisterMap registerState{};
      };
 } // namespace ecpps::codegen

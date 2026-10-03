@@ -57,12 +57,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (this->IsSpilled(destination))
      {
           built.push_back(BuildMov(width, this->EnsureStackSlot(destination), RegisterOperand{abiRegister}));
+          this->Unlock(abiRegister);
           return built;
      }
 
      parameterValue.parameters = std::make_tuple(static_cast<std::size_t>(abiRegister), false);
      this->Redefine(destination, newState);
 
+     this->Unlock(abiRegister);
      built.append_range(EnsureMaterialisation(destination));
 
      return built;
