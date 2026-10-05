@@ -488,6 +488,24 @@ namespace ecpps::ast
           NodePointer _condition;
           std::vector<NodePointer> _body;
      };
+     class LabelNode final : public Node
+     {
+     public:
+          explicit LabelNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          {
+          }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + this->_name + ":";
+          }
+
+     private:
+          std::string _name;
+     };
 
      class ReturnNode final : public Node
      {
@@ -804,7 +822,7 @@ namespace ecpps::ast
           {
                std::string built = std::string(indent * PrettyIndent, ' ') + "{";
                for (const auto& init : this->_initialisers)
-                    built += (init == nullptr ? std::string(indent * PrettyIndent + PrettyIndent, ' ') + "__unknown"
+                    built += (init == nullptr ? std::string((indent * PrettyIndent) + PrettyIndent, ' ') + "__unknown"
                                               : init->ToString(indent + 1)) +
                              ",";
                if (!this->_initialisers.empty()) built.pop_back(); // trailing comma
@@ -829,18 +847,18 @@ namespace ecpps::ast
           }
           bool WasSuccessful(void) const noexcept
           {
-               return this->wasSuccessful;
+               return this->_wasSuccessful;
           }
-          explicit ASTExpected(NodePointer value) : value(std::move(value)), wasSuccessful(true)
+          explicit ASTExpected(NodePointer value) : value(std::move(value)), _wasSuccessful(true)
           {
           }
           explicit ASTExpected(NodePointer value, std::vector<diagnostics::DiagnosticsMessage> diagnostics)
-              : value(std::move(value)), diagnostics(std::move(diagnostics)), wasSuccessful(false)
+              : value(std::move(value)), diagnostics(std::move(diagnostics)), _wasSuccessful(false)
           {
           }
 
      private:
-          bool wasSuccessful{};
+          bool _wasSuccessful;
      };
      class AST
      {

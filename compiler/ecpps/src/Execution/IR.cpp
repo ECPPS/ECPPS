@@ -835,6 +835,9 @@ std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vec
                                                .isCharWithoutSign = false}};
      const auto* unsignedLongLongType = GetTypeContext().Get(unsignedLongLongRequest);
      ir.GetContext().globalScope->types.insert(unsignedLongLongType);
+     TypeRequest boolRequest{.kind = TypeKind::Fundamental, .data = BooleanRequest{}};
+     const auto* boolType = GetTypeContext().Get(boolRequest);
+     ir.GetContext().globalScope->types.insert(boolType);
      ir.GetContext().contextSequence.push_back(std::make_unique<NamespaceContext>(ir.GetContext().globalScope.get()));
      for (const auto& node : ast) ir.ParseNode(node);
      auto built = std::move(ir._built);
@@ -875,6 +878,12 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           return;
      }
 
+     if (auto* const ifNode = dynamic_cast<ast::IfStatementNode*>(node.get()); ifNode != nullptr)
+     {
+          ParseIfStatement(*ifNode);
+          return;
+     }
+
      if (auto* const aliasNode = dynamic_cast<ast::TypeAliasNode*>(node.get()); aliasNode != nullptr)
      {
           const auto* targetType = ParseType(aliasNode->TargetType());
@@ -891,6 +900,11 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           auto& currentScope = this->GetContext().contextSequence.back()->GetScope();
           currentScope.typeAliases[aliasName] = targetType;
 
+          return;
+     }
+     if (auto* const labelNode = dynamic_cast<ast::LabelNode*>(node.get()); labelNode != nullptr)
+     {
+          ParseLabelNode(*labelNode);
           return;
      }
 
@@ -2339,10 +2353,9 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
 }
 Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source) const
 {
-     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
-     const auto* rightIntegral = right->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::QualifiedType>();
 
-     if (leftIntegral == nullptr || rightIntegral == nullptr)
+     if (leftIntegral == nullptr)
      {
           // TODO: Classes, floating point etc
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
@@ -2988,6 +3001,24 @@ Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePoin
      // TODO: Classes
      // TODO: Arrays
      return ParseZeroInitialisation(desiredType);
+}
+void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
+{
+     auto condition = ParseExpression(node.Condition());
+     if (!IsBoolean(condition->Type()))
+     {
+          TypeRequest boolRequest{.kind = TypeKind::Fundamental, .data = BooleanRequest{}};
+          const auto* boolType = GetTypeContext().Get(boolRequest);
+          condition = ConvertTo(std::move(condition), boolType);
+     }
+     [[maybe_unused]] const auto* conditionLowered = LowerExpressionLoaded(std::move(condition), this->_built);
+}
+void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
+{
+     auto& allocator = *this->GetContext().nodeAllocator;
+
+     this->_built.push_back(
+          std::unique_ptr<SSALabelNode, IRDeleter>{new (allocator) SSALabelNode(node.Name(), node.Source())});
 }
 
 Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expression,

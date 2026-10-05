@@ -135,6 +135,19 @@ std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
      return built;
 }
 
+std::string ecpps::typeSystem::BooleanType::RawName(void) const noexcept
+{
+     std::string built{};
+     if (this->IsConst()) built += "const ";
+     if (this->IsVolatile()) built += "volatile ";
+     built += "bool";
+     return built;
+}
+std::size_t ecpps::typeSystem::BooleanType::Width(void) const noexcept
+{
+     return 1;
+}
+
 // predefined builtin types
 // void
 std::unique_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =

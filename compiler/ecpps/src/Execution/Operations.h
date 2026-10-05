@@ -134,6 +134,28 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _address;
      };
 
+     class SSALabelNode final : public NodeBase
+     {
+     public:
+          explicit SSALabelNode(std::string name, Location source)
+              : NodeBase(NodeKind::Label, source), _name(std::move(name))
+          {
+          }
+
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{}:", ' ', indent * ast::PrettyIndent, this->_name);
+          }
+
+     private:
+          std::string _name;
+     };
+
      class SSAAddNode final : public NodeBase
      {
      public:

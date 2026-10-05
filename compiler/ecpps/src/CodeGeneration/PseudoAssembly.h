@@ -186,6 +186,7 @@ namespace ecpps::codegen
           AllocationMap virtualRegisterAllocationMap;
           std::vector<const ir::FunctionScope*> functionUsageTable{};
           AssemblyContext* assembly{};
+          std::unordered_map<std::string, std::size_t> labels{};
           std::size_t CallFunctionIndex(const ir::FunctionScope* contextPointer);
 
           void ParseNode(const ir::NodeBase* node);
@@ -210,6 +211,7 @@ namespace ecpps::codegen
           void ParseParameterStoreNode(const ir::ParameterNode& node);
           void ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node);
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
+          void ParseLabelNode(const ir::SSALabelNode& node);
 
           explicit ParsingContext(ecpps::abi::ABI& abi);
 

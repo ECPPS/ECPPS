@@ -193,6 +193,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseAddressOfNode(*addressOfNode);
           }
           break;
+          case ecpps::ir::NodeKind::Label:
+          {
+               const auto* labelNode = dynamic_cast<const ecpps::ir::SSALabelNode*>(node);
+               runtime_assert(labelNode != nullptr, "Not a label!");
+               this->ParseLabelNode(*labelNode);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -744,6 +751,11 @@ void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNo
           .operands = {virtualResult, virtualSource},
      };
      this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseLabelNode(const ir::SSALabelNode& node)
+{
+     // TODO: Error on contains/conflict
+     labels.emplace(node.Name(), this->instructions.size());
 }
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t width,
                                                             AllocationDescriptor::Type type)

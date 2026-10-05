@@ -46,7 +46,8 @@ namespace ecpps::ir
           Annotation,
           Reference,
           BitwiseNot,
-          ArithmeticNegation
+          ArithmeticNegation,
+          Label
      };
 
      struct ConstantAggregateMap;

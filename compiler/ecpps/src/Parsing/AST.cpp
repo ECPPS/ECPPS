@@ -1872,6 +1872,14 @@ NodePointer ecpps::ast::AST::ParseCondition(ASTContext& context)
 NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
 {
      auto source = this->Peek().location;
+     if (Peek().type == TokenType::Identifier && Peek(1).type == TokenType::Colon)
+     {
+          const auto& name = std::get<std::string>(Peek().value);
+          Advance();
+          Advance();
+
+          return std::unique_ptr<LabelNode, ecpps::ast::ASTDeleter>(new (context) LabelNode(name, source));
+     }
      if (Peek().type == TokenType::Keyword)
      {
           if (std::get<std::string>(Peek().value) == "return")

@@ -60,6 +60,9 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer elementType{};
      };
+     struct BooleanRequest
+     {
+     };
      using VoidRequest = std::monostate;
      struct TypeRequest;
      struct InvalidRequest
@@ -81,7 +84,7 @@ namespace ecpps::ir
      struct TypeRequest
      {
           using VarRequest = std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest,
-                                          PointerRequest, PlatformIntegerRequest, InvalidRequest>;
+                                          PointerRequest, PlatformIntegerRequest, BooleanRequest, InvalidRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -128,6 +131,11 @@ namespace ecpps::ir
                if (std::holds_alternative<VoidRequest>(this->data))
                {
                     return std::holds_alternative<VoidRequest>(other.data);
+               }
+
+               if (std::holds_alternative<BooleanRequest>(this->data))
+               {
+                    return std::holds_alternative<BooleanRequest>(other.data);
                }
 
                if (std::holds_alternative<PlatformIntegerRequest>(this->data))
@@ -208,6 +216,9 @@ namespace ecpps::ir
                               seed = HashCombine(seed, data.elementType);
                          }
                          else if constexpr (std::is_same_v<T, VoidRequest>)
+                         {
+                         }
+                         else if constexpr (std::is_same_v<T, BooleanRequest>)
                          {
                          }
                          else if constexpr (std::is_same_v<T, InvalidRequest>)
@@ -298,6 +309,11 @@ namespace ecpps::ir
                     if (std::holds_alternative<VoidRequest>(request.data))
                     {
                          return std::make_unique<typeSystem::VoidType>(std::format("{}void", cv), request.qualifiers);
+                    }
+                    if (std::holds_alternative<BooleanRequest>(request.data))
+                    {
+                         return std::make_unique<typeSystem::BooleanType>(std::format("{}void", cv),
+                                                                          request.qualifiers);
                     }
                     if (std::holds_alternative<StandardSignedIntegerRequest>(request.data))
                     {
