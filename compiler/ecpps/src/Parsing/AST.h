@@ -459,6 +459,35 @@ namespace ecpps::ast
           Operator _value;
           NodePointer _right;
      };
+     class IfStatementNode final : public Node
+     {
+     public:
+          explicit IfStatementNode(NodePointer condition, std::vector<NodePointer> body, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body)) // TODO: else
+          {
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+
+               return std::string(indent * PrettyIndent, ' ') + "if (" + this->_condition->ToString(0) + ")\n" +
+                      std::string(indent * PrettyIndent, ' ') + "{" + "\n" + built +
+                      std::string(indent * PrettyIndent, ' ') + "}";
+          }
+
+     private:
+          NodePointer _condition;
+          std::vector<NodePointer> _body;
+     };
 
      class ReturnNode final : public Node
      {
@@ -909,8 +938,11 @@ namespace ecpps::ast
           [[nodiscard]] NodePointer ParseAssignmentExpression(ASTContext& context);
           [[nodiscard]] NodePointer ParseExpression(ASTContext& context);
 
+          [[nodiscard]] NodePointer ParseCondition(ASTContext& context);
+
           // Statements
           NodePointer ParseStatement(ASTContext& context);
+          NodePointer ParseIfStatement(ASTContext& context);
           NodePointer ParseDeclarationStatement(ASTContext& context)
           {
                return ParseBlockDeclaration(context);

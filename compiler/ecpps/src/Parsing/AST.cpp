@@ -4,7 +4,9 @@
 #include <ranges>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 #include "ASTs/Type.h"
+#include "Shared/Error.h"
 
 ecpps::ast::Node::~Node(void) = default;
 
@@ -1857,6 +1859,11 @@ NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
      auto expression = ParseAssignmentExpression(context);
      return expression;
 }
+NodePointer ecpps::ast::AST::ParseCondition(ASTContext& context)
+{
+     // TODO: decl-specifier-seq declarator brace-or-equal-initializer
+     return ParseExpression(context);
+}
 
 #ifdef __clang__
 #pragma GCC diagnostic pop
@@ -1865,23 +1872,67 @@ NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
 NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
 {
      auto source = this->Peek().location;
-     if (Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "return")
+     if (Peek().type == TokenType::Keyword)
      {
-          Advance();
-          if (Match(TokenType::SemiColon))
-               return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context) ReturnNode(nullptr, source));
-          auto value = ParseExpression(context);
-          source.endPosition = Peek().location.endPosition;
-          if (!Match(TokenType::SemiColon))
+          if (std::get<std::string>(Peek().value) == "return")
           {
-               // TODO: Error
-               return nullptr;
+
+               Advance();
+               if (Match(TokenType::SemiColon))
+                    return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                                    ReturnNode(nullptr, source));
+               auto value = ParseExpression(context);
+               source.endPosition = Peek().location.endPosition;
+               if (!Match(TokenType::SemiColon))
+               {
+                    // TODO: Error
+                    return nullptr;
+               }
+               return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                               ReturnNode(std::move(value), source));
           }
-          return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
-                                                                          ReturnNode(std::move(value), source));
+          if (std::get<std::string>(Peek().value) == "if")
+          {
+
+               Advance();
+               return ParseIfStatement(context);
+          }
      }
      if (IsDeclarationStart(context)) return ParseDeclarationStatement(context);
      return ParseExpressionStatement(context);
+}
+NodePointer ecpps::ast::AST::ParseIfStatement(ASTContext& context)
+{
+     auto source = this->Peek().location;
+
+     bool hadLeftParen = true;
+     if (!Match(TokenType::LeftParenthesis))
+     {
+          hadLeftParen = false;
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing left parenthesis", source));
+     }
+     auto condition = ParseCondition(context);
+     if (!Match(TokenType::RightParenthesis))
+     {
+          auto diagnostic =
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing right parenthesis", source);
+          if (!hadLeftParen)
+               diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                    "hint", "The condition needs to be parenthesised", source));
+          this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+     }
+     std::vector<NodePointer> body{};
+     if (Match(TokenType::LeftBrace))
+          while (!Match(TokenType::RightBrace)) body.emplace_back(ParseStatement(context));
+     else
+          body.emplace_back(ParseStatement(context));
+
+     // TODO: else
+
+     source.endPosition = Peek(-1).location.endPosition;
+     return std::unique_ptr<IfStatementNode, ecpps::ast::ASTDeleter>(
+          new (context) IfStatementNode(std::move(condition), std::move(body), source));
 }
 
 NodePointer ecpps::ast::AST::ParseExpressionStatement(ASTContext& context)
