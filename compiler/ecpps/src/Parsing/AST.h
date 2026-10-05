@@ -506,6 +506,24 @@ namespace ecpps::ast
      private:
           std::string _name;
      };
+     class GotoNode final : public Node
+     {
+     public:
+          explicit GotoNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          {
+          }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "goto " + this->_name;
+          }
+
+     private:
+          std::string _name;
+     };
 
      class ReturnNode final : public Node
      {

@@ -1882,6 +1882,19 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
      }
      if (Peek().type == TokenType::Keyword)
      {
+          if (std::get<std::string>(Peek().value) == "goto" && Peek(1).type == TokenType::Identifier)
+          {
+               Advance();
+               const auto& name = std::get<std::string>(Peek().value);
+               Advance();
+               if (!Match(TokenType::SemiColon))
+               {
+                    // TODO: Error
+                    return nullptr;
+               }
+
+               return std::unique_ptr<GotoNode, ecpps::ast::ASTDeleter>(new (context) GotoNode(name, source));
+          }
           if (std::get<std::string>(Peek().value) == "return")
           {
 

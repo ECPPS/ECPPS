@@ -907,6 +907,11 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           ParseLabelNode(*labelNode);
           return;
      }
+     if (auto* const gotoNode = dynamic_cast<ast::GotoNode*>(node.get()); gotoNode != nullptr)
+     {
+          ParseGotoNode(*gotoNode);
+          return;
+     }
 
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
@@ -3019,6 +3024,13 @@ void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
 
      this->_built.push_back(
           std::unique_ptr<SSALabelNode, IRDeleter>{new (allocator) SSALabelNode(node.Name(), node.Source())});
+}
+void ecpps::ir::IR::ParseGotoNode(const ast::GotoNode& node)
+{
+     auto& allocator = *this->GetContext().nodeAllocator;
+
+     this->_built.push_back(
+          std::unique_ptr<SSAGotoNode, IRDeleter>{new (allocator) SSAGotoNode(node.Name(), node.Source())});
 }
 
 Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expression,

@@ -195,6 +195,11 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           break;
           case ecpps::ir::NodeKind::Label:
           {
+               if (const auto* gotoNode = dynamic_cast<const ecpps::ir::SSAGotoNode*>(node))
+               {
+                    this->ParseGotoNode(*gotoNode);
+                    break;
+               }
                const auto* labelNode = dynamic_cast<const ecpps::ir::SSALabelNode*>(node);
                runtime_assert(labelNode != nullptr, "Not a label!");
                this->ParseLabelNode(*labelNode);
@@ -747,7 +752,7 @@ void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNo
      ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
 
      ir::abstract::VirtualInstruction instruction{
-          .type = ir::abstract::VirtualInstructionType::AddressOf,
+          .type = ir::abstract::VirtualInstructionType::UnconditionalJump,
           .operands = {virtualResult, virtualSource},
      };
      this->instructions.push_back(instruction);
@@ -756,6 +761,20 @@ void ecpps::codegen::ParsingContext::ParseLabelNode(const ir::SSALabelNode& node
 {
      // TODO: Error on contains/conflict
      labels.emplace(node.Name(), this->instructions.size());
+}
+void ecpps::codegen::ParsingContext::ParseGotoNode(const ir::SSAGotoNode& node)
+{
+     auto it = labels.find(node.Name());
+     if (it == labels.end())
+     {
+          // TODO: Diagnostics
+          return;
+     }
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::UnconditionalJump,
+          .operands = {ir::abstract::VirtualRegister{it->second}},
+     };
+     this->instructions.push_back(instruction);
 }
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t width,
                                                             AllocationDescriptor::Type type)

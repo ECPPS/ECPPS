@@ -155,6 +155,27 @@ namespace ecpps::ir
      private:
           std::string _name;
      };
+     class SSAGotoNode final : public NodeBase
+     {
+     public:
+          explicit SSAGotoNode(std::string name, Location source)
+              : NodeBase(NodeKind::Label, source), _name(std::move(name))
+          {
+          }
+
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}{} {}", ' ', indent * ast::PrettyIndent, "goto", this->_name);
+          }
+
+     private:
+          std::string _name;
+     };
 
      class SSAAddNode final : public NodeBase
      {

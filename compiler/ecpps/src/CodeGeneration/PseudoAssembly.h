@@ -212,6 +212,7 @@ namespace ecpps::codegen
           void ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node);
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
           void ParseLabelNode(const ir::SSALabelNode& node);
+          void ParseGotoNode(const ir::SSAGotoNode& node);
 
           explicit ParsingContext(ecpps::abi::ABI& abi);
 

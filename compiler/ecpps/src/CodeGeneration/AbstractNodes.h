@@ -89,7 +89,8 @@ namespace ecpps::ir::abstract
           CopyParameter,
           PassArgument,
           AddressOf,
-          LoadStringAddress
+          LoadStringAddress,
+          UnconditionalJump
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -119,6 +120,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::ArithmeticNegate: return "negate";
           case VirtualInstructionType::AddressOf: return "address-of";
           case VirtualInstructionType::LoadStringAddress: return "string";
+          case VirtualInstructionType::UnconditionalJump: return "jump";
           }
           throw TracedException("control flow");
      }

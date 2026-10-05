@@ -133,6 +133,7 @@ namespace ecpps::ir
           void ParseNamespace(const ast::NamespaceNode& node);
           void ParseIfStatement(const ast::IfStatementNode& node);
           void ParseLabelNode(const ast::LabelNode& node);
+          void ParseGotoNode(const ast::GotoNode& node);
 
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
