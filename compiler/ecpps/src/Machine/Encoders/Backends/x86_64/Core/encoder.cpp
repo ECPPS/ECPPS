@@ -79,7 +79,16 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
      X8664VirtualInstructionEncoder::EncoderImplementation<
           ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
-
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::UnconditionalJump>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Label>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CompareAndJump>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
@@ -221,7 +230,22 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      std::vector<ecpps::ir::abstract::Instruction> instructions{};
 
-     for (const auto& instruction : input) instructions.append_range(EncodeSingle(instruction));
+     this->BuildControlFlowGraph(input);
+     this->ComputeLiveness(input);
+
+     for (const auto& block : this->_blocks)
+     {
+          this->BeginBlock(input, block);
+
+          const auto last = block.end - 1;
+          const bool endsInTerminator = IsTerminator(input[last].type);
+          for (std::size_t index = block.begin; index < block.end; index++)
+          {
+               if (index == last && endsInTerminator) instructions.append_range(this->FlushLiveOut(block));
+               instructions.append_range(EncodeSingle(input[index]));
+          }
+          if (!endsInTerminator) instructions.append_range(this->FlushLiveOut(block));
+     }
      runtime_assert(this->_lockedRegisters.empty(),
                     "Argument registers were locked by PassArgument but no call consumed them");
      return instructions;
@@ -357,6 +381,26 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* lea = std::launder(reinterpret_cast<const LeaInstruction*>(instruction.description.data()));
           return std::format("LEA.{} {}, {}", ToString(lea->width), ToString(lea->destination), ToString(lea->address));
      }
+     case X8664InstructionName::Jmp:
+     {
+          runtime_assert(instruction.description.size() == sizeof(JmpInstruction), "invalid JMP");
+          const auto* jmp = std::launder(reinterpret_cast<const JmpInstruction*>(instruction.description.data()));
+          return std::format("JMP .L{}", jmp->labelId);
+     }
+     case X8664InstructionName::Label:
+          return std::format(
+               ".L{}:",
+               std::launder(reinterpret_cast<const LabelInstruction*>(instruction.description.data()))->labelId);
+     case X8664InstructionName::Cmp:
+     {
+          const auto* c = std::launder(reinterpret_cast<const CmpInstruction*>(instruction.description.data()));
+          return std::format("CMP.{} {}, {}", ToString(c->width), ToString(c->left), ToString(c->right));
+     }
+     case X8664InstructionName::Jcc:
+     {
+          const auto* j = std::launder(reinterpret_cast<const JccInstruction*>(instruction.description.data()));
+          return std::format("J{} .L{}", ToString(j->condition), j->labelId);
+     }
      }
 
      return "__unknown";
@@ -379,6 +423,9 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
      case Type::PassArgument:
           if (operands.size() < 2) return {};
           return std::vector<ir::abstract::VirtualRegister>{operands[1]};
+     case Type::Label:
+     case Type::UnconditionalJump: return {};
+     case Type::CompareAndJump: return {operands[0], operands[1]};
      default:
           if (operands.size() < 2) return {};
           return {operands.begin() + 1, operands.end()};
@@ -515,6 +562,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::LoadStringAddress>(instruction.operands));
           break;
+     case ecpps::ir::abstract::VirtualInstructionType::UnconditionalJump:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::UnconditionalJump>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Label:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Label>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CompareAndJump:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::CompareAndJump>(instruction.operands));
+          break;
+
      default: throw TracedException("Unknown instruction");
      }
 
@@ -532,7 +592,10 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsMutable(
 bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsSpilled(
      const ecpps::ir::abstract::VirtualRegister reg)
 {
-     return this->GetVRM().GetAllocationClass(reg) >= SpillThreshold(this->_optimisation);
+     const auto threshold = this->_hasControlFlow ? std::min(SpillThreshold(this->_optimisation),
+                                                             ir::abstract::AllocationClass::Allocation)
+                                                  : SpillThreshold(this->_optimisation);
+     return this->GetVRM().GetAllocationClass(reg) >= threshold;
 }
 
 std::optional<std::uint64_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ImmediateOf(
@@ -712,6 +775,52 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
 
      new (instruction.description.data())
           LeaInstruction{.width = width, .destination = destination, .address = address};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildJmp(
+     std::size_t labelId)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Jmp;
+     instruction.description.resize(sizeof(JmpInstruction));
+
+     new (instruction.description.data()) JmpInstruction{.labelId = labelId};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildLabel(
+     std::size_t labelId)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Label;
+     instruction.description.resize(sizeof(LabelInstruction));
+
+     new (instruction.description.data()) LabelInstruction{.labelId = labelId};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildCmp(Width width,
+                                                                                                       Operand left,
+                                                                                                       Operand right)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Cmp;
+     instruction.description.resize(sizeof(CmpInstruction));
+
+     new (instruction.description.data()) CmpInstruction{.width = width, .left = left, .right = right};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildJcc(
+     ir::abstract::ConditionCode condition, std::size_t labelId)
+{
+
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Jcc;
+     instruction.description.resize(sizeof(JccInstruction));
+
+     new (instruction.description.data()) JccInstruction{.condition = condition, .labelId = labelId};
 
      return instruction;
 }
@@ -1129,6 +1238,23 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      }
      return formattedRegister;
 }
+[[nodiscard]] std::string ecpps::abi::encoders::x8664::ToString(ir::abstract::ConditionCode condition)
+{
+     switch (condition)
+     {
+     case ir::abstract::ConditionCode::Above: return "above";
+     case ir::abstract::ConditionCode::AboveEqual: return "above-equal";
+     case ir::abstract::ConditionCode::Below: return "below";
+     case ir::abstract::ConditionCode::BelowEqual: return "below-equal";
+     case ir::abstract::ConditionCode::Greater: return "greater";
+     case ir::abstract::ConditionCode::GreaterEqual: return "greater-equal";
+     case ir::abstract::ConditionCode::Less: return "less";
+     case ir::abstract::ConditionCode::LessEqual: return "less-equal";
+     case ir::abstract::ConditionCode::Equal: return "equal";
+     case ir::abstract::ConditionCode::NotEqual: return "not-equal";
+     default: return "__unknown_jmp";
+     }
+}
 
 [[nodiscard]] std::string ecpps::abi::encoders::x8664::ToString(const Operand& operand)
 {
@@ -1220,6 +1346,13 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOp
                auto* sub = std::launder(reinterpret_cast<SubInstruction*>(instruction.description.data()));
                sub->modifiedDestination = this->ResolveStackOperand(sub->modifiedDestination);
                sub->source = this->ResolveStackOperand(sub->source);
+               break;
+          }
+          case X8664InstructionName::Cmp:
+          {
+               auto* c = std::launder(reinterpret_cast<CmpInstruction*>(instruction.description.data()));
+               c->left = ResolveStackOperand(c->left);
+               c->right = ResolveStackOperand(c->right);
                break;
           }
           default: break;
@@ -1467,4 +1600,184 @@ std::size_t ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::StackPa
      if (platform.StackParameterOrder() == api::StackParameterOrdering::Forward)
           return parameterIndex - platform.IntegerParameterRegisterCount();
      return numberOfParameters - 1 - parameterIndex;
+}
+
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsTerminator(
+     const ir::abstract::VirtualInstructionType type) noexcept
+{
+     using Type = ir::abstract::VirtualInstructionType;
+     return type == Type::Return || type == Type::UnconditionalJump || type == Type::CompareAndJump;
+}
+
+std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DestinationOf(
+     const ir::abstract::VirtualInstruction& i)
+{
+     using Type = ir::abstract::VirtualInstructionType;
+     switch (i.type)
+     {
+     case Type::CopyParameter: return i.operands.size() >= 2 ? std::optional{i.operands[1].index} : std::nullopt;
+     case Type::Return:
+     case Type::Call:
+     case Type::PassArgument:
+     case Type::Label:
+     case Type::UnconditionalJump:
+     case Type::CompareAndJump: return std::nullopt;
+     default: return i.operands.empty() ? std::nullopt : std::optional{i.operands[0].index};
+     }
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildControlFlowGraph(
+     const std::vector<ir::abstract::VirtualInstruction>& input)
+{
+     using Type = ir::abstract::VirtualInstructionType;
+     this->_blocks.clear();
+     const auto count = input.size();
+
+     std::vector<bool> leader(count + 1, false);
+     if (count != 0) leader[0] = true;
+     this->_hasControlFlow = false;
+     for (std::size_t i = 0; i < count; i++)
+     {
+          if (input[i].type == Type::Label) leader[i] = true;
+          if (IsTerminator(input[i].type)) leader[i + 1] = true;
+          if (input[i].type != Type::Return && (input[i].type == Type::Label || IsTerminator(input[i].type)))
+               this->_hasControlFlow = true;
+     }
+
+     std::unordered_map<std::size_t, std::size_t> blockOfLabel{};
+     for (std::size_t begin = 0; begin < count;)
+     {
+          auto end = begin + 1;
+          while (end < count && !leader[end]) end++;
+          if (input[begin].type == Type::Label) blockOfLabel[input[begin].operands[0].index] = this->_blocks.size();
+          this->_blocks.push_back(BasicBlock{.begin = begin, .end = end});
+          begin = end;
+     }
+
+     const auto blockOf = [&](const std::size_t label)
+     {
+          const auto it = blockOfLabel.find(label);
+          runtime_assert(it != blockOfLabel.end(), "Jump to a label that was never placed");
+          return it->second;
+     };
+     for (std::size_t b = 0; b < this->_blocks.size(); b++)
+     {
+          auto& block = this->_blocks[b];
+          const auto& last = input[block.end - 1];
+          const bool hasNext = b + 1 < this->_blocks.size();
+          switch (last.type)
+          {
+          case Type::Return: break;
+          case Type::UnconditionalJump: block.successors.push_back(blockOf(last.operands[0].index)); break;
+          case Type::CompareAndJump:
+               block.successors.push_back(blockOf(last.operands[3].index));
+               if (hasNext) block.successors.push_back(b + 1);
+               break;
+          default:
+               if (hasNext) block.successors.push_back(b + 1);
+               break;
+          }
+     }
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ComputeLiveness(
+     const std::vector<ir::abstract::VirtualInstruction>& input)
+{
+     for (auto& block : this->_blocks)
+     {
+          for (std::size_t i = block.begin; i < block.end; i++)
+          {
+               for (const auto& source : SourceRegistersOf(input[i]))
+                    if (!block.def.contains(source.index)) block.use.insert(source.index);
+               if (const auto destination = DestinationOf(input[i])) block.def.insert(*destination);
+          }
+     }
+     for (bool changed = true; changed;)
+     {
+          changed = false;
+          for (std::size_t b = this->_blocks.size(); b-- > 0;)
+          {
+               auto& block = this->_blocks[b];
+               for (const auto successor : block.successors)
+                    for (const auto v : this->_blocks[successor].liveIn) changed |= block.liveOut.insert(v).second;
+               for (const auto v : block.liveOut)
+                    if (!block.def.contains(v)) changed |= block.liveIn.insert(v).second;
+               for (const auto v : block.use) changed |= block.liveIn.insert(v).second;
+          }
+     }
+}
+
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsRematerialisable(
+     const ir::abstract::VirtualRegister reg)
+{
+     if (this->IsMutable(reg)) return false;
+     const auto& value = this->GetVRM().GetValue(reg);
+     if (value.type != ir::abstract::StateType::Allocation) return false;
+     return std::launder(reinterpret_cast<const AssignedValueBase*>(value.data.data()))->type ==
+            AssignedValueType::CopyInteger;
+}
+
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BeginBlock(
+     const std::vector<ir::abstract::VirtualInstruction>& input, const BasicBlock& block)
+{
+     for (const auto& cell : this->_registerAllocator.Snapshot())
+          if (cell.owner.has_value()) this->ReleaseRegister(*cell.owner);
+     this->_pendingSpills.clear();
+     this->_evictable.clear();
+
+     this->_remainingUses.clear();
+     this->_useSites.clear();
+     for (std::size_t i = block.begin; i < block.end; i++)
+          for (const auto& source : SourceRegistersOf(input[i]))
+          {
+               this->_remainingUses[source.index]++;
+               this->_useSites[source.index].push_back(i);
+          }
+     for (const auto v : block.liveOut)
+     {
+          this->_remainingUses[v]++;
+          this->_useSites[v].push_back(block.end);
+     }
+
+     if (block.begin == 0) return;
+     for (const auto v : block.liveIn)
+     {
+          const ir::abstract::VirtualRegister reg{.index = v};
+          this->_evicted.erase(v);
+          if (this->IsRematerialisable(reg)) continue;
+          std::ignore = this->EnsureStackSlot(reg);
+          this->_evicted.insert(v);
+     }
+}
+
+std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::FlushLiveOut(
+     const BasicBlock& block)
+{
+     std::vector<ir::abstract::Instruction> out{};
+     std::vector<std::size_t> live(block.liveOut.begin(), block.liveOut.end());
+     std::ranges::sort(live);
+
+     for (const auto v : live)
+     {
+          const ir::abstract::VirtualRegister reg{.index = v};
+          if (this->IsRematerialisable(reg) || this->_evicted.contains(v)) continue;
+
+          this->_pendingSpills.clear();
+          this->_evictable.clear();
+          std::unordered_set<std::size_t> required{};
+          this->CollectDependencies(reg, required);
+          for (const auto& cell : this->_registerAllocator.Snapshot())
+               if (cell.owner.has_value() && !required.contains(cell.owner->index))
+                    this->_evictable.insert(cell.owner->index);
+
+          auto code = this->EnsureMaterialisation(reg);
+          out.append_range(std::move(this->_pendingSpills));
+          this->_pendingSpills.clear();
+          out.append_range(std::move(code));
+
+          if (this->_evicted.contains(v) || !this->GetVRM().IsMaterialised(reg)) continue;
+          out.push_back(BuildMov(MapWidth(this->GetVRM().GetWidth(reg)), this->EnsureStackSlot(reg),
+                                 RegisterOperand{this->PhysicalRegisterOf(reg)}));
+     }
+     return out;
 }

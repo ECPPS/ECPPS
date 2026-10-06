@@ -186,7 +186,6 @@ namespace ecpps::codegen
           AllocationMap virtualRegisterAllocationMap;
           std::vector<const ir::FunctionScope*> functionUsageTable{};
           AssemblyContext* assembly{};
-          std::unordered_map<std::string, std::size_t> labels{};
           std::size_t CallFunctionIndex(const ir::FunctionScope* contextPointer);
 
           void ParseNode(const ir::NodeBase* node);
@@ -213,6 +212,21 @@ namespace ecpps::codegen
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
           void ParseLabelNode(const ir::SSALabelNode& node);
           void ParseGotoNode(const ir::SSAGotoNode& node);
+          std::unordered_map<std::string, std::size_t> labelIds{};
+          std::unordered_map<std::size_t, const ir::SSAGotoNode*> gotoReferences{};
+          std::unordered_set<std::size_t> definedLabels{};
+          std::size_t nextLabelId{};
+
+          [[nodiscard]] std::size_t NewLabel(void) noexcept
+          {
+               return this->nextLabelId++;
+          }
+          [[nodiscard]] std::size_t LabelId(const std::string& name);
+          void PlaceLabel(std::size_t id);
+          void EmitJump(std::size_t id);
+          void EmitCompareAndJump(ir::abstract::ConditionCode cc, ir::abstract::VirtualRegister lhs,
+                                  ir::abstract::VirtualRegister rhs, std::size_t id);
+          void FinaliseControlFlow(bool optimiseDeadJumps);
 
           explicit ParsingContext(ecpps::abi::ABI& abi);
 

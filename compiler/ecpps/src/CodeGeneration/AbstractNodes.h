@@ -61,9 +61,40 @@ namespace ecpps::ir::abstract
 
      struct Instruction
      {
-          EncodedOpcode opcode;
-          DynamicBytecode description;
+          EncodedOpcode opcode{};
+          DynamicBytecode description{};
+          bool isLabelled{};
      };
+     enum struct ConditionCode : std::uint8_t
+     {
+          Equal,
+          NotEqual,
+          Less,
+          LessEqual,
+          Greater,
+          GreaterEqual,
+          Below,
+          BelowEqual,
+          Above,
+          AboveEqual
+     };
+     [[nodiscard]] constexpr ConditionCode Invert(const ConditionCode c) noexcept
+     {
+          switch (c)
+          {
+          case ConditionCode::Equal: return ConditionCode::NotEqual;
+          case ConditionCode::NotEqual: return ConditionCode::Equal;
+          case ConditionCode::Less: return ConditionCode::GreaterEqual;
+          case ConditionCode::LessEqual: return ConditionCode::Greater;
+          case ConditionCode::Greater: return ConditionCode::LessEqual;
+          case ConditionCode::GreaterEqual: return ConditionCode::Less;
+          case ConditionCode::Below: return ConditionCode::AboveEqual;
+          case ConditionCode::BelowEqual: return ConditionCode::Above;
+          case ConditionCode::Above: return ConditionCode::BelowEqual;
+          case ConditionCode::AboveEqual: return ConditionCode::Below;
+          }
+          std::unreachable();
+     }
      enum struct VirtualInstructionType : std::uint32_t // NOLINT(performance-enum-size)
      {
           Copy,
@@ -90,7 +121,9 @@ namespace ecpps::ir::abstract
           PassArgument,
           AddressOf,
           LoadStringAddress,
-          UnconditionalJump
+          UnconditionalJump,
+          Label,
+          CompareAndJump
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -121,6 +154,8 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::AddressOf: return "address-of";
           case VirtualInstructionType::LoadStringAddress: return "string";
           case VirtualInstructionType::UnconditionalJump: return "jump";
+          case VirtualInstructionType::Label: return "label";
+          case VirtualInstructionType::CompareAndJump: return "compare-and-jump";
           }
           throw TracedException("control flow");
      }

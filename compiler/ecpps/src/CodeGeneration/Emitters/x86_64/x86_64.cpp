@@ -33,6 +33,10 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::ZeroExtend: return this->EmitMovzx(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Call: return this->EmitCall(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Lea: return this->EmitLea(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Jmp: return this->EmitJmp(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Label: return this->EmitLabel(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Cmp: return this->EmitCmp(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Jcc: return this->EmitJcc(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
      }
 }
@@ -84,7 +88,21 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                             static_cast<std::int32_t>(offset + routine.emittedOffset) - 5;
           std::memcpy(instructions.data() + offset + 1uz, &displacement, sizeof(std::int32_t));
      }
+     for (const auto& patch : this->_jumpPatches)
+     {
+          const auto label = this->_labelOffsets.find(patch.labelId);
+          runtime_assert(label != this->_labelOffsets.end(), "Jump to a label that was never emitted");
+          runtime_assert(patch.instructionOffset + patch.length <= instructions.size(), "Jump patch out of range");
+
+          const auto displacement =
+               static_cast<std::int32_t>(static_cast<std::int64_t>(label->second) -
+                                         static_cast<std::int64_t>(patch.instructionOffset + patch.length));
+          std::memcpy(instructions.data() + patch.instructionOffset + patch.length - sizeof(std::int32_t),
+                      &displacement, sizeof(std::int32_t));
+     }
      this->_callPatches.clear();
+     this->_jumpPatches.clear();
+     this->_labelOffsets.clear();
 }
 
 void ecpps::codegen::emitters::X8664Emitter::PatchStrings(std::vector<std::byte>& instructions,
