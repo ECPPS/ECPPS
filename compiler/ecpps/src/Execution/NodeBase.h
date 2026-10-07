@@ -47,8 +47,42 @@ namespace ecpps::ir
           Reference,
           BitwiseNot,
           ArithmeticNegation,
-          Label
+          Label,
+          Compare,
+          Branch,
+          Jump
      };
+     enum struct ComparisonPredicate : std::uint_fast8_t
+     {
+          Equal,
+          NotEqual,
+          SignedLess,
+          SignedLessEqual,
+          SignedGreater,
+          SignedGreaterEqual,
+          UnsignedLess,
+          UnsignedLessEqual,
+          UnsignedGreater,
+          UnsignedGreaterEqual,
+     };
+
+     [[nodiscard]] constexpr std::string_view ToString(const ComparisonPredicate p) noexcept
+     {
+          switch (p)
+          {
+          case ComparisonPredicate::Equal: return "equal";
+          case ComparisonPredicate::NotEqual: return "not_equal";
+          case ComparisonPredicate::SignedLess: return "signed_less";
+          case ComparisonPredicate::SignedLessEqual: return "signed_less_equal";
+          case ComparisonPredicate::SignedGreater: return "signed_greater";
+          case ComparisonPredicate::SignedGreaterEqual: return "signed_greater_equal";
+          case ComparisonPredicate::UnsignedLess: return "unsigned_less";
+          case ComparisonPredicate::UnsignedLessEqual: return "unsigned_less_equal";
+          case ComparisonPredicate::UnsignedGreater: return "unsigned_greater";
+          case ComparisonPredicate::UnsignedGreaterEqual: return "unsigned_greater_equal";
+          }
+          return "__unknown_comparison";
+     }
 
      struct ConstantAggregateMap;
      struct ConstantAggregateArray;

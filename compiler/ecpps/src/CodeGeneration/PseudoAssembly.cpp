@@ -28,6 +28,26 @@ constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
      return (value & (alignment - 1)) == 0;
 }
 
+static ecpps::ir::abstract::ConditionCode ToConditionCode(const ecpps::ir::ComparisonPredicate predicate)
+{
+     using enum ecpps::ir::ComparisonPredicate;
+     using ecpps::ir::abstract::ConditionCode;
+     switch (predicate)
+     {
+     case Equal: return ConditionCode::Equal;
+     case NotEqual: return ConditionCode::NotEqual;
+     case SignedLess: return ConditionCode::Less;
+     case SignedLessEqual: return ConditionCode::LessEqual;
+     case SignedGreater: return ConditionCode::Greater;
+     case SignedGreaterEqual: return ConditionCode::GreaterEqual;
+     case UnsignedLess: return ConditionCode::Below;
+     case UnsignedLessEqual: return ConditionCode::BelowEqual;
+     case UnsignedGreater: return ConditionCode::Above;
+     case UnsignedGreaterEqual: return ConditionCode::AboveEqual;
+     }
+     throw TracedException("Unmapped comparison predicate");
+}
+
 std::uint32_t ecpps::codegen::AssemblyContext::ReserveNextStringEntry(void) noexcept
 {
      static std::atomic<std::uint32_t> next = 0;
@@ -49,6 +69,12 @@ std::size_t ecpps::codegen::ParsingContext::CallFunctionIndex(const ir::Function
 void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
+     if (this->pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               "Materialising a comparison result outside of a branch is not supported yet", node->Source()));
+          this->pendingCompare.reset();
+     }
 
      try
      {
@@ -203,6 +229,27 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                const auto* labelNode = dynamic_cast<const ecpps::ir::SSALabelNode*>(node);
                runtime_assert(labelNode != nullptr, "Not a label!");
                this->ParseLabelNode(*labelNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Jump:
+          {
+               const auto* gotoNode = dynamic_cast<const ecpps::ir::SSAGotoNode*>(node);
+               runtime_assert(gotoNode != nullptr, "Jump node was not a jump!");
+               this->ParseGotoNode(*gotoNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Compare:
+          {
+               const auto* compareNode = dynamic_cast<const ecpps::ir::SSACompareNode*>(node);
+               runtime_assert(compareNode != nullptr, "Compare node was not a compare!");
+               this->ParseCompareNode(*compareNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Branch:
+          {
+               const auto* branchNode = dynamic_cast<const ecpps::ir::SSABranchNode*>(node);
+               runtime_assert(branchNode != nullptr, "Branch node was not a branch!");
+               this->ParseBranchNode(*branchNode);
           }
           break;
           default:
@@ -1000,4 +1047,46 @@ void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, S
           source.compiledRoutines.push_back(std::move(routine));
      }
      config.stringArray = context.GetStringSection();
+}
+void ecpps::codegen::ParsingContext::ParseCompareNode(const ir::SSACompareNode& node)
+{
+     const auto lhsSsa = node.Left().Index();
+     const auto rhsSsa = node.Right().Index();
+
+     const auto lhsVirtual = this->virtualRegisterAllocationMap.FindVirtualBySSA(lhsSsa);
+     const auto rhsVirtual = this->virtualRegisterAllocationMap.FindVirtualBySSA(rhsSsa);
+
+     runtime_assert(this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(lhsVirtual).width ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(rhsVirtual).width,
+                    "Widths don't match in a comparison");
+
+     this->pendingCompare = PendingCompare{.resultSsa = node.Result().Index(),
+                                           .lhsSsa = lhsSsa,
+                                           .rhsSsa = rhsSsa,
+                                           .lhsVirtual = lhsVirtual,
+                                           .rhsVirtual = rhsVirtual,
+                                           .cc = ToConditionCode(node.Predicate())};
+}
+
+void ecpps::codegen::ParsingContext::ParseBranchNode(const ir::SSABranchNode& node)
+{
+     if (!this->pendingCompare.has_value() || this->pendingCompare->resultSsa != node.Condition().Index())
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               "A branch condition must be produced by the comparison immediately preceding it", node.Source()));
+          this->pendingCompare.reset();
+          return;
+     }
+
+     const auto pending = *std::exchange(this->pendingCompare, std::nullopt);
+
+     const auto trueId = this->LabelId(node.TrueLabel());
+     const auto falseId = this->LabelId(node.FalseLabel());
+
+     this->DereferenceSSA(pending.lhsSsa);
+     this->DereferenceSSA(pending.rhsSsa);
+
+     this->EmitCompareAndJump(ir::abstract::Invert(pending.cc), ir::abstract::VirtualRegister{pending.lhsVirtual},
+                              ir::abstract::VirtualRegister{pending.rhsVirtual}, falseId);
+     this->EmitJump(trueId);
 }

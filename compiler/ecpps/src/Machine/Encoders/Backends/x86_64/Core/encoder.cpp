@@ -1242,16 +1242,16 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 {
      switch (condition)
      {
-     case ir::abstract::ConditionCode::Above: return "above";
-     case ir::abstract::ConditionCode::AboveEqual: return "above-equal";
-     case ir::abstract::ConditionCode::Below: return "below";
-     case ir::abstract::ConditionCode::BelowEqual: return "below-equal";
-     case ir::abstract::ConditionCode::Greater: return "greater";
-     case ir::abstract::ConditionCode::GreaterEqual: return "greater-equal";
-     case ir::abstract::ConditionCode::Less: return "less";
-     case ir::abstract::ConditionCode::LessEqual: return "less-equal";
-     case ir::abstract::ConditionCode::Equal: return "equal";
-     case ir::abstract::ConditionCode::NotEqual: return "not-equal";
+     case ir::abstract::ConditionCode::Above: return "A";
+     case ir::abstract::ConditionCode::AboveEqual: return "AE";
+     case ir::abstract::ConditionCode::Below: return "B";
+     case ir::abstract::ConditionCode::BelowEqual: return "BE";
+     case ir::abstract::ConditionCode::Greater: return "G";
+     case ir::abstract::ConditionCode::GreaterEqual: return "GE";
+     case ir::abstract::ConditionCode::Less: return "L";
+     case ir::abstract::ConditionCode::LessEqual: return "LE";
+     case ir::abstract::ConditionCode::Equal: return "E";
+     case ir::abstract::ConditionCode::NotEqual: return "NE";
      default: return "__unknown_jmp";
      }
 }

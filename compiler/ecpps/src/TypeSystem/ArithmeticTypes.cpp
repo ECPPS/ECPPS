@@ -46,6 +46,11 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 {
      if (other == nullptr) return ConversionSequence{std::nullopt};
      SBOVector<ConversionSequence::ConversionKind> sequence{};
+     if (IsBoolean(other))
+     {
+          sequence.Push(ConversionSequence::ConversionKind::BooleanConversion);
+          return ConversionSequence{sequence};
+     }
 
      if (IsIntegral(other))
      {
@@ -250,6 +255,7 @@ std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(NonowningTypePointer other) const
 {
+     // TODO: boolean conversions!
      if (IsArray(other))
      {
           const auto* const otherArray = other->CastTo<ArrayType>();

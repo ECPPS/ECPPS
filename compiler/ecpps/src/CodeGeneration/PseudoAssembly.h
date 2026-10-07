@@ -176,6 +176,7 @@ namespace ecpps::codegen
           std::vector<AllocationDescriptor> _descriptorArray{};
           std::vector<Index> _ssaByVirtual{};
      };
+
      struct AssemblyContext;
      struct ParsingContext
      {
@@ -234,6 +235,20 @@ namespace ecpps::codegen
           void DereferenceSSA(std::size_t ssaIndex);
           [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t width,
                                                     AllocationDescriptor::Type type);
+
+          void ParseCompareNode(const ir::SSACompareNode& node);
+          void ParseBranchNode(const ir::SSABranchNode& node);
+
+          struct PendingCompare
+          {
+               std::size_t resultSsa{};
+               std::size_t lhsSsa{};
+               std::size_t rhsSsa{};
+               std::size_t lhsVirtual{};
+               std::size_t rhsVirtual{};
+               ir::abstract::ConditionCode cc{};
+          };
+          std::optional<PendingCompare> pendingCompare{};
      };
 
      struct AssemblyContext
