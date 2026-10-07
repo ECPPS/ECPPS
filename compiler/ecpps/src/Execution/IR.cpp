@@ -2322,6 +2322,13 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return this->ParseBinaryXorExpression(std::move(left), std::move(right), node.Source());
      case ast::Operator::Assignment:
           return this->ParseAssignmentExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::EqualsSign:
+     case ast::Operator::NotEqual:
+     case ast::Operator::Less:
+     case ast::Operator::LessEqual:
+     case ast::Operator::Greater:
+     case ast::Operator::GreaterEqual:
+          return this->ParseRelationalExpression(std::move(left), operator_, std::move(right), node.Source());
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }
@@ -2888,8 +2895,11 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
      EmitLabel(thenLabel, node.Source());
      for (const auto& statement : node.Body()) ParseNode(statement);
      EmitJump(endLabel, node.Source());
-     EmitLabel(elseLabel, node.Source());
-     for (const auto& statement : node.ElseBody()) ParseNode(statement);
+     if (elseLabel != endLabel)
+     {
+          EmitLabel(elseLabel, node.Source());
+          for (const auto& statement : node.ElseBody()) ParseNode(statement);
+     }
 
      EmitLabel(endLabel, node.Source());
 }
@@ -3754,5 +3764,59 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
                                            wasConstexpr);
      };
 
-     return CommonOperands{convert(std::move(left)), convert(std::move(right)), commonType};
+     return CommonOperands{.left = convert(std::move(left)), .right = convert(std::move(right)), .type = commonType};
+}
+static ecpps::ir::ComparisonPredicate SelectPredicate(const ecpps::ast::Operator operator_, const bool isSigned)
+{
+     using enum ecpps::ir::ComparisonPredicate;
+     using ecpps::ast::Operator;
+     switch (operator_)
+     {
+     case Operator::EqualsSign: return Equal;
+     case Operator::NotEqual: return NotEqual;
+     case Operator::Less: return isSigned ? SignedLess : UnsignedLess;
+     case Operator::LessEqual: return isSigned ? SignedLessEqual : UnsignedLessEqual;
+     case Operator::Greater: return isSigned ? SignedGreater : UnsignedGreater;
+     case Operator::GreaterEqual: return isSigned ? SignedGreaterEqual : UnsignedGreaterEqual;
+     default: throw TracedException(std::logic_error("Invalid relational operator"));
+     }
+}
+
+Expression ecpps::ir::IR::ParseRelationalExpression(Expression left, const ast::Operator operator_, Expression right,
+                                                    const Location& source) const
+{
+     const auto* leftPointer = left->Type()->CastTo<typeSystem::PointerType>();
+     const auto* rightPointer = right->Type()->CastTo<typeSystem::PointerType>();
+
+     bool isSigned = false;
+     if (leftPointer != nullptr && rightPointer != nullptr)
+     {
+          if (leftPointer->BaseType() != rightPointer->BaseType())
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot compare pointers to different types (" + left->Type()->Name() + " and " +
+                              right->Type()->Name() + ")",
+                         source));
+               return nullptr;
+          }
+     }
+     else
+     {
+          auto operands = UsualArithmeticConversions(std::move(left), std::move(right));
+          if (!operands) return nullptr;
+
+          isSigned = operands->type->Sign() == typeSystem::Signedness::Signed;
+          left = std::move(operands->left);
+          right = std::move(operands->right);
+     }
+
+     TypeRequest boolRequest{.kind = TypeKind::Fundamental, .data = BooleanRequest{}};
+     const auto* boolType = GetTypeContext().Get(boolRequest);
+
+     return std::make_unique<PRValue>(
+          boolType,
+          std::unique_ptr<high::CompareNode, IRDeleter>{new (*this->GetContext().nodeAllocator) high::CompareNode(
+               std::move(left), std::move(right), SelectPredicate(operator_, isSigned), source)},
+          false);
 }

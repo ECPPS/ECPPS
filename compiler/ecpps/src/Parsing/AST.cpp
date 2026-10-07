@@ -1697,19 +1697,62 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseRelationalExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseCompareExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               const auto& operatorr = currentToken.AsOperator();
+               if (operatorr == "<" || operatorr == ">" || operatorr == "<=" || operatorr == ">=")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = operatorr == "<"    ? Operator::Less
+                                            : operatorr == ">"  ? Operator::Greater
+                                            : operatorr == "<=" ? Operator::LessEqual
+                                                                : Operator::GreaterEqual;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseCompareExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
 NodePointer ecpps::ast::AST::ParseEqualityExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseRelationalExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               const auto& operatorr = currentToken.AsOperator();
+               if (operatorr == "==" || operatorr == "!=")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = operatorr == "==" ? Operator::EqualsSign : Operator::NotEqual;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseRelationalExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 

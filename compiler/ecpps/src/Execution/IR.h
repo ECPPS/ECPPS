@@ -239,6 +239,9 @@ namespace ecpps::ir
                     false);
           }
 
+          [[nodiscard]] Expression ParseRelationalExpression(Expression left, ast::Operator operator_, Expression right,
+                                                             const Location& source) const;
+
           struct BlockScope
           {
                explicit BlockScope(IR& ir) noexcept : _ir(ir)
