@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "../Machine/ABI.h"
@@ -462,8 +463,9 @@ namespace ecpps::ast
      class IfStatementNode final : public Node
      {
      public:
-          explicit IfStatementNode(NodePointer condition, std::vector<NodePointer> body, Location source)
-              : Node(source), _condition(std::move(condition)), _body(std::move(body)) // TODO: else
+          explicit IfStatementNode(NodePointer condition, std::vector<NodePointer> body,
+                                   std::vector<NodePointer> elseBody, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body)), _elseBody(std::move(elseBody))
           {
           }
           [[nodiscard]] const NodePointer& Condition(void) const noexcept
@@ -474,19 +476,28 @@ namespace ecpps::ast
           {
                return this->_body;
           }
+          [[nodiscard]] const std::vector<NodePointer>& ElseBody(void) const noexcept
+          {
+               return this->_elseBody;
+          }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built{};
                for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "if (" + this->_condition->ToString(0) + ")\n" +
+                       std::string(indent * PrettyIndent, ' ') + "{\n" + built +
+                       std::string(indent * PrettyIndent, ' ') + "}";
+               if (this->_elseBody.empty()) return built;
 
-               return std::string(indent * PrettyIndent, ' ') + "if (" + this->_condition->ToString(0) + ")\n" +
-                      std::string(indent * PrettyIndent, ' ') + "{" + "\n" + built +
-                      std::string(indent * PrettyIndent, ' ') + "}";
+               std::string elseBuilt{};
+               for (const auto& node : this->_elseBody) elseBuilt += node->ToString(indent + 1) + ";\n";
+               return built + " else {\n" + elseBuilt + std::string(indent * PrettyIndent, ' ') + "}";
           }
 
      private:
           NodePointer _condition;
           std::vector<NodePointer> _body;
+          std::vector<NodePointer> _elseBody;
      };
      class LabelNode final : public Node
      {

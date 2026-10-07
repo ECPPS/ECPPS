@@ -2880,14 +2880,16 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
 
      const auto thenLabel = MakeLabelName("if.then");
      const auto endLabel = MakeLabelName("if.end");
-     // TODO(else): const auto elseLabel = node.HasElse() ? MakeLabelName("if.else") : endLabel;
-     const auto& falseTarget = endLabel;
+     const auto& elseLabel = node.ElseBody().empty() ? endLabel : MakeLabelName("if.else");
+     const auto& falseTarget = elseLabel;
 
      EmitBranch(conditionReg, thenLabel, falseTarget, node.Source());
 
      EmitLabel(thenLabel, node.Source());
      for (const auto& statement : node.Body()) ParseNode(statement);
-     // TODO(else): EmitJump(endLabel, node.Source()); EmitLabel(elseLabel, ...); parse else body
+     EmitJump(endLabel, node.Source());
+     EmitLabel(elseLabel, node.Source());
+     for (const auto& statement : node.ElseBody()) ParseNode(statement);
 
      EmitLabel(endLabel, node.Source());
 }

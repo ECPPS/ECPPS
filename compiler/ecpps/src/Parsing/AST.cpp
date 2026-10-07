@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "ASTs/Type.h"
+#include "Parsing/Tokeniser.h"
 #include "Shared/Error.h"
 
 ecpps::ast::Node::~Node(void) = default;
@@ -1944,16 +1945,25 @@ NodePointer ecpps::ast::AST::ParseIfStatement(ASTContext& context)
           this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
      }
      std::vector<NodePointer> body{};
+     std::vector<NodePointer> elseBody{};
+
      if (Match(TokenType::LeftBrace))
           while (!Match(TokenType::RightBrace)) body.emplace_back(ParseStatement(context));
      else
           body.emplace_back(ParseStatement(context));
 
-     // TODO: else
+     if (Peek().type == TokenType::Keyword && Peek().AsKeyword() == "else")
+     {
+          Advance();
+          if (Match(TokenType::LeftBrace))
+               while (!Match(TokenType::RightBrace)) elseBody.emplace_back(ParseStatement(context));
+          else
+               elseBody.emplace_back(ParseStatement(context));
+     }
 
      source.endPosition = Peek(-1).location.endPosition;
      return std::unique_ptr<IfStatementNode, ecpps::ast::ASTDeleter>(
-          new (context) IfStatementNode(std::move(condition), std::move(body), source));
+          new (context) IfStatementNode(std::move(condition), std::move(body), std::move(elseBody), source));
 }
 
 NodePointer ecpps::ast::AST::ParseExpressionStatement(ASTContext& context)
