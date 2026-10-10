@@ -1184,6 +1184,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
           auto& value = *optionalConstexpr;
           returnExpression = ConstantEvaluationResultToExpression(value, returnExpression->Type(), allocator);
      }
+     if (returnExpression == nullptr) return;
 
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      if (converted == nullptr) return;
