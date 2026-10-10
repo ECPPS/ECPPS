@@ -1,74 +1,21 @@
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
-#include <execution>
+#include <limits>
 #include <memory>
-#include <new>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
-#define VECTORISE_SBO_VECTOR
+#if defined(_MSC_VER)
+#define ECPPS_SBO_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#else
+#define ECPPS_SBO_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif
 
-#ifdef VECTORISE_SBO_VECTOR
-#ifdef NO_OMP
-template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
-{
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(from[i]);
-}
-template <typename T> void UMoveN(T* from, T* to, std::size_t size)
-{
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(std::move(from[i]));
-}
-template <typename T> void UFillN(const T& value, T* to, std::size_t size)
-{
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
-}
-template <typename T> void UFillN(T&& value, T* to, std::size_t size)
-{
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
-}
-#else
-template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
-{
-#pragma omp simd
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(from[i]);
-}
-template <typename T> void UMoveN(T* from, T* to, std::size_t size)
-{
-#pragma omp simd
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(std::move(from[i]));
-}
-template <typename T> void UFillN(const T& value, T* to, std::size_t size)
-{
-#pragma omp simd
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
-}
-template <typename T> void UFillN(T&& value, T* to, std::size_t size)
-{
-#pragma omp simd
-     for (std::size_t i = 0; i < size; i++) new (&to[i]) auto(value);
-}
-#endif
-#else
-template <typename T> void UCopyN(const T* from, T* to, std::size_t size)
-{
-     std::uninitialized_copy_n(from, size, to);
-}
-template <typename T> void UMoveN(T* from, T* to, std::size_t size)
-{
-     std::uninitialized_move_n(from, size, to);
-}
-template <typename T> void UFillN(const T& value, T* to, std::size_t size)
-{
-     std::uninitialized_fill_n(to, size, value);
-}
-template <typename T> void UFillN(T&& value, T* to, std::size_t size)
-{
-     std::uninitialized_fill_n(to, size, std::forward<decltype(value)>(value));
-}
-#endif
+constexpr auto SboTargetBytes = 64uz;
 
 namespace ecpps
 {
@@ -76,296 +23,445 @@ namespace ecpps
      {
           return (number + alignment - 1) & ~(alignment - 1);
      }
-     template <typename TElement, typename TAllocator = std::allocator<TElement>,
-               std::size_t TNSBOSize = std::hardware_destructive_interference_size>
-     class SBOVector
+
+     namespace sboDetail
      {
-          struct NoSBO
+          [[noreturn]] inline void Fail(const char* what)
           {
-               TElement* begin{};
-               std::size_t capacity{};
+               throw std::length_error(what);
+          }
+
+          template <typename T>
+          constexpr bool TriviallyRelocatable =
+               std::is_trivially_move_constructible_v<T> && std::is_trivially_destructible_v<T>;
+
+          template <typename T>
+          constexpr bool TriviallyCopyConstructible =
+               std::is_trivially_copy_constructible_v<T> && std::is_trivially_destructible_v<T>;
+
+          template <typename T, typename... TArgs> T* ConstructAt(T* location, TArgs&&... args)
+          {
+               return ::new (static_cast<void*>(location)) T(std::forward<TArgs>(args)...);
+          }
+
+          template <typename T> void DestroyN(T* first, std::size_t count) noexcept
+          {
+               if constexpr (!std::is_trivially_destructible_v<T>)
+               {
+                    while (count-- > 0) first[count].~T();
+               }
+          }
+
+          template <typename T> struct RangeGuard
+          {
+               T* first;
+               std::size_t count;
+               ~RangeGuard()
+               {
+                    DestroyN(first, count);
+               }
           };
 
-          /// <summary>
-          /// In elements, not bytes
-          /// </summary>
-          static constexpr std::size_t SBOSize =
-               std::max<std::size_t>(1, Align(TNSBOSize / sizeof(TElement), sizeof(TElement)));
-
-          union BufferUnion
+          template <typename TAllocator, typename T> struct HeapGuard
           {
-               std::byte sbo[sizeof(TElement) * SBOSize]; // NOLINT(cppcoreguidelines-avoid-c-arrays)
-               NoSBO noSbo;
-
-               explicit BufferUnion(void)
+               TAllocator& allocator; // NOLINT lgtm
+               T* pointer;
+               std::size_t capacity;
+               ~HeapGuard(void)
                {
-               } // NOLINT(cppcoreguidelines-pro-type-member-init)
-               ~BufferUnion(void)
+                    if (pointer) allocator.deallocate(pointer, capacity);
+               }
+               void Release(void) noexcept
+               {
+                    pointer = nullptr;
+               }
+          };
+
+          template <typename T> void UninitialisedCopyN(const T* from, T* to, std::size_t count)
+          {
+               if constexpr (TriviallyCopyConstructible<T>)
+               {
+                    if (count) std::memcpy(static_cast<void*>(to), static_cast<const void*>(from), count * sizeof(T));
+               }
+               else
+               {
+                    RangeGuard<T> guard{to, 0};
+                    for (; guard.count < count; guard.count++) ConstructAt(to + guard.count, from[guard.count]);
+                    guard.count = 0;
+               }
+          }
+
+          template <typename T> void UninitialisedFillN(T* to, std::size_t count, const T& value)
+          {
+               RangeGuard<T> guard{to, 0};
+               for (; guard.count < count; guard.count++) ConstructAt(to + guard.count, value);
+               guard.count = 0;
+          }
+
+          template <typename T> void UninitialisedValueN(T* to, std::size_t count)
+          {
+               RangeGuard<T> guard{to, 0};
+               for (; guard.count < count; guard.count++) ConstructAt(to + guard.count);
+               guard.count = 0;
+          }
+
+          template <bool TIfNoexcept, typename T>
+          void RelocateN(T* from, T* to,
+                         std::size_t count) noexcept(TriviallyRelocatable<T> || std::is_nothrow_move_constructible_v<T>)
+          {
+               if constexpr (TriviallyRelocatable<T>)
+               {
+                    if (count) std::memcpy(static_cast<void*>(to), static_cast<const void*>(from), count * sizeof(T));
+               }
+               else
+               {
+                    RangeGuard<T> guard{to, 0};
+                    for (; guard.count < count; guard.count++)
+                    {
+                         if constexpr (TIfNoexcept)
+                              ConstructAt(to + guard.count, std::move_if_noexcept(from[guard.count]));
+                         else
+                              ConstructAt(to + guard.count, std::move(from[guard.count]));
+                    }
+                    guard.count = 0;
+                    DestroyN(from, count);
+               }
+          }
+
+          template <typename T, typename TSize> constexpr std::size_t DefaultInlineCapacity(void) noexcept
+          {
+               constexpr std::size_t overhead = 2 * sizeof(TSize);
+               constexpr std::size_t budget = SboTargetBytes > overhead ? SboTargetBytes - overhead : 0;
+               constexpr std::size_t count = budget / sizeof(T);
+               return count > 0 ? count : 1;
+          }
+     } // namespace sboDetail
+
+     template <typename T>
+     inline constexpr std::size_t SBODefaultInlineCapacity = sboDetail::DefaultInlineCapacity<T, std::uint32_t>();
+
+     template <typename TElement, typename TAllocator = std::allocator<TElement>,
+               std::size_t TInlineCapacity = SBODefaultInlineCapacity<TElement>, typename TSize = std::uint32_t>
+     class SBOVector
+     {
+          static_assert(std::is_object_v<TElement> && !std::is_const_v<TElement> && !std::is_volatile_v<TElement> &&
+                        !std::is_array_v<TElement>);
+          static_assert(std::is_unsigned_v<TSize> && sizeof(TSize) <= sizeof(std::size_t));
+          static_assert(TInlineCapacity >= 1, "inline capacity is in elements and must be at least 1");
+
+     public:
+          using value_type = TElement;
+          using size_type = std::size_t;
+          using allocator_type = TAllocator;
+          using iterator = TElement*;
+          using const_iterator = const TElement*;
+
+          static constexpr std::size_t InlineCapacity = TInlineCapacity;
+          static constexpr std::size_t MaxSize = static_cast<std::size_t>(std::numeric_limits<TSize>::max()) <
+                                                           std::numeric_limits<std::size_t>::max() / sizeof(TElement)
+                                                      ? static_cast<std::size_t>(std::numeric_limits<TSize>::max())
+                                                      : std::numeric_limits<std::size_t>::max() / sizeof(TElement);
+
+          static_assert(TInlineCapacity < MaxSize, "inline capacity must be smaller than the maximum size");
+
+     private:
+          using Heap = sboDetail::HeapGuard<TAllocator, TElement>;
+
+          union Storage
+          {
+               alignas(TElement) std::byte inlineStorage[sizeof(TElement) * TInlineCapacity]{}; // NOLINT
+               TElement* heap;
+
+               Storage(void) noexcept
                {
                }
           };
 
      public:
-          explicit SBOVector(void)
+          explicit SBOVector(void) noexcept(std::is_nothrow_default_constructible_v<TAllocator>) = default;
+          explicit SBOVector(const TAllocator& allocator) noexcept : _allocator(allocator)
           {
-               new (this->_buffer.sbo) std::byte[sizeof(TElement) * SBOSize];
           }
 
-          SBOVector(std::size_t count, const TElement& value = TElement{}) : _size(count)
+          explicit SBOVector(std::size_t count)
           {
-               const bool sbo = UseSBO();
-               if (sbo)
-               {
-                    auto* destination = std::launder(
-                         reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                 // modernize-avoid-c-arrays)
-                              this->_buffer.sbo));
-                    UFillN(value, destination, count);
-               }
-               else
-               {
-                    const std::size_t cap = Align(count, SBOSize);
-                    this->_buffer.noSbo.capacity = cap;
-                    TAllocator allocator{};
-                    this->_buffer.noSbo.begin = allocator.allocate(cap);
-                    UFillN(value, this->_buffer.noSbo.begin, count);
-               }
+               InitWith(count,
+                        [&](TElement* to)
+                        {
+                             sboDetail::UninitialisedValueN(to, count);
+                        });
           }
 
-          SBOVector(const SBOVector& other) : _size(other._size)
+          SBOVector(std::size_t count, const TElement& value)
+          {
+               InitWith(count,
+                        [&](TElement* to)
+                        {
+                             sboDetail::UninitialisedFillN(to, count, value);
+                        });
+          }
+
+          SBOVector(const SBOVector& other) : _allocator(other._allocator)
           {
                static_assert(std::is_copy_constructible_v<TElement>);
+               InitWith(other._size,
+                        [&](TElement* to)
+                        {
+                             sboDetail::UninitialisedCopyN(other.Data(), to, other._size);
+                        });
+          }
 
-               const bool sbo = other.UseSBO();
-               if (sbo) UCopyN(other.begin(), reinterpret_cast<TElement*>(_buffer.sbo), _size);
-               else
-               {
-                    const std::size_t cap = other._buffer.noSbo.capacity;
-                    _buffer.noSbo.capacity = cap;
-                    TAllocator allocator{};
-                    _buffer.noSbo.begin = allocator.allocate(cap);
-                    UCopyN(other._buffer.noSbo.begin, this->_buffer.noSbo.begin, _size);
-               }
+          SBOVector(SBOVector&& other) noexcept(std::is_nothrow_move_constructible_v<TElement>)
+              : _allocator(std::move(other._allocator))
+          {
+               StealFrom(other);
           }
 
           SBOVector& operator=(const SBOVector& other)
           {
+               static_assert(std::is_copy_constructible_v<TElement>);
                if (this == &other) return *this;
 
-               this->~SBOVector();
-               new (this) SBOVector(other);
-               return *this;
-          }
-          SBOVector(SBOVector&& other) noexcept : _size(std::exchange(other._size, 0))
-          {
-               if (UseSBO()) UMoveN(other.begin(), this->begin(), this->_size);
+               const std::size_t count = other._size;
+               if (count <= this->_capacity)
+               {
+                    Clear();
+                    sboDetail::UninitialisedCopyN(other.Data(), Data(), count);
+                    this->_size = static_cast<TSize>(count);
+               }
                else
-                    this->_buffer.noSbo = std::exchange(other._buffer.noSbo, NoSBO{});
-          }
-          SBOVector& operator=(SBOVector&& other) noexcept
-          {
-               if (this == &other) return *this;
-
-               this->~SBOVector();
-               new (this) SBOVector(std::move(other));
+               {
+                    Heap block{this->_allocator, this->_allocator.allocate(count), count};
+                    sboDetail::UninitialisedCopyN(other.Data(), block.pointer, count);
+                    ReleaseAll();
+                    this->_storage.heap = block.pointer;
+                    this->_capacity = static_cast<TSize>(count);
+                    this->_size = static_cast<TSize>(count);
+                    block.Release();
+               }
                return *this;
           }
+
+          SBOVector& operator=(SBOVector&& other) noexcept(std::is_nothrow_move_constructible_v<TElement>)
+          {
+               if (this == &other) return *this;
+               ReleaseAll();
+               StealFrom(other);
+               return *this;
+          }
+
           ~SBOVector(void)
           {
-               const auto* first = begin();
-               for (std::size_t i = 0; i < _size; i++) std::destroy_at(const_cast<TElement*>(first + i));
-               if (!UseSBO())
-               {
-                    TAllocator allocator{};
-                    allocator.deallocate(_buffer.noSbo.begin, _buffer.noSbo.capacity);
-               }
+               ReleaseAll();
           }
 
-          TElement* begin(void) // NOLINT(readability-identifier-naming)
+          [[nodiscard]] TElement* Data(void) noexcept
           {
-               if (UseSBO())
-                    return std::launder(
-                         reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                 // modernize-avoid-c-arrays)
-                              this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
-               return this->_buffer.noSbo.begin;
+               return IsInline() ? InlinePtr() : this->_storage.heap;
+          }
+          [[nodiscard]] const TElement* Data(void) const noexcept
+          {
+               return IsInline() ? InlinePtr() : this->_storage.heap;
           }
 
-          const TElement* begin(void) const // NOLINT(readability-identifier-naming)
+          [[nodiscard]] TElement* begin(void) noexcept // NOLINT(readability-identifier-naming)
           {
-               if (UseSBO())
-                    return std::launder(
-                         reinterpret_cast<const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                       // modernize-avoid-c-arrays)
-                              this->_buffer.sbo)); // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
-               return this->_buffer.noSbo.begin;
+               return Data();
+          }
+          [[nodiscard]] const TElement* begin(void) const noexcept // NOLINT(readability-identifier-naming)
+          {
+               return Data();
+          }
+          [[nodiscard]] TElement* end(void) noexcept // NOLINT(readability-identifier-naming)
+          {
+               return Data() + this->_size;
+          }
+          [[nodiscard]] const TElement* end(void) const noexcept // NOLINT(readability-identifier-naming)
+          {
+               return Data() + this->_size;
           }
 
-          TElement* end(void) // NOLINT(readability-identifier-naming)
+          [[nodiscard]] TElement& operator[](std::size_t index) noexcept
           {
-               return UseSBO()
-                           ? std::launder(
-                                  this->_size +
-                                  reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                          // modernize-avoid-c-arrays)
-                                       this->_buffer.sbo))
-                           : (this->begin() + this->_size);
+               return Data()[index];
+          }
+          [[nodiscard]] const TElement& operator[](std::size_t index) const noexcept
+          {
+               return Data()[index];
+          }
+          [[nodiscard]] TElement& Front(void) noexcept
+          {
+               return *Data();
+          }
+          [[nodiscard]] const TElement& Front(void) const noexcept
+          {
+               return *Data();
+          }
+          [[nodiscard]] TElement& Back(void) noexcept
+          {
+               return Data()[this->_size - 1];
+          }
+          [[nodiscard]] const TElement& Back(void) const noexcept
+          {
+               return Data()[this->_size - 1];
           }
 
-          const TElement* end(void) const // NOLINT(readability-identifier-naming)
+          [[nodiscard]] constexpr std::size_t Size(void) const noexcept
           {
-               return UseSBO()
-                           ? std::launder(this->_size +
-                                          reinterpret_cast<
-                                               const TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                            // modernize-avoid-c-arrays)
-                                               this->_buffer.sbo))
-                           : (this->begin() + this->_size);
+               return this->_size;
           }
+          [[nodiscard]] constexpr std::size_t Capacity(void) const noexcept
+          {
+               return this->_capacity;
+          }
+          [[nodiscard]] constexpr bool Empty(void) const noexcept
+          {
+               return this->_size == 0;
+          }
+          [[nodiscard]] constexpr bool UseSBO(void) const noexcept
+          {
+               return IsInline();
+          }
+
+          void Reserve(std::size_t capacity)
+          {
+               if (capacity <= this->_capacity) return;
+               if (capacity > MaxSize) sboDetail::Fail("ecpps::SBOVector: capacity exceeds maximum size");
+               GrowTo(capacity);
+          }
+
           template <typename... TArgs> TElement& EmplaceBack(TArgs&&... args)
           {
-               const bool wasSBO = UseSBO();
+               if (this->_size == this->_capacity) [[unlikely]]
+                    return EmplaceBackSlow(std::forward<TArgs>(args)...);
+
+               TElement* slot = Data() + this->_size;
+               sboDetail::ConstructAt(slot, std::forward<TArgs>(args)...);
                this->_size++;
-
-               if (!UseSBO())
-               {
-                    TAllocator allocator{};
-                    if (wasSBO)
-                    {
-                         const std::size_t cap = SBOSize * 2;
-                         TElement* newBuffer = allocator.allocate(cap);
-                         for (std::size_t i = 0; i < SBOSize; i++)
-                         {
-                              new (newBuffer + i)
-                                   TElement(std::move(reinterpret_cast<TElement*>(this->_buffer.sbo)[i]));
-                              reinterpret_cast<TElement*>(this->_buffer.sbo)[i].~TElement();
-                         }
-                         _buffer.noSbo.begin = newBuffer;
-                         _buffer.noSbo.capacity = cap;
-
-                         return *std::construct_at(newBuffer + SBOSize, std::forward<TArgs>(args)...);
-                    }
-
-                    if (_buffer.noSbo.capacity < _size)
-                    {
-                         const std::size_t oldCap = _buffer.noSbo.capacity;
-                         const std::size_t newCap = oldCap * 2;
-                         TElement* newBuf = allocator.allocate(newCap);
-
-                         UMoveN(_buffer.noSbo.begin, newBuf, _size - 1);
-
-                         for (std::size_t i = 0; i < _size - 1; i++) _buffer.noSbo.begin[i].~TElement();
-
-                         allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
-                         _buffer.noSbo.capacity = newCap;
-                    }
-
-                    return *std::construct_at(_buffer.noSbo.begin + (_size - 1), std::forward<TArgs>(args)...);
-               }
-
-               return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + (_size - 1),
-                                         std::forward<TArgs>(args)...);
+               return *slot;
           }
+
           TElement& Push(const TElement& value)
           {
-               const bool wasSBO = UseSBO();
-               const std::size_t index = this->_size++;
-               if (!UseSBO())
-               {
-                    TAllocator allocator{};
-                    if (wasSBO)
-                    {
-                         const std::size_t cap = SBOSize * 2;
-                         TElement* newBuf = allocator.allocate(cap);
-                         UMoveN(reinterpret_cast<TElement*>(_buffer.sbo), newBuf, SBOSize);
-                         _buffer.noSbo.begin = newBuf;
-                         _buffer.noSbo.capacity = cap;
-
-                         return *std::construct_at(newBuf + SBOSize, value);
-                    }
-
-                    if (this->_buffer.noSbo.capacity < this->_size)
-                    {
-                         const std::size_t oldCap = this->_buffer.noSbo.capacity;
-                         const std::size_t newCap = oldCap * 2;
-                         TElement* newBuf = allocator.allocate(newCap);
-                         UMoveN(this->_buffer.noSbo.begin, newBuf, index);
-                         for (std::size_t i = 0; i < index; i++)
-                         {
-                              std::destroy_at(this->_buffer.noSbo.begin + i);
-                         }
-                         allocator.deallocate(std::exchange(_buffer.noSbo.begin, newBuf), oldCap);
-                         this->_buffer.noSbo.capacity = newCap;
-                    }
-
-                    return *std::construct_at(_buffer.noSbo.begin + index, value);
-               }
-               return *std::construct_at(
-                    std::launder(reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                         // modernize-avoid-c-arrays)
-                         this->_buffer.sbo)) +
-                         index,
-                    value);
+               return EmplaceBack(value);
           }
 
           TElement& Push(TElement&& value)
           {
-               const bool wasSBO = UseSBO();
-               const std::size_t index = this->_size++;
-               if (!UseSBO())
-               {
-                    TAllocator allocator{};
-                    if (wasSBO)
-                    {
-                         const std::size_t cap = SBOSize * 2;
-                         TElement* newBuf = allocator.allocate(cap);
-                         TElement* sboPtr = std::launder(
-                              reinterpret_cast<TElement(&)[SBOSize]>( // NOLINT(cppcoreguidelines-avoid-c-arrays,
-                                                                      // modernize-avoid-c-arrays)
-                                   _buffer.sbo));
-
-                         for (std::size_t i = 0; i < index; i++)
-                         {
-                              new (&newBuf[i]) auto(std::move(sboPtr[i]));
-                              sboPtr[i].~TElement();
-                         }
-
-                         this->_buffer.noSbo.begin = newBuf;
-                         this->_buffer.noSbo.capacity = cap;
-
-                         return *std::construct_at(newBuf + SBOSize, std::move(value));
-                    }
-
-                    if (this->_buffer.noSbo.capacity < _size)
-                    {
-                         const std::size_t oldCap = this->_buffer.noSbo.capacity;
-                         const std::size_t newCap = oldCap * 2;
-                         TElement* newBuf = allocator.allocate(newCap);
-
-                         UMoveN(this->_buffer.noSbo.begin, newBuf, index);
-                         for (std::size_t i = 0; i < index; i++) this->_buffer.noSbo.begin[i].~TElement();
-
-                         allocator.deallocate(std::exchange(this->_buffer.noSbo.begin, newBuf), oldCap);
-                         this->_buffer.noSbo.capacity = newCap;
-                         this->_buffer.noSbo.begin = newBuf;
-                    }
-
-                    return *std::construct_at(_buffer.noSbo.begin + index, std::move(value));
-               }
-               return *std::construct_at(reinterpret_cast<TElement*>(_buffer.sbo) + index, std::move(value));
+               return EmplaceBack(std::move(value));
           }
 
-          constexpr std::size_t Size(void) const noexcept
+          void PopBack(void) noexcept
           {
-               return this->_size;
+               Data()[--_size].~TElement();
           }
-          constexpr bool UseSBO(void) const noexcept
+
+          void Clear(void) noexcept
           {
-               return this->_size <= SBOSize;
+               sboDetail::DestroyN(Data(), this->_size);
+               this->_size = 0;
           }
 
      private:
-          BufferUnion _buffer;
-          std::size_t _size{};
+          [[nodiscard]] constexpr bool IsInline(void) const noexcept
+          {
+               return this->_capacity == TInlineCapacity;
+          }
+
+          [[nodiscard]] TElement* InlinePtr(void) noexcept
+          {
+               return reinterpret_cast<TElement*>(this->_storage.inlineStorage);
+          }
+          [[nodiscard]] const TElement* InlinePtr(void) const noexcept
+          {
+               return reinterpret_cast<const TElement*>(this->_storage.inlineStorage);
+          }
+
+          void InitWith(std::size_t count, auto&& fill)
+          {
+               if (count > MaxSize) sboDetail::Fail("ecpps::SBOVector: size exceeds maximum size");
+
+               if (count > TInlineCapacity)
+               {
+                    Heap block{_allocator, this->_allocator.allocate(count), count};
+                    fill(block.pointer);
+                    this->_storage.heap = block.pointer;
+                    this->_capacity = static_cast<TSize>(count);
+                    block.Release();
+               }
+               else
+                    fill(InlinePtr());
+
+               this->_size = static_cast<TSize>(count);
+          }
+
+          void ReleaseAll(void) noexcept
+          {
+               sboDetail::DestroyN(Data(), this->_size);
+               if (!IsInline()) this->_allocator.deallocate(this->_storage.heap, this->_capacity);
+               this->_size = 0;
+               this->_capacity = static_cast<TSize>(TInlineCapacity);
+          }
+
+          void StealFrom(SBOVector& other) noexcept(std::is_nothrow_move_constructible_v<TElement>)
+          {
+               if (other.IsInline())
+               {
+                    sboDetail::RelocateN<false>(other.InlinePtr(), InlinePtr(), other._size);
+                    this->_size = other._size;
+                    other._size = 0;
+               }
+               else
+               {
+                    this->_storage.heap = other._storage.heap;
+                    this->_size = other._size;
+                    this->_capacity = other._capacity;
+                    other._size = 0;
+                    other._capacity = static_cast<TSize>(TInlineCapacity);
+               }
+          }
+
+          [[nodiscard]] std::size_t NextCapacity(std::size_t required) const
+          {
+               if (required > MaxSize) sboDetail::Fail("ecpps::SBOVector: size exceeds maximum size");
+               const std::size_t cap = this->_capacity;
+               const std::size_t doubled = cap > MaxSize - cap ? MaxSize : cap * 2;
+               return doubled > required ? doubled : required;
+          }
+
+          void GrowTo(std::size_t newCapacity)
+          {
+               Heap block{this->_allocator, this->_allocator.allocate(newCapacity), newCapacity};
+               sboDetail::RelocateN<true>(Data(), block.pointer, this->_size);
+               if (!IsInline()) this->_allocator.deallocate(this->_storage.heap, this->_capacity);
+               this->_storage.heap = block.pointer;
+               this->_capacity = static_cast<TSize>(newCapacity);
+               block.Release();
+          }
+
+          template <typename... TArgs> TElement& EmplaceBackSlow(TArgs&&... args)
+          {
+               const std::size_t newCapacity = NextCapacity(std::size_t{_size} + 1);
+               Heap block{_allocator, this->_allocator.allocate(newCapacity), newCapacity};
+
+               TElement* slot = block.pointer + this->_size;
+               sboDetail::ConstructAt(slot, std::forward<TArgs>(args)...);
+               sboDetail::RangeGuard<TElement> slotGuard{slot, 1};
+
+               sboDetail::RelocateN<true>(Data(), block.pointer, this->_size);
+               slotGuard.count = 0;
+
+               if (!IsInline()) this->_allocator.deallocate(this->_storage.heap, this->_capacity);
+               this->_storage.heap = block.pointer;
+               this->_capacity = static_cast<TSize>(newCapacity);
+               this->_size++;
+               block.Release();
+               return *slot;
+          }
+
+          Storage _storage;
+          TSize _size{0};
+          TSize _capacity{static_cast<TSize>(TInlineCapacity)};
+          ECPPS_SBO_NO_UNIQUE_ADDRESS TAllocator _allocator{};
      };
 } // namespace ecpps
