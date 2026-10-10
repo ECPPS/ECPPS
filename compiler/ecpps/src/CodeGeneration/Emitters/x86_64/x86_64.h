@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 #include "../../CodeEmitter.h"
 #include "../../Nodes.h"
@@ -16,6 +17,12 @@ namespace ecpps::codegen::emitters
           MemoryToRegister,
           ImmediateToRegister,
           ImmediateToMemory,
+     };
+     struct JumpPatch
+     {
+          std::size_t instructionOffset{};
+          std::size_t length{};
+          std::size_t labelId{};
      };
 
      class X8664Emitter final : public CodeEmitter
@@ -50,7 +57,13 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitMovzx(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitCall(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitLea(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitJmp(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitLabel(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitCmp(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitJcc(const ir::abstract::DynamicBytecode& description);
 
           std::vector<std::size_t> _callPatches{};
+          std::vector<JumpPatch> _jumpPatches{};
+          std::unordered_map<std::size_t, std::size_t> _labelOffsets{};
      };
 } // namespace ecpps::codegen::emitters

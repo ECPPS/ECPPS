@@ -28,6 +28,26 @@ constexpr bool IsAligned(const std::size_t value, const std::size_t alignment)
      return (value & (alignment - 1)) == 0;
 }
 
+static ecpps::ir::abstract::ConditionCode ToConditionCode(const ecpps::ir::ComparisonPredicate predicate)
+{
+     using enum ecpps::ir::ComparisonPredicate;
+     using ecpps::ir::abstract::ConditionCode;
+     switch (predicate)
+     {
+     case Equal: return ConditionCode::Equal;
+     case NotEqual: return ConditionCode::NotEqual;
+     case SignedLess: return ConditionCode::Less;
+     case SignedLessEqual: return ConditionCode::LessEqual;
+     case SignedGreater: return ConditionCode::Greater;
+     case SignedGreaterEqual: return ConditionCode::GreaterEqual;
+     case UnsignedLess: return ConditionCode::Below;
+     case UnsignedLessEqual: return ConditionCode::BelowEqual;
+     case UnsignedGreater: return ConditionCode::Above;
+     case UnsignedGreaterEqual: return ConditionCode::AboveEqual;
+     }
+     throw TracedException("Unmapped comparison predicate");
+}
+
 std::uint32_t ecpps::codegen::AssemblyContext::ReserveNextStringEntry(void) noexcept
 {
      static std::atomic<std::uint32_t> next = 0;
@@ -49,6 +69,12 @@ std::size_t ecpps::codegen::ParsingContext::CallFunctionIndex(const ir::Function
 void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
+     if (this->pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               "Materialising a comparison result outside of a branch is not supported yet", node->Source()));
+          this->pendingCompare.reset();
+     }
 
      try
      {
@@ -191,6 +217,39 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                const auto* addressOfNode = dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node);
                runtime_assert(addressOfNode != nullptr, "Address-of was not an address-of!");
                this->ParseAddressOfNode(*addressOfNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Label:
+          {
+               if (const auto* gotoNode = dynamic_cast<const ecpps::ir::SSAGotoNode*>(node))
+               {
+                    this->ParseGotoNode(*gotoNode);
+                    break;
+               }
+               const auto* labelNode = dynamic_cast<const ecpps::ir::SSALabelNode*>(node);
+               runtime_assert(labelNode != nullptr, "Not a label!");
+               this->ParseLabelNode(*labelNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Jump:
+          {
+               const auto* gotoNode = dynamic_cast<const ecpps::ir::SSAGotoNode*>(node);
+               runtime_assert(gotoNode != nullptr, "Jump node was not a jump!");
+               this->ParseGotoNode(*gotoNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Compare:
+          {
+               const auto* compareNode = dynamic_cast<const ecpps::ir::SSACompareNode*>(node);
+               runtime_assert(compareNode != nullptr, "Compare node was not a compare!");
+               this->ParseCompareNode(*compareNode);
+          }
+          break;
+          case ecpps::ir::NodeKind::Branch:
+          {
+               const auto* branchNode = dynamic_cast<const ecpps::ir::SSABranchNode*>(node);
+               runtime_assert(branchNode != nullptr, "Branch node was not a branch!");
+               this->ParseBranchNode(*branchNode);
           }
           break;
           default:
@@ -745,6 +804,166 @@ void ecpps::codegen::ParsingContext::ParseAddressOfNode(const ir::SSAAddressOfNo
      };
      this->instructions.push_back(instruction);
 }
+
+std::size_t ecpps::codegen::ParsingContext::LabelId(const std::string& name)
+{
+     const auto [it, inserted] = this->labelIds.try_emplace(name, this->nextLabelId);
+     if (inserted) ++this->nextLabelId;
+     return it->second;
+}
+void ecpps::codegen::ParsingContext::PlaceLabel(const std::size_t id)
+{
+     this->instructions.push_back(
+          {.type = ir::abstract::VirtualInstructionType::Label, .operands = {ir::abstract::VirtualRegister{id}}});
+}
+void ecpps::codegen::ParsingContext::EmitJump(const std::size_t id)
+{
+     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::UnconditionalJump,
+                                   .operands = {ir::abstract::VirtualRegister{id}}});
+}
+void ecpps::codegen::ParsingContext::EmitCompareAndJump(const ir::abstract::ConditionCode cc,
+                                                        const ir::abstract::VirtualRegister lhs,
+                                                        const ir::abstract::VirtualRegister rhs, const std::size_t id)
+{
+     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::CompareAndJump,
+                                   .operands = {lhs, rhs, ir::abstract::VirtualRegister{static_cast<std::size_t>(cc)},
+                                                ir::abstract::VirtualRegister{id}}});
+}
+
+void ecpps::codegen::ParsingContext::ParseLabelNode(const ir::SSALabelNode& node)
+{
+     const auto id = this->LabelId(std::string{node.Name()});
+     if (!this->definedLabels.insert(id).second)
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("Duplicate label '{}'", node.Name()), node.Source()));
+          return;
+     }
+     this->PlaceLabel(id);
+}
+void ecpps::codegen::ParsingContext::ParseGotoNode(const ir::SSAGotoNode& node)
+{
+     const auto id = this->LabelId(std::string{node.Name()});
+     this->gotoReferences.try_emplace(id, &node);
+     this->EmitJump(id);
+}
+
+void ecpps::codegen::ParsingContext::FinaliseControlFlow(bool optimiseDeadJumps)
+{
+     using Type = ir::abstract::VirtualInstructionType;
+     constexpr auto None = std::numeric_limits<std::size_t>::max();
+
+     for (const auto& [id, node] : this->gotoReferences)
+          if (!this->definedLabels.contains(id))
+               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+                    std::format("Undefined label '{}'", node->Name()), node->Source()));
+
+     const auto targetOf = [](const ir::abstract::VirtualInstruction& i) -> std::size_t
+     {
+          if (i.type == Type::UnconditionalJump) return i.operands[0].index;
+          if (i.type == Type::CompareAndJump) return i.operands[3].index;
+          return None;
+     };
+
+     if (!optimiseDeadJumps)
+     {
+          std::erase_if(this->instructions,
+                        [&](const ir::abstract::VirtualInstruction& i)
+                        {
+                             const auto t = targetOf(i);
+                             return t != None && !this->definedLabels.contains(t);
+                        });
+          return;
+     }
+
+     auto& code = this->instructions;
+     bool changed = true;
+     for (int pass = 0; changed && pass < 8; pass++)
+     {
+          changed = false;
+          const auto count = code.size();
+
+          std::unordered_map<std::size_t, std::size_t> position{};
+          for (std::size_t i = 0; i < count; i++)
+               if (code[i].type == Type::Label) position[code[i].operands[0].index] = i;
+
+          const auto skipLabels = [&](std::size_t i)
+          {
+               while (i < count && code[i].type == Type::Label) i++;
+               return i;
+          };
+
+          std::vector<bool> dead(count, false);
+
+          for (std::size_t i = 0; i < count; i++)
+          {
+               const auto original = targetOf(code[i]);
+               if (original == None) continue;
+               if (!position.contains(original))
+               {
+                    dead[i] = true;
+                    continue;
+               }
+               auto targetIndex = original;
+               for (int hops = 0; hops < 32; hops++)
+               {
+                    const auto next = skipLabels(position[targetIndex]);
+                    if (next >= count || code[next].type != Type::UnconditionalJump) break;
+                    const auto onward = targetOf(code[next]);
+                    if (onward == targetIndex || !position.contains(onward)) break;
+                    targetIndex = onward;
+               }
+               if (targetIndex == original) continue;
+               code[i].operands[code[i].type == Type::UnconditionalJump ? 0 : 3] =
+                    ir::abstract::VirtualRegister{targetIndex};
+               changed = true;
+          }
+
+          for (std::size_t i = 0; i < count; i++)
+          {
+               const auto targetIndex = targetOf(code[i]);
+               if (targetIndex == None || dead[i]) continue;
+               for (std::size_t j = i + 1; j < count && code[j].type == Type::Label; j++)
+                    if (code[j].operands[0].index == targetIndex)
+                    {
+                         dead[i] = true;
+                         break;
+                    }
+          }
+
+          std::unordered_map<std::size_t, std::size_t> references{};
+          for (std::size_t i = 0; i < count; i++)
+               if (!dead[i] && targetOf(code[i]) != None) references[targetOf(code[i])]++;
+
+          bool unreachable = false;
+          for (std::size_t i = 0; i < count; i++)
+          {
+               if (code[i].type == Type::Label)
+               {
+                    if (!references.contains(code[i].operands[0].index)) dead[i] = true;
+                    else
+                         unreachable = false;
+                    continue;
+               }
+               if (unreachable) dead[i] = true;
+               if (dead[i]) continue;
+               if (code[i].type == Type::Return || code[i].type == Type::UnconditionalJump) unreachable = true;
+          }
+
+          std::size_t write = 0;
+          for (std::size_t read = 0; read < count; read++)
+          {
+               if (dead[read])
+               {
+                    changed = true;
+                    continue;
+               }
+               if (write != read) code[write] = std::move(code[read]);
+               write++;
+          }
+          code.erase(code.begin() + static_cast<std::ptrdiff_t>(write), code.end());
+     }
+}
 std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ssaIndex, const std::size_t width,
                                                             AllocationDescriptor::Type type)
 {
@@ -762,7 +981,7 @@ void ecpps::codegen::ParsingContext::DereferenceSSA(const std::size_t ssaIndex)
 
 static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ecpps::ir::ProcedureNode& node,
                               ecpps::abi::api::Target* target,
-                              std::vector<ecpps::diagnostics::DiagnosticsMessage>& diagnostics)
+                              std::vector<ecpps::diagnostics::DiagnosticsMessage>& diagnostics, bool optimiseJumps)
 {
      auto& currentAbi = ecpps::abi::ABI::Current();
 
@@ -789,6 +1008,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      {
           parseContext.ParseNode(line.get());
      }
+     parseContext.FinaliseControlFlow(optimiseJumps);
 
      diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 
@@ -821,9 +1041,52 @@ void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, S
           target->registerMap->Reset();
           ir::CreateReferenceMap(*target->registerMap, proc->Body()); // per routine, not global
 
-          auto routine = CompileRoutine(context, *proc, target, source.diagnostics.diagnosticsList);
+          auto routine = CompileRoutine(context, *proc, target, source.diagnostics.diagnosticsList,
+                                        config.optimisations.IsEnabled(Optimisation::OptimiseDeadJumps));
           routine.registerState = *target->registerMap;
           source.compiledRoutines.push_back(std::move(routine));
      }
      config.stringArray = context.GetStringSection();
+}
+void ecpps::codegen::ParsingContext::ParseCompareNode(const ir::SSACompareNode& node)
+{
+     const auto lhsSsa = node.Left().Index();
+     const auto rhsSsa = node.Right().Index();
+
+     const auto lhsVirtual = this->virtualRegisterAllocationMap.FindVirtualBySSA(lhsSsa);
+     const auto rhsVirtual = this->virtualRegisterAllocationMap.FindVirtualBySSA(rhsSsa);
+
+     runtime_assert(this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(lhsVirtual).width ==
+                         this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(rhsVirtual).width,
+                    "Widths don't match in a comparison");
+
+     this->pendingCompare = PendingCompare{.resultSsa = node.Result().Index(),
+                                           .lhsSsa = lhsSsa,
+                                           .rhsSsa = rhsSsa,
+                                           .lhsVirtual = lhsVirtual,
+                                           .rhsVirtual = rhsVirtual,
+                                           .cc = ToConditionCode(node.Predicate())};
+}
+
+void ecpps::codegen::ParsingContext::ParseBranchNode(const ir::SSABranchNode& node)
+{
+     if (!this->pendingCompare.has_value() || this->pendingCompare->resultSsa != node.Condition().Index())
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               "A branch condition must be produced by the comparison immediately preceding it", node.Source()));
+          this->pendingCompare.reset();
+          return;
+     }
+
+     const auto pending = *std::exchange(this->pendingCompare, std::nullopt);
+
+     const auto trueId = this->LabelId(node.TrueLabel());
+     const auto falseId = this->LabelId(node.FalseLabel());
+
+     this->DereferenceSSA(pending.lhsSsa);
+     this->DereferenceSSA(pending.rhsSsa);
+
+     this->EmitCompareAndJump(ir::abstract::Invert(pending.cc), ir::abstract::VirtualRegister{pending.lhsVirtual},
+                              ir::abstract::VirtualRegister{pending.rhsVirtual}, falseId);
+     this->EmitJump(trueId);
 }

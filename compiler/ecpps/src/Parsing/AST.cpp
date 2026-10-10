@@ -4,7 +4,10 @@
 #include <ranges>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 #include "ASTs/Type.h"
+#include "Parsing/Tokeniser.h"
+#include "Shared/Error.h"
 
 ecpps::ast::Node::~Node(void) = default;
 
@@ -1694,19 +1697,62 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
 
 NodePointer ecpps::ast::AST::ParseRelationalExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseCompareExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               const auto& operatorr = currentToken.AsOperator();
+               if (operatorr == "<" || operatorr == ">" || operatorr == "<=" || operatorr == ">=")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = operatorr == "<"    ? Operator::Less
+                                            : operatorr == ">"  ? Operator::Greater
+                                            : operatorr == "<=" ? Operator::LessEqual
+                                                                : Operator::GreaterEqual;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseCompareExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
 NodePointer ecpps::ast::AST::ParseEqualityExpression(ASTContext& context)
 {
-     [[maybe_unused]] auto currentToken = this->Peek();
-     [[maybe_unused]] auto source = currentToken.location;
+     auto currentToken = this->Peek();
+     auto source = currentToken.location;
 
      auto expression = ParseRelationalExpression(context);
+     while (true)
+     {
+          currentToken = this->Peek();
+          if (currentToken.type == TokenType::Operator)
+          {
+               const auto& operatorr = currentToken.AsOperator();
+               if (operatorr == "==" || operatorr == "!=")
+               {
+                    Advance();
+                    source.endPosition = currentToken.location.endPosition;
+                    const auto operatorId = operatorr == "==" ? Operator::EqualsSign : Operator::NotEqual;
+                    expression =
+                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                              std::move(expression), operatorId, ParseRelationalExpression(context), source));
+                    continue;
+               }
+          }
+
+          break;
+     }
      return expression;
 }
 
@@ -1857,6 +1903,11 @@ NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
      auto expression = ParseAssignmentExpression(context);
      return expression;
 }
+NodePointer ecpps::ast::AST::ParseCondition(ASTContext& context)
+{
+     // TODO: decl-specifier-seq declarator brace-or-equal-initializer
+     return ParseExpression(context);
+}
 
 #ifdef __clang__
 #pragma GCC diagnostic pop
@@ -1865,23 +1916,97 @@ NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
 NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
 {
      auto source = this->Peek().location;
-     if (Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "return")
+     if (Peek().type == TokenType::Identifier && Peek(1).type == TokenType::Colon)
      {
+          const auto& name = std::get<std::string>(Peek().value);
           Advance();
-          if (Match(TokenType::SemiColon))
-               return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context) ReturnNode(nullptr, source));
-          auto value = ParseExpression(context);
-          source.endPosition = Peek().location.endPosition;
-          if (!Match(TokenType::SemiColon))
+          Advance();
+
+          return std::unique_ptr<LabelNode, ecpps::ast::ASTDeleter>(new (context) LabelNode(name, source));
+     }
+     if (Peek().type == TokenType::Keyword)
+     {
+          if (std::get<std::string>(Peek().value) == "goto" && Peek(1).type == TokenType::Identifier)
           {
-               // TODO: Error
-               return nullptr;
+               Advance();
+               const auto& name = std::get<std::string>(Peek().value);
+               Advance();
+               if (!Match(TokenType::SemiColon))
+               {
+                    // TODO: Error
+                    return nullptr;
+               }
+
+               return std::unique_ptr<GotoNode, ecpps::ast::ASTDeleter>(new (context) GotoNode(name, source));
           }
-          return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
-                                                                          ReturnNode(std::move(value), source));
+          if (std::get<std::string>(Peek().value) == "return")
+          {
+
+               Advance();
+               if (Match(TokenType::SemiColon))
+                    return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                                    ReturnNode(nullptr, source));
+               auto value = ParseExpression(context);
+               source.endPosition = Peek().location.endPosition;
+               if (!Match(TokenType::SemiColon))
+               {
+                    // TODO: Error
+                    return nullptr;
+               }
+               return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
+                                                                               ReturnNode(std::move(value), source));
+          }
+          if (std::get<std::string>(Peek().value) == "if")
+          {
+
+               Advance();
+               return ParseIfStatement(context);
+          }
      }
      if (IsDeclarationStart(context)) return ParseDeclarationStatement(context);
      return ParseExpressionStatement(context);
+}
+NodePointer ecpps::ast::AST::ParseIfStatement(ASTContext& context)
+{
+     auto source = this->Peek().location;
+
+     bool hadLeftParen = true;
+     if (!Match(TokenType::LeftParenthesis))
+     {
+          hadLeftParen = false;
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing left parenthesis", source));
+     }
+     auto condition = ParseCondition(context);
+     if (!Match(TokenType::RightParenthesis))
+     {
+          auto diagnostic =
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing right parenthesis", source);
+          if (!hadLeftParen)
+               diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                    "hint", "The condition needs to be parenthesised", source));
+          this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+     }
+     std::vector<NodePointer> body{};
+     std::vector<NodePointer> elseBody{};
+
+     if (Match(TokenType::LeftBrace))
+          while (!Match(TokenType::RightBrace)) body.emplace_back(ParseStatement(context));
+     else
+          body.emplace_back(ParseStatement(context));
+
+     if (Peek().type == TokenType::Keyword && Peek().AsKeyword() == "else")
+     {
+          Advance();
+          if (Match(TokenType::LeftBrace))
+               while (!Match(TokenType::RightBrace)) elseBody.emplace_back(ParseStatement(context));
+          else
+               elseBody.emplace_back(ParseStatement(context));
+     }
+
+     source.endPosition = Peek(-1).location.endPosition;
+     return std::unique_ptr<IfStatementNode, ecpps::ast::ASTDeleter>(
+          new (context) IfStatementNode(std::move(condition), std::move(body), std::move(elseBody), source));
 }
 
 NodePointer ecpps::ast::AST::ParseExpressionStatement(ASTContext& context)

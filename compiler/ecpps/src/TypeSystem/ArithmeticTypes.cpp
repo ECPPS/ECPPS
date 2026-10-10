@@ -46,6 +46,11 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
 {
      if (other == nullptr) return ConversionSequence{std::nullopt};
      SBOVector<ConversionSequence::ConversionKind> sequence{};
+     if (IsBoolean(other))
+     {
+          sequence.Push(ConversionSequence::ConversionKind::BooleanConversion);
+          return ConversionSequence{sequence};
+     }
 
      if (IsIntegral(other))
      {
@@ -133,6 +138,19 @@ std::string ecpps::typeSystem::CharacterType::RawName(void) const noexcept
      else
           built += this->Sign() == Signedness::Signed ? "signed char" : "unsigned char";
      return built;
+}
+
+std::string ecpps::typeSystem::BooleanType::RawName(void) const noexcept
+{
+     std::string built{};
+     if (this->IsConst()) built += "const ";
+     if (this->IsVolatile()) built += "volatile ";
+     built += "bool";
+     return built;
+}
+std::size_t ecpps::typeSystem::BooleanType::Width(void) const noexcept
+{
+     return 1;
 }
 
 // predefined builtin types
@@ -237,6 +255,7 @@ std::size_t ecpps::typeSystem::PointerType::Alignment(void) const noexcept
 
 ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(NonowningTypePointer other) const
 {
+     // TODO: boolean conversions!
      if (IsArray(other))
      {
           const auto* const otherArray = other->CastTo<ArrayType>();

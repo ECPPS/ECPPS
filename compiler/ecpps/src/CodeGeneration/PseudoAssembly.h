@@ -176,6 +176,7 @@ namespace ecpps::codegen
           std::vector<AllocationDescriptor> _descriptorArray{};
           std::vector<Index> _ssaByVirtual{};
      };
+
      struct AssemblyContext;
      struct ParsingContext
      {
@@ -210,6 +211,23 @@ namespace ecpps::codegen
           void ParseParameterStoreNode(const ir::ParameterNode& node);
           void ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node);
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
+          void ParseLabelNode(const ir::SSALabelNode& node);
+          void ParseGotoNode(const ir::SSAGotoNode& node);
+          std::unordered_map<std::string, std::size_t> labelIds{};
+          std::unordered_map<std::size_t, const ir::SSAGotoNode*> gotoReferences{};
+          std::unordered_set<std::size_t> definedLabels{};
+          std::size_t nextLabelId{};
+
+          [[nodiscard]] std::size_t NewLabel(void) noexcept
+          {
+               return this->nextLabelId++;
+          }
+          [[nodiscard]] std::size_t LabelId(const std::string& name);
+          void PlaceLabel(std::size_t id);
+          void EmitJump(std::size_t id);
+          void EmitCompareAndJump(ir::abstract::ConditionCode cc, ir::abstract::VirtualRegister lhs,
+                                  ir::abstract::VirtualRegister rhs, std::size_t id);
+          void FinaliseControlFlow(bool optimiseDeadJumps);
 
           explicit ParsingContext(ecpps::abi::ABI& abi);
 
@@ -217,6 +235,20 @@ namespace ecpps::codegen
           void DereferenceSSA(std::size_t ssaIndex);
           [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t width,
                                                     AllocationDescriptor::Type type);
+
+          void ParseCompareNode(const ir::SSACompareNode& node);
+          void ParseBranchNode(const ir::SSABranchNode& node);
+
+          struct PendingCompare
+          {
+               std::size_t resultSsa{};
+               std::size_t lhsSsa{};
+               std::size_t rhsSsa{};
+               std::size_t lhsVirtual{};
+               std::size_t rhsVirtual{};
+               ir::abstract::ConditionCode cc{};
+          };
+          std::optional<PendingCompare> pendingCompare{};
      };
 
      struct AssemblyContext

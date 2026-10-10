@@ -94,6 +94,7 @@ namespace ecpps
           XorToZero,
           EncoderOptimisations,
           AggressiveEncoderOptimisations,
+          OptimiseDeadJumps,
 
           Count
      };

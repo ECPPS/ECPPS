@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "../Machine/ABI.h"
@@ -459,6 +460,81 @@ namespace ecpps::ast
           Operator _value;
           NodePointer _right;
      };
+     class IfStatementNode final : public Node
+     {
+     public:
+          explicit IfStatementNode(NodePointer condition, std::vector<NodePointer> body,
+                                   std::vector<NodePointer> elseBody, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body)), _elseBody(std::move(elseBody))
+          {
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& ElseBody(void) const noexcept
+          {
+               return this->_elseBody;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "if (" + this->_condition->ToString(0) + ")\n" +
+                       std::string(indent * PrettyIndent, ' ') + "{\n" + built +
+                       std::string(indent * PrettyIndent, ' ') + "}";
+               if (this->_elseBody.empty()) return built;
+
+               std::string elseBuilt{};
+               for (const auto& node : this->_elseBody) elseBuilt += node->ToString(indent + 1) + ";\n";
+               return built + " else {\n" + elseBuilt + std::string(indent * PrettyIndent, ' ') + "}";
+          }
+
+     private:
+          NodePointer _condition;
+          std::vector<NodePointer> _body;
+          std::vector<NodePointer> _elseBody;
+     };
+     class LabelNode final : public Node
+     {
+     public:
+          explicit LabelNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          {
+          }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + this->_name + ":";
+          }
+
+     private:
+          std::string _name;
+     };
+     class GotoNode final : public Node
+     {
+     public:
+          explicit GotoNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          {
+          }
+          [[nodiscard]] const std::string& Name(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "goto " + this->_name;
+          }
+
+     private:
+          std::string _name;
+     };
 
      class ReturnNode final : public Node
      {
@@ -775,7 +851,7 @@ namespace ecpps::ast
           {
                std::string built = std::string(indent * PrettyIndent, ' ') + "{";
                for (const auto& init : this->_initialisers)
-                    built += (init == nullptr ? std::string(indent * PrettyIndent + PrettyIndent, ' ') + "__unknown"
+                    built += (init == nullptr ? std::string((indent * PrettyIndent) + PrettyIndent, ' ') + "__unknown"
                                               : init->ToString(indent + 1)) +
                              ",";
                if (!this->_initialisers.empty()) built.pop_back(); // trailing comma
@@ -800,18 +876,18 @@ namespace ecpps::ast
           }
           bool WasSuccessful(void) const noexcept
           {
-               return this->wasSuccessful;
+               return this->_wasSuccessful;
           }
-          explicit ASTExpected(NodePointer value) : value(std::move(value)), wasSuccessful(true)
+          explicit ASTExpected(NodePointer value) : value(std::move(value)), _wasSuccessful(true)
           {
           }
           explicit ASTExpected(NodePointer value, std::vector<diagnostics::DiagnosticsMessage> diagnostics)
-              : value(std::move(value)), diagnostics(std::move(diagnostics)), wasSuccessful(false)
+              : value(std::move(value)), diagnostics(std::move(diagnostics)), _wasSuccessful(false)
           {
           }
 
      private:
-          bool wasSuccessful{};
+          bool _wasSuccessful;
      };
      class AST
      {
@@ -909,8 +985,11 @@ namespace ecpps::ast
           [[nodiscard]] NodePointer ParseAssignmentExpression(ASTContext& context);
           [[nodiscard]] NodePointer ParseExpression(ASTContext& context);
 
+          [[nodiscard]] NodePointer ParseCondition(ASTContext& context);
+
           // Statements
           NodePointer ParseStatement(ASTContext& context);
+          NodePointer ParseIfStatement(ASTContext& context);
           NodePointer ParseDeclarationStatement(ASTContext& context)
           {
                return ParseBlockDeclaration(context);
