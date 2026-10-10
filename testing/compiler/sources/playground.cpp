@@ -1,6 +1,9 @@
-#include <cstdio>
+void meow();
 
 int main()
 {
-     std::puts("meower!");
+     int x = -1;
+     if ((x) < 0) return 2;
+     else
+          return x;
 }
