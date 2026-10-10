@@ -14,7 +14,8 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLabel(
      runtime_assert(description.size() == sizeof(LabelInstruction), "Invalid LABEL instruction");
      const auto& label = *std::launder(reinterpret_cast<const LabelInstruction*>(description.data()));
 
-     const bool inserted = this->_labelOffsets.emplace(label.labelId, this->_currentInstructionBase).second;
+     [[maybe_unused]] const bool inserted =
+          this->_labelOffsets.emplace(label.labelId, this->_currentInstructionBase).second;
      runtime_assert(inserted, "Label emitted twice");
      return {};
 }
