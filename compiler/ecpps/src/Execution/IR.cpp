@@ -898,6 +898,12 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           return;
      }
 
+     if (auto* const whileNode = dynamic_cast<ast::WhileStatementNode*>(node.get()); whileNode != nullptr)
+     {
+          ParseWhileStatement(*whileNode);
+          return;
+     }
+
      if (auto* const aliasNode = dynamic_cast<ast::TypeAliasNode*>(node.get()); aliasNode != nullptr)
      {
           const auto* targetType = ParseType(aliasNode->TargetType());
@@ -2903,6 +2909,28 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
      }
 
      EmitLabel(endLabel, node.Source());
+}
+void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
+{
+     const auto preconditionLabel = MakeLabelName("if.condition");
+     EmitLabel(preconditionLabel, node.Source());
+     auto condition = ParseCondition(node.Condition());
+     if (condition == nullptr) return;
+
+     const auto* conditionReg = LowerExpressionLoaded(std::move(condition), this->_built);
+     if (conditionReg == nullptr) return;
+
+     const auto thenLabel = MakeLabelName("if.then");
+     const auto endLabel = MakeLabelName("if.end");
+     const auto& falseTarget = endLabel;
+
+     EmitBranch(conditionReg, thenLabel, falseTarget, node.Source());
+
+     EmitLabel(thenLabel, node.Source());
+     for (const auto& statement : node.Body()) ParseNode(statement);
+     EmitJump(preconditionLabel, node.Source());
+
+     EmitLabel(falseTarget, node.Source());
 }
 void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
 {
