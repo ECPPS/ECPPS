@@ -586,6 +586,30 @@ namespace ecpps::ast
      private:
           NodePointer _expression;
      };
+     class BreakNode final : public Node
+     {
+     public:
+          explicit BreakNode(Location source) : Node(source)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "break";
+          }
+     };
+     class ContinueNode final : public Node
+     {
+     public:
+          explicit ContinueNode(Location source) : Node(source)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "continue";
+          }
+     };
 
      class TypeAliasNode final : public Node
      {

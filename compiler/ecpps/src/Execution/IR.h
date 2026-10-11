@@ -103,6 +103,11 @@ namespace ecpps::ir
 
      void CreateReferenceMap(abstract::VirtualRegisterMap& map, const std::vector<NodePointer>& irNodes);
 
+     struct LoopTargets
+     {
+          std::string continueLabel;
+          std::string breakLabel;
+     };
      class IR
      {
      public:
@@ -135,6 +140,8 @@ namespace ecpps::ir
           void ParseWhileStatement(const ast::WhileStatementNode& node);
           void ParseLabelNode(const ast::LabelNode& node);
           void ParseGotoNode(const ast::GotoNode& node);
+          void ParseBreakNode(const ast::BreakNode& node);
+          void ParseContinueNode(const ast::ContinueNode& node);
 
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
@@ -209,6 +216,7 @@ namespace ecpps::ir
                                       const std::vector<Expression>& arguments);
 
           std::size_t _nextLabelIndex{};
+          std::vector<LoopTargets> _loopStack{};
 
           [[nodiscard]] Expression ParseCondition(const ast::NodePointer& condition); // already converts!!1!
           [[nodiscard]] std::string MakeLabelName(std::string_view hint);
@@ -254,6 +262,22 @@ namespace ecpps::ir
 
           private:
                [[maybe_unused]] IR& _ir;
+          };
+          struct LoopScope
+          {
+               LoopScope(IR& ir, std::string continueLabel, std::string breakLabel) : _ir(ir)
+               {
+                    this->_ir._loopStack.push_back({std::move(continueLabel), std::move(breakLabel)});
+               }
+               LoopScope(const LoopScope&) = delete;
+               LoopScope& operator=(const LoopScope&) = delete;
+               ~LoopScope()
+               {
+                    this->_ir._loopStack.pop_back();
+               }
+
+          private:
+               IR& _ir;
           };
      };
 } // namespace ecpps::ir

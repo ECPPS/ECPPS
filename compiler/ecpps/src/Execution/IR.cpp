@@ -903,6 +903,16 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           ParseWhileStatement(*whileNode);
           return;
      }
+     if (auto* const breakNode = dynamic_cast<ast::BreakNode*>(node.get()); breakNode != nullptr)
+     {
+          ParseBreakNode(*breakNode);
+          return;
+     }
+     if (auto* const continueNode = dynamic_cast<ast::ContinueNode*>(node.get()); continueNode != nullptr)
+     {
+          ParseContinueNode(*continueNode);
+          return;
+     }
 
      if (auto* const aliasNode = dynamic_cast<ast::TypeAliasNode*>(node.get()); aliasNode != nullptr)
      {
@@ -2912,25 +2922,27 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
 }
 void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
 {
-     const auto preconditionLabel = MakeLabelName("if.condition");
-     EmitLabel(preconditionLabel, node.Source());
+     const auto conditionLabel = MakeLabelName("while.cond");
+     const auto bodyLabel = MakeLabelName("while.body");
+     const auto endLabel = MakeLabelName("while.end");
+
+     EmitLabel(conditionLabel, node.Source());
      auto condition = ParseCondition(node.Condition());
      if (condition == nullptr) return;
 
      const auto* conditionReg = LowerExpressionLoaded(std::move(condition), this->_built);
      if (conditionReg == nullptr) return;
 
-     const auto thenLabel = MakeLabelName("if.then");
-     const auto endLabel = MakeLabelName("if.end");
-     const auto& falseTarget = endLabel;
+     EmitBranch(conditionReg, bodyLabel, endLabel, node.Source());
 
-     EmitBranch(conditionReg, thenLabel, falseTarget, node.Source());
+     EmitLabel(bodyLabel, node.Source());
+     {
+          const LoopScope loopScope{*this, conditionLabel, endLabel};
+          for (const auto& statement : node.Body()) ParseNode(statement);
+     }
+     EmitJump(conditionLabel, node.Source());
 
-     EmitLabel(thenLabel, node.Source());
-     for (const auto& statement : node.Body()) ParseNode(statement);
-     EmitJump(preconditionLabel, node.Source());
-
-     EmitLabel(falseTarget, node.Source());
+     EmitLabel(endLabel, node.Source());
 }
 void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
 {
@@ -2945,6 +2957,30 @@ void ecpps::ir::IR::ParseGotoNode(const ast::GotoNode& node)
 
      this->_built.push_back(
           std::unique_ptr<SSAGotoNode, IRDeleter>{new (allocator) SSAGotoNode(node.Name(), node.Source())});
+}
+void ecpps::ir::IR::ParseBreakNode(const ast::BreakNode& node)
+{
+     if (this->_loopStack.empty())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                    "A 'break' statement may only appear inside a loop", node.Source()));
+          return;
+     }
+
+     EmitJump(this->_loopStack.back().breakLabel, node.Source());
+}
+void ecpps::ir::IR::ParseContinueNode(const ast::ContinueNode& node)
+{
+     if (this->_loopStack.empty())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                    "A 'continue' statement may only appear inside a loop", node.Source()));
+          return;
+     }
+
+     EmitJump(this->_loopStack.back().continueLabel, node.Source());
 }
 
 Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)

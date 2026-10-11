@@ -1950,11 +1950,38 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                if (!Match(TokenType::SemiColon))
                {
-                    // TODO: Error
-                    return nullptr;
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
                }
                return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
                                                                                ReturnNode(std::move(value), source));
+          }
+          if (std::get<std::string>(Peek().value) == "break")
+          {
+
+               Advance();
+
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
+               }
+               return std::unique_ptr<BreakNode, ecpps::ast::ASTDeleter>(new (context) BreakNode(source));
+          }
+          if (std::get<std::string>(Peek().value) == "continue")
+          {
+
+               Advance();
+
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
+               }
+               return std::unique_ptr<ContinueNode, ecpps::ast::ASTDeleter>(new (context) ContinueNode(source));
           }
           if (std::get<std::string>(Peek().value) == "if")
           {
