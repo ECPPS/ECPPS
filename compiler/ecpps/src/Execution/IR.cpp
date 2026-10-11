@@ -898,6 +898,27 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           return;
      }
 
+     if (auto* const whileNode = dynamic_cast<ast::WhileStatementNode*>(node.get()); whileNode != nullptr)
+     {
+          ParseWhileStatement(*whileNode);
+          return;
+     }
+     if (auto* const doWhileNode = dynamic_cast<ast::DoWhileStatementNode*>(node.get()); doWhileNode != nullptr)
+     {
+          ParseDoWhileStatement(*doWhileNode);
+          return;
+     }
+     if (auto* const breakNode = dynamic_cast<ast::BreakNode*>(node.get()); breakNode != nullptr)
+     {
+          ParseBreakNode(*breakNode);
+          return;
+     }
+     if (auto* const continueNode = dynamic_cast<ast::ContinueNode*>(node.get()); continueNode != nullptr)
+     {
+          ParseContinueNode(*continueNode);
+          return;
+     }
+
      if (auto* const aliasNode = dynamic_cast<ast::TypeAliasNode*>(node.get()); aliasNode != nullptr)
      {
           const auto* targetType = ParseType(aliasNode->TargetType());
@@ -2904,6 +2925,63 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
 
      EmitLabel(endLabel, node.Source());
 }
+
+bool ecpps::ir::IR::EmitConditionalBranch(const ast::NodePointer& conditionNode, const std::string& trueLabel,
+                                          const std::string& falseLabel, const Location& source)
+{
+     if (conditionNode == nullptr)
+     {
+          EmitJump(trueLabel, source);
+          return true;
+     }
+
+     auto condition = ParseCondition(conditionNode);
+     if (condition == nullptr) return false;
+
+     const auto* conditionReg = LowerExpressionLoaded(std::move(condition), this->_built);
+     if (conditionReg == nullptr) return false;
+
+     EmitBranch(conditionReg, trueLabel, falseLabel, source);
+     return true;
+}
+
+void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
+{
+     const auto bodyLabel = MakeLabelName("while.body");
+     const auto continueLabel = MakeLabelName("while.cont");
+     const auto endLabel = MakeLabelName("while.end");
+
+     if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
+
+     EmitLabel(bodyLabel, node.Source());
+     {
+          const JumpScope jumpScope{*this, endLabel, continueLabel};
+          for (const auto& statement : node.Body()) ParseNode(statement);
+     }
+
+     EmitLabel(continueLabel, node.Source());
+     if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
+
+     EmitLabel(endLabel, node.Source());
+}
+
+void ecpps::ir::IR::ParseDoWhileStatement(const ast::DoWhileStatementNode& node)
+{
+     const auto bodyLabel = MakeLabelName("do.body");
+     const auto continueLabel = MakeLabelName("do.cont");
+     const auto endLabel = MakeLabelName("do.end");
+
+     EmitLabel(bodyLabel, node.Source());
+     {
+          const JumpScope jumpScope{*this, endLabel, continueLabel};
+          for (const auto& statement : node.Body()) ParseNode(statement);
+     }
+
+     EmitLabel(continueLabel, node.Source());
+     if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
+
+     EmitLabel(endLabel, node.Source());
+}
 void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
 {
      auto& allocator = *this->GetContext().nodeAllocator;
@@ -2917,6 +2995,32 @@ void ecpps::ir::IR::ParseGotoNode(const ast::GotoNode& node)
 
      this->_built.push_back(
           std::unique_ptr<SSAGotoNode, IRDeleter>{new (allocator) SSAGotoNode(node.Name(), node.Source())});
+}
+void ecpps::ir::IR::ParseBreakNode(const ast::BreakNode& node)
+{
+     if (this->_jumpStack.empty())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                    "A 'break' statement may only appear inside a loop or a switch statement", node.Source()));
+          return;
+     }
+
+     EmitJump(this->_jumpStack.back().breakLabel, node.Source());
+}
+void ecpps::ir::IR::ParseContinueNode(const ast::ContinueNode& node)
+{
+     for (const auto& targets : this->_jumpStack | std::views::reverse)
+     {
+          if (!targets.continueLabel.has_value()) continue;
+
+          EmitJump(*targets.continueLabel, node.Source());
+          return;
+     }
+
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+               "A 'continue' statement may only appear inside a loop", node.Source()));
 }
 
 Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)
@@ -2943,6 +3047,7 @@ std::string ecpps::ir::IR::MakeLabelName(const std::string_view hint)
 {
      auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
      runtime_assert(function != nullptr, "Labels can only be created inside a function");
+     if (function == nullptr) throw TracedException("Invalid function");
 
      return std::format(".L{}.{}.{}", function->GetScope<FunctionScope>().Name().value_or("__unknown"), hint,
                         this->_nextLabelIndex++);

@@ -1950,17 +1950,56 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                source.endPosition = Peek().location.endPosition;
                if (!Match(TokenType::SemiColon))
                {
-                    // TODO: Error
-                    return nullptr;
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
                }
                return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
                                                                                ReturnNode(std::move(value), source));
+          }
+          if (std::get<std::string>(Peek().value) == "break")
+          {
+
+               Advance();
+
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
+               }
+               return std::unique_ptr<BreakNode, ecpps::ast::ASTDeleter>(new (context) BreakNode(source));
+          }
+          if (std::get<std::string>(Peek().value) == "continue")
+          {
+
+               Advance();
+
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon",
+                                                                                           source));
+               }
+               return std::unique_ptr<ContinueNode, ecpps::ast::ASTDeleter>(new (context) ContinueNode(source));
           }
           if (std::get<std::string>(Peek().value) == "if")
           {
 
                Advance();
                return ParseIfStatement(context);
+          }
+          if (std::get<std::string>(Peek().value) == "while")
+          {
+
+               Advance();
+               return ParseWhileStatement(context);
+          }
+          if (std::get<std::string>(Peek().value) == "do")
+          {
+
+               Advance();
+               return ParseDoWhileStatement(context);
           }
      }
      if (IsDeclarationStart(context)) return ParseDeclarationStatement(context);
@@ -2007,6 +2046,86 @@ NodePointer ecpps::ast::AST::ParseIfStatement(ASTContext& context)
      source.endPosition = Peek(-1).location.endPosition;
      return std::unique_ptr<IfStatementNode, ecpps::ast::ASTDeleter>(
           new (context) IfStatementNode(std::move(condition), std::move(body), std::move(elseBody), source));
+}
+NodePointer ecpps::ast::AST::ParseWhileStatement(ASTContext& context)
+{
+     auto source = this->Peek().location;
+
+     bool hadLeftParen = true;
+     if (!Match(TokenType::LeftParenthesis))
+     {
+          hadLeftParen = false;
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing left parenthesis", source));
+     }
+     auto condition = ParseCondition(context);
+     if (!Match(TokenType::RightParenthesis))
+     {
+          auto diagnostic =
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing right parenthesis", source);
+          if (!hadLeftParen)
+               diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                    "hint", "The condition needs to be parenthesised", source));
+          this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+     }
+     std::vector<NodePointer> body{};
+
+     if (Match(TokenType::LeftBrace))
+          while (!Match(TokenType::RightBrace)) body.emplace_back(ParseStatement(context));
+     else
+          body.emplace_back(ParseStatement(context));
+
+     if (!Match(TokenType::SemiColon))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon", source));
+     }
+
+     source.endPosition = Peek(-1).location.endPosition;
+     return std::unique_ptr<WhileStatementNode, ecpps::ast::ASTDeleter>(
+          new (context) WhileStatementNode(std::move(condition), std::move(body), source));
+}
+NodePointer ecpps::ast::AST::ParseDoWhileStatement(ASTContext& context)
+{
+     auto source = this->Peek().location;
+
+     std::vector<NodePointer> body{};
+
+     if (Match(TokenType::LeftBrace))
+          while (!Match(TokenType::RightBrace)) body.emplace_back(ParseStatement(context));
+     else
+          body.emplace_back(ParseStatement(context));
+
+     if (Peek().type != TokenType::Keyword || Peek().AsKeyword() != "while")
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                    "ill-formed do/while; expected while(condition)", source));
+          return nullptr; // TODO: Maybe some error recovery?
+     }
+     Advance();
+
+     bool hadLeftParen = true;
+     if (!Match(TokenType::LeftParenthesis))
+     {
+          hadLeftParen = false;
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing left parenthesis", source));
+     }
+     auto condition = ParseCondition(context);
+     if (!Match(TokenType::RightParenthesis))
+     {
+          auto diagnostic =
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing right parenthesis", source);
+          if (!hadLeftParen)
+               diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                    "hint", "The condition needs to be parenthesised", source));
+          this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+     }
+
+     source.endPosition = Peek(-1).location.endPosition;
+     return std::unique_ptr<DoWhileStatementNode, ecpps::ast::ASTDeleter>(
+          new (context) DoWhileStatementNode(std::move(condition), std::move(body), source));
 }
 
 NodePointer ecpps::ast::AST::ParseExpressionStatement(ASTContext& context)

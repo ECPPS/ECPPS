@@ -1,4 +1,7 @@
 #pragma once
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
@@ -132,8 +135,12 @@ namespace ecpps::ir
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
           void ParseNamespace(const ast::NamespaceNode& node);
           void ParseIfStatement(const ast::IfStatementNode& node);
+          void ParseWhileStatement(const ast::WhileStatementNode& node);
+          void ParseDoWhileStatement(const ast::DoWhileStatementNode& node);
           void ParseLabelNode(const ast::LabelNode& node);
           void ParseGotoNode(const ast::GotoNode& node);
+          void ParseBreakNode(const ast::BreakNode& node);
+          void ParseContinueNode(const ast::ContinueNode& node);
 
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
@@ -208,6 +215,34 @@ namespace ecpps::ir
                                       const std::vector<Expression>& arguments);
 
           std::size_t _nextLabelIndex{};
+
+          struct JumpTargets
+          {
+               std::string breakLabel;
+               std::optional<std::string> continueLabel;
+          };
+
+          std::vector<JumpTargets> _jumpStack{};
+
+          struct JumpScope
+          {
+               JumpScope(IR& ir, std::string breakLabel, std::optional<std::string> continueLabel) : _ir(ir)
+               {
+                    this->_ir._jumpStack.push_back({std::move(breakLabel), std::move(continueLabel)});
+               }
+               JumpScope(const JumpScope&) = delete;
+               JumpScope& operator=(const JumpScope&) = delete;
+               ~JumpScope()
+               {
+                    this->_ir._jumpStack.pop_back();
+               }
+
+          private:
+               IR& _ir;
+          };
+
+          [[nodiscard]] bool EmitConditionalBranch(const ast::NodePointer& condition, const std::string& trueLabel,
+                                                   const std::string& falseLabel, const Location& source);
 
           [[nodiscard]] Expression ParseCondition(const ast::NodePointer& condition); // already converts!!1!
           [[nodiscard]] std::string MakeLabelName(std::string_view hint);

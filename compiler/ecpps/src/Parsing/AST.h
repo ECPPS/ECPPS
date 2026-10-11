@@ -499,6 +499,64 @@ namespace ecpps::ast
           std::vector<NodePointer> _body;
           std::vector<NodePointer> _elseBody;
      };
+     class WhileStatementNode final : public Node
+     {
+     public:
+          explicit WhileStatementNode(NodePointer condition, std::vector<NodePointer> body, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body))
+          {
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "while (" + this->_condition->ToString(0) + ")\n" +
+                       std::string(indent * PrettyIndent, ' ') + "{\n" + built +
+                       std::string(indent * PrettyIndent, ' ') + "}";
+               return built;
+          }
+
+     private:
+          NodePointer _condition;
+          std::vector<NodePointer> _body;
+     };
+     class DoWhileStatementNode final : public Node
+     {
+     public:
+          explicit DoWhileStatementNode(NodePointer condition, std::vector<NodePointer> body, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body))
+          {
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "do \n" + std::string(indent * PrettyIndent, ' ') +
+                       "{\n" + built + std::string(indent * PrettyIndent, ' ') + "} while (" +
+                       this->_condition->ToString(0) + ")\n";
+               return built;
+          }
+
+     private:
+          NodePointer _condition;
+          std::vector<NodePointer> _body;
+     };
      class LabelNode final : public Node
      {
      public:
@@ -556,6 +614,30 @@ namespace ecpps::ast
 
      private:
           NodePointer _expression;
+     };
+     class BreakNode final : public Node
+     {
+     public:
+          explicit BreakNode(Location source) : Node(source)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "break";
+          }
+     };
+     class ContinueNode final : public Node
+     {
+     public:
+          explicit ContinueNode(Location source) : Node(source)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "continue";
+          }
      };
 
      class TypeAliasNode final : public Node
@@ -990,6 +1072,8 @@ namespace ecpps::ast
           // Statements
           NodePointer ParseStatement(ASTContext& context);
           NodePointer ParseIfStatement(ASTContext& context);
+          NodePointer ParseWhileStatement(ASTContext& context);
+          NodePointer ParseDoWhileStatement(ASTContext& context);
           NodePointer ParseDeclarationStatement(ASTContext& context)
           {
                return ParseBlockDeclaration(context);
