@@ -1,5 +1,6 @@
 #include "Config.h"
 
+#include <bit>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
@@ -265,6 +266,30 @@ namespace
           return true;
      }
 
+     [[nodiscard]] std::string_view VerboseFeatureName(VerboseFeature feature) noexcept
+     {
+          switch (feature)
+          {
+          case VerboseFeature::Preprocessor: return "preprocessor";
+          case VerboseFeature::Tokens: return "tokens";
+          case VerboseFeature::AST: return "ast";
+          case VerboseFeature::IR: return "ir";
+          case VerboseFeature::VInst: return "vinst";
+          case VerboseFeature::IInst: return "iinst";
+          case VerboseFeature::PInst: return "pinst";
+          case VerboseFeature::Emit: return "emit";
+          case VerboseFeature::FinalEmit: return "femit";
+          case VerboseFeature::Time: return "time";
+          }
+
+          return "unknown";
+     }
+
+     void NoteFirstVerboseFeature(ecpps::CompilerConfig& config, VerboseFeature feature)
+     {
+          if (!config.firstVerboseFeature) config.firstVerboseFeature = feature;
+     }
+
      void ParseVerboseFeatures(ecpps::CompilerConfig& config, const CommandLineOption& option)
      {
           RequireValue(option);
@@ -272,12 +297,14 @@ namespace
           if (EqualsInsensitive(option.value, "all"))
           {
                config.verboseFeatures = ecpps::AllVerboseFeatures;
+               NoteFirstVerboseFeature(config, VerboseFeature::Preprocessor);
                return;
           }
 
           if (EqualsInsensitive(option.value, "none"))
           {
                config.verboseFeatures = 0;
+               config.firstVerboseFeature.reset();
                return;
           }
 
@@ -292,7 +319,40 @@ namespace
                }
 
                config.EnableVerbose(feature);
+               NoteFirstVerboseFeature(config, feature);
           }
+     }
+
+     void ResolveDumpMode(ecpps::CompilerConfig& config, std::size_t index)
+     {
+          if (!config.dumpToFile) return;
+
+          constexpr std::string_view argument = "/asm";
+
+          if (!config.firstVerboseFeature || config.verboseFeatures == 0)
+               CommandLineError(index, argument, "'/asm' needs a stage selected with '/verbose:<feature>'");
+
+          const auto feature = *config.firstVerboseFeature;
+
+          if (feature == VerboseFeature::Time || feature == VerboseFeature::FinalEmit)
+          {
+               CommandLineError(index, argument,
+                                std::format("verbose feature '{}' has no dumpable output without linking",
+                                            VerboseFeatureName(feature)));
+          }
+
+          if (config.sourceFiles.size() > 1)
+               CommandLineError(index, argument, "'/asm' supports exactly one source file");
+
+          if (std::popcount(config.verboseFeatures) > 1)
+          {
+               CommandLineWarning(index, argument,
+                                  std::format("only '{}' is written; other verbose features are ignored",
+                                              VerboseFeatureName(feature)));
+          }
+
+          config.verboseFeatures = ecpps::VerboseFeatureMask(feature);
+          config.dumpFeature = feature;
      }
 
      [[nodiscard]] bool ParseISA(std::string_view value, ISA& isa)
@@ -679,6 +739,13 @@ namespace
 
      void ConfigureOutputDefaults(ecpps::CompilerConfig& config)
      {
+          if (config.dumpToFile)
+          {
+               if (config.outputImage.empty()) config.outputImage = "output.txt";
+
+               return;
+          }
+
           switch (config.linker)
           {
           case ecpps::LinkerUsed::Windows64:
@@ -738,6 +805,7 @@ ecpps::CompilerConfig::CompilerConfig(
 
      bool outputWasSpecified = false;
      bool imageWasSpecified = false;
+     std::size_t dumpIndex{};
 
      for (int argumentIndex = 1; argumentIndex < argc; ++argumentIndex)
      {
@@ -849,10 +917,24 @@ ecpps::CompilerConfig::CompilerConfig(
                                        VerboseFeatureMask(VerboseFeature::Tokens) |
                                        VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR);
 
+                    NoteFirstVerboseFeature(*this, VerboseFeature::Preprocessor);
+
                     continue;
                }
 
                ParseVerboseFeatures(*this, option);
+               continue;
+          }
+
+          if (EqualsInsensitive(option.name, "asm"))
+          {
+               if (option.hasValue)
+               {
+                    CommandLineError(option.index, option.original, "option '/asm' does not take a value");
+               }
+
+               dumpToFile = true;
+               dumpIndex = option.index;
                continue;
           }
 
@@ -1020,6 +1102,8 @@ ecpps::CompilerConfig::CompilerConfig(
 
           CommandLineError(option.index, option.original, std::format("unknown option '/{}'", option.name));
      }
+
+     ResolveDumpMode(*this, dumpIndex);
 
      currentTarget = target.MakeId();
 
@@ -1190,6 +1274,17 @@ void ecpps::CompilerConfig::PrintHelpAndExit(void)
      std::println();
      std::println("      Example:");
      std::println("        /verbose:tokens,ast,ir");
+     std::println();
+     std::println("  /asm");
+     std::println("      Write the single selected /verbose stage to the output file");
+     std::println("      and stop right after it; nothing is linked.");
+     std::println("      Requires /verbose:<feature> and exactly one source file.");
+     std::println("      If several features are listed, only the first is written.");
+     std::println("      The 'femit' and 'time' features cannot be dumped.");
+     std::println("      The output file defaults to output.txt.");
+     std::println();
+     std::println("      Example:");
+     std::println("        /verbose:ir /asm /out:main.ir main.cpp");
 
      std::println();
      std::println("Target:");
@@ -1282,6 +1377,7 @@ void ecpps::CompilerConfig::PrintHelpAndExit(void)
      std::println("  ecpps /O2 /O:no-inline-regular-functions main.cpp");
      std::println("  ecpps /O3 /O:no-aggressive-encoder main.cpp");
      std::println("  ecpps /verbose:tokens,ast,ir test.cpp");
+     std::println("  ecpps /verbose:ir /asm /out:test.ir test.cpp");
      std::println("  ecpps /image:windows-x64 /cpu:haswell main.cpp");
      std::println("  ecpps /image:windows-x64 /extensions:sse4.2,avx2 main.cpp");
 

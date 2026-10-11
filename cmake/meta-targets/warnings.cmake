@@ -67,5 +67,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		-Wno-interference-size
 		-Wno-unknown-pragmas
           -Wno-potentially-evaluated-expression
+		-Wno-ignored-attributes
 	)
 endif()

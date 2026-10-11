@@ -1,8 +1,11 @@
 #pragma once
 #include <bitset>
 #include <cstdint>
+#include <cstdio>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include "Machine/Encoders/Context.h"
 
@@ -153,6 +156,12 @@ namespace ecpps
 
           VerboseFeatures verboseFeatures = 0;
 
+          std::optional<VerboseFeature> firstVerboseFeature{};
+
+          bool dumpToFile = false;
+          VerboseFeature dumpFeature{};
+          std::FILE* dumpFile = nullptr;
+
           std::vector<std::string> importedLibraries{};
 
           bool useDebugger = false;
@@ -175,9 +184,15 @@ namespace ecpps
           {
                return (verboseFeatures & VerboseFeatureMask(feature)) != 0;
           }
+
           [[nodiscard]] bool IsVerbose(void) const noexcept
           {
-               return verboseFeatures != 0;
+               return verboseFeatures != 0 && !dumpToFile;
+          }
+
+          [[nodiscard]] bool StopsAfter(VerboseFeature feature) const noexcept
+          {
+               return dumpToFile && dumpFeature == feature;
           }
 
           void EnableVerbose(VerboseFeature feature) noexcept

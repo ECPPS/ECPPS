@@ -3,6 +3,7 @@ add_library(ecpps_options INTERFACE)
 target_compile_definitions(ecpps_options INTERFACE
     NOMINMAX
     WIN32_LEAN_AND_MEAN
+    _CRT_SECURE_NO_WARNINGS
 )
 
 if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
