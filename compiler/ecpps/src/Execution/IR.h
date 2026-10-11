@@ -3,7 +3,6 @@
 #include <vector>
 #include "../Parsing/AST.h"
 #include "../Parsing/ASTs/Type.h"
-#include "../Shared/Diagnostics.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Context.h"
@@ -132,6 +131,10 @@ namespace ecpps::ir
           void ParseReturn(const ast::ReturnNode& node);
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
           void ParseNamespace(const ast::NamespaceNode& node);
+          void ParseIfStatement(const ast::IfStatementNode& node);
+          void ParseLabelNode(const ast::LabelNode& node);
+          void ParseGotoNode(const ast::GotoNode& node);
+
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
           [[nodiscard]] Expression ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
@@ -189,6 +192,8 @@ namespace ecpps::ir
           [[nodiscard]] Expression ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const;
           [[nodiscard]] bool IsEligibleForStringLiteralInitialisation(typeSystem::NonowningTypePointer type) const;
 
+          [[nodiscard]] Expression MakeNonZeroTest(Expression operand, const Location& source) const;
+
           /// <summary>
           /// Only for integral conversions that are known to be integral conversions. If the conversion is not
           /// integral, the behaviour of this function is undefined.
@@ -201,5 +206,53 @@ namespace ecpps::ir
           // matching
           MatchingScore MatchFunction(const std::shared_ptr<FunctionScope>& function,
                                       const std::vector<Expression>& arguments);
+
+          std::size_t _nextLabelIndex{};
+
+          [[nodiscard]] Expression ParseCondition(const ast::NodePointer& condition); // already converts!!1!
+          [[nodiscard]] std::string MakeLabelName(std::string_view hint);
+          void EmitLabel(std::string name, const Location& source);
+          void EmitJump(std::string target, const Location& source);
+          void EmitBranch(const SingleAssignRegisterNode* condition, std::string trueLabel, std::string falseLabel,
+                          const Location& source);
+
+          struct CommonOperands
+          {
+               Expression left;
+               Expression right;
+               const typeSystem::IntegralType* type;
+          };
+
+          [[nodiscard]] std::optional<CommonOperands> UsualArithmeticConversions(Expression left,
+                                                                                 Expression right) const;
+
+          template <typename TNode>
+          [[nodiscard]] Expression ParseIntegralBinary(Expression left, Expression right, const Location& source) const
+          {
+               auto operands = UsualArithmeticConversions(std::move(left), std::move(right));
+               if (!operands) return nullptr;
+
+               return std::make_unique<PRValue>(
+                    operands->type,
+                    std::unique_ptr<TNode, IRDeleter>{new (*this->GetContext().nodeAllocator) TNode(
+                         std::move(operands->left), std::move(operands->right), source)},
+                    false);
+          }
+
+          [[nodiscard]] Expression ParseRelationalExpression(Expression left, ast::Operator operator_, Expression right,
+                                                             const Location& source) const;
+
+          struct BlockScope
+          {
+               explicit BlockScope(IR& ir) noexcept : _ir(ir)
+               {
+               }
+               BlockScope(const BlockScope&) = delete;
+               BlockScope& operator=(const BlockScope&) = delete;
+               ~BlockScope() = default;
+
+          private:
+               [[maybe_unused]] IR& _ir;
+          };
      };
 } // namespace ecpps::ir

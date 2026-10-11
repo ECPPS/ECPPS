@@ -176,6 +176,8 @@ namespace
                optimisation = Optimisation::EncoderOptimisations;
           else if (name == "aggressive-encoder")
                optimisation = Optimisation::AggressiveEncoderOptimisations;
+          else if (name == "dead-jumps")
+               optimisation = Optimisation::OptimiseDeadJumps;
           else
                return false;
 
@@ -194,6 +196,7 @@ namespace
                optimisations.Enable(Optimisation::ConstantFoldArrayIndirections);
                optimisations.Enable(Optimisation::RemoveRedundantMovs);
                optimisations.Enable(Optimisation::XorToZero);
+               optimisations.Enable(Optimisation::OptimiseDeadJumps);
                return;
           }
 
@@ -224,6 +227,7 @@ namespace
                optimisations.Enable(Optimisation::RemoveRedundantMovs);
                optimisations.Enable(Optimisation::XorToZero);
                optimisations.Enable(Optimisation::TailJmp);
+               optimisations.Enable(Optimisation::OptimiseDeadJumps);
                return;
           }
 

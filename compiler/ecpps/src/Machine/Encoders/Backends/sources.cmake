@@ -20,4 +20,7 @@ list(APPEND BACKEND_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Return.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Call.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/CallPlus.cpp
+	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Jump.cpp
+	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Label.cpp
+	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/ControlFlow/Jcc.cpp
 )

@@ -97,6 +97,16 @@ namespace ecpps::typeSystem
      private:
           bool _isUnqualified;
      };
+     class BooleanType final : public IntegralType
+     {
+     public:
+          explicit BooleanType(std::string name, const Qualifiers qualifiers)
+              : IntegralType(Signedness::Unsigned, TypeKind::Char, std::move(name), qualifiers)
+          {
+          }
+          [[nodiscard]] std::string RawName(void) const noexcept final;
+          [[nodiscard]] std::size_t Width(void) const noexcept final;
+     };
 
      class PointerType final : public QualifiedType
      {

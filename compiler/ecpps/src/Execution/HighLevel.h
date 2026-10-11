@@ -448,6 +448,41 @@ namespace ecpps::ir::high
           Expression _operand;
      };
 
+     class CompareNode final : public NodeBase
+     {
+     public:
+          explicit CompareNode(Expression left, Expression right, ComparisonPredicate predicate, Location source)
+              : NodeBase(NodeKind::Compare, source), _left(std::move(left)), _right(std::move(right)),
+                _predicate(predicate)
+          {
+          }
+
+          [[nodiscard]] ComparisonPredicate Predicate(void) const noexcept
+          {
+               return this->_predicate;
+          }
+          [[nodiscard]] Expression Left(void) &&
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) &&
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "(" + this->_left->Value()->ToString(0) + " " +
+                      std::string(ecpps::ir::ToString(this->_predicate)) + " " + this->_right->Value()->ToString(0) +
+                      ")";
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+          ComparisonPredicate _predicate;
+     };
+
      class DereferenceNode final : public NodeBase
      {
      public:

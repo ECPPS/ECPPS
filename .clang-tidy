@@ -44,7 +44,8 @@ Checks: >
   -bugprone-macro-parentheses,
   -readability-suspicious-call-argument,
   -bugprone-reserved-identifier,
-  -cppcoreguidelines-macro-usage
+  -cppcoreguidelines-macro-usage,
+  -clang-analyzer-cplusplus.NewDeleteLeaks
 
 CheckOptions:
   # Identifier naming rules

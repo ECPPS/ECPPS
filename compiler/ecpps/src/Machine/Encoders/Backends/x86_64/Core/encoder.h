@@ -49,6 +49,10 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t ZeroExtend = 15;
           constexpr static std::size_t Call = 16;
           constexpr static std::size_t Lea = 17;
+          constexpr static std::size_t Jmp = 18;
+          constexpr static std::size_t Label = 19;
+          constexpr static std::size_t Cmp = 20;
+          constexpr static std::size_t Jcc = 21;
      };
 
      enum struct EncodingSpillage : std::uint8_t
@@ -213,6 +217,26 @@ namespace ecpps::abi::encoders::x8664
                RegisterOperand destination{};
                Operand address{};
           };
+          struct JmpInstruction
+          {
+               std::size_t labelId{};
+          };
+          struct LabelInstruction
+          {
+               std::size_t labelId{};
+          };
+          struct CmpInstruction
+          {
+               Width width{};
+               Operand left{};
+               Operand right{};
+          };
+          struct JccInstruction
+          {
+               ir::abstract::ConditionCode condition{};
+               std::size_t labelId{};
+          };
+          [[nodiscard]] std::string ToString(ir::abstract::ConditionCode condition);
           struct BinaryXorInstruction
           {
                Width width{};
@@ -391,6 +415,16 @@ namespace ecpps::abi::encoders::x8664
           std::vector<ir::abstract::Instruction> instructions;
           RegisterIndex assignedRegister;
      };
+     struct BasicBlock
+     {
+          std::size_t begin{};
+          std::size_t end{};
+          std::vector<std::size_t> successors{};
+          std::unordered_set<std::size_t> use{};
+          std::unordered_set<std::size_t> def{};
+          std::unordered_set<std::size_t> liveIn{};
+          std::unordered_set<std::size_t> liveOut{};
+     };
 
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
@@ -488,6 +522,20 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] ir::abstract::Instruction BuildCall(std::size_t functionIndex);
           [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
                                                                   Operand address);
+          [[nodiscard]] static bool IsTerminator(ir::abstract::VirtualInstructionType type) noexcept;
+          [[nodiscard]] static std::optional<std::size_t> DestinationOf(
+               const ir::abstract::VirtualInstruction& instruction);
+          void BuildControlFlowGraph(const std::vector<ir::abstract::VirtualInstruction>& input);
+          void ComputeLiveness(const std::vector<ir::abstract::VirtualInstruction>& input);
+          void BeginBlock(const std::vector<ir::abstract::VirtualInstruction>& input, const BasicBlock& block);
+          [[nodiscard]] std::vector<ir::abstract::Instruction> FlushLiveOut(const BasicBlock& block);
+          [[nodiscard]] bool IsRematerialisable(ir::abstract::VirtualRegister reg);
+
+          [[nodiscard]] static ir::abstract::Instruction BuildJmp(std::size_t labelId);
+          [[nodiscard]] static ir::abstract::Instruction BuildLabel(std::size_t labelId);
+          [[nodiscard]] static ir::abstract::Instruction BuildCmp(Width width, Operand left, Operand right);
+          [[nodiscard]] static ir::abstract::Instruction BuildJcc(ir::abstract::ConditionCode condition,
+                                                                  std::size_t labelId);
 
           template <ir::abstract::VirtualInstructionType TType>
           std::vector<ir::abstract::Instruction> EncoderImplementation(
@@ -544,5 +592,7 @@ namespace ecpps::abi::encoders::x8664
           std::unordered_set<std::size_t> _evictable{};
           std::vector<RegisterIndex> _savedRegisters{};
           std::unordered_set<RegisterIndex> _lockedRegisters;
+          std::vector<BasicBlock> _blocks{};
+          bool _hasControlFlow{};
      };
 } // namespace ecpps::abi::encoders::x8664
