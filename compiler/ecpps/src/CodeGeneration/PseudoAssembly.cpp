@@ -177,6 +177,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBitwiseNotNode(*complementNode);
           }
           break;
+          case ecpps::ir::NodeKind::Multiplication:
+          {
+               const auto* mul = dynamic_cast<const ecpps::ir::SSAMulNode*>(node);
+               runtime_assert(mul != nullptr, "Invalid node type!");
+               this->ParseMultiplicationNode(*mul);
+          }
+          break;
           case ecpps::ir::NodeKind::ArithmeticNegation:
           {
                const auto* negNode = dynamic_cast<const ecpps::ir::SSAArithmeticNegationNode*>(node);
@@ -546,6 +553,36 @@ void ecpps::codegen::ParsingContext::ParseBitwiseNotNode(const ir::SSABitwiseNot
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::BitwiseNot,
           .operands = {allocatedIndex, virtualOperand},
+     };
+     this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseMultiplicationNode(const ir::SSAMulNode& node)
+{
+     auto ssaLeftIndex = node.Left().Index();
+     auto ssaRightIndex = node.Right().Index();
+     auto ssaResultIndex = node.Result().Index();
+
+     auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
+     auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
+     auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+
+     auto width = describedLeft.width;
+
+     runtime_assert(width == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).width,
+                    "Widths don't match while getting a common width");
+
+     ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, width, AllocationDescriptor::Type::Temporary));
+
+     this->DereferenceSSA(ssaLeftIndex);
+     this->DereferenceSSA(ssaRightIndex);
+
+     ir::abstract::VirtualRegister virtualLeft{virtualLeftIndex};
+     ir::abstract::VirtualRegister virtualRight{virtualRightIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Multiplication,
+          .operands = {allocatedIndex, virtualLeft, virtualRight},
      };
      this->instructions.push_back(instruction);
 }
