@@ -2984,6 +2984,7 @@ void ecpps::ir::IR::ParseForStatement(const ast::ForStatementNode& node)
      {
           const JumpScope jumpScope{*this, endLabel, continueLabel};
           for (const auto& statement : node.Body()) ParseNode(statement);
+          ParseNode(node.Expression());
      }
 
      EmitLabel(continueLabel, node.Source());
