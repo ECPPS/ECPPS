@@ -58,9 +58,6 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Multiplication>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
-     using namespace ecpps;
-     using namespace ecpps::abi::encoders::x8664;
-
      const auto& value = *std::launder(reinterpret_cast<const values::MultiplicationRegisters*>(data.data()));
 
      const auto left = std::get<0>(value.parameters);
@@ -71,25 +68,40 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      const Width width = MapWidth(this->GetVRM().GetWidth(owner));
 
-     std::vector<ir::abstract::Instruction> built{};
-
      const auto leftImmediate = this->ImmediateOf(left);
      const auto rightImmediate = this->ImmediateOf(right);
 
-     RegisterIndex rightRegister{};
+     std::vector<ecpps::ir::abstract::Instruction> built{};
+
+     RegisterIndex sourceRegister{};
 
      if (rightImmediate.has_value())
      {
-          rightRegister = this->_registerAllocator.Allocate(owner);
+          sourceRegister = this->_registerAllocator.Allocate(owner);
 
-          built.push_back(BuildMov(width, RegisterOperand{rightRegister}, IntegerOperand{*rightImmediate}));
+          built.push_back(BuildMov(width, RegisterOperand{sourceRegister}, IntegerOperand{*rightImmediate}));
      }
      else
      {
-          rightRegister = this->PhysicalRegisterOf(right);
+          sourceRegister = this->PhysicalRegisterOf(right);
      }
 
-     runtime_assert(rightRegister != rax && rightRegister != rdx, "MUL source must not use RAX or RDX");
+     if (sourceRegister == rax || sourceRegister == rdx)
+     {
+          const RegisterIndex originalRegister = sourceRegister;
+
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          const RegisterIndex temporary = this->_registerAllocator.Allocate(owner);
+          this->_registerAllocator.ClearPreference();
+
+          built.push_back(BuildMov(width, RegisterOperand{temporary}, RegisterOperand{originalRegister}));
+
+          sourceRegister = temporary;
+     }
+
+     if (!this->IsClobberable(rax)) built.append_range(this->ClearRegister(rax, owner));
+
+     if (!this->IsClobberable(rdx)) built.append_range(this->ClearRegister(rdx, owner));
 
      if (leftImmediate.has_value())
      {
@@ -105,11 +117,17 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           }
      }
 
-     built.push_back(BuildMul(width, RegisterOperand{rightRegister}));
+     built.push_back(BuildMul(width, RegisterOperand{sourceRegister}));
 
-     if (!leftImmediate.has_value()) this->DereferenceAndMaybeFree(left);
+     const auto leftRemainingUses = this->ConsumeUse(left);
 
-     if (!rightImmediate.has_value()) this->DereferenceAndMaybeFree(right);
+     if (!leftImmediate.has_value() && leftRemainingUses == 0 && !this->IsMutable(left) &&
+         this->PhysicalRegisterOf(left) != rax)
+     {
+          this->ReleaseRegister(left);
+     }
+
+     this->DereferenceAndMaybeFree(right);
 
      return {.instructions = std::move(built), .assignedRegister = rax};
 }
