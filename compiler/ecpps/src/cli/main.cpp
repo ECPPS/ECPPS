@@ -7,12 +7,15 @@
 
 #ifdef _WIN32
 #include <Windows.h>
+#include <io.h>
+#else
+#include <unistd.h>
 #endif
 
 #include <algorithm>
-#include <bit>
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <format>
@@ -23,6 +26,7 @@
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -64,6 +68,85 @@ namespace
           Failure = false
      };
 
+     [[nodiscard]] int FdDup(int fd)
+     {
+#ifdef _WIN32
+          return _dup(fd);
+#else
+          return dup(fd);
+#endif
+     }
+
+     void FdDup2(int from, int to)
+     {
+#ifdef _WIN32
+          _dup2(from, to);
+#else
+          dup2(from, to);
+#endif
+     }
+
+     void FdClose(int fd)
+     {
+#ifdef _WIN32
+          _close(fd);
+#else
+          close(fd);
+#endif
+     }
+
+     [[nodiscard]] int FdOf(std::FILE* file)
+     {
+#ifdef _WIN32
+          return _fileno(file);
+#else
+          return fileno(file);
+#endif
+     }
+
+     class StageOutput
+     {
+     public:
+          StageOutput(const CompilerConfig& config, std::string_view header, bool headerInDump = false)
+          {
+               if (!config.dumpToFile)
+               {
+                    if (!header.empty())
+                    {
+                         std::println();
+                         std::println("{}", header);
+                    }
+
+                    return;
+               }
+
+               std::fflush(stdout);
+
+               _saved = FdDup(FdOf(stdout));
+
+               if (_saved >= 0) FdDup2(FdOf(config.dumpFile), FdOf(stdout));
+
+               if (headerInDump && !header.empty()) std::println("{}", header);
+          }
+
+          ~StageOutput(void)
+          {
+               if (_saved < 0) return;
+
+               std::fflush(stdout);
+               FdDup2(_saved, FdOf(stdout));
+               FdClose(_saved);
+          }
+
+          StageOutput(const StageOutput&) = delete;
+          StageOutput& operator=(const StageOutput&) = delete;
+          StageOutput(StageOutput&&) = delete;
+          StageOutput& operator=(StageOutput&&) = delete;
+
+     private:
+          int _saved = -1;
+     };
+
      [[nodiscard]] bool IsDiagnosticsCritical(const diagnostics::DiagnosticsMessage& diagnostic,
                                               const CompilerConfig& config)
      {
@@ -84,6 +167,13 @@ namespace
      {
           for (const auto& diagnostic : source.diagnostics.diagnosticsList)
                diagnostics::PrintDiagnostic(source.name, diagnostic);
+     }
+
+     [[nodiscard]] FileIterationStatus FinishDump(SourceFile& source, const CompilerConfig& config)
+     {
+          PrintDiagnostics(source);
+
+          return HasFatalDiagnostics(source, config) ? FileIterationStatus::Failure : FileIterationStatus::Success;
      }
 
      void PrintHexDump(std::span<const std::byte> bytes, std::size_t rowSize = 8)
@@ -166,9 +256,6 @@ namespace
 
      void PrintVirtualInstructions(const SourceFile& source)
      {
-          std::println();
-          std::println("Virtual Instructions:");
-
           for (const auto& routine : source.compiledRoutines)
           {
                std::println("  {}", routine.name);
@@ -192,9 +279,6 @@ namespace
 
      void PrintPhysicalInstructions(const SourceFile& source, const abi::api::Target& target)
      {
-          std::println();
-          std::println("Physical Instructions:");
-
           for (const auto& routine : source.compiledRoutines)
           {
                std::println("  {}", routine.name);
@@ -307,19 +391,21 @@ namespace
 
                if (config.IsVerbose(ecpps::VerboseFeature::Preprocessor))
                {
-                    std::println();
-                    std::println("Preprocessor output:");
+                    const StageOutput output{config, "Preprocessor output:"};
                     ecpps::Preprocessor::Print(ppTokens);
                }
+
+               if (config.StopsAfter(VerboseFeature::Preprocessor)) return FinishDump(source, config);
 
                const auto tokens = Tokeniser::Tokenise(ppTokens);
 
                if (config.IsVerbose(VerboseFeature::Tokens))
                {
-                    std::println();
-                    std::println("Tokens:");
+                    const StageOutput output{config, "Tokens:"};
                     Tokeniser::Print(tokens);
                }
+
+               if (config.StopsAfter(VerboseFeature::Tokens)) return FinishDump(source, config);
 
                ast::ASTContext astContext;
                ast::AST astParser{tokens, source.diagnostics};
@@ -327,11 +413,12 @@ namespace
 
                if (config.IsVerbose(VerboseFeature::AST))
                {
-                    std::println();
-                    std::println("AST:");
+                    const StageOutput output{config, "AST:"};
 
                     for (const auto& node : ast) std::println("{}", node->ToString(0));
                }
+
+               if (config.StopsAfter(VerboseFeature::AST)) return FinishDump(source, config);
 
                BumpAllocator irAllocator;
                ir::Context context{source.diagnostics, irAllocator};
@@ -340,11 +427,12 @@ namespace
 
                if (config.IsVerbose(VerboseFeature::IR))
                {
-                    std::println();
-                    std::println("IR:");
+                    const StageOutput output{config, "IR:"};
 
                     for (const auto& node : ir) std::println("{}", node->ToString(0));
                }
+
+               if (config.StopsAfter(VerboseFeature::IR)) return FinishDump(source, config);
 
                ast.clear();
                astContext.Release();
@@ -352,7 +440,13 @@ namespace
                codegen::AssemblyContext asmContext{config};
                codegen::Compile(asmContext, config, source, ir, &target);
 
-               if (config.IsVerbose(VerboseFeature::VInst)) PrintVirtualInstructions(source);
+               if (config.IsVerbose(VerboseFeature::VInst))
+               {
+                    const StageOutput output{config, "Virtual Instructions:"};
+                    PrintVirtualInstructions(source);
+               }
+
+               if (config.StopsAfter(VerboseFeature::VInst)) return FinishDump(source, config);
 
                for (auto& routine : source.compiledRoutines)
                {
@@ -362,8 +456,8 @@ namespace
 
                     if (config.IsVerbose(VerboseFeature::IInst))
                     {
-                         std::println();
-                         std::println("Intermediate Instructions: {}", routine.name);
+                         const StageOutput output{config, std::format("Intermediate Instructions: {}", routine.name),
+                                                  true};
 
                          for (const auto& instruction : routine.physicalInstructions)
                          {
@@ -371,10 +465,20 @@ namespace
                          }
                     }
 
+                    if (config.StopsAfter(VerboseFeature::IInst)) continue;
+
                     target.encoder->Finalise(routine.physicalInstructions);
                }
 
-               if (config.IsVerbose(VerboseFeature::PInst)) PrintPhysicalInstructions(source, target);
+               if (config.StopsAfter(VerboseFeature::IInst)) return FinishDump(source, config);
+
+               if (config.IsVerbose(VerboseFeature::PInst))
+               {
+                    const StageOutput output{config, "Physical Instructions:"};
+                    PrintPhysicalInstructions(source, target);
+               }
+
+               if (config.StopsAfter(VerboseFeature::PInst)) return FinishDump(source, config);
 
                std::unordered_map<std::string, std::size_t> routines;
                routines.reserve(source.compiledRoutines.size());
@@ -400,7 +504,13 @@ namespace
                     functions.emplace_back(procedureName, procedureOffset);
                }
 
-               if (config.IsVerbose(VerboseFeature::Emit)) PrintEmittedRoutines(generatedMachineCode, functions);
+               if (config.IsVerbose(VerboseFeature::Emit))
+               {
+                    const StageOutput output{config, {}};
+                    PrintEmittedRoutines(generatedMachineCode, functions);
+               }
+
+               if (config.StopsAfter(VerboseFeature::Emit)) return FinishDump(source, config);
 
                PrintDiagnostics(source);
 
@@ -602,6 +712,22 @@ int main(int argc, char* argv[])
 
           if (emitter == nullptr) return -1;
 
+          std::unique_ptr<std::FILE, decltype(&std::fclose)> dumpFile{nullptr, &std::fclose};
+
+          if (config.dumpToFile)
+          {
+               dumpFile.reset(std::fopen(config.outputImage.c_str(), "wb"));
+
+               if (!dumpFile)
+               {
+                    std::println("\x1b[31mFailed to open dump file: {}\x1b[0m", config.outputImage);
+
+                    return -1;
+               }
+
+               config.dumpFile = dumpFile.get();
+          }
+
           std::vector<std::byte> generatedMachineCode;
           std::vector<std::pair<std::string, std::size_t>> functions;
 
@@ -629,6 +755,16 @@ int main(int argc, char* argv[])
                std::println("Compilation failed. {} elapsed", endTime - startTime);
 
                return -1;
+          }
+
+          if (config.dumpToFile)
+          {
+               dumpFile.reset();
+               config.dumpFile = nullptr;
+
+               std::println("Wrote {}", std::filesystem::absolute(config.outputImage).string());
+
+               return 0;
           }
 
           if (config.IsVerbose(VerboseFeature::FinalEmit)) PrintStringTable(config);
