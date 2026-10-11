@@ -3047,6 +3047,7 @@ std::string ecpps::ir::IR::MakeLabelName(const std::string_view hint)
 {
      auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
      runtime_assert(function != nullptr, "Labels can only be created inside a function");
+     if (function == nullptr) throw TracedException("Invalid function");
 
      return std::format(".L{}.{}.{}", function->GetScope<FunctionScope>().Name().value_or("__unknown"), hint,
                         this->_nextLabelIndex++);
