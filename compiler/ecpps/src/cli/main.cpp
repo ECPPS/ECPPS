@@ -1,5 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS // NOLINT
-
 #include "Execution/Context.h"
 #include "Machine/ABI.h"
 #include "Machine/Encoders/API/Target.h"
