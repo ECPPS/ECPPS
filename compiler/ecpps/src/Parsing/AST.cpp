@@ -2075,12 +2075,6 @@ NodePointer ecpps::ast::AST::ParseWhileStatement(ASTContext& context)
      else
           body.emplace_back(ParseStatement(context));
 
-     if (!Match(TokenType::SemiColon))
-     {
-          this->_diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon", source));
-     }
-
      source.endPosition = Peek(-1).location.endPosition;
      return std::unique_ptr<WhileStatementNode, ecpps::ast::ASTDeleter>(
           new (context) WhileStatementNode(std::move(condition), std::move(body), source));
@@ -2121,6 +2115,12 @@ NodePointer ecpps::ast::AST::ParseDoWhileStatement(ASTContext& context)
                diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
                     "hint", "The condition needs to be parenthesised", source));
           this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+     }
+
+     if (!Match(TokenType::SemiColon))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("Missing semi-colon", source));
      }
 
      source.endPosition = Peek(-1).location.endPosition;
