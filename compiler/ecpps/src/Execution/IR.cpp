@@ -903,6 +903,11 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           ParseWhileStatement(*whileNode);
           return;
      }
+     if (auto* const forNode = dynamic_cast<ast::ForStatementNode*>(node.get()); forNode != nullptr)
+     {
+          ParseForStatement(*forNode);
+          return;
+     }
      if (auto* const doWhileNode = dynamic_cast<ast::DoWhileStatementNode*>(node.get()); doWhileNode != nullptr)
      {
           ParseDoWhileStatement(*doWhileNode);
@@ -2950,6 +2955,28 @@ void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
      const auto bodyLabel = MakeLabelName("while.body");
      const auto continueLabel = MakeLabelName("while.cont");
      const auto endLabel = MakeLabelName("while.end");
+
+     if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
+
+     EmitLabel(bodyLabel, node.Source());
+     {
+          const JumpScope jumpScope{*this, endLabel, continueLabel};
+          for (const auto& statement : node.Body()) ParseNode(statement);
+     }
+
+     EmitLabel(continueLabel, node.Source());
+     if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
+
+     EmitLabel(endLabel, node.Source());
+}
+
+void ecpps::ir::IR::ParseForStatement(const ast::ForStatementNode& node)
+{
+     const auto bodyLabel = MakeLabelName("for.body");
+     const auto continueLabel = MakeLabelName("for.cont");
+     const auto endLabel = MakeLabelName("for.end");
+
+     ParseNode(node.InitStatement());
 
      if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
 

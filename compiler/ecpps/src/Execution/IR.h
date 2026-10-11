@@ -136,6 +136,7 @@ namespace ecpps::ir
           void ParseNamespace(const ast::NamespaceNode& node);
           void ParseIfStatement(const ast::IfStatementNode& node);
           void ParseWhileStatement(const ast::WhileStatementNode& node);
+          void ParseForStatement(const ast::ForStatementNode& node);
           void ParseDoWhileStatement(const ast::DoWhileStatementNode& node);
           void ParseLabelNode(const ast::LabelNode& node);
           void ParseGotoNode(const ast::GotoNode& node);

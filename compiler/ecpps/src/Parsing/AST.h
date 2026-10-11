@@ -528,6 +528,50 @@ namespace ecpps::ast
           NodePointer _condition;
           std::vector<NodePointer> _body;
      };
+     class ForStatementNode final : public Node
+     {
+     public:
+          explicit ForStatementNode(NodePointer init, NodePointer condition, NodePointer expression,
+                                    std::vector<NodePointer> body, Location source)
+              : Node(source), _init(std::move(init)), _condition(std::move(condition)),
+                _expression(std::move(expression)), _body(std::move(body))
+          {
+          }
+          [[nodiscard]] const NodePointer& InitStatement(void) const noexcept
+          {
+               return this->_init;
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const NodePointer& Expression(void) const noexcept
+          {
+               return this->_expression;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "for (" +
+                       (this->_init == nullptr ? ";" : this->_init->ToString(0)) + "; " +
+                       (this->_condition == nullptr ? "" : this->_condition->ToString(0)) + "; " +
+                       (this->_expression == nullptr ? "" : this->_expression->ToString(0)) + ")\n" +
+                       std::string(indent * PrettyIndent, ' ') + "{\n" + built +
+                       std::string(indent * PrettyIndent, ' ') + "}";
+               return built;
+          }
+
+     private:
+          NodePointer _init;
+          NodePointer _condition;
+          NodePointer _expression;
+          std::vector<NodePointer> _body;
+     };
      class DoWhileStatementNode final : public Node
      {
      public:
@@ -1073,6 +1117,7 @@ namespace ecpps::ast
           NodePointer ParseStatement(ASTContext& context);
           NodePointer ParseIfStatement(ASTContext& context);
           NodePointer ParseWhileStatement(ASTContext& context);
+          NodePointer ParseForStatement(ASTContext& context);
           NodePointer ParseDoWhileStatement(ASTContext& context);
           NodePointer ParseDeclarationStatement(ASTContext& context)
           {
