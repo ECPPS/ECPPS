@@ -578,6 +578,21 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      default: throw TracedException("Unknown instruction");
      }
 
+     switch (instruction.type)
+     {
+     case ecpps::ir::abstract::VirtualInstructionType::Copy:
+     case ecpps::ir::abstract::VirtualInstructionType::CopyInteger:
+     case ecpps::ir::abstract::VirtualInstructionType::Truncate:
+     case ecpps::ir::abstract::VirtualInstructionType::Reinterpret:
+          if (!instruction.operands.empty() && this->IsSpilled(instruction.operands[0]))
+          {
+               this->ReleaseRegister(instruction.operands[0]); // frees the stale register copy, if any
+               this->_evicted.insert(instruction.operands[0].index);
+          }
+          break;
+     default: break;
+     }
+
      instructions.insert(instructions.begin(), this->_pendingSpills.begin(), this->_pendingSpills.end());
      this->_pendingSpills.clear();
      return instructions;
@@ -1086,8 +1101,17 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->GetVRM().IsMaterialised(virtualRegister)) return {};
      std::vector<ir::abstract::Instruction> reloads{};
-     for (const auto source : SourcesOf(this->GetVRM().GetValue(virtualRegister)))
-          if (this->_evicted.contains(source.index)) reloads.append_range(this->EnsureMaterialisation(source));
+     const auto& pendingValue = this->GetVRM().GetValue(virtualRegister);
+     const bool isCopyOfSpilled =
+          pendingValue.type == ir::abstract::StateType::Allocation &&
+          std::launder(reinterpret_cast<const AssignedValueBase*>(pendingValue.data.data()))->type ==
+               AssignedValueType::Copy;
+     for (const auto source : SourcesOf(pendingValue))
+     {
+          if (!this->_evicted.contains(source.index)) continue;
+          if (isCopyOfSpilled && this->IsSpilled(source)) continue;
+          reloads.append_range(this->EnsureMaterialisation(source));
+     }
 
      const auto& value = this->GetVRM().GetValue(virtualRegister);
      if (value.type == ir::abstract::StateType::Unknown)
