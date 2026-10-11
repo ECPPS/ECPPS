@@ -1,4 +1,7 @@
 #pragma once
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 #include "../Parsing/AST.h"
@@ -103,11 +106,6 @@ namespace ecpps::ir
 
      void CreateReferenceMap(abstract::VirtualRegisterMap& map, const std::vector<NodePointer>& irNodes);
 
-     struct LoopTargets
-     {
-          std::string continueLabel;
-          std::string breakLabel;
-     };
      class IR
      {
      public:
@@ -138,6 +136,7 @@ namespace ecpps::ir
           void ParseNamespace(const ast::NamespaceNode& node);
           void ParseIfStatement(const ast::IfStatementNode& node);
           void ParseWhileStatement(const ast::WhileStatementNode& node);
+          void ParseDoWhileStatement(const ast::DoWhileStatementNode& node);
           void ParseLabelNode(const ast::LabelNode& node);
           void ParseGotoNode(const ast::GotoNode& node);
           void ParseBreakNode(const ast::BreakNode& node);
@@ -216,7 +215,34 @@ namespace ecpps::ir
                                       const std::vector<Expression>& arguments);
 
           std::size_t _nextLabelIndex{};
-          std::vector<LoopTargets> _loopStack{};
+
+          struct JumpTargets
+          {
+               std::string breakLabel;
+               std::optional<std::string> continueLabel;
+          };
+
+          std::vector<JumpTargets> _jumpStack{};
+
+          struct JumpScope
+          {
+               JumpScope(IR& ir, std::string breakLabel, std::optional<std::string> continueLabel) : _ir(ir)
+               {
+                    this->_ir._jumpStack.push_back({std::move(breakLabel), std::move(continueLabel)});
+               }
+               JumpScope(const JumpScope&) = delete;
+               JumpScope& operator=(const JumpScope&) = delete;
+               ~JumpScope()
+               {
+                    this->_ir._jumpStack.pop_back();
+               }
+
+          private:
+               IR& _ir;
+          };
+
+          [[nodiscard]] bool EmitConditionalBranch(const ast::NodePointer& condition, const std::string& trueLabel,
+                                                   const std::string& falseLabel, const Location& source);
 
           [[nodiscard]] Expression ParseCondition(const ast::NodePointer& condition); // already converts!!1!
           [[nodiscard]] std::string MakeLabelName(std::string_view hint);
@@ -262,22 +288,6 @@ namespace ecpps::ir
 
           private:
                [[maybe_unused]] IR& _ir;
-          };
-          struct LoopScope
-          {
-               LoopScope(IR& ir, std::string continueLabel, std::string breakLabel) : _ir(ir)
-               {
-                    this->_ir._loopStack.push_back({std::move(continueLabel), std::move(breakLabel)});
-               }
-               LoopScope(const LoopScope&) = delete;
-               LoopScope& operator=(const LoopScope&) = delete;
-               ~LoopScope()
-               {
-                    this->_ir._loopStack.pop_back();
-               }
-
-          private:
-               IR& _ir;
           };
      };
 } // namespace ecpps::ir

@@ -528,6 +528,35 @@ namespace ecpps::ast
           NodePointer _condition;
           std::vector<NodePointer> _body;
      };
+     class DoWhileStatementNode final : public Node
+     {
+     public:
+          explicit DoWhileStatementNode(NodePointer condition, std::vector<NodePointer> body, Location source)
+              : Node(source), _condition(std::move(condition)), _body(std::move(body))
+          {
+          }
+          [[nodiscard]] const NodePointer& Condition(void) const noexcept
+          {
+               return this->_condition;
+          }
+          [[nodiscard]] const std::vector<NodePointer>& Body(void) const noexcept
+          {
+               return this->_body;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string built{};
+               for (const auto& node : this->_body) built += node->ToString(indent + 1) + ";\n";
+               built = std::string(indent * PrettyIndent, ' ') + "do \n" + std::string(indent * PrettyIndent, ' ') +
+                       "{\n" + built + std::string(indent * PrettyIndent, ' ') + "} while (" +
+                       this->_condition->ToString(0) + ")\n";
+               return built;
+          }
+
+     private:
+          NodePointer _condition;
+          std::vector<NodePointer> _body;
+     };
      class LabelNode final : public Node
      {
      public:
@@ -1044,6 +1073,7 @@ namespace ecpps::ast
           NodePointer ParseStatement(ASTContext& context);
           NodePointer ParseIfStatement(ASTContext& context);
           NodePointer ParseWhileStatement(ASTContext& context);
+          NodePointer ParseDoWhileStatement(ASTContext& context);
           NodePointer ParseDeclarationStatement(ASTContext& context)
           {
                return ParseBlockDeclaration(context);
