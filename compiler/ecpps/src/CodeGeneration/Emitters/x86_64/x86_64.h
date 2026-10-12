@@ -61,6 +61,7 @@ namespace ecpps::codegen::emitters
           [[nodiscard]] std::vector<std::byte> EmitLabel(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitCmp(const ir::abstract::DynamicBytecode& description);
           [[nodiscard]] std::vector<std::byte> EmitJcc(const ir::abstract::DynamicBytecode& description);
+          [[nodiscard]] std::vector<std::byte> EmitMul(const ir::abstract::DynamicBytecode& description);
 
           std::vector<std::size_t> _callPatches{};
           std::vector<JumpPatch> _jumpPatches{};

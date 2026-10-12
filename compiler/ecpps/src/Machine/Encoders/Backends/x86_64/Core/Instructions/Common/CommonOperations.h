@@ -26,7 +26,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           CopyParameter,
           PassArgument,
           AddressOf,
-          LoadStringAddress
+          LoadStringAddress,
+          Multiplication
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -101,6 +102,8 @@ namespace ecpps::abi::encoders::x8664::inline common
                AssignmentValue<AssignedValueType::PassArgument, std::size_t, bool, ir::abstract::VirtualRegister>;
           using AddressOfAllocation = AssignmentValue<AssignedValueType::AddressOf, ir::abstract::VirtualRegister>;
           using StringAddress = AssignmentValue<AssignedValueType::LoadStringAddress, std::size_t, std::size_t>;
+          using MultiplicationRegisters = AssignmentValue<AssignedValueType::Multiplication,
+                                                          ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

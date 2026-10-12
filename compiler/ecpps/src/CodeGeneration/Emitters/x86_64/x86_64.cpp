@@ -37,6 +37,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitInstruction(
      case abi::encoders::x8664::X8664InstructionName::Label: return this->EmitLabel(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Cmp: return this->EmitCmp(instruction.description);
      case abi::encoders::x8664::X8664InstructionName::Jcc: return this->EmitJcc(instruction.description);
+     case abi::encoders::x8664::X8664InstructionName::Mul: return this->EmitMul(instruction.description);
      default: throw TracedException("x86-64 does not implement this opcode yet");
      }
 }

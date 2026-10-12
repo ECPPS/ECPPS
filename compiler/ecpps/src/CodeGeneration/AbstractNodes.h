@@ -123,7 +123,8 @@ namespace ecpps::ir::abstract
           LoadStringAddress,
           UnconditionalJump,
           Label,
-          CompareAndJump
+          CompareAndJump,
+          Multiplication
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -156,6 +157,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::UnconditionalJump: return "jump";
           case VirtualInstructionType::Label: return "label";
           case VirtualInstructionType::CompareAndJump: return "compare-and-jump";
+          case VirtualInstructionType::Multiplication: return "multiply";
           }
           throw TracedException("control flow");
      }

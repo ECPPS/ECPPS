@@ -89,6 +89,10 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CompareAndJump>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Multiplication>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
           ecpps::ir::abstract::VirtualRegister owner, std::span<const std::byte> data);
@@ -178,6 +182,10 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress>(ecpps::ir::abstract::VirtualRegister owner,
                                                                           std::span<const std::byte> data);
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::Multiplication>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                       std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -352,6 +360,12 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* neg =
                std::launder(reinterpret_cast<const ArithmeticNegationInstruction*>(instruction.description.data()));
           return std::format("NEG.{} {}", ToString(neg->width), ToString(neg->modifiedOperand));
+     }
+     case X8664InstructionName::Mul:
+     {
+          runtime_assert(instruction.description.size() == sizeof(MulInstruction), "invalid MUL");
+          const auto* mul = std::launder(reinterpret_cast<const MulInstruction*>(instruction.description.data()));
+          return std::format("MUL.{} {}", ToString(mul->width), ToString(mul->source));
      }
      case X8664InstructionName::SignExtend:
      {
@@ -574,6 +588,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::CompareAndJump>(instruction.operands));
           break;
+     case ecpps::ir::abstract::VirtualInstructionType::Multiplication:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Multiplication>(instruction.operands));
+          break;
 
      default: throw TracedException("Unknown instruction");
      }
@@ -778,6 +796,17 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
 
      const ir::FunctionScope* scope = functionIndex < this->Scopes().size() ? this->Scopes()[functionIndex] : nullptr;
      new (instruction.description.data()) CallInstruction{.indexToTable = functionIndex, .scope = scope};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildMul(Width width,
+                                                                                                       Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Mul;
+     instruction.description.resize(sizeof(MulInstruction));
+
+     new (instruction.description.data()) MulInstruction{.width = width, .source = source};
 
      return instruction;
 }
@@ -1042,6 +1071,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<0>(bitwiseNot.parameters));
           break;
      }
+     case AssignedValueType::Multiplication:
+     {
+          const auto& mul = *std::launder(reinterpret_cast<const values::MultiplicationRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(mul.parameters));
+          sources.push_back(std::get<1>(mul.parameters));
+          break;
+     }
      case AssignedValueType::Neg:
      {
           const auto& neg =
@@ -1207,6 +1243,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::LoadStringAddress:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::LoadStringAddress>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Multiplication:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Multiplication>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException(std::format("Invalid opcode: {}", std::to_underlying(valueBase.type)));
