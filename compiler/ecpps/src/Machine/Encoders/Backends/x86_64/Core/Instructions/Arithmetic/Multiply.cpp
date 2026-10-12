@@ -26,9 +26,6 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& left = registerArray[1];
      const auto& right = registerArray[2];
 
-     runtime_assert(!this->IsSpilled(left) && !this->IsSpilled(right) && !this->IsSpilled(destination),
-                    "Multiplication operands must not be spilled");
-
      std::vector<ir::abstract::Instruction> built{};
 
      if (!this->ImmediateOf(right).has_value()) built.append_range(this->EnsureMaterialisation(right));
@@ -58,6 +55,9 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Multiplication>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)
 {
+     using namespace ecpps;
+     using namespace ecpps::abi::encoders::x8664;
+
      const auto& value = *std::launder(reinterpret_cast<const values::MultiplicationRegisters*>(data.data()));
 
      const auto left = std::get<0>(value.parameters);
@@ -71,7 +71,10 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const auto leftImmediate = this->ImmediateOf(left);
      const auto rightImmediate = this->ImmediateOf(right);
 
-     std::vector<ecpps::ir::abstract::Instruction> built{};
+     std::vector<ir::abstract::Instruction> built{};
+
+     if (!leftImmediate.has_value() && this->IsSpilled(left)) built.append_range(this->EnsureMaterialisation(left));
+     if (!rightImmediate.has_value() && this->IsSpilled(right)) built.append_range(this->EnsureMaterialisation(right));
 
      RegisterIndex sourceRegister{};
 
@@ -91,38 +94,51 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const RegisterIndex originalRegister = sourceRegister;
 
           this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          sourceRegister = this->_registerAllocator.Allocate(owner);
+          this->_registerAllocator.ClearPreference();
+
+          built.push_back(BuildMov(width, RegisterOperand{sourceRegister}, RegisterOperand{originalRegister}));
+     }
+
+     RegisterIndex leftRegister{};
+
+     if (leftImmediate.has_value())
+     {
+          leftRegister = rax;
+     }
+     else
+     {
+          leftRegister = this->PhysicalRegisterOf(left);
+     }
+
+     if (leftRegister == rdx)
+     {
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
           const RegisterIndex temporary = this->_registerAllocator.Allocate(owner);
           this->_registerAllocator.ClearPreference();
 
-          built.push_back(BuildMov(width, RegisterOperand{temporary}, RegisterOperand{originalRegister}));
+          built.push_back(BuildMov(width, RegisterOperand{temporary}, RegisterOperand{leftRegister}));
 
-          sourceRegister = temporary;
+          leftRegister = temporary;
      }
 
      if (!this->IsClobberable(rax)) built.append_range(this->ClearRegister(rax, owner));
-
      if (!this->IsClobberable(rdx)) built.append_range(this->ClearRegister(rdx, owner));
 
      if (leftImmediate.has_value())
      {
           built.push_back(BuildMov(width, RegisterOperand{rax}, IntegerOperand{*leftImmediate}));
      }
-     else
+     else if (leftRegister != rax)
      {
-          const RegisterIndex leftRegister = this->PhysicalRegisterOf(left);
-
-          if (leftRegister != rax)
-          {
-               built.push_back(BuildMov(width, RegisterOperand{rax}, RegisterOperand{leftRegister}));
-          }
+          built.push_back(BuildMov(width, RegisterOperand{rax}, RegisterOperand{leftRegister}));
      }
 
      built.push_back(BuildMul(width, RegisterOperand{sourceRegister}));
 
      const auto leftRemainingUses = this->ConsumeUse(left);
 
-     if (!leftImmediate.has_value() && leftRemainingUses == 0 && !this->IsMutable(left) &&
-         this->PhysicalRegisterOf(left) != rax)
+     if (!leftImmediate.has_value() && leftRemainingUses == 0 && !this->IsMutable(left) && leftRegister != rax)
      {
           this->ReleaseRegister(left);
      }
