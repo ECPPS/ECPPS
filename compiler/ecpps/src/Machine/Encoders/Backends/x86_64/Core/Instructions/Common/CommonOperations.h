@@ -27,7 +27,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           PassArgument,
           AddressOf,
           LoadStringAddress,
-          Multiplication
+          Multiplication,
+          Division
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -104,6 +105,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           using StringAddress = AssignmentValue<AssignedValueType::LoadStringAddress, std::size_t, std::size_t>;
           using MultiplicationRegisters = AssignmentValue<AssignedValueType::Multiplication,
                                                           ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
+          using DivisionRegisters = AssignmentValue<AssignedValueType::Division, ir::abstract::VirtualRegister,
+                                                    ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

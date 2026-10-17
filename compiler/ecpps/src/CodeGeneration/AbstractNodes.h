@@ -124,7 +124,8 @@ namespace ecpps::ir::abstract
           UnconditionalJump,
           Label,
           CompareAndJump,
-          Multiplication
+          Multiplication,
+          Division
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -158,6 +159,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Label: return "label";
           case VirtualInstructionType::CompareAndJump: return "compare-and-jump";
           case VirtualInstructionType::Multiplication: return "multiply";
+          case VirtualInstructionType::Division: return "divide";
           }
           throw TracedException("control flow");
      }

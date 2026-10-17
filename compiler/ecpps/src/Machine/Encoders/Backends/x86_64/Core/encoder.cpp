@@ -92,6 +92,9 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Multiplication>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Division>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -186,6 +189,11 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::Multiplication>(ecpps::ir::abstract::VirtualRegister owner,
                                                                        std::span<const std::byte> data);
+
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::Division>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                 std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -327,7 +335,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.size() == sizeof(BinaryOrInstruction), "invalid BINARY-OR");
           const auto* bitwise =
                std::launder(reinterpret_cast<const BinaryOrInstruction*>(instruction.description.data()));
-          return std::format("BINARY-OR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+          return std::format("OR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
                              ToString(bitwise->source));
      }
      case X8664InstructionName::BinaryAnd:
@@ -335,7 +343,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.size() == sizeof(BinaryAndInstruction), "invalid BINARY-AND");
           const auto* bitwise =
                std::launder(reinterpret_cast<const BinaryAndInstruction*>(instruction.description.data()));
-          return std::format("BINARY-AND.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+          return std::format("AND.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
                              ToString(bitwise->source));
      }
      case X8664InstructionName::BinaryXor:
@@ -343,7 +351,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.size() == sizeof(BinaryXorInstruction), "invalid BINARY-XOR");
           const auto* bitwise =
                std::launder(reinterpret_cast<const BinaryXorInstruction*>(instruction.description.data()));
-          return std::format("BINARY-XOR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
+          return std::format("XOR.{} {}, {}", ToString(bitwise->width), ToString(bitwise->modifiedDestination),
                              ToString(bitwise->source));
      }
      case X8664InstructionName::BitwiseNot:
@@ -366,6 +374,12 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.size() == sizeof(MulInstruction), "invalid MUL");
           const auto* mul = std::launder(reinterpret_cast<const MulInstruction*>(instruction.description.data()));
           return std::format("MUL.{} {}", ToString(mul->width), ToString(mul->source));
+     }
+     case X8664InstructionName::Div:
+     {
+          runtime_assert(instruction.description.size() == sizeof(DivInstruction), "invalid DIV");
+          const auto* div = std::launder(reinterpret_cast<const DivInstruction*>(instruction.description.data()));
+          return std::format("DIV.{} {}", ToString(div->width), ToString(div->source));
      }
      case X8664InstructionName::SignExtend:
      {
@@ -592,6 +606,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Multiplication>(instruction.operands));
           break;
+     case ecpps::ir::abstract::VirtualInstructionType::Division:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Division>(instruction.operands));
+          break;
 
      default: throw TracedException("Unknown instruction");
      }
@@ -807,6 +825,17 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.description.resize(sizeof(MulInstruction));
 
      new (instruction.description.data()) MulInstruction{.width = width, .source = source};
+
+     return instruction;
+}
+ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildDiv(Width width,
+                                                                                                       Operand source)
+{
+     ir::abstract::Instruction instruction{};
+     instruction.opcode = X8664InstructionName::Div;
+     instruction.description.resize(sizeof(DivInstruction));
+
+     new (instruction.description.data()) DivInstruction{.width = width, .source = source};
 
      return instruction;
 }
@@ -1078,6 +1107,13 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<1>(mul.parameters));
           break;
      }
+     case AssignedValueType::Division:
+     {
+          const auto& mul = *std::launder(reinterpret_cast<const values::MultiplicationRegisters*>(value.data.data()));
+          sources.push_back(std::get<0>(mul.parameters));
+          sources.push_back(std::get<1>(mul.parameters));
+          break;
+     }
      case AssignedValueType::Neg:
      {
           const auto& neg =
@@ -1247,6 +1283,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Multiplication:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Multiplication>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Division:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Division>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException(std::format("Invalid opcode: {}", std::to_underlying(valueBase.type)));
