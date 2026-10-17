@@ -1220,6 +1220,93 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
           std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(resultReg, node.Source())});
 }
 
+std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePointer& initialiser,
+                                                             typeSystem::NonowningTypePointer elementType,
+                                                             const std::string& name, const Location& source)
+{
+     if (initialiser == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Unbounded array '{}' must have an initialiser", name), source));
+          return std::nullopt;
+     }
+
+     if (const auto* const stringInitialiser = dynamic_cast<const ast::StringLiteralNode*>(initialiser.get());
+         stringInitialiser != nullptr && IsEligibleForStringLiteralInitialisation(elementType))
+     {
+          return static_cast<std::uint64_t>(stringInitialiser->Value().length() + 1);
+     }
+
+     if (const auto* const listInitialiser = dynamic_cast<const ast::InitialiserListNode*>(initialiser.get());
+         listInitialiser != nullptr)
+     {
+          std::uint64_t count{};
+          for ([[maybe_unused]] const auto& element : listInitialiser->Initialisers()) ++count;
+
+          if (count == 0)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Cannot deduce the bound of array '{}' from an empty initialiser list", name),
+                         initialiser->Source()));
+               return std::nullopt;
+          }
+          return count;
+     }
+
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               std::format("Array '{}' must be initialised with initialiser-lists", name), initialiser->Source()));
+     return std::nullopt;
+}
+
+Expression ecpps::ir::IR::ParseArrayInitialiser(const ast::NodePointer& initialiser,
+                                                typeSystem::NonowningTypePointer arrayTypeBase, const std::string& name)
+{
+     const auto* arrayType = arrayTypeBase->CastTo<typeSystem::ArrayType>();
+     runtime_assert(arrayType != nullptr, "Expected an array type for array initialisers");
+
+     if (const auto* const stringInitialiser = dynamic_cast<const ast::StringLiteralNode*>(initialiser.get());
+         stringInitialiser != nullptr && IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
+     {
+          auto& allocator = *this->GetContext().nodeAllocator;
+          const auto& string = stringInitialiser->Value();
+          const auto stringLength = string.length() + 1;
+          const auto* elementType = arrayType->ElementType()->CastTo<typeSystem::IntegralType>();
+          runtime_assert(elementType != nullptr, "Expected a character type for string-literal initialisation");
+
+          if (stringLength > arrayType->ElementCount())
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Cannot initialise an array with more elements than it can "
+                                     "hold. Provided {} elements for an array of `{}` `{}`s",
+                                     stringLength, arrayType->ElementCount(), arrayType->ElementType()->RawName()),
+                         initialiser->Source()));
+               return nullptr;
+          }
+
+          std::vector<std::uint32_t> arrayValues{};
+          arrayValues.reserve(arrayType->ElementCount());
+          for (const auto character : string) arrayValues.emplace_back(character);
+          arrayValues.emplace_back(0u);
+          arrayValues.resize(arrayType->ElementCount(), 0u); // the rest is zero-initialised
+
+          std::unique_ptr<IntegerArrayNode, IRDeleter> arrayNode{
+               new (allocator) IntegerArrayNode(std::move(arrayValues), elementType, initialiser->Source())};
+          return std::make_unique<PRValue>(arrayTypeBase, std::move(arrayNode), true);
+     }
+
+     if (dynamic_cast<const ast::InitialiserListNode*>(initialiser.get()) != nullptr)
+          return ParseListInitialisation(initialiser, arrayTypeBase);
+
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               std::format("Array '{}' must be initialised with initialiser-lists", name), initialiser->Source()));
+     return nullptr;
+}
+
 void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode& node)
 {
      auto& allocator = *this->GetContext().nodeAllocator;
@@ -1285,36 +1372,48 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           const std::string varName = idExpr->Value();
           const auto* variableType = declaredType;
           bool inferLastArrayFromInitialiser = false;
+          bool arrayBoundsFailed = false;
           const auto isArray = !decl.arrayLevels.empty();
 
-          for (const auto& arrayLevel : decl.arrayLevels)
+          std::vector<const ast::NodePointer*> arrayLevels{};
+          for (const auto& arrayLevel : decl.arrayLevels) arrayLevels.push_back(&arrayLevel);
+
+          for (std::size_t levelIndex = arrayLevels.size(); levelIndex-- > 0;)
           {
-               if (inferLastArrayFromInitialiser)
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         std::make_unique<diagnostics::TypeError>(
-                              std::format(
-                                   "Declaration of '{}' introduces an array of unbounded arrays which is not allowed, "
-                                   "only the top-level array might be unbounded",
-                                   varName),
-                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+               const auto& arrayLevel = *arrayLevels[levelIndex];
 
                if (arrayLevel == nullptr)
                {
+                    if (levelIndex != 0)
+                    {
+                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                              std::make_unique<diagnostics::TypeError>(
+                                   std::format("Declaration of '{}' introduces an array of unbounded arrays which is "
+                                               "not allowed, only the top-level array might be unbounded",
+                                               varName),
+                                   node.Source()));
+                         arrayBoundsFailed = true;
+                         break;
+                    }
                     inferLastArrayFromInitialiser = true;
                     continue;
                }
+
                const auto arrayLevelExpression = ParseExpression(arrayLevel);
-               if (arrayLevelExpression == nullptr) break;
+               if (arrayLevelExpression == nullptr)
+               {
+                    arrayBoundsFailed = true;
+                    break;
+               }
 
                auto constexprArraySize =
                     arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
                if (!constexprArraySize.has_value())
                {
-                    inferLastArrayFromInitialiser = true;
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          std::make_unique<diagnostics::TypeError>(
                               std::format("Arrays bounds must be defined by a constant expression", varName),
-                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                              arrayLevel->Source()));
 
                     auto& nestedDiagnostics = constexprArraySize.error();
 
@@ -1324,16 +1423,17 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                               std::move(nestedDiagnostics.top()));
                          nestedDiagnostics.pop();
                     }
+                    arrayBoundsFailed = true;
                     break;
                }
                const auto& arraySize = *constexprArraySize;
                if (!std::holds_alternative<std::uint64_t>(arraySize.variant))
                {
-                    inferLastArrayFromInitialiser = true;
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          std::make_unique<diagnostics::TypeError>(
                               std::format("Arrays bounds must be defined by an integer", varName),
-                              arrayLevel == nullptr ? node.Source() : arrayLevel->Source()));
+                              arrayLevel->Source()));
+                    arrayBoundsFailed = true;
                     break;
                }
                const auto length = std::get<std::uint64_t>(arraySize.variant);
@@ -1341,6 +1441,21 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                TypeRequest arrayRequest{};
                arrayRequest.kind = TypeKind::Compound;
                arrayRequest.data = BoundedArrayRequest{.elementType = variableType, .size = length};
+
+               variableType = GetTypeContext().Get(arrayRequest);
+          }
+
+          if (arrayBoundsFailed) continue;
+
+          if (inferLastArrayFromInitialiser)
+          {
+               const auto inferredLength =
+                    InferArrayLength(decl.initialiser, variableType, varName, decl.name->Source());
+               if (!inferredLength.has_value()) continue;
+
+               TypeRequest arrayRequest{};
+               arrayRequest.kind = TypeKind::Compound;
+               arrayRequest.data = BoundedArrayRequest{.elementType = variableType, .size = *inferredLength};
 
                variableType = GetTypeContext().Get(arrayRequest);
           }
@@ -1379,8 +1494,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           Variable varEntry{varName, variableType, StorageDuration::Automatic};
           const auto ssaIndex = function->GetNextRegisterIndex();
 
-          auto& registeredVarLocal = fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
-          auto& registeredVar = std::get<Variable>(registeredVarLocal.local);
+          fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
           RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
           auto ssaNodeUnique =
                std::unique_ptr<ir::SingleAssignRegisterNode, IRDeleter>{new (allocator) ir::SingleAssignRegisterNode(
@@ -1392,143 +1506,51 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{
                new (allocator) ir::AllocationNode(std::move(ssaNodeUnique), decl.name->Source())});
 
-          if (inferLastArrayFromInitialiser)
-          {
-               if (decl.initialiser == nullptr)
-               {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("Unbounded array '{}' must have an initialiser", varName),
-                              decl.name->Source()));
-               }
-               if (IsEligibleForStringLiteralInitialisation(variableType))
-               {
-                    if (auto* const stringInitialiser =
-                             dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
-                        stringInitialiser != nullptr)
-                    {
-                         const auto& string = stringInitialiser->Value();
-                         const auto arrayLength = string.length() + 1;
-                         const auto* elementType = variableType->CastTo<ecpps::typeSystem::CharacterType>();
-                         runtime_assert(elementType != nullptr,
-                                        "Expected a character type for string-literal initialisation");
-                         TypeRequest arrayRequest{};
-                         arrayRequest.kind = TypeKind::Compound;
-                         arrayRequest.data = BoundedArrayRequest{.elementType = elementType, .size = arrayLength};
-
-                         variableType = GetTypeContext().Get(arrayRequest);
-                         inferLastArrayFromInitialiser = false;
-
-                         std::vector<std::uint32_t> arrayValues{};
-                         arrayValues.reserve(arrayLength);
-                         for (const auto character : string) arrayValues.emplace_back(character);
-                         arrayValues.emplace_back(0u);
-
-                         std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
-                              new (allocator) ecpps::ir::IntegerArrayNode(std::move(arrayValues), elementType,
-                                                                          decl.initialiser->Source())};
-                         auto initialiserExpression =
-                              std::make_unique<ecpps::PRValue>(variableType, std::move(arrayNode), true);
-
-                         // Lower the array initialiser: use SSAArrayStoreNode for aggregate stores
-                         auto ownedArrayNode = std::move(*initialiserExpression).Value();
-                         this->_built.push_back(
-                              std::unique_ptr<ir::SSAArrayStoreNode, IRDeleter>{new (allocator) ir::SSAArrayStoreNode(
-                                   ssaNode, std::move(ownedArrayNode), decl.initialiser->Source())});
-                    }
-               }
-               if (inferLastArrayFromInitialiser)
-               {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("Array '{}' must be initialised with initialiser-lists", varName),
-                              decl.name->Source()));
-               }
-
-               registeredVar.type = variableType;
-          }
-          else if (decl.initialiser)
-          {
-               auto initExpr = PickInitialiser(decl.initialiser, variableType, decl.initialiserType);
-               if (initExpr == nullptr)
-               {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
-                    continue;
-               }
-               if (isArray)
-               {
-                    const auto* arrayType = variableType->CastTo<ecpps::typeSystem::ArrayType>();
-                    runtime_assert(arrayType != nullptr, "Expected an array type for array initialisers");
-
-                    if (IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
-                    {
-                         if (auto* const stringInitialiser =
-                                  dynamic_cast<ecpps::ast::StringLiteralNode*>(decl.initialiser.get());
-                             stringInitialiser != nullptr)
-                         {
-                              const auto& string = stringInitialiser->Value();
-                              const auto arrayLength = string.length() + 1;
-                              const auto* elementType =
-                                   arrayType->ElementType()->CastTo<ecpps::typeSystem::CharacterType>();
-                              runtime_assert(elementType != nullptr,
-                                             "Expected a character type for string-literal initialisation");
-
-                              if (arrayLength > arrayType->ElementCount())
-                              {
-                                   this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                             std::format("Cannot initialise an array with more elements than it can "
-                                                         "hold. Provided {} elements for an array of `{}` `{}`s",
-                                                         arrayLength, arrayType->ElementCount(),
-                                                         arrayType->ElementType()->RawName()),
-                                             decl.initialiser->Source()));
-                              }
-
-                              std::vector<std::uint32_t> arrayValues{};
-                              arrayValues.reserve(arrayLength);
-                              for (const auto character : string) arrayValues.emplace_back(character);
-                              arrayValues.emplace_back(0u);
-
-                              if (arrayLength < arrayType->ElementCount())
-                                   arrayValues.resize(arrayType->ElementCount());
-
-                              std::unique_ptr<ecpps::ir::IntegerArrayNode, IRDeleter> arrayNode{
-                                   new (allocator) ecpps::ir::IntegerArrayNode(std::move(arrayValues), elementType,
-                                                                               decl.initialiser->Source())};
-
-                              // Use SSAArrayStoreNode for aggregate (array) stores
-                              this->_built.push_back(std::unique_ptr<ir::SSAArrayStoreNode, IRDeleter>{
-                                   new (allocator) ir::SSAArrayStoreNode(ssaNode, std::move(arrayNode),
-                                                                         decl.initialiser->Source())});
-                         }
-                         continue;
-                    }
-               }
-
-               if (const auto* integralInitExpr = dynamic_cast<IntegralNode*>(initExpr->Value().get());
-                   integralInitExpr != nullptr)
-               {
-                    this->_built.push_back(std::unique_ptr<ir::SSAStoreIntegerNode, IRDeleter>{
-                         new (allocator)
-                              ir::SSAStoreIntegerNode(ssaNode, integralInitExpr->Value(), decl.initialiser->Source())});
-               }
-               else
-               {
-                    const auto* initReg = LowerExpression(std::move(initExpr), this->_built);
-                    if (initReg != nullptr)
-                    {
-                         this->_built.push_back(std::unique_ptr<ir::SSAStoreNode, IRDeleter>{
-                              new (allocator) ir::SSAStoreNode(ssaNode, initReg, decl.initialiser->Source())});
-                    }
-               }
-          }
-          else
+          if (decl.initialiser == nullptr)
           {
                // TODO: default-initialiser
                // for scalars it is an indeterminate value, but TODO: class types
                // TODO: Error for references
+               continue;
+          }
+
+          if (isArray)
+          {
+               // Arrays are initialised with a single aggregate store. Elements without an initialiser are
+               // value-initialised (zero), which is part of the aggregate that is stored.
+               auto arrayInitialiser = ParseArrayInitialiser(decl.initialiser, variableType, varName);
+               if (arrayInitialiser == nullptr) continue;
+
+               auto ownedArrayNode = std::move(*arrayInitialiser).Value();
+               this->_built.push_back(std::unique_ptr<ir::SSAArrayStoreNode, IRDeleter>{new (
+                    allocator) ir::SSAArrayStoreNode(ssaNode, std::move(ownedArrayNode), decl.initialiser->Source())});
+               continue;
+          }
+
+          auto initExpr = PickInitialiser(decl.initialiser, variableType, decl.initialiserType);
+          if (initExpr == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
+               continue;
+          }
+
+          if (const auto* integralInitExpr = dynamic_cast<IntegralNode*>(initExpr->Value().get());
+              integralInitExpr != nullptr)
+          {
+               this->_built.push_back(std::unique_ptr<ir::SSAStoreIntegerNode, IRDeleter>{
+                    new (allocator)
+                         ir::SSAStoreIntegerNode(ssaNode, integralInitExpr->Value(), decl.initialiser->Source())});
+          }
+          else
+          {
+               const auto* initReg = LowerExpression(std::move(initExpr), this->_built);
+               if (initReg != nullptr)
+               {
+                    this->_built.push_back(std::unique_ptr<ir::SSAStoreNode, IRDeleter>{
+                         new (allocator) ir::SSAStoreNode(ssaNode, initReg, decl.initialiser->Source())});
+               }
           }
      }
 }
@@ -2878,30 +2900,39 @@ Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer&
      return converted;
 }
 
-Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType)
+Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source)
 {
      if (IsScalar(desiredType))
      {
           if (IsIntegral(desiredType))
           {
-               return std::make_unique<PRValue>(
-                    desiredType,
-                    std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                  IntegralNode(0, Location{0, 0, 0})},
-                    true);
+               return std::make_unique<PRValue>(desiredType,
+                                                std::unique_ptr<IntegralNode, IRDeleter>{
+                                                     new (*this->GetContext().nodeAllocator) IntegralNode(0, source)},
+                                                true);
+          }
+     }
+     else if (const auto* const arrayType = desiredType->CastTo<typeSystem::ArrayType>(); arrayType != nullptr)
+     {
+          const auto* const elementType = arrayType->ElementType()->CastTo<typeSystem::IntegralType>();
+          if (elementType != nullptr)
+          {
+               std::vector<std::uint32_t> values(arrayType->ElementCount(), 0u);
+               auto arrayNode = std::unique_ptr<IntegerArrayNode, IRDeleter>{
+                    new (*this->GetContext().nodeAllocator) IntegerArrayNode(std::move(values), elementType, source)};
+               return std::make_unique<PRValue>(desiredType, std::move(arrayNode), true);
           }
      }
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "Zero initialisation is not supported for this type", Location{0, 0, 0}));
+               "Zero initialisation is not supported for this type", source));
      return nullptr;
 }
 
-Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType)
+Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source)
 {
      // TODO: Classes
-     // TODO: Arrays
-     return ParseZeroInitialisation(desiredType);
+     return ParseZeroInitialisation(desiredType, source);
 }
 
 void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
@@ -3123,8 +3154,55 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
      }
      if (initialisers.empty())
      {
-          return ParseValueInitialisation(desiredType);
+          return ParseValueInitialisation(desiredType, expression->Source());
      }
+
+     if (const auto* const arrayType = desiredType->CastTo<typeSystem::ArrayType>(); arrayType != nullptr)
+     {
+          const auto* const elementType = arrayType->ElementType()->CastTo<typeSystem::IntegralType>();
+          if (elementType == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "List initialisation is only supported for arrays of integral types", expression->Source()));
+               return nullptr;
+          }
+
+          if (initialisers.size() > arrayType->ElementCount())
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Cannot initialise an array with more elements than it can hold. Provided {} "
+                                     "elements for an array of `{}` `{}`s",
+                                     initialisers.size(), arrayType->ElementCount(),
+                                     arrayType->ElementType()->RawName()),
+                         expression->Source()));
+               return nullptr;
+          }
+
+          std::vector<std::uint32_t> values{};
+          values.reserve(arrayType->ElementCount());
+          for (const auto& initialiser : initialisers)
+          {
+               const auto constant = initialiser->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+               if (!constant.has_value() || !std::holds_alternative<std::uint64_t>(constant->variant))
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "Array elements must currently be initialised with constant integers",
+                              initialiser->Value()->Source()));
+                    return nullptr;
+               }
+               values.push_back(static_cast<std::uint32_t>(std::get<std::uint64_t>(constant->variant)));
+          }
+          values.resize(arrayType->ElementCount(), 0u);
+
+          auto arrayNode = std::unique_ptr<IntegerArrayNode, IRDeleter>{
+               new (*this->GetContext().nodeAllocator)
+                    IntegerArrayNode(std::move(values), elementType, expression->Source())};
+          return std::make_unique<PRValue>(desiredType, std::move(arrayNode), true);
+     }
+
      if (initialisers.size() == 1 && !IsReference(desiredType))
      {
           auto initialiserExpression = std::move(initialisers.front());
@@ -3404,17 +3482,33 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
 
                if (expression->IsLValue())
                {
-                    NodePointer decayNode{};
-
-                    if (auto* const loadNode = dynamic_cast<LoadNode*>(expression->Value().get()); loadNode != nullptr)
-                    {
-                         const auto source = loadNode->Source();
-
-                         decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(new (
-                              *this->GetContext().nodeAllocator) LoadArrayDecayNode(std::move(expression), source));
-                    }
+                    std::string variableName{};
+                    if (const auto* const referenceNode = dynamic_cast<const ReferenceNode*>(expression->Value().get()))
+                         variableName = referenceNode->Address();
+                    else if (const auto* const loadNode = dynamic_cast<const LoadNode*>(expression->Value().get()))
+                         variableName = loadNode->Address();
                     else
                          throw TracedException("array-to-pointer is not supported yet");
+
+                    const auto source = expression->Value()->Source();
+                    const auto* const allocReg = ResolveAllocReg(variableName);
+                    if (allocReg == nullptr)
+                    {
+                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   "Cannot resolve allocation register for variable '" + variableName + "'", source));
+                         return nullptr;
+                    }
+
+                    auto& allocator = *this->GetContext().nodeAllocator;
+                    auto registerReference =
+                         std::make_unique<LValue>(expression->Type(),
+                                                  std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                       new (allocator) SSARegisterReferenceNode(allocReg, source)},
+                                                  false);
+
+                    NodePointer decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(
+                         new (allocator) LoadArrayDecayNode(std::move(registerReference), source));
 
                     return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
                }

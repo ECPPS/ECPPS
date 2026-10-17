@@ -65,6 +65,12 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::PassArgument>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ZeroMemory>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyFromData>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::SignExtension>(
@@ -438,7 +444,9 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
           if (operands.size() < 2) return {};
           return std::vector<ir::abstract::VirtualRegister>{operands[1]};
      case Type::Label:
-     case Type::UnconditionalJump: return {};
+     case Type::UnconditionalJump:
+     case Type::ZeroMemory:
+     case Type::CopyFromData: return {};
      case Type::CompareAndJump: return {operands[0], operands[1]};
      default:
           if (operands.size() < 2) return {};
@@ -591,6 +599,14 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Multiplication:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Multiplication>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::ZeroMemory:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::ZeroMemory>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CopyFromData:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::CopyFromData>(instruction.operands));
           break;
 
      default: throw TracedException("Unknown instruction");

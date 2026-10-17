@@ -9,6 +9,7 @@ list(APPEND BACKEND_SOURCES
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Fundamental/PassArgument.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Fundamental/AddressOf.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Fundamental/LoadStringAddress.cpp
+	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Fundamental/Zero.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Arithmetic/Add.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Arithmetic/Sub.cpp
 	${CMAKE_CURRENT_LIST_DIR}/x86_64/Core/Instructions/Arithmetic/Shifts.cpp

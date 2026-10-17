@@ -102,6 +102,12 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                     this->ParseStoreIntNode(*storeIntNode);
                     return;
                }
+               if (const auto* arrayStoreNode = dynamic_cast<const ecpps::ir::SSAArrayStoreNode*>(node);
+                   arrayStoreNode != nullptr)
+               {
+                    this->ParseArrayStoreNode(*arrayStoreNode);
+                    return;
+               }
                const auto* storeNode = dynamic_cast<const ecpps::ir::SSAStoreNode*>(node);
                runtime_assert(storeNode != nullptr, "Store node was not a store!");
                this->ParseStoreNode(*storeNode);
@@ -320,6 +326,53 @@ void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreInteger
      ir::abstract::VirtualInstruction instruction{.type = ir::abstract::VirtualInstructionType::CopyInteger,
                                                   .operands = {virtualIndex, sourceVirtualised}};
      this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseArrayStoreNode(const ir::SSAArrayStoreNode& node)
+{
+     const auto* arrayNode = dynamic_cast<const ir::IntegerArrayNode*>(&node.ArrayNode());
+     if (arrayNode == nullptr)
+     {
+          this->diagnostics.push_back(
+               std::make_unique<diagnostics::TypeError>("Unsupported aggregate store source", node.Source()));
+          return;
+     }
+
+     const auto elementSize = arrayNode->Type()->Size();
+     const auto& values = arrayNode->Values();
+     const std::size_t totalSize = values.size() * elementSize;
+     if (totalSize == 0) return;
+
+     const ir::abstract::VirtualRegister virtualTarget{
+          this->virtualRegisterAllocationMap.FindVirtualBySSA(node.Target().Index())};
+
+     if (std::ranges::all_of(values,
+                             [](const std::uint32_t value)
+                             {
+                                  return value == 0;
+                             }))
+     {
+          this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::ZeroMemory,
+                                        .operands = {virtualTarget, ir::abstract::VirtualRegister{totalSize}}});
+          return;
+     }
+
+     runtime_assert(this->assembly != nullptr, "String pool is unavailable while lowering an aggregate store");
+
+     std::vector<Byte> bytes{};
+     bytes.reserve(totalSize);
+     for (const auto value : values)
+          for (std::size_t byteIndex = 0; byteIndex < elementSize; byteIndex++)
+               bytes.push_back(byteIndex < 4 ? static_cast<Byte>((value >> (byteIndex * 8)) & 0xFFu)
+                                             : static_cast<Byte>(0));
+
+     const auto stringIndex = this->assembly->AddString(bytes);
+
+     this->instructions.push_back(
+          {.type = ir::abstract::VirtualInstructionType::CopyFromData,
+           .operands = {virtualTarget,
+                        ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.indexInTable)},
+                        ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.offset)},
+                        ir::abstract::VirtualRegister{totalSize}}});
 }
 void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
 {

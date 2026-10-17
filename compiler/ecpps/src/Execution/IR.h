@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -189,8 +190,14 @@ namespace ecpps::ir
           Expression ParseListInitialisation(const ast::NodePointer& expression,
                                              typeSystem::NonowningTypePointer desiredType);
           Expression ParseDefaultInitialisation(typeSystem::NonowningTypePointer desiredType);
-          Expression ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType);
-          Expression ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType);
+          Expression ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
+          Expression ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
+
+          Expression ParseArrayInitialiser(const ast::NodePointer& initialiser,
+                                           typeSystem::NonowningTypePointer arrayType, const std::string& name);
+          [[nodiscard]] std::optional<std::uint64_t> InferArrayLength(const ast::NodePointer& initialiser,
+                                                                      typeSystem::NonowningTypePointer elementType,
+                                                                      const std::string& name, const Location& source);
 
           [[nodiscard]] bool IsNarrowingConversion(const Expression& expression,
                                                    typeSystem::NonowningTypePointer toType) const;
