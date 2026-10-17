@@ -10,11 +10,11 @@ namespace
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ZeroMemory>(
-          const std::vector<ecpps::ir::abstract::VirtualRegister>& operands)
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
 {
      std::vector<ir::abstract::Instruction> out{};
-     const auto target = operands[0];
-     const std::size_t size = operands[1].index;
+     const auto target = registerArray[0];
+     const std::size_t size = registerArray[1].index;
      const auto base = this->EnsureStackSlot(target);
      const auto limit = this->_target->platform->InlineInitialisationLimit();
 
@@ -74,19 +74,19 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyFromData>(
-          const std::vector<ecpps::ir::abstract::VirtualRegister>& operands)
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
 {
      std::vector<ir::abstract::Instruction> out{};
-     const auto target = operands[0];
-     const std::size_t size = operands[3].index;
+     const auto target = registerArray[0];
+     const std::size_t size = registerArray[3].index;
      const auto base = this->EnsureStackSlot(target);
      const auto limit = this->_target->platform->InlineInitialisationLimit();
 
      const auto stringAt = [&](const std::size_t extra) -> Operand
      {
           return StringAddressOperand{
-               .tableIndex = static_cast<decltype(StringAddressOperand::tableIndex)>(operands[1].index),
-               .offset = static_cast<decltype(StringAddressOperand::offset)>(operands[2].index + extra)};
+               .tableIndex = static_cast<decltype(StringAddressOperand::tableIndex)>(registerArray[1].index),
+               .offset = static_cast<decltype(StringAddressOperand::offset)>(registerArray[2].index + extra)};
      };
      const auto widthOf = [](const std::size_t bytes)
      {
