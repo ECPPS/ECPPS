@@ -1376,6 +1376,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           const auto isArray = !decl.arrayLevels.empty();
 
           std::vector<const ast::NodePointer*> arrayLevels{};
+          arrayLevels.reserve(decl.arrayLevels.size());
           for (const auto& arrayLevel : decl.arrayLevels) arrayLevels.push_back(&arrayLevel);
 
           for (std::size_t levelIndex = arrayLevels.size(); levelIndex-- > 0;)
