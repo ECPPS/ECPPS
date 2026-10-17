@@ -621,6 +621,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::CopyFromData:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::CopyFromData>(instruction.operands));
+          break;
      case ecpps::ir::abstract::VirtualInstructionType::Division:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Division>(instruction.operands));
