@@ -54,6 +54,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Cmp = 20;
           constexpr static std::size_t Jcc = 21;
           constexpr static std::size_t Mul = 22;
+          constexpr static std::size_t Div = 23;
      };
 
      enum struct EncodingSpillage : std::uint8_t
@@ -219,6 +220,11 @@ namespace ecpps::abi::encoders::x8664
                Operand address{};
           };
           struct MulInstruction
+          {
+               Width width{};
+               Operand source{};
+          };
+          struct DivInstruction
           {
                Width width{};
                Operand source{};
@@ -527,6 +533,7 @@ namespace ecpps::abi::encoders::x8664
                                                                     Operand destination, Operand source);
           [[nodiscard]] ir::abstract::Instruction BuildCall(std::size_t functionIndex);
           [[nodiscard]] ir::abstract::Instruction BuildMul(Width width, Operand source);
+          [[nodiscard]] ir::abstract::Instruction BuildDiv(Width width, Operand source);
           [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
                                                                   Operand address);
           [[nodiscard]] static bool IsTerminator(ir::abstract::VirtualInstructionType type) noexcept;
