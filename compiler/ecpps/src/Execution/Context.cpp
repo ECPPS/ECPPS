@@ -25,10 +25,12 @@ void ecpps::ir::FunctionContext::RegisterParamAllocReg(std::string registerName,
 [[nodiscard]] const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::FunctionContext::GetParameterRegister(
      std::uint64_t index) const
 {
+     if (!this->_indexToSSAMapping.contains(index)) throw TracedException("Invalid index");
      return this->_indexToSSAMapping.at(index);
 }
 [[nodiscard]] const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::FunctionContext::GetAllocRegForName(
      const std::string& registerName) const
 {
+     if (!this->_nameToSSAMapping.contains(registerName)) throw TracedException("Invalid index");
      return this->_nameToSSAMapping.at(registerName).pointer;
 }

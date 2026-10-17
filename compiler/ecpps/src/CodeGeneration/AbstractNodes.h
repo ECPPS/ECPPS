@@ -125,6 +125,8 @@ namespace ecpps::ir::abstract
           Label,
           CompareAndJump,
           Multiplication,
+          ZeroMemory,
+          CopyFromData,
           Division
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
@@ -133,6 +135,8 @@ namespace ecpps::ir::abstract
           {
           case VirtualInstructionType::Copy: return "copy";
           case VirtualInstructionType::CopyInteger: return "copy-int";
+          case VirtualInstructionType::ZeroMemory: return "zero";
+          case VirtualInstructionType::CopyFromData: return "copy-blob";
           case VirtualInstructionType::Add: return "add";
           case VirtualInstructionType::Sub: return "sub";
           case VirtualInstructionType::Return: return "return";
@@ -311,6 +315,7 @@ namespace ecpps::ir::abstract
           }
           const RegisterData& DataFromRegister(VirtualRegisterUsable auto reg) const
           {
+               if (!this->_map.contains(IndexFromRegister(reg))) throw TracedException("Invalid index");
                return this->_map.at(IndexFromRegister(reg));
           }
      };

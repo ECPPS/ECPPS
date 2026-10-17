@@ -62,6 +62,10 @@ namespace ecpps::abi::api
           virtual void PrepareABI(void)
           {
           }
+          [[nodiscard]] virtual std::size_t InlineInitialisationLimit(void) const noexcept
+          {
+               return 128; // bytes
+          }
 
      protected:
           SDKBase* _currentSdk; // TODO: non-null pointer
