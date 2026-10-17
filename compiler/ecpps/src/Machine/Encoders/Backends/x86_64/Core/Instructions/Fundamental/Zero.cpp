@@ -63,7 +63,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                 [&](const std::size_t offset) -> Operand
                 {
                      return MemoryOperand{.relativeTo = pointer,
-                                          .offset = static_cast<std::int32_t>(offset - words * 8)};
+                                          .offset = static_cast<std::int32_t>(offset - (words * 8))};
                 });
 
      this->_registerAllocator.Free(pointerOwner);
@@ -150,7 +150,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                    [&](const std::size_t offset) -> Operand
                    {
                         return MemoryOperand{.relativeTo = destination,
-                                             .offset = static_cast<std::int32_t>(offset - words * 8)};
+                                             .offset = static_cast<std::int32_t>(offset - (words * 8))};
                    });
 
           this->_registerAllocator.Free(destinationOwner);
