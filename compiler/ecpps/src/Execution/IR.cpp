@@ -1745,7 +1745,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           }
           else
           {
-               if (right->Type() != ptrDiffType)
+               if (offset->Type() != ptrDiffType)
                {
                     const auto innerSource = right->Value()->Source();
                     const auto wasConstexpr = right->IsConstantExpression();
