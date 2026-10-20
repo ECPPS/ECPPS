@@ -53,6 +53,13 @@ namespace
           }
           return signature;
      }
+     [[nodiscard]] bool IsIndirectLValue(const ecpps::Expression& expression)
+     {
+          return expression != nullptr &&
+                 dynamic_cast<const ecpps::ir::high::DereferenceNode*>(expression->Value().get()) != nullptr;
+     }
+     constexpr std::string_view IndirectStoreUnsupported =
+          "Modifying an object through a pointer is not supported yet (the IR has no indirect store)";
 
      std::size_t LevenshteinDistance(const std::string& string1, const std::string& string2)
      {
@@ -253,13 +260,12 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(
 {
      if (expression == nullptr || expression->Value() == nullptr) return nullptr;
 
-     auto* savedPointer = expression->Value().get();
-     auto source = savedPointer->Source();
+     const bool isVariableReference = dynamic_cast<const ReferenceNode*>(expression->Value().get()) != nullptr;
+     const auto source = expression->Value()->Source();
      const auto* type = expression->Type();
 
-     const auto* resultReg = LowerExpression(std::move(expression), this->_built);
-
-     if (!dynamic_cast<const ReferenceNode*>(savedPointer)) return resultReg;
+     const auto* resultReg = LowerExpression(std::move(expression), built);
+     if (!isVariableReference || resultReg == nullptr) return resultReg;
 
      auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
 
@@ -297,6 +303,47 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      NodeBase* valueNode = expression->Value().get();
      const Location source = valueNode->Source();
+
+     struct StorageSlot
+     {
+          const SingleAssignRegisterNode* reg{};
+          bool indirect{};
+     };
+
+     const auto lowerSlot = [&](Expression lvalue) -> StorageSlot
+     {
+          if (lvalue == nullptr) return {};
+          if (auto* const dereference = dynamic_cast<high::DereferenceNode*>(lvalue->Value().get()))
+          {
+               const auto* pointerReg = LowerExpressionLoaded(std::move(*dereference).Operand(), built);
+               return StorageSlot{.reg = pointerReg, .indirect = true};
+          }
+          const auto* objectReg = LowerExpression(std::move(lvalue), built);
+          return StorageSlot{.reg = objectReg, .indirect = false};
+     };
+
+     const auto loadSlot = [&](const StorageSlot& slot) -> const SingleAssignRegisterNode*
+     {
+          auto loaded = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
+          auto* loadedPtr = loaded.get();
+          if (slot.indirect)
+               built.push_back(std::unique_ptr<SSADerefNode, IRDeleter>{
+                    new (allocator) SSADerefNode(std::move(loaded), slot.reg, source)});
+          else
+               built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
+                    new (allocator) SSALoadNode(std::move(loaded), slot.reg, source)});
+          return loadedPtr;
+     };
+
+     const auto storeSlot = [&](const StorageSlot& slot, const SingleAssignRegisterNode* value)
+     {
+          if (slot.indirect)
+               built.push_back(std::unique_ptr<SSAIndirectStoreNode, IRDeleter>{
+                    new (allocator) SSAIndirectStoreNode(slot.reg, value, source)});
+          else
+               built.push_back(
+                    std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(slot.reg, value, source)});
+     };
 
      if (auto* const integralNode = dynamic_cast<IntegralNode*>(valueNode))
      {
@@ -554,19 +601,35 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const addrOfNode = dynamic_cast<high::AddressOfNode*>(valueNode))
      {
-          const auto* operandReg = LowerExpression(std::move(*addrOfNode).Operand(), built);
-          if (operandReg == nullptr) return nullptr;
+          auto operand = std::move(*addrOfNode).Operand();
+          if (operand == nullptr) return nullptr;
+          NodeBase* const operandNode = operand->Value().get();
+
+          if (auto* const inner = dynamic_cast<high::DereferenceNode*>(operandNode))
+               return LowerExpressionLoaded(std::move(*inner).Operand(), built);
+
+          if (dynamic_cast<ReferenceNode*>(operandNode) == nullptr &&
+              dynamic_cast<SSARegisterReferenceNode*>(operandNode) == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot take the address of this expression yet", source));
+               return nullptr;
+          }
+
+          const auto* objectReg = LowerExpression(std::move(operand), built);
+          if (objectReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSAAddressOfNode, IRDeleter>{
-               new (allocator) SSAAddressOfNode(std::move(result), operandReg, source)});
+               new (allocator) SSAAddressOfNode(std::move(result), objectReg, source)});
           return resultPtr;
      }
 
      if (auto* const derefNode = dynamic_cast<high::DereferenceNode*>(valueNode))
      {
-          const auto* ptrReg = LowerExpression(std::move(*derefNode).Operand(), built);
+          const auto* ptrReg = LowerExpressionLoaded(std::move(*derefNode).Operand(), built);
           if (ptrReg == nullptr) return nullptr;
 
           auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
@@ -582,7 +645,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           argRegs.reserve(callNode->Arguments().size());
           for (auto& argExpr : callNode->MoveArguments())
           {
-               const auto* reg = LowerExpression(std::move(argExpr), built);
+               const auto* reg = LowerExpressionLoaded(std::move(argExpr), built);
                if (reg == nullptr) return nullptr;
                argRegs.push_back(reg);
           }
@@ -605,69 +668,56 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
 
      if (auto* const addAssign = dynamic_cast<high::AdditionAssignNode*>(valueNode))
      {
-          const auto* targetReg = LowerExpression(std::move(*addAssign).Left(), built);
+          const auto slot = lowerSlot(std::move(*addAssign).Left());
           const auto* rhsReg = LowerExpressionLoaded(std::move(*addAssign).Right(), built);
-          if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
+          if (slot.reg == nullptr || rhsReg == nullptr) return nullptr;
 
-          auto loadResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
-          auto* loadPtr = loadResult.get();
-          built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-               new (allocator) SSALoadNode(std::move(loadResult), targetReg, source)});
+          const auto* current = loadSlot(slot);
 
           auto addResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* addPtr = addResult.get();
           built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
-               new (allocator) SSAAddNode(std::move(addResult), loadPtr, rhsReg, source)});
+               new (allocator) SSAAddNode(std::move(addResult), current, rhsReg, source)});
 
-          built.push_back(
-               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, addPtr, source)});
+          storeSlot(slot, addPtr);
 
           return addPtr; // pre-increment returns the new value
      }
 
      if (auto* const subAssign = dynamic_cast<high::SubtractionAssignNode*>(valueNode))
      {
-          const auto* targetReg = LowerExpression(std::move(*subAssign).Left(), built);
+          const auto slot = lowerSlot(std::move(*subAssign).Left());
           const auto* rhsReg = LowerExpressionLoaded(std::move(*subAssign).Right(), built);
-          if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
+          if (slot.reg == nullptr || rhsReg == nullptr) return nullptr;
 
-          auto loadResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
-          auto* loadPtr = loadResult.get();
-          built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-               new (allocator) SSALoadNode(std::move(loadResult), targetReg, source)});
+          const auto* current = loadSlot(slot);
 
           auto subResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* subPtr = subResult.get();
           built.push_back(std::unique_ptr<SSASubNode, IRDeleter>{
-               new (allocator) SSASubNode(std::move(subResult), loadPtr, rhsReg, source)});
+               new (allocator) SSASubNode(std::move(subResult), current, rhsReg, source)});
 
-          built.push_back(
-               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, subPtr, source)});
+          storeSlot(slot, subPtr);
 
           return subPtr;
      }
 
      if (auto* const assign = dynamic_cast<high::AssignNode*>(valueNode))
      {
-          const auto* targetReg = LowerExpression(std::move(*assign).Left(), built);
+          const auto slot = lowerSlot(std::move(*assign).Left());
           const auto* rhsReg = LowerExpressionLoaded(std::move(*assign).Right(), built);
-          if (targetReg == nullptr || rhsReg == nullptr) return nullptr;
+          if (slot.reg == nullptr || rhsReg == nullptr) return nullptr;
 
-          built.push_back(
-               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, rhsReg, source)});
-
-          return targetReg;
+          storeSlot(slot, rhsReg);
+          return slot.indirect ? rhsReg : slot.reg;
      }
 
      if (auto* const postInc = dynamic_cast<high::PostIncrementNode*>(valueNode))
      {
-          const auto* targetReg = LowerExpression(std::move(*postInc).Operand(), built);
-          if (targetReg == nullptr) return nullptr;
+          const auto slot = lowerSlot(std::move(*postInc).Operand());
+          if (slot.reg == nullptr) return nullptr;
 
-          auto oldResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
-          auto* oldPtr = oldResult.get();
-          built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-               new (allocator) SSALoadNode(std::move(oldResult), targetReg, source)});
+          const auto* oldPtr = loadSlot(slot);
 
           auto oneResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* onePtr = oneResult.get();
@@ -679,21 +729,17 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
                new (allocator) SSAAddNode(std::move(newResult), oldPtr, onePtr, source)});
 
-          built.push_back(
-               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, newPtr, source)});
+          storeSlot(slot, newPtr);
 
           return oldPtr;
      }
 
      if (auto* const postDec = dynamic_cast<high::PostDecrementNode*>(valueNode))
      {
-          const auto* targetReg = LowerExpression(std::move(*postDec).Operand(), built);
-          if (targetReg == nullptr) return nullptr;
+          const auto slot = lowerSlot(std::move(*postDec).Operand());
+          if (slot.reg == nullptr) return nullptr;
 
-          auto oldResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
-          auto* oldPtr = oldResult.get();
-          built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-               new (allocator) SSALoadNode(std::move(oldResult), targetReg, source)});
+          const auto* oldPtr = loadSlot(slot);
 
           auto oneResult = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* onePtr = oneResult.get();
@@ -705,8 +751,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           built.push_back(std::unique_ptr<SSASubNode, IRDeleter>{
                new (allocator) SSASubNode(std::move(newResult), oldPtr, onePtr, source)});
 
-          built.push_back(
-               std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(targetReg, newPtr, source)});
+          storeSlot(slot, newPtr);
 
           return oldPtr;
      }
@@ -772,7 +817,6 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::ResolveAllocReg(const 
      }
      return nullptr;
 }
-
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
 {
      IR ir{&context};
@@ -1546,7 +1590,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
           else
           {
-               const auto* initReg = LowerExpression(std::move(initExpr), this->_built);
+               // The initialiser is read as a VALUE (lvalue-to-rvalue), e.g. `int* p = otherP;` loads otherP.
+               const auto* initReg = LowerExpressionLoaded(std::move(initExpr), this->_built);
                if (initReg != nullptr)
                {
                     this->_built.push_back(std::unique_ptr<ir::SSAStoreNode, IRDeleter>{
@@ -1626,6 +1671,19 @@ void ecpps::ir::IR::ParseNamespace(const ast::NamespaceNode& node)
      this->GetContext().contextSequence.pop_back();
 }
 
+static std::uint64_t ConvertConstant(std::uint64_t value, const ecpps::typeSystem::IntegralType* from,
+                                     const ecpps::typeSystem::IntegralType* to)
+{
+     const auto fromBits = static_cast<unsigned>(from->Size() * 8); // assumes Size() is bytes
+     if (fromBits < 64)
+     {
+          const std::uint64_t mask = (1ull << fromBits) - 1;
+          value &= mask;
+          if (from->Sign() == ecpps::typeSystem::Signedness::Signed && ((value >> (fromBits - 1)) & 1)) value |= ~mask;
+     }
+     const auto toBits = static_cast<unsigned>(to->Size() * 8);
+     return toBits < 64 ? value & ((1ull << toBits) - 1) : value;
+}
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                   const Location& source) const
 {
@@ -1657,18 +1715,63 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                std::swap(leftPointer, rightPointer);
           }
 
-          rightIntegral = typeSystem::PromoteInteger(rightIntegral);
-
-          if (right->Type() != rightIntegral)
+          const auto elementSize = leftPointer->BaseType()->Size();
+          if (elementSize == 0)
           {
-               const auto innerSource = right->Value()->Source();
-               const auto wasConstexpr = right->IsConstantExpression();
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot perform pointer arithmetic on a pointer to a void or incomplete type", source));
+               return nullptr;
+          }
 
-               right = std::make_unique<PRValue>(rightIntegral,
-                                                 std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                      new (*this->GetContext().nodeAllocator) high::ConvertNode(
-                                                           std::move(right), rightIntegral, innerSource)},
-                                                 wasConstexpr);
+          TypeRequest ptrDiffRequest{};
+          ptrDiffRequest.kind = TypeKind::Fundamental;
+          ptrDiffRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::PtrDiff};
+          const auto* ptrDiffType = GetTypeContext().Get(ptrDiffRequest)->CastTo<typeSystem::IntegralType>();
+          runtime_assert(ptrDiffType != nullptr, "ptrdiff_t must be an integral type");
+
+          auto offset = std::move(right);
+          const auto constant = offset->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+          const auto* offsetIntegral = offset->Type()->CastTo<typeSystem::IntegralType>();
+          if (constant.has_value() && std::holds_alternative<std::uint64_t>(constant->variant))
+          {
+               const auto widened =
+                    ConvertConstant(std::get<std::uint64_t>(constant->variant), offsetIntegral, ptrDiffType);
+               right = std::make_unique<PRValue>(
+                    ptrDiffType,
+                    std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                  IntegralNode(widened * elementSize, source)},
+                    true); // folded scale
+          }
+          else
+          {
+               if (right->Type() != ptrDiffType)
+               {
+                    const auto innerSource = right->Value()->Source();
+                    const auto wasConstexpr = right->IsConstantExpression();
+
+                    right = std::make_unique<PRValue>(ptrDiffType,
+                                                      std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                           new (*this->GetContext().nodeAllocator) high::ConvertNode(
+                                                                std::move(right), ptrDiffType, innerSource)},
+                                                      wasConstexpr);
+               }
+
+               if (elementSize != 1)
+               {
+                    auto scale = std::make_unique<PRValue>(
+                         ptrDiffType,
+                         std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                       IntegralNode(elementSize, source)},
+                         true);
+                    const auto wasConstexpr = right->IsConstantExpression();
+                    right = std::make_unique<PRValue>(
+                         ptrDiffType,
+                         std::unique_ptr<high::MultiplicationNode, IRDeleter>{
+                              new (*this->GetContext().nodeAllocator)
+                                   high::MultiplicationNode(std::move(right), std::move(scale), source)},
+                         wasConstexpr);
+               }
           }
 
           if (!isPlus)
@@ -1706,16 +1809,38 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                return nullptr;
           }
 
+          const auto elementSize = leftPointer->BaseType()->Size();
+          if (elementSize == 0)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot subtract pointers to a void or incomplete type", source));
+               return nullptr;
+          }
+
           TypeRequest typeRequest{};
           typeRequest.kind = TypeKind::Fundamental;
           typeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::PtrDiff};
           const auto* resultType = GetTypeContext().Get(typeRequest);
 
-          return std::make_unique<PRValue>(resultType,
-                                           std::unique_ptr<high::SubtractionNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::SubtractionNode(std::move(left), std::move(right), source)},
-                                           false);
+          Expression difference =
+               std::make_unique<PRValue>(resultType,
+                                         std::unique_ptr<high::SubtractionNode, IRDeleter>{
+                                              new (*this->GetContext().nodeAllocator)
+                                                   high::SubtractionNode(std::move(left), std::move(right), source)},
+                                         false);
+          if (elementSize == 1) return difference;
+
+          auto divisor =
+               std::make_unique<PRValue>(resultType,
+                                         std::unique_ptr<IntegralNode, IRDeleter>{new (
+                                              *this->GetContext().nodeAllocator) IntegralNode(elementSize, source)},
+                                         true);
+          return std::make_unique<PRValue>(
+               resultType,
+               std::unique_ptr<high::DivideNode, IRDeleter>{new (*this->GetContext().nodeAllocator) high::DivideNode(
+                    std::move(difference), std::move(divisor), source)},
+               false);
      }
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
@@ -2090,6 +2215,13 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+     if (IsIndirectLValue(operand))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
@@ -2122,6 +2254,13 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
 Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+     if (IsIndirectLValue(operand))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
@@ -2148,6 +2287,13 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
 Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+     if (IsIndirectLValue(operand))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
@@ -2180,6 +2326,13 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
 Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+     if (IsIndirectLValue(operand))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
@@ -2270,6 +2423,14 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
 }
 Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source) const
 {
+     if (IsIndirectLValue(left))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
+
      const auto* leftIntegral = left->Type()->CastTo<typeSystem::QualifiedType>();
 
      if (leftIntegral == nullptr)
@@ -2299,14 +2460,8 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
 
      if (right->Type() != left->Type())
      {
-          const auto innerSource = right->Value()->Source();
-          const auto wasConstexpr = right->IsConstantExpression();
-
-          right = std::make_unique<PRValue>(left->Type(),
-                                            std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                 new (*this->GetContext().nodeAllocator)
-                                                      high::ConvertNode(std::move(right), left->Type(), innerSource)},
-                                            wasConstexpr);
+          right = ConvertTo(std::move(right), left->Type());
+          if (right == nullptr) return nullptr;
      }
 
      const auto* resultType = left->Type();
@@ -3401,7 +3556,6 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::ParseType(const ast::Node
 
      return typeContext.Get(request);
 }
-
 Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::NonowningTypePointer toType) const
 {
      if (expression == nullptr || toType == nullptr) return nullptr;
@@ -3808,6 +3962,12 @@ void ecpps::ir::CreateReferenceMap(abstract::VirtualRegisterMap& map, const std:
                if (const auto* innerNode = dynamic_cast<const SSAArrayStoreNode*>(node.get()))
                {
                     map.ReferenceRegister(innerNode->Target().Index());
+                    break;
+               }
+               if (const auto* innerNode = dynamic_cast<const SSAIndirectStoreNode*>(node.get()))
+               {
+                    map.ReferenceRegister(innerNode->Target().Index());
+                    map.ReferenceRegister(innerNode->Src().Index());
                     break;
                }
 

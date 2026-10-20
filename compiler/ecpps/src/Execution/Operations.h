@@ -922,6 +922,39 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _target;
           const SingleAssignRegisterNode* _src;
      };
+     class SSAIndirectStoreNode final : public NodeBase
+     {
+     public:
+          explicit SSAIndirectStoreNode(const SingleAssignRegisterNode* target, const SingleAssignRegisterNode* src,
+                                        Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+          {
+               runtime_assert(this->_target != nullptr, "Invalid SSA target");
+               runtime_assert(this->_src != nullptr, "Invalid SSA source");
+
+               this->_target->Use();
+               this->_src->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
+          {
+               return *this->_target;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Src(void) const noexcept
+          {
+               return *this->_src;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}store *{} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
+                                  this->_src->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
+          const SingleAssignRegisterNode* _src;
+     };
      class SSAStoreIntegerNode final : public NodeBase
      {
      public:

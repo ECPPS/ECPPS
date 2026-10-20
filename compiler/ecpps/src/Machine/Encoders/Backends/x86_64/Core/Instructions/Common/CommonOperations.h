@@ -28,7 +28,8 @@ namespace ecpps::abi::encoders::x8664::inline common
           AddressOf,
           LoadStringAddress,
           Multiplication,
-          Division
+          Division,
+          Indirect
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {
@@ -107,6 +108,8 @@ namespace ecpps::abi::encoders::x8664::inline common
                                                           ir::abstract::VirtualRegister, ir::abstract::VirtualRegister>;
           using DivisionRegisters = AssignmentValue<AssignedValueType::Division, ir::abstract::VirtualRegister,
                                                     ir::abstract::VirtualRegister>;
+          using IndirectToRegister = AssignmentValue<AssignedValueType::Indirect, ir::abstract::VirtualRegister,
+                                                     ir::abstract::VirtualRegister>;
      } // namespace values
      namespace materialisations
      {

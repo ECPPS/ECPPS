@@ -101,6 +101,9 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Division>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Indirection>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -200,6 +203,10 @@ extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<
           ecpps::ir::abstract::VirtualInstructionType::Division>(ecpps::ir::abstract::VirtualRegister owner,
                                                                  std::span<const std::byte> data);
+extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::MaterialisationImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::Indirection>(ecpps::ir::abstract::VirtualRegister owner,
+                                                                    std::span<const std::byte> data);
 
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Encode(
      const std::vector<ir::abstract::VirtualInstruction>& input)
@@ -626,6 +633,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Division>(instruction.operands));
           break;
+     case ecpps::ir::abstract::VirtualInstructionType::Indirection:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::Indirection>(instruction.operands));
+          break;
 
      default: throw TracedException("Unknown instruction");
      }
@@ -659,6 +670,8 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsMutable(
 bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsSpilled(
      const ecpps::ir::abstract::VirtualRegister reg)
 {
+     if (this->IsLargeObject(reg)) return true;
+
      const auto threshold = this->_hasControlFlow ? std::min(SpillThreshold(this->_optimisation),
                                                              ir::abstract::AllocationClass::Allocation)
                                                   : SpillThreshold(this->_optimisation);
@@ -1156,6 +1169,12 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
           sources.push_back(std::get<0>(addressOf.parameters));
           break;
      }
+     case AssignedValueType::Indirect:
+     {
+          const auto& indirect = *std::launder(reinterpret_cast<const values::IndirectToRegister*>(value.data.data()));
+          sources.push_back(std::get<1>(indirect.parameters));
+          break;
+     }
      case AssignedValueType::Call:
      case AssignedValueType::CopyParameter:
      case AssignedValueType::PassArgument:
@@ -1303,6 +1322,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::abi::encoders::x8664::AssignedValueType::Division:
           outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Division>(
+               virtualRegister, std::span<const std::byte>{value.data});
+          break;
+     case ecpps::abi::encoders::x8664::AssignedValueType::Indirect:
+          outcome = MaterialisationImplementation<ir::abstract::VirtualInstructionType::Indirection>(
                virtualRegister, std::span<const std::byte>{value.data});
           break;
      default: throw TracedException(std::format("Invalid opcode: {}", std::to_underlying(valueBase.type)));
@@ -1900,4 +1923,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                  RegisterOperand{this->PhysicalRegisterOf(reg)}));
      }
      return out;
+}
+bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsLargeObject(const ir::abstract::VirtualRegister reg)
+{
+     return this->GetVRM().GetWidth(reg) > 64;
 }
