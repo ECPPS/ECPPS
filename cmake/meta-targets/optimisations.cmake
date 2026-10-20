@@ -19,6 +19,5 @@ else()
     )
     target_link_options(ecpps_optimisations INTERFACE
         $<$<CONFIG:Release,RelWithDebInfo>:-Wl,--gc-sections>
-        $<$<CONFIG:Release,Release>:-Wl,--gc-sections>
     )
 endif()
