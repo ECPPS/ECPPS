@@ -1737,7 +1737,7 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           {
                const auto widened =
                     ConvertConstant(std::get<std::uint64_t>(constant->variant), offsetIntegral, ptrDiffType);
-               right = std::make_unique<PRValue>(
+               offset = std::make_unique<PRValue>(
                     ptrDiffType,
                     std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
                                                                   IntegralNode(widened * elementSize, source)},
@@ -1747,14 +1747,14 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           {
                if (offset->Type() != ptrDiffType)
                {
-                    const auto innerSource = right->Value()->Source();
-                    const auto wasConstexpr = right->IsConstantExpression();
+                    const auto innerSource = offset->Value()->Source();
+                    const auto wasConstexpr = offset->IsConstantExpression();
 
-                    right = std::make_unique<PRValue>(ptrDiffType,
-                                                      std::unique_ptr<high::ConvertNode, IRDeleter>{
-                                                           new (*this->GetContext().nodeAllocator) high::ConvertNode(
-                                                                std::move(right), ptrDiffType, innerSource)},
-                                                      wasConstexpr);
+                    offset = std::make_unique<PRValue>(ptrDiffType,
+                                                       std::unique_ptr<high::ConvertNode, IRDeleter>{
+                                                            new (*this->GetContext().nodeAllocator) high::ConvertNode(
+                                                                 std::move(offset), ptrDiffType, innerSource)},
+                                                       wasConstexpr);
                }
 
                if (elementSize != 1)
@@ -1764,12 +1764,12 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                          std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
                                                                        IntegralNode(elementSize, source)},
                          true);
-                    const auto wasConstexpr = right->IsConstantExpression();
-                    right = std::make_unique<PRValue>(
+                    const auto wasConstexpr = offset->IsConstantExpression();
+                    offset = std::make_unique<PRValue>(
                          ptrDiffType,
                          std::unique_ptr<high::MultiplicationNode, IRDeleter>{
                               new (*this->GetContext().nodeAllocator)
-                                   high::MultiplicationNode(std::move(right), std::move(scale), source)},
+                                   high::MultiplicationNode(std::move(offset), std::move(scale), source)},
                          wasConstexpr);
                }
           }
@@ -1779,14 +1779,14 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                return std::make_unique<PRValue>(leftPointer,
                                                 std::unique_ptr<high::SubtractionNode, IRDeleter>{
                                                      new (*this->GetContext().nodeAllocator) high::SubtractionNode(
-                                                          std::move(left), std::move(right), source)},
+                                                          std::move(left), std::move(offset), source)},
                                                 false);
           }
 
           return std::make_unique<PRValue>(leftPointer,
                                            std::unique_ptr<high::AdditionNode, IRDeleter>{
                                                 new (*this->GetContext().nodeAllocator)
-                                                     high::AdditionNode(std::move(left), std::move(right), source)},
+                                                     high::AdditionNode(std::move(left), std::move(offset), source)},
                                            false);
      }
 
