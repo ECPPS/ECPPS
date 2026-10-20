@@ -7,8 +7,7 @@ if(MSVC)
         $<$<CONFIG:Release>:/O2 /Z7 /Gy /Oi /GF /Ob3 /Gw>
     )
     target_link_options(ecpps_optimisations INTERFACE
-        $<$<CONFIG:Debug>:/DEBUG:FASTLINK>
-        $<$<CONFIG:RelWithDebInfo>:/DEBUG:FASTLINK /OPT:REF /OPT:ICF>
+        $<$<CONFIG:RelWithDebInfo>:/OPT:REF /OPT:ICF>
         $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>
     )
 else()
