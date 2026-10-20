@@ -111,7 +111,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_address != nullptr, "Invalid SSA address");
 
-               this->_address->Use();
+               if (this->_address != nullptr) this->_address->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -769,7 +769,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
 
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -823,7 +823,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
 
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -900,7 +900,7 @@ namespace ecpps::ir
                runtime_assert(this->_src != nullptr, "Invalid SSA source");
 
                this->_target->Use();
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -933,7 +933,7 @@ namespace ecpps::ir
                runtime_assert(this->_src != nullptr, "Invalid SSA source");
 
                this->_target->Use();
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -1059,7 +1059,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_ptr != nullptr, "Invalid SSA pointer operand");
 
-               this->_ptr->Use();
+               if (this->_ptr != nullptr) this->_ptr->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
