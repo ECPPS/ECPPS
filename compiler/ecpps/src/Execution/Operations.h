@@ -36,7 +36,7 @@ namespace ecpps::ir
           {
                runtime_assert(this->_reg != nullptr, "Register reference cannot be null");
 
-               this->_reg->Use();
+               if (this->_reg != nullptr) this->_reg->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Reg() const noexcept
@@ -111,7 +111,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_address != nullptr, "Invalid SSA address");
 
-               this->_address->Use();
+               if (this->_address != nullptr) this->_address->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -189,8 +189,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result(void) const noexcept
@@ -233,7 +233,7 @@ namespace ecpps::ir
                 _falseLabel(std::move(falseLabel))
           {
                runtime_assert(this->_condition != nullptr, "Invalid SSA condition");
-               this->_condition->Use();
+               if (this->_condition != nullptr) this->_condition->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Condition(void) const noexcept
@@ -272,8 +272,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -312,8 +312,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -352,8 +352,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -391,8 +391,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -430,8 +430,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -470,8 +470,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -509,8 +509,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -548,8 +548,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -587,8 +587,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -624,7 +624,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_operand != nullptr, "Invalid SSA operand");
 
-               this->_operand->Use();
+               if (this->_operand != nullptr) this->_operand->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -656,7 +656,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_operand != nullptr, "Invalid SSA operand");
 
-               this->_operand->Use();
+               if (this->_operand != nullptr) this->_operand->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -690,8 +690,8 @@ namespace ecpps::ir
                runtime_assert(this->_left != nullptr, "Invalid SSA left operand");
                runtime_assert(this->_right != nullptr, "Invalid SSA right operand");
 
-               this->_left->Use();
-               this->_right->Use();
+               if (this->_left != nullptr) this->_left->Use();
+               if (this->_right != nullptr) this->_right->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -769,7 +769,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
 
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -823,7 +823,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_src != nullptr, "Invalid SSA source operand");
 
-               this->_src->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -899,8 +899,8 @@ namespace ecpps::ir
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
                runtime_assert(this->_src != nullptr, "Invalid SSA source");
 
-               this->_target->Use();
-               this->_src->Use();
+               if (this->_target != nullptr) this->_target->Use();
+               if (this->_src != nullptr) this->_src->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -922,6 +922,39 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _target;
           const SingleAssignRegisterNode* _src;
      };
+     class SSAIndirectStoreNode final : public NodeBase
+     {
+     public:
+          explicit SSAIndirectStoreNode(const SingleAssignRegisterNode* target, const SingleAssignRegisterNode* src,
+                                        Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+          {
+               runtime_assert(this->_target != nullptr, "Invalid SSA target");
+               runtime_assert(this->_src != nullptr, "Invalid SSA source");
+
+               if (this->_target != nullptr) this->_target->Use();
+               if (this->_src != nullptr) this->_src->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
+          {
+               return *this->_target;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& Src(void) const noexcept
+          {
+               return *this->_src;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}store *{} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
+                                  this->_src->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _target;
+          const SingleAssignRegisterNode* _src;
+     };
      class SSAStoreIntegerNode final : public NodeBase
      {
      public:
@@ -930,7 +963,7 @@ namespace ecpps::ir
           {
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
 
-               this->_target->Use();
+               if (this->_target != nullptr) this->_target->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target(void) const noexcept
@@ -962,7 +995,7 @@ namespace ecpps::ir
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
                runtime_assert(this->_arrayNode != nullptr, "Invalid array node");
 
-               this->_target->Use();
+               if (this->_target != nullptr) this->_target->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -994,7 +1027,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_operand != nullptr, "Invalid SSA operand");
 
-               this->_operand->Use();
+               if (this->_operand != nullptr) this->_operand->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -1026,7 +1059,7 @@ namespace ecpps::ir
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_ptr != nullptr, "Invalid SSA pointer operand");
 
-               this->_ptr->Use();
+               if (this->_ptr != nullptr) this->_ptr->Use();
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept

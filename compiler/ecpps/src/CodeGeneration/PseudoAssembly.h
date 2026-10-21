@@ -216,6 +216,8 @@ namespace ecpps::codegen
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
           void ParseLabelNode(const ir::SSALabelNode& node);
           void ParseGotoNode(const ir::SSAGotoNode& node);
+          void ParseDereferenceNode(const ir::SSADerefNode& node);
+
           std::unordered_map<std::string, std::size_t> labelIds{};
           std::unordered_map<std::size_t, const ir::SSAGotoNode*> gotoReferences{};
           std::unordered_set<std::size_t> definedLabels{};
