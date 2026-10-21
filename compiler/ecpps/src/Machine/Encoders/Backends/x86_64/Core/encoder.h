@@ -438,6 +438,27 @@ namespace ecpps::abi::encoders::x8664
           std::unordered_set<std::size_t> liveOut{};
      };
 
+     struct MemoryLocation
+     {
+          Operand base{};
+          bool disposable{false};
+
+          [[nodiscard]] Operand At(const std::int64_t offset) const
+          {
+               if (const auto* s = std::get_if<StackOperand>(&this->base))
+                    return StackOperand{.offset =
+                                             static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset)};
+               if (const auto* m = std::get_if<MemoryOperand>(&this->base))
+                    return MemoryOperand{.relativeTo = m->relativeTo,
+                                         .offset = static_cast<std::int32_t>(m->offset + offset)};
+               if (const auto* str = std::get_if<StringAddressOperand>(&this->base))
+                    return StringAddressOperand{
+                         .tableIndex = str->tableIndex,
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset)};
+               throw TracedException("Memory location must be a stack, memory or string address operand");
+          }
+     };
+
      struct X8664VirtualInstructionEncoder final : api::VirtualInstructionEncoder
      {
           explicit X8664VirtualInstructionEncoder(api::Target& target,
@@ -590,6 +611,14 @@ namespace ecpps::abi::encoders::x8664
 
           void InsertPrologue(std::vector<ir::abstract::Instruction>& instructions);
           void InsertEpilogue(std::vector<ir::abstract::Instruction>& instructions);
+
+          [[nodiscard]] bool IsLargeObject(ir::abstract::VirtualRegister reg);
+          void EmitMemoryCopy(std::vector<ir::abstract::Instruction>& out, const MemoryLocation& destination,
+                              const MemoryLocation& source, std::size_t size);
+          void EmitMemoryZero(std::vector<ir::abstract::Instruction>& out, const MemoryLocation& destination,
+                              std::size_t size);
+          void EmitMemoryBlock(std::vector<ir::abstract::Instruction>& out, const MemoryLocation& destination,
+                               const MemoryLocation* source, std::size_t size);
 
           EncodingSpillage _optimisation;
           FramePointer _framePointer;

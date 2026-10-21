@@ -272,6 +272,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBranchNode(*branchNode);
           }
           break;
+          case ecpps::ir::NodeKind::Dereference:
+          {
+               const auto* indirect = dynamic_cast<const ecpps::ir::SSADerefNode*>(node);
+               runtime_assert(indirect != nullptr, "Dereference node was not a dereference!");
+               this->ParseDereferenceNode(*indirect);
+          }
+          break;
           default:
                this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                     std::format("Not implemented: {}", std::to_underlying(node->Kind())), node->Source()));
@@ -975,6 +982,24 @@ void ecpps::codegen::ParsingContext::ParseGotoNode(const ir::SSAGotoNode& node)
      this->EmitJump(id);
 }
 
+void ecpps::codegen::ParsingContext::ParseDereferenceNode(const ir::SSADerefNode& node)
+{
+     const auto* resultRegister = &node.Result();
+     const auto* operandRegister = &node.Ptr();
+
+     const auto virtualResultIndex =
+          AllocateVirtual(resultRegister->Index(), resultRegister->Width(), ir::abstract::AllocationClass::Temporary);
+     const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(operandRegister->Index());
+
+     ir::abstract::VirtualRegister virtualResult{virtualResultIndex};
+     ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Indirection,
+          .operands = {virtualResult, virtualSource},
+     };
+     this->instructions.push_back(instruction);
+}
 void ecpps::codegen::ParsingContext::FinaliseControlFlow(bool optimiseDeadJumps)
 {
      using Type = ir::abstract::VirtualInstructionType;
