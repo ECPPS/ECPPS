@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 #include "../AST.h"
 #include "General.h"
 
@@ -121,6 +123,83 @@ namespace ecpps::ast
           std::string _name;
           bool _isConst;
           bool _isVolatile;
+     };
+     enum struct ClassKey : std::uint8_t
+     {
+          Class,
+          Struct,
+          Union
+     };
+     class ClassDefNode;
+     class ClassType : public Node
+     {
+     public:
+          explicit ClassType(std::string name, ClassKey key, const bool isConst, const bool isVolatile,
+                             Location source) // TODO: attributes
+              : Node(source), _name(std::move(name)), _key(key), _isConst(isConst), _isVolatile(isVolatile)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string cv{};
+               if (this->_isConst) cv += "const ";
+               if (this->_isVolatile) cv += "volatile ";
+               std::string keyStr{};
+               switch (this->_key)
+               {
+               case ClassKey::Class: keyStr = "class "; break;
+               case ClassKey::Struct: keyStr = "struct "; break;
+               case ClassKey::Union: keyStr = "union "; break;
+               }
+               return std::string(indent * PrettyIndent, ' ') + cv + keyStr + this->_name;
+          }
+          [[nodiscard]] const std::string& Value(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] bool IsConst(void) const noexcept
+          {
+               return this->_isConst;
+          }
+          [[nodiscard]] bool IsVolatile(void) const noexcept
+          {
+               return this->_isVolatile;
+          }
+          [[nodiscard]] ClassKey Key(void) const noexcept
+          {
+               return this->_key;
+          }
+          void SetConst(const bool newValue) noexcept
+          {
+               this->_isConst = newValue;
+          }
+          void SetVolatile(const bool newValue) noexcept
+          {
+               this->_isVolatile = newValue;
+          }
+
+     private:
+          std::string _name;
+          ClassKey _key;
+          bool _isConst;
+          bool _isVolatile;
+
+          friend class ClassDefNode;
+     };
+     class ClassDefNode : public ClassType
+     {
+     public:
+          explicit ClassDefNode(std::string name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
+                                const bool isConst, const bool isVolatile,
+                                Location source) // TODO: base classes, final & attributes
+              : ClassType(std::move(name), key, isConst, isVolatile, source),
+                _memberSpecifiers(std::move(memberSpecifiers))
+          {
+          }
+
+     private:
+          std::vector<NodePointer> _memberSpecifiers;
      };
 
      class PointerType final : public Node

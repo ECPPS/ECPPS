@@ -1072,6 +1072,7 @@ namespace ecpps::ast
           // Declarations
           NodePointer ParseDeclaration(ASTContext& context);
           NodePointer ParseBlockDeclaration(ASTContext& context);
+          NodePointer ParseClassDeclaration(ASTContext& context, bool isConst, bool isVolatile);
           NodePointer ParseNameDeclaration(ASTContext& context);
           NodePointer ParseFunctionDefinition(ASTContext& context);
           bool IsDeclarationStart(ASTContext& context);

@@ -159,6 +159,11 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                          if (isConst) pointerType->SetConst(true);
                          if (isVolatile) pointerType->SetVolatile(true);
                     }
+                    else if (auto* const classType = dynamic_cast<ClassType*>(type.get()); classType != nullptr)
+                    {
+                         if (isConst) classType->SetConst(true);
+                         if (isVolatile) classType->SetVolatile(true);
+                    }
                }
                else
                     break;
@@ -409,11 +414,44 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(ASTContext& context)
 
           if (keyword == "typedef" || keyword == "const" || keyword == "volatile" || keyword == "static" ||
               keyword == "inline" || keyword == "constexpr" || keyword == "consteval" || keyword == "constinit" ||
-              keyword == "friend" || keyword == "thread_local" || keyword == "mutable")
+              keyword == "friend" || keyword == "thread_local" || keyword == "mutable" || keyword == "class" ||
+              keyword == "struct" || keyword == "union")
                return ParseSimpleDeclaration(context);
      }
 
      return ParseFunctionDefinition(context);
+}
+NodePointer ecpps::ast::AST::ParseClassDeclaration(ASTContext& context, bool isConst, bool isVolatile)
+{
+     auto source = Peek().location;
+
+     runtime_assert(Peek().type == TokenType::Keyword, "Cannot parse a non-keyword as a class-key");
+     const auto& classKeyString = Peek().AsKeyword();
+     Advance();
+     ClassKey key{};
+     if (classKeyString == "class") key = ClassKey::Class;
+     else if (classKeyString == "struct")
+          key = ClassKey::Struct;
+     else if (classKeyString == "union")
+          key = ClassKey::Union;
+     // TODO: Attributes
+     if (!Match(TokenType::Identifier))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("Expected a class name", Peek().location));
+          return nullptr; // TODO: Attempt to recover
+     }
+     const auto& className = Peek(-1).AsIdentifier();
+     if (Peek().type == TokenType::SemiColon)
+     {
+          source.endPosition = Peek().location.endPosition;
+
+          return std::unique_ptr<ClassType, ecpps::ast::ASTDeleter>(
+               new (context) ClassType(className, key, isConst, isVolatile, source));
+     }
+     this->_diagnostics.get().diagnosticsList.push_back(
+          std::make_unique<diagnostics::SyntaxError>("Not implemented", Peek().location));
+     return nullptr;
 }
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
@@ -870,8 +908,18 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     }
                     nextVolatile = true;
                }
-               else if (keyword == "struct" || keyword == "class" || keyword == "union") // elaborated-type-specifier
+               else if (keyword == "struct" || keyword == "class" ||
+                        keyword == "union") // elaborated-type-specifier & defining-type-specifier
                {
+                    if (typeSpecifier != nullptr)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              "Cannot declare a class in this context", Peek().location));
+                    }
+                    const auto isConst = std::exchange(nextConst, false);
+                    const auto isVolatile = std::exchange(nextVolatile, false);
+                    typeSpecifier = ParseClassDeclaration(context, isConst, isVolatile);
+                    continue;
                }
                else if (keyword == "enum") // elaborated-type-specifier
                {
@@ -970,6 +1018,11 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
      {
           // TODO: error: expected a type specifier
           return nullptr;
+     }
+     if (Match(TokenType::SemiColon))
+     {
+          // TODO: Check if it's defining
+          return typeSpecifier;
      }
 
      using VariableDeclarator = VariableDeclarationNode::Declarator;
