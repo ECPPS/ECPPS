@@ -442,18 +442,12 @@ NodePointer ecpps::ast::AST::ParseClassDeclaration(ASTContext& context, bool isC
           return nullptr; // TODO: Attempt to recover
      }
      const auto& className = Peek(-1).AsIdentifier();
-     if (Peek().type == TokenType::SemiColon)
+     if (!Match(TokenType::LeftBrace))
      {
           source.endPosition = Peek().location.endPosition;
 
           return std::unique_ptr<ClassType, ecpps::ast::ASTDeleter>(
                new (context) ClassType(className, key, isConst, isVolatile, source));
-     }
-     if (!Match(TokenType::LeftBrace))
-     {
-          this->_diagnostics.get().diagnosticsList.push_back(
-               std::make_unique<diagnostics::SyntaxError>("Missing {", Peek().location));
-          return nullptr;
      }
      std::vector<NodePointer> body{};
      while (!Match(TokenType::RightBrace)) body.emplace_back(ParseMemberSpecification(context));
