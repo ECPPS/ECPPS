@@ -230,6 +230,18 @@ namespace ecpps::ast
           {
           }
 
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               const auto indentString = std::string(indent * PrettyIndent, ' ');
+               auto base = ClassType::ToString(indent);
+               base += "\n";
+               base += indentString;
+               base += "{";
+               base += "\n";
+               for (const auto& spec : this->_memberSpecifiers) base += spec->ToString(indent) + "\n";
+               return base + indentString + "}";
+          }
+
      private:
           std::vector<NodePointer> _memberSpecifiers;
      };

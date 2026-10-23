@@ -639,7 +639,6 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
 }
 NodePointer ecpps::ast::AST::ParseMemberSpecification(ASTContext& context)
 {
-
      if (Peek().type == TokenType::Keyword)
      {
           const auto& keyword = Peek().AsKeyword();
@@ -647,6 +646,8 @@ NodePointer ecpps::ast::AST::ParseMemberSpecification(ASTContext& context)
               Peek(1).type == TokenType::Colon)
           {
                auto source = Peek().location;
+               Advance();
+               Advance();
 
                AccessSpecifier specifier{};
                if (keyword == "public") specifier = AccessSpecifier::Public;
