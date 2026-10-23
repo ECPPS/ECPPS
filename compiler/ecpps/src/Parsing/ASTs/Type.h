@@ -124,6 +124,12 @@ namespace ecpps::ast
           bool _isConst;
           bool _isVolatile;
      };
+     enum struct AccessSpecifier : std::uint8_t
+     {
+          Public,
+          Private,
+          Protected
+     };
      enum struct ClassKey : std::uint8_t
      {
           Class,
@@ -184,6 +190,32 @@ namespace ecpps::ast
           ClassKey _key;
           bool _isConst;
           bool _isVolatile;
+
+          friend class ClassDefNode;
+     };
+     class AccessSpecifierNode final : public Node
+     {
+     public:
+          explicit AccessSpecifierNode(AccessSpecifier specifier, Location source) : Node(source), _specifier(specifier)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               switch (this->_specifier)
+               {
+               case AccessSpecifier::Public: return std::string(indent * PrettyIndent, ' ') + "public:";
+               case AccessSpecifier::Private: return std::string(indent * PrettyIndent, ' ') + "private:";
+               case AccessSpecifier::Protected: return std::string(indent * PrettyIndent, ' ') + "protected:";
+               }
+          }
+          [[nodiscard]] AccessSpecifier Value(void) const noexcept
+          {
+               return this->_specifier;
+          }
+
+     private:
+          AccessSpecifier _specifier;
 
           friend class ClassDefNode;
      };

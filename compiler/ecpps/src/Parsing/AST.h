@@ -1075,6 +1075,8 @@ namespace ecpps::ast
           NodePointer ParseClassDeclaration(ASTContext& context, bool isConst, bool isVolatile);
           NodePointer ParseNameDeclaration(ASTContext& context);
           NodePointer ParseFunctionDefinition(ASTContext& context);
+          NodePointer ParseMemberSpecification(ASTContext& context);
+          NodePointer ParseMemberDeclaration(ASTContext& context);
           bool IsDeclarationStart(ASTContext& context);
 
           NodePointer ParseInitialiserClause(ASTContext& context);

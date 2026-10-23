@@ -449,9 +449,20 @@ NodePointer ecpps::ast::AST::ParseClassDeclaration(ASTContext& context, bool isC
           return std::unique_ptr<ClassType, ecpps::ast::ASTDeleter>(
                new (context) ClassType(className, key, isConst, isVolatile, source));
      }
-     this->_diagnostics.get().diagnosticsList.push_back(
-          std::make_unique<diagnostics::SyntaxError>("Not implemented", Peek().location));
-     return nullptr;
+     if (!Match(TokenType::LeftBrace))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("Missing {", Peek().location));
+          return nullptr;
+     }
+     std::vector<NodePointer> body{};
+     while (!Match(TokenType::RightBrace)) body.emplace_back(ParseMemberSpecification(context));
+     if (Peek().type != TokenType::SemiColon)
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("Not implemented", Peek().location));
+
+     return std::unique_ptr<ClassDefNode, ecpps::ast::ASTDeleter>(
+          new (context) ClassDefNode(className, key, std::move(body), isConst, isVolatile, source));
 }
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
@@ -625,6 +636,68 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      source.endPosition = Peek(-1).location.endPosition;
      return std::unique_ptr<FunctionDefinitionNode, ecpps::ast::ASTDeleter>(
           new (context) FunctionDefinitionNode(std::move(signature), std::move(body), source));
+}
+NodePointer ecpps::ast::AST::ParseMemberSpecification(ASTContext& context)
+{
+
+     if (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = Peek().AsKeyword();
+          if ((keyword == "public" || keyword == "private" || keyword == "protected") &&
+              Peek(1).type == TokenType::Colon)
+          {
+               auto source = Peek().location;
+
+               AccessSpecifier specifier{};
+               if (keyword == "public") specifier = AccessSpecifier::Public;
+               else if (keyword == "private")
+                    specifier = AccessSpecifier::Private;
+               else if (keyword == "protected")
+                    specifier = AccessSpecifier::Protected;
+
+               source.endPosition = Peek(-1).location.endPosition;
+               return std::unique_ptr<AccessSpecifierNode, ecpps::ast::ASTDeleter>(
+                    new (context) AccessSpecifierNode(specifier, source));
+          }
+     }
+
+     return ParseMemberDeclaration(context);
+}
+NodePointer ecpps::ast::AST::ParseMemberDeclaration(ASTContext& context)
+{
+     /*
+     attribute-specifier-seqopt decl-specifier-seqopt member-declarator-listopt ;
+     function-definition
+     [*] using-declaration
+     [*] using-enum-declaration
+     static_assert-declaration
+     template-declaration
+     explicit-specialization
+     deduction-guide
+     [*] alias-declaration
+     opaque-enum-declaration
+     [*] empty-declaration
+*/
+     if (Match(TokenType::SemiColon)) return nullptr;
+     if (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = Peek().AsKeyword();
+          if (keyword == "using")
+          {
+               if (Peek(1).type == TokenType::Keyword && Peek(1).AsKeyword() == "namespace")
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "using-directive cannot appear in this context", Peek().location));
+
+                    return nullptr;
+               }
+               return ParseBlockDeclaration(context);
+          }
+     }
+
+     this->_diagnostics.get().diagnosticsList.push_back(
+          std::make_unique<diagnostics::SyntaxError>("Unexpected token", Peek().location));
+     return nullptr;
 }
 
 bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
