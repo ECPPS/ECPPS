@@ -208,6 +208,7 @@ namespace ecpps::ast
                case AccessSpecifier::Private: return std::string(indent * PrettyIndent, ' ') + "private:";
                case AccessSpecifier::Protected: return std::string(indent * PrettyIndent, ' ') + "protected:";
                }
+               return "__unknown_accessibility:";
           }
           [[nodiscard]] AccessSpecifier Value(void) const noexcept
           {
