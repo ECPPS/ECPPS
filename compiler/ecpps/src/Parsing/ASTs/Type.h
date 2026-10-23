@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 #include "../AST.h"
 #include "General.h"
 
@@ -121,6 +123,128 @@ namespace ecpps::ast
           std::string _name;
           bool _isConst;
           bool _isVolatile;
+     };
+     enum struct AccessSpecifier : std::uint8_t
+     {
+          Public,
+          Private,
+          Protected
+     };
+     enum struct ClassKey : std::uint8_t
+     {
+          Class,
+          Struct,
+          Union
+     };
+     class ClassDefNode;
+     class ClassType : public Node
+     {
+     public:
+          explicit ClassType(std::string name, ClassKey key, const bool isConst, const bool isVolatile,
+                             Location source) // TODO: attributes
+              : Node(source), _name(std::move(name)), _key(key), _isConst(isConst), _isVolatile(isVolatile)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string cv{};
+               if (this->_isConst) cv += "const ";
+               if (this->_isVolatile) cv += "volatile ";
+               std::string keyStr{};
+               switch (this->_key)
+               {
+               case ClassKey::Class: keyStr = "class "; break;
+               case ClassKey::Struct: keyStr = "struct "; break;
+               case ClassKey::Union: keyStr = "union "; break;
+               }
+               return std::string(indent * PrettyIndent, ' ') + cv + keyStr + this->_name;
+          }
+          [[nodiscard]] const std::string& Value(void) const noexcept
+          {
+               return this->_name;
+          }
+          [[nodiscard]] bool IsConst(void) const noexcept
+          {
+               return this->_isConst;
+          }
+          [[nodiscard]] bool IsVolatile(void) const noexcept
+          {
+               return this->_isVolatile;
+          }
+          [[nodiscard]] ClassKey Key(void) const noexcept
+          {
+               return this->_key;
+          }
+          void SetConst(const bool newValue) noexcept
+          {
+               this->_isConst = newValue;
+          }
+          void SetVolatile(const bool newValue) noexcept
+          {
+               this->_isVolatile = newValue;
+          }
+
+     private:
+          std::string _name;
+          ClassKey _key;
+          bool _isConst;
+          bool _isVolatile;
+
+          friend class ClassDefNode;
+     };
+     class AccessSpecifierNode final : public Node
+     {
+     public:
+          explicit AccessSpecifierNode(AccessSpecifier specifier, Location source) : Node(source), _specifier(specifier)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               switch (this->_specifier)
+               {
+               case AccessSpecifier::Public: return std::string(indent * PrettyIndent, ' ') + "public:";
+               case AccessSpecifier::Private: return std::string(indent * PrettyIndent, ' ') + "private:";
+               case AccessSpecifier::Protected: return std::string(indent * PrettyIndent, ' ') + "protected:";
+               }
+               return "__unknown_accessibility:";
+          }
+          [[nodiscard]] AccessSpecifier Value(void) const noexcept
+          {
+               return this->_specifier;
+          }
+
+     private:
+          AccessSpecifier _specifier;
+
+          friend class ClassDefNode;
+     };
+     class ClassDefNode : public ClassType
+     {
+     public:
+          explicit ClassDefNode(std::string name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
+                                const bool isConst, const bool isVolatile,
+                                Location source) // TODO: base classes, final & attributes
+              : ClassType(std::move(name), key, isConst, isVolatile, source),
+                _memberSpecifiers(std::move(memberSpecifiers))
+          {
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               const auto indentString = std::string(indent * PrettyIndent, ' ');
+               auto base = ClassType::ToString(indent);
+               base += "\n";
+               base += indentString;
+               base += "{";
+               base += "\n";
+               for (const auto& spec : this->_memberSpecifiers) base += spec->ToString(indent) + "\n";
+               return base + indentString + "}";
+          }
+
+     private:
+          std::vector<NodePointer> _memberSpecifiers;
      };
 
      class PointerType final : public Node

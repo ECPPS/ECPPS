@@ -159,6 +159,11 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                          if (isConst) pointerType->SetConst(true);
                          if (isVolatile) pointerType->SetVolatile(true);
                     }
+                    else if (auto* const classType = dynamic_cast<ClassType*>(type.get()); classType != nullptr)
+                    {
+                         if (isConst) classType->SetConst(true);
+                         if (isVolatile) classType->SetVolatile(true);
+                    }
                }
                else
                     break;
@@ -409,11 +414,49 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(ASTContext& context)
 
           if (keyword == "typedef" || keyword == "const" || keyword == "volatile" || keyword == "static" ||
               keyword == "inline" || keyword == "constexpr" || keyword == "consteval" || keyword == "constinit" ||
-              keyword == "friend" || keyword == "thread_local" || keyword == "mutable")
+              keyword == "friend" || keyword == "thread_local" || keyword == "mutable" || keyword == "class" ||
+              keyword == "struct" || keyword == "union")
                return ParseSimpleDeclaration(context);
      }
 
      return ParseFunctionDefinition(context);
+}
+NodePointer ecpps::ast::AST::ParseClassDeclaration(ASTContext& context, bool isConst, bool isVolatile)
+{
+     auto source = Peek().location;
+
+     runtime_assert(Peek().type == TokenType::Keyword, "Cannot parse a non-keyword as a class-key");
+     const auto& classKeyString = Peek().AsKeyword();
+     Advance();
+     ClassKey key{};
+     if (classKeyString == "class") key = ClassKey::Class;
+     else if (classKeyString == "struct")
+          key = ClassKey::Struct;
+     else if (classKeyString == "union")
+          key = ClassKey::Union;
+     // TODO: Attributes
+     if (!Match(TokenType::Identifier))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("Expected a class name", Peek().location));
+          return nullptr; // TODO: Attempt to recover
+     }
+     const auto& className = Peek(-1).AsIdentifier();
+     if (!Match(TokenType::LeftBrace))
+     {
+          source.endPosition = Peek().location.endPosition;
+
+          return std::unique_ptr<ClassType, ecpps::ast::ASTDeleter>(
+               new (context) ClassType(className, key, isConst, isVolatile, source));
+     }
+     std::vector<NodePointer> body{};
+     while (!Match(TokenType::RightBrace)) body.emplace_back(ParseMemberSpecification(context));
+     if (Peek().type != TokenType::SemiColon)
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("Not implemented", Peek().location));
+
+     return std::unique_ptr<ClassDefNode, ecpps::ast::ASTDeleter>(
+          new (context) ClassDefNode(className, key, std::move(body), isConst, isVolatile, source));
 }
 
 NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
@@ -587,6 +630,69 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      source.endPosition = Peek(-1).location.endPosition;
      return std::unique_ptr<FunctionDefinitionNode, ecpps::ast::ASTDeleter>(
           new (context) FunctionDefinitionNode(std::move(signature), std::move(body), source));
+}
+NodePointer ecpps::ast::AST::ParseMemberSpecification(ASTContext& context)
+{
+     if (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = Peek().AsKeyword();
+          if ((keyword == "public" || keyword == "private" || keyword == "protected") &&
+              Peek(1).type == TokenType::Colon)
+          {
+               auto source = Peek().location;
+               Advance();
+               Advance();
+
+               AccessSpecifier specifier{};
+               if (keyword == "public") specifier = AccessSpecifier::Public;
+               else if (keyword == "private")
+                    specifier = AccessSpecifier::Private;
+               else if (keyword == "protected")
+                    specifier = AccessSpecifier::Protected;
+
+               source.endPosition = Peek(-1).location.endPosition;
+               return std::unique_ptr<AccessSpecifierNode, ecpps::ast::ASTDeleter>(
+                    new (context) AccessSpecifierNode(specifier, source));
+          }
+     }
+
+     return ParseMemberDeclaration(context);
+}
+NodePointer ecpps::ast::AST::ParseMemberDeclaration(ASTContext& context)
+{
+     /*
+     attribute-specifier-seqopt decl-specifier-seqopt member-declarator-listopt ;
+     function-definition
+     [*] using-declaration
+     [*] using-enum-declaration
+     static_assert-declaration
+     template-declaration
+     explicit-specialization
+     deduction-guide
+     [*] alias-declaration
+     opaque-enum-declaration
+     [*] empty-declaration
+*/
+     if (Match(TokenType::SemiColon)) return nullptr;
+     if (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = Peek().AsKeyword();
+          if (keyword == "using")
+          {
+               if (Peek(1).type == TokenType::Keyword && Peek(1).AsKeyword() == "namespace")
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "using-directive cannot appear in this context", Peek().location));
+
+                    return nullptr;
+               }
+               return ParseBlockDeclaration(context);
+          }
+     }
+
+     this->_diagnostics.get().diagnosticsList.push_back(
+          std::make_unique<diagnostics::SyntaxError>("Unexpected token", Peek().location));
+     return nullptr;
 }
 
 bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
@@ -870,8 +976,18 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
                     }
                     nextVolatile = true;
                }
-               else if (keyword == "struct" || keyword == "class" || keyword == "union") // elaborated-type-specifier
+               else if (keyword == "struct" || keyword == "class" ||
+                        keyword == "union") // elaborated-type-specifier & defining-type-specifier
                {
+                    if (typeSpecifier != nullptr)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              "Cannot declare a class in this context", Peek().location));
+                    }
+                    const auto isConst = std::exchange(nextConst, false);
+                    const auto isVolatile = std::exchange(nextVolatile, false);
+                    typeSpecifier = ParseClassDeclaration(context, isConst, isVolatile);
+                    continue;
                }
                else if (keyword == "enum") // elaborated-type-specifier
                {
@@ -970,6 +1086,11 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
      {
           // TODO: error: expected a type specifier
           return nullptr;
+     }
+     if (Match(TokenType::SemiColon))
+     {
+          // TODO: Check if it's defining
+          return typeSpecifier;
      }
 
      using VariableDeclarator = VariableDeclarationNode::Declarator;
