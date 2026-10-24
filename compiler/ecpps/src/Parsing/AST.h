@@ -1260,7 +1260,8 @@ namespace ecpps::ast
                          else
                          {
                               if (level.isParameterPack) current += "...";
-                              current += level.declaredIdExpression->ToString(indent);
+                              current += level.declaredIdExpression ? level.declaredIdExpression->ToString(indent)
+                                                                    : "__unknown";
                          }
 
                          for (const auto& attribute : level.attributes) current += " " + attribute->ToString(indent);
