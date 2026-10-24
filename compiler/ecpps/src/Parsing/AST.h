@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../Machine/ABI.h"
@@ -47,6 +48,22 @@ namespace ecpps::ast
           Consteval,
           Constinit
      };
+     enum struct StorageClassSpecifier : std::uint8_t
+     {
+          None = 0,
+          Static = 1,
+          ThreadLocal = 2,
+          Extern = 4,
+          Mutable = 8
+     };
+     constexpr bool operator&(StorageClassSpecifier a, StorageClassSpecifier b)
+     {
+          return (std::to_underlying(a) & std::to_underlying(b)) != 0;
+     }
+     constexpr void operator|=(StorageClassSpecifier& a, StorageClassSpecifier b)
+     {
+          a = static_cast<StorageClassSpecifier>(std::to_underlying(a) | std::to_underlying(b));
+     }
      enum struct Operator : std::uint_fast8_t
      {
           Function,              // ()
@@ -742,14 +759,9 @@ namespace ecpps::ast
           {
                bool isTypedef = false;
                bool isFriend = false;
-               bool isConstexpr = false;
-               bool isConsteval = false;
-               bool isConstinit = false;
+               ConstantExpressionSpecifier constexprSpecifier = ConstantExpressionSpecifier::None;
                bool isInline = false;
-               bool isStatic = false;
-               bool isThreadLocal = false;
-               bool isExtern = false;
-               bool isMutable = false;
+               StorageClassSpecifier storageClassSpecifier = StorageClassSpecifier::None;
           };
 
           VariableDeclarationNode(NodePointer type, std::vector<Declarator> declarators, Flags flags,
@@ -781,14 +793,16 @@ namespace ecpps::ast
                std::string built(indent * PrettyIndent, ' ');
                // add flags
                if (this->_flags.isTypedef) built += "typedef ";
-               if (this->_flags.isConstexpr) built += "constexpr ";
-               if (this->_flags.isConsteval) built += "consteval ";
-               if (this->_flags.isConstinit) built += "constinit ";
+               if (this->_flags.constexprSpecifier == ConstantExpressionSpecifier::Constexpr) built += "constexpr ";
+               else if (this->_flags.constexprSpecifier == ConstantExpressionSpecifier::Consteval)
+                    built += "consteval ";
+               else if (this->_flags.constexprSpecifier == ConstantExpressionSpecifier::Constinit)
+                    built += "constinit ";
                if (this->_flags.isInline) built += "inline ";
-               if (this->_flags.isStatic) built += "static ";
-               if (this->_flags.isThreadLocal) built += "thread_local ";
-               if (this->_flags.isExtern) built += "extern ";
-               if (this->_flags.isMutable) built += "mutable ";
+               if (this->_flags.storageClassSpecifier & StorageClassSpecifier::Static) built += "static ";
+               if (this->_flags.storageClassSpecifier & StorageClassSpecifier::ThreadLocal) built += "thread_local ";
+               if (this->_flags.storageClassSpecifier & StorageClassSpecifier::Extern) built += "extern ";
+               if (this->_flags.storageClassSpecifier & StorageClassSpecifier::Mutable) built += "mutable ";
                if (this->_flags.isFriend) built += "friend ";
                if (this->_explicitSpecifier) built += "explicit ";
 
@@ -1015,6 +1029,24 @@ namespace ecpps::ast
      private:
           bool _wasSuccessful;
      };
+
+     struct FunctionSpecifier
+     {
+          bool isVirtual = false;
+          std::optional<NodePointer> explicitSpecifier = std::nullopt;
+     };
+
+     struct DeclSpecifierSequence
+     {
+          bool isFriend = false;
+          bool isTypedef = false;
+          ConstantExpressionSpecifier constexprSpecifier = ConstantExpressionSpecifier::None;
+          bool isInline = false;
+          StorageClassSpecifier storageSpecifier = StorageClassSpecifier::None;
+          NodePointer definingTypeSpecifier = nullptr;
+          FunctionSpecifier functionSpecifier{};
+     };
+
      class AST
      {
      public:
@@ -1082,6 +1114,8 @@ namespace ecpps::ast
           NodePointer ParseInitialiserClause(ASTContext& context);
           NodePointer ParseInitialiserList(ASTContext& context);
           std::tuple<NodePointer, InitialisationType> ParseInitialiser(ASTContext& context);
+
+          [[nodiscard]] DeclSpecifierSequence ParseDeclSpecifiers(ASTContext& context);
 
           // simple-declaration
           NodePointer ParseSimpleDeclaration(ASTContext& context);               // simple-declaration

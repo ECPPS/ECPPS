@@ -689,6 +689,9 @@ NodePointer ecpps::ast::AST::ParseMemberDeclaration(ASTContext& context)
                return ParseBlockDeclaration(context);
           }
      }
+     // TODO: Attributes
+     // decl-specifier-seq
+     // member-declarator-list
 
      this->_diagnostics.get().diagnosticsList.push_back(
           std::make_unique<diagnostics::SyntaxError>("Unexpected token", Peek().location));
@@ -827,22 +830,16 @@ NodePointer ecpps::ast::AST::ParseInitialiserClause(ASTContext& context)
 {
      return Peek().type == TokenType::LeftBrace ? ParseInitialiserList(context) : ParseAssignmentExpression(context);
 }
-NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
+ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContext& context)
 {
      Location source = Peek().location;
 
-     //
-     // decl-specifier-seq
-     //
-
-     // decl-specifier
      bool isFriend = false;
      bool isTypedef = false;
      bool isConstexpr = false;
      bool isConsteval = false;
      bool isConstinit = false;
      bool isInline = false;
-     // storage-class-specifier
      bool isStatic = false;
      bool isThreadLocal = false;
      bool isExtern = false;
@@ -1081,8 +1078,40 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           else
                break;
      }
+     ecpps::ast::ConstantExpressionSpecifier constexprSpec{};
 
-     if (typeSpecifier == nullptr)
+     if (isConstexpr) constexprSpec = ecpps::ast::ConstantExpressionSpecifier::Constexpr;
+     else if (isConsteval)
+          constexprSpec = ecpps::ast::ConstantExpressionSpecifier::Consteval;
+     else if (isConstinit)
+          constexprSpec = ecpps::ast::ConstantExpressionSpecifier::Constinit;
+
+     ecpps::ast::StorageClassSpecifier storageSpecifier = ecpps::ast::StorageClassSpecifier::None;
+     if (isStatic) storageSpecifier |= ecpps::ast::StorageClassSpecifier::Static;
+     if (isThreadLocal) storageSpecifier |= ecpps::ast::StorageClassSpecifier::ThreadLocal;
+     if (isExtern) storageSpecifier |= ecpps::ast::StorageClassSpecifier::Extern;
+     if (isMutable) storageSpecifier |= ecpps::ast::StorageClassSpecifier::Mutable;
+
+     return ecpps::ast::DeclSpecifierSequence{
+          .isFriend = isFriend,
+          .isTypedef = isTypedef,
+          .constexprSpecifier = constexprSpec,
+          .isInline = isInline,
+          .storageSpecifier = storageSpecifier,
+          .definingTypeSpecifier = std::move(typeSpecifier),
+          .functionSpecifier =
+               FunctionSpecifier{.isVirtual = false, .explicitSpecifier = std::move(optExplicitSpecifier)}};
+}
+NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
+{
+     Location source = Peek().location;
+
+     auto [isFriend, isTypedef, constexprSpecifier, isInline, storageSpecifier, definingTypeSpecifier,
+           functionSpecifier] = ParseDeclSpecifiers(context);
+     auto [isVirtual, optExplicitSpecifier] = std::move(functionSpecifier);
+     // note: definingTypeSpecifier is a bit misleading. this has to be addressed at some point
+
+     if (definingTypeSpecifier == nullptr)
      {
           // TODO: error: expected a type specifier
           return nullptr;
@@ -1090,7 +1119,7 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
      if (Match(TokenType::SemiColon))
      {
           // TODO: Check if it's defining
-          return typeSpecifier;
+          return std::move(definingTypeSpecifier);
      }
 
      using VariableDeclarator = VariableDeclarationNode::Declarator;
@@ -1138,20 +1167,15 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           return nullptr;
      }
 
-     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTDeleter>(
-          new (context) VariableDeclarationNode(std::move(typeSpecifier), std::move(declarators),
-                                                /*flags*/
-                                                VariableDeclarationNode::Flags{.isTypedef = isTypedef,
-                                                                               .isFriend = isFriend,
-                                                                               .isConstexpr = isConstexpr,
-                                                                               .isConsteval = isConsteval,
-                                                                               .isConstinit = isConstinit,
-                                                                               .isInline = isInline,
-                                                                               .isStatic = isStatic,
-                                                                               .isThreadLocal = isThreadLocal,
-                                                                               .isExtern = isExtern,
-                                                                               .isMutable = isMutable},
-                                                std::move(optExplicitSpecifier), source));
+     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTDeleter>(new (context) VariableDeclarationNode(
+          std::move(definingTypeSpecifier), std::move(declarators),
+          /*flags*/
+          VariableDeclarationNode::Flags{.isTypedef = isTypedef,
+                                         .isFriend = isFriend,
+                                         .constexprSpecifier = constexprSpecifier,
+                                         .isInline = isInline,
+                                         .storageClassSpecifier = storageSpecifier},
+          std::move(optExplicitSpecifier), source));
 }
 
 NodePointer ecpps::ast::AST::TryParseDeclSpecifier([[maybe_unused]] ASTContext& context)
