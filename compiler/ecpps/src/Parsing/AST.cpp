@@ -2968,6 +2968,10 @@ void ecpps::ast::AST::ParseBlockBody(ASTContext& context, std::vector<NodePointe
 
 void ecpps::ast::AST::ParseBodyOrStatement(ASTContext& context, std::vector<NodePointer>& body)
 {
-     if (Match(TokenType::LeftBrace)) return ParseBlockBody(context, body);
+     if (Match(TokenType::LeftBrace))
+     {
+          ParseBlockBody(context, body);
+          return;
+     }
      if (auto statement = ParseStatement(context); statement != nullptr) body.push_back(std::move(statement));
 }
