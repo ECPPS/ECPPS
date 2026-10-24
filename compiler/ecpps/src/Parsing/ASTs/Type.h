@@ -239,7 +239,8 @@ namespace ecpps::ast
                base += indentString;
                base += "{";
                base += "\n";
-               for (const auto& spec : this->_memberSpecifiers) base += spec->ToString(indent) + "\n";
+               for (const auto& spec : this->_memberSpecifiers)
+                    base += (spec ? spec->ToString(indent) : "__unknown") + "\n";
                return base + indentString + "}";
           }
 

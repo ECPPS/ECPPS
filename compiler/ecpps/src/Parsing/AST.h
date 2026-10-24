@@ -149,8 +149,8 @@ namespace ecpps::ast
           case Operator::NotEqual: return "!=";
           case Operator::Less: return "<";
           case Operator::Greater: return ">";
-          case Operator::LessEqual: return ">=";
-          case Operator::GreaterEqual: return "<=";
+          case Operator::LessEqual: return "<=";
+          case Operator::GreaterEqual: return ">=";
           case Operator::Spaceship: return "<=>";
           case Operator::LogicalAnd: return "&&";
           case Operator::LogicalOr: return "||";
@@ -345,6 +345,9 @@ namespace ecpps::ast
           bool isFriend{};
           bool isInline{};
           bool isExtern{};
+          StorageClassSpecifier storageClassSpecifier{};
+          bool isVariadic{};
+          NoexceptSpecifier noexceptSpecifier{};
           std::optional<std::string> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
           SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes{};
@@ -362,6 +365,7 @@ namespace ecpps::ast
 
                if (this->isFriend) built += "friend ";
                if (this->isInline) built += "inline ";
+               if (this->storageClassSpecifier & StorageClassSpecifier::Static) built += "static ";
                const auto m = this->externOptional.has_value();
                if (this->isExtern) built += "extern " + (m ? ("\""s + this->externOptional.value() + "\" ") : "");
                switch (this->constexprSpecifier)
@@ -378,6 +382,7 @@ namespace ecpps::ast
                built += this->name == nullptr ? "__unknown" : this->name->ToString(0);
                built += "(";
                built += this->parameters.ToString();
+               if (this->isVariadic) built += this->parameters.parameters.empty() ? "..." : ", ...";
                built += ")";
 
                return built;
@@ -1367,11 +1372,14 @@ namespace ecpps::ast
           }
           [[nodiscard]] const Token& Peek(const std::ptrdiff_t offset = 0) const noexcept
           {
-               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+               const auto index = static_cast<std::ptrdiff_t>(this->_position) + offset;
+               if (index < 0) return this->_tokens.front();
+               if (static_cast<std::size_t>(index) >= this->_tokens.size()) return this->_tokens.back();
+               return this->_tokens[static_cast<std::size_t>(index)];
           }
           [[nodiscard]] Token& Peek(const std::ptrdiff_t offset = 0)
           {
-               return this->_tokens[this->_position + static_cast<std::size_t>(offset)];
+               return const_cast<Token&>(std::as_const(*this).Peek(offset)); // NOLINT
           }
           void Advance(void) noexcept
           {
@@ -1379,7 +1387,7 @@ namespace ecpps::ast
           }
           void Retreat(void) noexcept
           {
-               this->_position--;
+               if (this->_position > 0) this->_position--;
           }
           [[nodiscard]] std::size_t CurrentPosition(void) const noexcept
           {
@@ -1474,5 +1482,9 @@ namespace ecpps::ast
           NodePointer ParseDeclaratorId(ASTContext& context);
           std::optional<ParametersAndQualifiers> ParseParametersAndQualifiers(ASTContext& context);
           std::optional<Declarator> ParseDeclarator(ASTContext& context);
+          void ParseBlockBody(ASTContext& context, std::vector<NodePointer>& body);
+          void ParseBodyOrStatement(ASTContext& context, std::vector<NodePointer>& body);
+          void ParseVirtSpecifierSeq(bool& isOverride, bool& isFinal);
+          void SynchroniseStatement(void);
      };
 } // namespace ecpps::ast
