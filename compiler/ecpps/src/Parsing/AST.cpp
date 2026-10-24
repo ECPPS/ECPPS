@@ -1,11 +1,13 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
 #include <format>
+#include <memory>
 #include <ranges>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 #include "ASTs/Type.h"
+#include "Parsing/ASTContext.h"
 #include "Parsing/Tokeniser.h"
 #include "Shared/Error.h"
 
@@ -661,7 +663,7 @@ NodePointer ecpps::ast::AST::ParseMemberSpecification(ASTContext& context)
 NodePointer ecpps::ast::AST::ParseMemberDeclaration(ASTContext& context)
 {
      /*
-     attribute-specifier-seqopt decl-specifier-seqopt member-declarator-listopt ;
+     [*] attribute-specifier-seqopt decl-specifier-seqopt member-declarator-listopt ;
      function-definition
      [*] using-declaration
      [*] using-enum-declaration
@@ -689,13 +691,45 @@ NodePointer ecpps::ast::AST::ParseMemberDeclaration(ASTContext& context)
                return ParseBlockDeclaration(context);
           }
      }
-     // TODO: Attributes
-     // decl-specifier-seq
-     // member-declarator-list
 
-     this->_diagnostics.get().diagnosticsList.push_back(
-          std::make_unique<diagnostics::SyntaxError>("Unexpected token", Peek().location));
-     return nullptr;
+     auto source = Peek().location;
+
+     auto attributes = ParseAttributeSpecifierSeq(context);
+     auto declSpecifiers = ParseDeclSpecifiers(context);
+
+     std::vector<MemberDeclarator> members{};
+     if (Peek().type != TokenType::SemiColon)
+     {
+          members = ParseMemberDeclarators(context);
+          if (members.empty()) // error already reported
+          {
+               SynchroniseMember();
+               return nullptr;
+          }
+     }
+
+     const bool endsWithFunctionBody = !members.empty() && members.back().functionBody == FunctionBodyKind::Block;
+
+     if (endsWithFunctionBody)
+     {
+          if (members.size() > 1)
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                    "A function definition cannot appear in a member-declarator-list", source));
+               return nullptr;
+          }
+     }
+     else if (!Match(TokenType::SemiColon))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+          SynchroniseMember();
+          return nullptr;
+     }
+
+     source.endPosition = Peek(-1).location.endPosition;
+     return std::unique_ptr<MemberDeclarationNode, ASTDeleter>(new (context) MemberDeclarationNode(
+          std::move(attributes), std::move(declSpecifiers), std::move(members), source));
 }
 
 bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
@@ -1101,6 +1135,573 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
           .definingTypeSpecifier = std::move(typeSpecifier),
           .functionSpecifier =
                FunctionSpecifier{.isVirtual = false, .explicitSpecifier = std::move(optExplicitSpecifier)}};
+}
+
+static bool IsOperatorToken(const ecpps::Token& token, std::string_view op)
+{
+     return token.type == ecpps::TokenType::Operator && token.AsOperator() == op;
+}
+
+static bool IsWord(const ecpps::Token& token, std::string_view word)
+{
+     if (token.type == ecpps::TokenType::Keyword) return token.AsKeyword() == word;
+     if (token.type == ecpps::TokenType::Identifier) return token.AsIdentifier() == word;
+     return false;
+}
+
+void ecpps::ast::AST::SynchroniseMember(void)
+{
+     int braceDepth = 0;
+     while (!AtEnd())
+     {
+          const auto type = Peek().type;
+          if (type == TokenType::LeftBrace) braceDepth++;
+          else if (type == TokenType::RightBrace)
+          {
+               if (braceDepth == 0) return;
+               if (--braceDepth == 0)
+               {
+                    Advance();
+                    return;
+               }
+          }
+          else if (type == TokenType::SemiColon && braceDepth == 0)
+          {
+               Advance();
+               return;
+          }
+          Advance();
+     }
+}
+
+std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> ecpps::ast::AST::
+     ParseAttributeSpecifierSeq(ASTContext& context)
+{
+     std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
+
+     while (Peek().type == TokenType::LeftBracket && Peek(1).type == TokenType::LeftBracket)
+     {
+          Advance();
+          Advance();
+
+          while (!AtEnd() && Peek().type != TokenType::RightBracket)
+          {
+               auto attributeSource = Peek().location;
+               if (Peek().type != TokenType::Identifier)
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                    break;
+               }
+
+               std::string name = Peek().AsIdentifier();
+               Advance();
+               while (IsOperatorToken(Peek(), "::") && Peek(1).type == TokenType::Identifier) // scoped attribute
+               {
+                    Advance();
+                    name += "::" + Peek().AsIdentifier();
+                    Advance();
+               }
+
+               SBOVector<Token> arguments{};
+               if (Match(TokenType::LeftParenthesis))
+               {
+                    int depth = 1;
+                    while (!AtEnd())
+                    {
+                         if (Peek().type == TokenType::LeftParenthesis) ++depth;
+                         else if (Peek().type == TokenType::RightParenthesis && --depth == 0)
+                              break;
+                         arguments.EmplaceBack(Peek());
+                         Advance();
+                    }
+                    if (!Match(TokenType::RightParenthesis))
+
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               }
+
+               attributeSource.endPosition = Peek(-1).location.endPosition;
+               attributes.emplace_back(std::unique_ptr<AttributeNode, ASTDeleter>(
+                    new (context) AttributeNode(name, arguments, attributeSource)));
+
+               if (IsOperatorToken(Peek(), ",")) Advance();
+               else
+                    break;
+          }
+
+          if (!Match(TokenType::RightBracket) || !Match(TokenType::RightBracket))
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+     }
+
+     return attributes;
+}
+
+void ecpps::ast::AST::ParseCvQualifierSeq(bool& isConst, bool& isVolatile)
+{
+     while (Peek().type == TokenType::Keyword)
+     {
+          const auto& keyword = Peek().AsKeyword();
+          if (keyword == "const")
+          {
+               if (isConst)
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               isConst = true;
+          }
+          else if (keyword == "volatile")
+          {
+               if (isVolatile)
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               isVolatile = true;
+          }
+          else
+               break;
+          Advance();
+     }
+}
+
+std::vector<ecpps::ast::PtrOperator> ecpps::ast::AST::ParsePtrOperators(ASTContext& context)
+{
+     auto isPointerToMember = [this]
+     {
+          std::ptrdiff_t i = 0;
+          if (IsOperatorToken(Peek(i), "::")) ++i;
+          bool sawName = false;
+          while (Peek(i).type == TokenType::Identifier && IsOperatorToken(Peek(i + 1), "::"))
+          {
+               i += 2;
+               sawName = true;
+          }
+          return sawName && IsOperatorToken(Peek(i), "*");
+     };
+
+     std::vector<PtrOperator> operators{};
+
+     while (!AtEnd())
+     {
+          PtrOperator op{};
+          op.location = Peek().location;
+
+          if (IsOperatorToken(Peek(), "*"))
+          {
+               Advance();
+               op.kind = PtrOperator::Kind::Pointer;
+               op.attributes = ParseAttributeSpecifierSeq(context);
+               ParseCvQualifierSeq(op.isConst, op.isVolatile);
+          }
+          else if (IsOperatorToken(Peek(), "&"))
+          {
+               Advance();
+               op.kind = PtrOperator::Kind::LValueReference;
+               op.attributes = ParseAttributeSpecifierSeq(context);
+          }
+          else if (IsOperatorToken(Peek(), "&&"))
+          {
+               Advance();
+               op.kind = PtrOperator::Kind::RValueReference;
+               op.attributes = ParseAttributeSpecifierSeq(context);
+          }
+          else if (isPointerToMember())
+          {
+               auto source = Peek().location;
+               std::vector<NodePointer> parts{};
+               if (IsOperatorToken(Peek(), "::"))
+               {
+                    Advance();
+                    parts.push_back(
+                         std::unique_ptr<GlobalScopeNode, ASTDeleter>(new (context) GlobalScopeNode(source)));
+               }
+               while (Peek().type == TokenType::Identifier && IsOperatorToken(Peek(1), "::"))
+               {
+                    parts.push_back(std::unique_ptr<IdentifierNode, ASTDeleter>(
+                         new (context) IdentifierNode(Peek().AsIdentifier(), Peek().location)));
+                    Advance(); // identifier
+                    Advance(); // ::
+               }
+               source.endPosition = Peek(-1).location.endPosition;
+
+               if (parts.size() == 1) op.nestedNameSpecifier = std::move(parts.front());
+               else
+                    op.nestedNameSpecifier = std::unique_ptr<QualifiedIdNode, ASTDeleter>(
+                         new (context) QualifiedIdNode(std::move(parts), source));
+
+               Advance(); // *
+               op.kind = PtrOperator::Kind::PointerToMember;
+               op.attributes = ParseAttributeSpecifierSeq(context);
+               ParseCvQualifierSeq(op.isConst, op.isVolatile);
+          }
+          else
+               break;
+
+          op.location.endPosition = Peek(-1).location.endPosition;
+          operators.push_back(std::move(op));
+     }
+
+     return operators;
+}
+
+NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
+{
+     const auto& token = Peek();
+
+     if (token.type == TokenType::Identifier) return ParseIdExpression(context);
+
+     if (token.type == TokenType::Operator)
+     {
+          if (IsOperatorToken(token, "::")) return ParseIdExpression(context);
+
+          if (IsOperatorToken(token, "~") && Peek(1).type == TokenType::Identifier)
+          {
+               auto source = token.location;
+               Advance(); // ~
+               std::string name = "~" + Peek().AsIdentifier();
+               source.endPosition = Peek().location.endPosition;
+               Advance();
+               return std::unique_ptr<IdentifierNode, ASTDeleter>(new (context)
+                                                                       IdentifierNode(std::move(name), source));
+          }
+     }
+
+     this->_diagnostics.get().diagnosticsList.push_back(
+          std::make_unique<diagnostics::SyntaxError>("Expected a declarator-id", token.location));
+     return nullptr;
+}
+
+std::optional<ecpps::ast::ParametersAndQualifiers> ecpps::ast::AST::ParseParametersAndQualifiers(ASTContext& context)
+{
+     ParametersAndQualifiers result{};
+     result.location = Peek().location;
+
+     if (!Match(TokenType::LeftParenthesis))
+     {
+          this->_diagnostics.get().diagnosticsList.push_back(
+               std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+          return std::nullopt;
+     }
+
+     // parameter-declaration-clause
+     if (!Match(TokenType::RightParenthesis))
+     {
+          while (!AtEnd())
+          {
+               if (IsOperatorToken(Peek(), "..."))
+               {
+                    Advance();
+                    result.isVariadic = true;
+                    break;
+               }
+
+               auto parameter = ParseFunctionParameter(context);
+               if (parameter.type == nullptr) return std::nullopt; // error already reported
+               result.parameters.push_back(std::move(parameter));
+
+               if (IsOperatorToken(Peek(), ",")) Advance();
+               else
+                    break;
+          }
+
+          if (!Match(TokenType::RightParenthesis))
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+     }
+
+     ParseCvQualifierSeq(result.isConst, result.isVolatile);
+
+     if (IsOperatorToken(Peek(), "&"))
+     {
+          result.refQualifier = RefQualifier::LValue;
+          Advance();
+     }
+     else if (IsOperatorToken(Peek(), "&&"))
+     {
+          result.refQualifier = RefQualifier::RValue;
+          Advance();
+     }
+
+     if (Peek().type == TokenType::Keyword && Peek().AsKeyword() == "noexcept")
+     {
+          Advance();
+          result.noexceptSpecifier.isPresent = true;
+          if (Match(TokenType::LeftParenthesis))
+          {
+               result.noexceptSpecifier.condition = ParseConditionalExpression(context);
+               if (result.noexceptSpecifier.condition == nullptr)
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                    return std::nullopt;
+               }
+               if (!Match(TokenType::RightParenthesis))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                    return std::nullopt;
+               }
+          }
+     }
+
+     result.attributes = ParseAttributeSpecifierSeq(context);
+
+     if (IsOperatorToken(Peek(), "->"))
+     {
+          Advance();
+          auto typeId = ParseTypeId(context);
+          if (!typeId.WasSuccessful())
+          {
+               for (auto& diagnostic : typeId.diagnostics)
+                    this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+               return std::nullopt;
+          }
+          result.trailingReturnType = std::move(typeId.value);
+     }
+
+     result.location.endPosition = Peek(-1).location.endPosition;
+     return std::optional<ParametersAndQualifiers>{std::move(result)};
+}
+
+std::optional<ecpps::ast::Declarator> ecpps::ast::AST::ParseDeclarator(ASTContext& context)
+{
+     Declarator declarator{};
+     declarator.location = Peek().location;
+
+     declarator.ptrOperators = ParsePtrOperators(context);
+
+     if (Peek().type == TokenType::LeftParenthesis) // ( ptr-declarator )
+     {
+          Advance();
+          auto inner = ParseDeclarator(context);
+          if (!inner.has_value()) return std::nullopt;
+          if (!Match(TokenType::RightParenthesis))
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+          declarator.nested = std::make_unique<Declarator>(std::move(*inner));
+     }
+     else
+     {
+          if (IsOperatorToken(Peek(), "..."))
+          {
+               Advance();
+               declarator.isParameterPack = true;
+          }
+
+          declarator.declaredIdExpression = ParseDeclaratorId(context);
+          if (declarator.declaredIdExpression == nullptr) return std::nullopt; // error already reported
+
+          declarator.attributes = ParseAttributeSpecifierSeq(context);
+     }
+
+     while (!AtEnd())
+     {
+          if (Peek().type == TokenType::LeftParenthesis)
+          {
+               auto parameters = ParseParametersAndQualifiers(context);
+               if (!parameters.has_value()) return std::nullopt;
+               declarator.suffixes.emplace_back(std::move(*parameters));
+          }
+          else if (Peek().type == TokenType::LeftBracket && Peek(1).type != TokenType::LeftBracket)
+          {
+               ArrayBound bound{.location = Location{0, 0, 0}};
+               bound.location = Peek().location;
+               Advance(); // [
+
+               if (Peek().type != TokenType::RightBracket)
+               {
+                    bound.size = ParseConditionalExpression(context);
+                    if (bound.size == nullptr)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                         return std::nullopt;
+                    }
+               }
+               if (!Match(TokenType::RightBracket))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                    return std::nullopt;
+               }
+
+               bound.attributes = ParseAttributeSpecifierSeq(context);
+               bound.location.endPosition = Peek(-1).location.endPosition;
+               declarator.suffixes.emplace_back(std::move(bound));
+          }
+          else
+               break;
+     }
+
+     declarator.location.endPosition = Peek(-1).location.endPosition;
+     return std::optional<Declarator>{std::move(declarator)};
+}
+
+std::optional<ecpps::ast::MemberDeclarator> ecpps::ast::AST::ParseMemberDeclarator(ASTContext& context)
+{
+     MemberDeclarator member{};
+
+     const bool startsUnnamedBitField = Peek().type == TokenType::Colon || (Peek().type == TokenType::LeftBracket &&
+                                                                            Peek(1).type == TokenType::LeftBracket);
+
+     if (startsUnnamedBitField)
+     {
+          member.location = Peek().location;
+          member.attributes = ParseAttributeSpecifierSeq(context);
+          if (Peek().type != TokenType::Colon)
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+     }
+     else
+     {
+          auto declarator = ParseDeclarator(context);
+          if (!declarator.has_value()) return std::nullopt;
+          static_cast<Declarator&>(member) = std::move(*declarator);
+     }
+
+     const bool isFunction = member.IsFunction();
+
+     if (Peek().type == TokenType::Colon)
+     {
+          if (isFunction)
+          {
+               // TODO: ctor-initialiser (`Foo() : a(1), b{2} {}`)
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+
+          Advance(); // :
+          member.isBitField = true;
+          member.bitFieldWidth = ParseConditionalExpression(context);
+          if (member.bitFieldWidth == nullptr)
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+     }
+     else if (isFunction)
+     {
+          while (true)
+          {
+               const auto& token = Peek();
+               if (IsWord(token, "override"))
+               {
+                    if (member.isOverride)
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              "Duplicate 'override' virt-specifier", token.location));
+                    member.isOverride = true;
+               }
+               else if (IsWord(token, "final"))
+               {
+                    if (member.isFinal)
+                         this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                              "Duplicate 'final' virt-specifier", token.location));
+                    member.isFinal = true;
+               }
+               else
+                    break;
+               Advance();
+          }
+
+          if (IsOperatorToken(Peek(), "="))
+          {
+               const auto& next = Peek(1);
+               if (next.type == TokenType::Literal && std::holds_alternative<IntegerLiteral>(next.value) &&
+                   std::get<IntegerLiteral>(next.value).value == 0)
+                    member.isPure = true;
+               else if (IsWord(next, "default"))
+                    member.functionBody = FunctionBodyKind::Defaulted;
+               else if (IsWord(next, "delete"))
+                    member.functionBody = FunctionBodyKind::Deleted;
+               else
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected '0', 'default' or 'delete' after '=' in a function declarator", next.location));
+                    return std::nullopt;
+               }
+               Advance(); // =
+               Advance(); // 0 | default | delete
+               return std::optional<MemberDeclarator>{std::move(member)};
+          }
+
+          if (Peek().type == TokenType::LeftBrace)
+          {
+               Advance(); // {
+               member.functionBody = FunctionBodyKind::Block;
+
+               while (!AtEnd() && Peek().type != TokenType::RightBrace)
+               {
+                    const auto before = CurrentPosition();
+                    auto statement = ParseStatement(context);
+                    if (statement != nullptr) member.body.push_back(std::move(statement));
+                    if (CurrentPosition() == before) Advance(); // guarantee forward progress on garbage input
+               }
+
+               if (!Match(TokenType::RightBrace))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(
+                         std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+                    return std::nullopt;
+               }
+          }
+
+          return std::optional<MemberDeclarator>{std::move(member)};
+     }
+
+     if (IsOperatorToken(Peek(), "="))
+     {
+          Advance();
+          member.initialisationType = InitialisationType::EqualInitialiser;
+          member.initialiser = ParseInitialiserClause(context);
+          if (member.initialiser == nullptr)
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(
+                    std::make_unique<diagnostics::SyntaxError>("syntax error", Peek().location));
+               return std::nullopt;
+          }
+     }
+     else if (Peek().type == TokenType::LeftBrace)
+     {
+          member.initialisationType = InitialisationType::BracedInitialiser;
+          member.initialiser = ParseInitialiserList(context);
+          if (member.initialiser == nullptr) return std::nullopt; // error already reported
+     }
+
+     return std::optional<MemberDeclarator>{std::move(member)};
+}
+
+std::vector<ecpps::ast::MemberDeclarator> ecpps::ast::AST::ParseMemberDeclarators(ASTContext& context)
+{
+     std::vector<MemberDeclarator> declarators{};
+
+     // clang-format off
+     do
+     {
+          // clang-format on
+          auto declarator = ParseMemberDeclarator(context);
+          if (!declarator.has_value())
+          {
+               declarators.clear();
+               return declarators;
+          }
+
+          const bool hasBlockBody = declarator->functionBody == FunctionBodyKind::Block;
+          declarators.push_back(std::move(*declarator));
+
+          if (hasBlockBody) break;
+     } while (IsOperatorToken(Peek(), ",") && (Advance(), true));
+
+     return declarators;
 }
 NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
 {

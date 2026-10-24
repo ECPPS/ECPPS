@@ -19,6 +19,9 @@ namespace ecpps
               : line(line), position(position), endPosition(endPosition)
           {
           }
+          explicit(false) Location(void) : line(0), position(0), endPosition(0)
+          {
+          }
      };
 } // namespace ecpps
 

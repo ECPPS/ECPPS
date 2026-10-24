@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
@@ -64,6 +65,7 @@ namespace ecpps::ast
      {
           a = static_cast<StorageClassSpecifier>(std::to_underlying(a) | std::to_underlying(b));
      }
+
      enum struct Operator : std::uint_fast8_t
      {
           Function,              // ()
@@ -208,6 +210,42 @@ namespace ecpps::ast
           No = false
      };
 
+     struct PtrOperator
+     {
+          enum struct Kind : std::uint8_t
+          {
+               Pointer,
+               LValueReference,
+               RValueReference,
+               PointerToMember
+          };
+
+          Kind kind = Kind::Pointer;
+          bool isConst = false;
+          bool isVolatile = false;
+          NodePointer nestedNameSpecifier{};
+          std::vector<std::unique_ptr<AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
+          Location location;
+     };
+     enum class RefQualifier : std::uint8_t
+     {
+          None,
+          LValue,
+          RValue
+     };
+
+     struct NoexceptSpecifier
+     {
+          bool isPresent = false;
+          NodePointer condition{};
+     };
+     struct ArrayBound
+     {
+          NodePointer size{}; // nullptr => unbounded: T[]
+          std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
+          Location location;
+     };
+
      struct FunctionParameter
      {
           SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes{};
@@ -241,6 +279,64 @@ namespace ecpps::ast
                }
                return built;
           }
+     };
+     struct ParametersAndQualifiers
+     {
+          std::vector<FunctionParameter> parameters{};
+          bool isVariadic = false;
+          bool isConst = false;
+          bool isVolatile = false;
+          RefQualifier refQualifier = RefQualifier::None;
+          NoexceptSpecifier noexceptSpecifier{};
+          std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
+          NodePointer trailingReturnType{};
+          Location location;
+     };
+     using DeclaratorSuffix = std::variant<ArrayBound, ParametersAndQualifiers>;
+
+     enum struct DeclaratorKind : std::uint8_t
+     {
+          Plain,
+          Pointer,
+          Array,
+          Function
+     };
+
+     struct Declarator
+     {
+          std::vector<PtrOperator> ptrOperators{};
+          std::unique_ptr<Declarator> nested{};
+          NodePointer declaredIdExpression{};
+          bool isParameterPack = false;
+          std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
+          std::vector<DeclaratorSuffix> suffixes{};
+          Location location;
+
+          [[nodiscard]] DeclaratorKind Kind(void) const noexcept
+          {
+               if (nested != nullptr)
+               {
+                    const auto inner = nested->Kind();
+                    if (inner != DeclaratorKind::Plain) return inner;
+               }
+               if (!suffixes.empty())
+                    return std::holds_alternative<ParametersAndQualifiers>(suffixes.front()) ? DeclaratorKind::Function
+                                                                                             : DeclaratorKind::Array;
+               if (!ptrOperators.empty()) return DeclaratorKind::Pointer;
+               return DeclaratorKind::Plain;
+          }
+
+          [[nodiscard]] bool IsFunction(void) const noexcept
+          {
+               return Kind() == DeclaratorKind::Function;
+          }
+     };
+     enum struct FunctionBodyKind : std::uint8_t
+     {
+          None,
+          Block,     // { ... }
+          Defaulted, // = default
+          Deleted    // = delete
      };
 
      struct FunctionSignature
@@ -1047,6 +1143,210 @@ namespace ecpps::ast
           FunctionSpecifier functionSpecifier{};
      };
 
+     struct MemberDeclarator : Declarator
+     {
+          bool isBitField = false;
+          NodePointer bitFieldWidth{};
+
+          InitialisationType initialisationType = InitialisationType::Default;
+          NodePointer initialiser{};
+
+          bool isOverride = false;
+          bool isFinal = false;
+          bool isPure = false;
+
+          FunctionBodyKind functionBody = FunctionBodyKind::None;
+          std::vector<NodePointer> body{};
+     };
+
+     class MemberDeclarationNode final : public Node
+     {
+     public:
+          MemberDeclarationNode(
+               std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes,
+               DeclSpecifierSequence specifiers, std::vector<MemberDeclarator> declarators, Location source)
+              : Node(source), _attributes(std::move(attributes)), _specifiers(std::move(specifiers)),
+                _declarators(std::move(declarators))
+          {
+          }
+
+          [[nodiscard]] const std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>&
+          Attributes(void) const noexcept
+          {
+               return _attributes;
+          }
+          [[nodiscard]] const DeclSpecifierSequence& Specifiers(void) const noexcept
+          {
+               return _specifiers;
+          }
+          [[nodiscard]] const std::vector<MemberDeclarator>& Declarators(void) const noexcept
+          {
+               return _declarators;
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               std::string result;
+
+               for (const auto& attribute : _attributes) result += attribute->ToString(indent) + " ";
+
+               if (_specifiers.isFriend) result += "friend ";
+               if (_specifiers.isTypedef) result += "typedef ";
+
+               switch (_specifiers.constexprSpecifier)
+               {
+               case ConstantExpressionSpecifier::Constexpr: result += "constexpr "; break;
+               case ConstantExpressionSpecifier::Consteval: result += "consteval "; break;
+               case ConstantExpressionSpecifier::Constinit: result += "constinit "; break;
+               default: break;
+               }
+
+               if (_specifiers.isInline) result += "inline ";
+               if (_specifiers.storageSpecifier & StorageClassSpecifier::Static) result += "static ";
+               if (_specifiers.storageSpecifier & StorageClassSpecifier::ThreadLocal) result += "thread_local ";
+               if (_specifiers.storageSpecifier & StorageClassSpecifier::Extern) result += "extern ";
+               if (_specifiers.storageSpecifier & StorageClassSpecifier::Mutable) result += "mutable ";
+               if (_specifiers.functionSpecifier.isVirtual) result += "virtual ";
+
+               if (_specifiers.functionSpecifier.explicitSpecifier.has_value())
+               {
+                    const auto& condition = *_specifiers.functionSpecifier.explicitSpecifier;
+                    result += condition == nullptr ? "explicit " : "explicit(" + condition->ToString(indent) + ") ";
+               }
+
+               if (_specifiers.definingTypeSpecifier != nullptr)
+                    result += _specifiers.definingTypeSpecifier->ToString(indent) + " ";
+
+               if (_declarators.empty() && !result.empty() && result.back() == ' ') result.pop_back();
+
+               for (std::size_t index = 0; index < _declarators.size(); ++index)
+               {
+                    const auto& member = _declarators[index];
+                    if (index != 0) result += ", ";
+
+                    std::vector<const Declarator*> chain{};
+                    for (const Declarator* level = &member; level != nullptr; level = level->nested.get())
+                         chain.push_back(level);
+
+                    std::string text;
+                    for (auto& it : std::ranges::reverse_view(chain))
+                    {
+                         const Declarator& level = *it;
+                         std::string current;
+
+                         for (const auto& op : level.ptrOperators)
+                         {
+                              switch (op.kind)
+                              {
+                              case PtrOperator::Kind::Pointer: current += "*"; break;
+                              case PtrOperator::Kind::LValueReference: current += "&"; break;
+                              case PtrOperator::Kind::RValueReference: current += "&&"; break;
+                              case PtrOperator::Kind::PointerToMember:
+                                   current += op.nestedNameSpecifier->ToString(indent) + "::*";
+                                   break;
+                              }
+                              for (const auto& attribute : op.attributes) current += " " + attribute->ToString(indent);
+                              if (op.isConst) current += " const";
+                              if (op.isVolatile) current += " volatile";
+                              if (op.isConst || op.isVolatile || !op.attributes.empty()) current += " ";
+                         }
+
+                         if (level.nested != nullptr) current += "(" + text + ")";
+                         else
+                         {
+                              if (level.isParameterPack) current += "...";
+                              current += level.declaredIdExpression->ToString(indent);
+                         }
+
+                         for (const auto& attribute : level.attributes) current += " " + attribute->ToString(indent);
+
+                         for (const auto& suffix : level.suffixes)
+                         {
+                              if (const auto* array = std::get_if<ArrayBound>(&suffix))
+                              {
+                                   current += "[";
+                                   if (array->size != nullptr) current += array->size->ToString(indent);
+                                   current += "]";
+                                   for (const auto& attribute : array->attributes)
+                                        current += " " + attribute->ToString(indent);
+                                   continue;
+                              }
+
+                              const auto& function = std::get<ParametersAndQualifiers>(suffix);
+                              current += "(";
+                              for (std::size_t parameterIndex = 0; parameterIndex < function.parameters.size();
+                                   ++parameterIndex)
+                              {
+                                   const auto& parameter = function.parameters[parameterIndex];
+                                   if (parameterIndex != 0) current += ", ";
+                                   if (parameter.type != nullptr) current += parameter.type->ToString(indent);
+                                   if (parameter.name != nullptr) current += " " + parameter.name->ToString(indent);
+                                   if (parameter.defaultInitialiser != nullptr)
+                                        current += " = " + parameter.defaultInitialiser->ToString(indent);
+                              }
+                              if (function.isVariadic) current += function.parameters.empty() ? "..." : ", ...";
+                              current += ")";
+
+                              if (function.isConst) current += " const";
+                              if (function.isVolatile) current += " volatile";
+                              if (function.refQualifier == RefQualifier::LValue) current += " &";
+                              if (function.refQualifier == RefQualifier::RValue) current += " &&";
+                              if (function.noexceptSpecifier.isPresent)
+                              {
+                                   current += " noexcept";
+                                   if (function.noexceptSpecifier.condition != nullptr)
+                                        current += "(" + function.noexceptSpecifier.condition->ToString(indent) + ")";
+                              }
+                              for (const auto& attribute : function.attributes)
+                                   current += " " + attribute->ToString(indent);
+                              if (function.trailingReturnType != nullptr)
+                                   current += " -> " + function.trailingReturnType->ToString(indent);
+                         }
+
+                         text = std::move(current);
+                    }
+
+                    if (member.isBitField)
+                    {
+                         if (!text.empty()) text += " ";
+                         text += ": " + member.bitFieldWidth->ToString(indent);
+                    }
+                    if (member.isOverride) text += " override";
+                    if (member.isFinal) text += " final";
+                    if (member.isPure) text += " = 0";
+                    if (member.functionBody == FunctionBodyKind::Defaulted) text += " = default";
+                    if (member.functionBody == FunctionBodyKind::Deleted) text += " = delete";
+                    if (member.functionBody == FunctionBodyKind::Block)
+                    {
+                         text += " {";
+                         for (const auto& statement : member.body)
+                              if (statement != nullptr) text += " " + statement->ToString(indent);
+                         text += member.body.empty() ? "}" : " }";
+                    }
+                    if (member.initialiser != nullptr)
+                    {
+                         if (member.initialisationType == InitialisationType::EqualInitialiser) text += " = ";
+                         else
+                              text += " ";
+                         text += member.initialiser->ToString(indent);
+                    }
+
+                    result += text;
+               }
+
+               const bool endsWithFunctionBody =
+                    _declarators.size() == 1 && _declarators.front().functionBody == FunctionBodyKind::Block;
+               if (!endsWithFunctionBody) result += ";";
+
+               return result;
+          }
+
+     private:
+          std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> _attributes;
+          DeclSpecifierSequence _specifiers;
+          std::vector<MemberDeclarator> _declarators;
+     };
+
      class AST
      {
      public:
@@ -1116,6 +1416,8 @@ namespace ecpps::ast
           std::tuple<NodePointer, InitialisationType> ParseInitialiser(ASTContext& context);
 
           [[nodiscard]] DeclSpecifierSequence ParseDeclSpecifiers(ASTContext& context);
+          [[nodiscard]] std::optional<MemberDeclarator> ParseMemberDeclarator(ASTContext& context);
+          [[nodiscard]] std::vector<MemberDeclarator> ParseMemberDeclarators(ASTContext& context);
 
           // simple-declaration
           NodePointer ParseSimpleDeclaration(ASTContext& context);               // simple-declaration
@@ -1164,5 +1466,13 @@ namespace ecpps::ast
 
           // Helpers (parse sub-components)
           FunctionParameter ParseFunctionParameter(ASTContext& context);
+
+          void SynchroniseMember(void);
+          std::vector<std::unique_ptr<AttributeNode, ASTDeleter>> ParseAttributeSpecifierSeq(ASTContext& context);
+          void ParseCvQualifierSeq(bool& isConst, bool& isVolatile);
+          std::vector<ecpps::ast::PtrOperator> ParsePtrOperators(ASTContext& context);
+          NodePointer ParseDeclaratorId(ASTContext& context);
+          std::optional<ParametersAndQualifiers> ParseParametersAndQualifiers(ASTContext& context);
+          std::optional<Declarator> ParseDeclarator(ASTContext& context);
      };
 } // namespace ecpps::ast
