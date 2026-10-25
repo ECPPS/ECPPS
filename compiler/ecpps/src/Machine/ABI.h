@@ -1,19 +1,10 @@
 #pragma once
 #include <RuntimeAssert.h>
 #include <cstddef>
-#include <memory>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <variant>
 #include <vector>
-#include "../CodeGeneration/Nodes.h"
 #include "../TypeSystem/TypeBase.h"
-#include "CodeGeneration/AbstractNodes.h"
 #include "Machine.h"
-#include "Machine/Encoders/API/VirtualInstructionEncoder.h"
-#include "Machine/Encoders/InstructionEncoder.h"
-#include "Storage.h"
 
 /// <summary>
 /// The term "width" is always measured in bits, while "size" in bytes. ECPPS ABI defines one byte to be exactly eight
@@ -22,6 +13,17 @@
 
 namespace ecpps::abi
 {
+     struct MemberLayoutInput
+     {
+          std::size_t size{};
+          std::size_t alignment{};
+     };
+     struct ClassLayoutResult
+     {
+          std::size_t size{};
+          std::size_t alignment{};
+          std::vector<std::size_t> offsets{};
+     };
      enum struct Linkage : std::uint_fast8_t
      {
           NoLinkage,
@@ -90,6 +92,8 @@ namespace ecpps::abi
           typeSystem::TypeKind intptrSize{};
 
           std::string importPrefix{};
+
+          [[nodiscard]] ClassLayoutResult LayoutClass(bool isUnion, std::span<const MemberLayoutInput> members) const;
 
      private:
           static ABI _current;

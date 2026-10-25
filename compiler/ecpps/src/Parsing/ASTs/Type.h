@@ -243,6 +243,10 @@ namespace ecpps::ast
                     base += (spec ? spec->ToString(indent) : "__unknown") + "\n";
                return base + indentString + "}";
           }
+          [[nodiscard]] const std::vector<NodePointer>& MemberSpecifiers(void) const noexcept
+          {
+               return this->_memberSpecifiers;
+          }
 
      private:
           std::vector<NodePointer> _memberSpecifiers;

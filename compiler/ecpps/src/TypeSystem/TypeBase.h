@@ -39,6 +39,8 @@ namespace ecpps::typeSystem
           Reference,
           Object,
           Array,
+          Class,
+          Union,
 
           Count
      };
@@ -139,6 +141,10 @@ namespace ecpps::typeSystem
           [[nodiscard]] virtual std::string RawName(void) const = 0;
 
           [[nodiscard]] virtual TypeTraits Traits(void) const noexcept = 0;
+          [[nodiscard]] virtual bool IsComplete(void) const noexcept
+          {
+               return true;
+          }
 
           /// <summary>
           /// Returns size in bytes. For references, returns the size of the object

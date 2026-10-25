@@ -1,16 +1,11 @@
 #include "ABI.h"
 #include <RuntimeAssert.h>
-#include <climits>
-#include <cstdint>
-#include <format>
-#include <stdexcept>
+#include <algorithm>
+#include <cstddef>
 #include <vector>
-#include "../CodeGeneration/Nodes.h"
 #include "../Shared/Diagnostics.h"
-#include "../TypeSystem/ArithmeticTypes.h"
 #include "Machine.h"
 #include "Machine/Machine.h"
-#include "Machine/Storage.h"
 #include "Mangling.h"
 #include "Vendor/Shared/ISA.h"
 
@@ -50,4 +45,49 @@ ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(
      case abi::ISA::x86_64: return abi::CallingConventionName::Microsoftx64;
      default: throw TracedException("ISA not handled yet");
      }
+}
+
+[[nodiscard]] ecpps::abi::ClassLayoutResult ecpps::abi::ABI::LayoutClass(
+     bool isUnion, std::span<const MemberLayoutInput> members) const
+{
+     const auto alignUp = [](std::size_t value, std::size_t alignment) -> std::size_t
+     {
+          alignment = std::max(1uz, alignment);
+          return ((value + alignment - 1uz) / alignment) * alignment;
+     };
+
+     std::size_t alignment = 1uz;
+     std::size_t size = 0uz;
+     std::vector<std::size_t> offsets;
+     offsets.reserve(members.size());
+
+     if (isUnion)
+     {
+          for (const auto& member : members)
+          {
+               alignment = std::max(alignment, member.alignment);
+               size = std::max(size, member.size);
+               offsets.push_back(0uz);
+          }
+
+          size = alignUp(std::max(1uz, size), alignment);
+     }
+     else
+     {
+          for (const auto& member : members)
+          {
+               alignment = std::max(alignment, member.alignment);
+               size = alignUp(size, member.alignment);
+               offsets.push_back(size);
+               size += member.size;
+          }
+
+          size = alignUp(std::max(1uz, size), alignment);
+     }
+
+     return ClassLayoutResult{
+          .size = size,
+          .alignment = alignment,
+          .offsets = std::move(offsets),
+     };
 }

@@ -143,6 +143,7 @@ namespace ecpps::ir
           void ParseGotoNode(const ast::GotoNode& node);
           void ParseBreakNode(const ast::BreakNode& node);
           void ParseContinueNode(const ast::ContinueNode& node);
+          void ParseClassNode(const ast::ClassType& node);
 
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
@@ -192,7 +193,58 @@ namespace ecpps::ir
           Expression ParseDefaultInitialisation(typeSystem::NonowningTypePointer desiredType);
           Expression ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
           Expression ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
+          struct TypeNameLookup
+          {
+               enum struct Kind : std::uint_fast8_t
+               {
+                    NotFound,
+                    NonType,
+                    Alias,
+                    Class
+               };
 
+               Kind kind{Kind::NotFound};
+               typeSystem::NonowningTypePointer alias{};
+               typeSystem::ClassId classId{typeSystem::InvalidClassId};
+          };
+
+          struct DeclaratorTypeResult
+          {
+               typeSystem::NonowningTypePointer type{};
+               bool unboundedArray{};
+               bool failed{};
+          };
+
+          [[nodiscard]] TypeNameLookup LookupTypeName(const std::string& name) const; // ordinary lookup
+          [[nodiscard]] std::optional<typeSystem::ClassId> LookupClassForElaboration(const std::string& name,
+                                                                                     const Location&);
+          [[nodiscard]] Scope& NearestNamespaceOrBlockScope(void) const;
+          [[nodiscard]] std::vector<std::string> EnclosingPathUpTo(const Scope& target) const;
+          typeSystem::ClassId DeclareClassInScope(Scope& scope, const ast::ClassType& node);
+          typeSystem::ClassId ResolveElaboratedClass(const ast::ClassType& node); // `struct X *p`
+          typeSystem::ClassId DefineClass(const ast::ClassDefNode& node);
+          void ParseClassMember(const ast::NodePointer& member, typeSystem::ClassId id, typeSystem::Access& access,
+                                std::vector<typeSystem::ClassField>& fields,
+                                std::vector<std::function<void()>>& deferred);
+          [[nodiscard]] DeclaratorTypeResult ResolveDeclaratorType(const ast::Declarator& declarator,
+                                                                   typeSystem::NonowningTypePointer base,
+                                                                   const std::string& name,
+                                                                   bool allowUnboundedOutermost);
+          void CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node);
+          void ParseMemberDeclaration(const ast::MemberDeclarationNode& node, typeSystem::Access access,
+                                      std::vector<typeSystem::ClassField>& fields,
+                                      std::vector<std::function<void()>>& deferred);
+          [[nodiscard]] bool RequireComplete(typeSystem::NonowningTypePointer type, const Location& source,
+                                             std::string_view what) const;
+          [[nodiscard]] bool RejectClassByValue(typeSystem::NonowningTypePointer type, const Location& source,
+                                                std::string_view what) const;
+          [[nodiscard]] bool CanAccess(typeSystem::ClassId id, typeSystem::Access access) const;
+
+          void ParseNestedClass(const ast::ClassType& nested, const typeSystem::Access access,
+                                std::vector<typeSystem::ClassField>& fields);
+
+          [[nodiscard]] std::optional<std::uint64_t> EvaluateArrayBound(const ast::NodePointer& bound,
+                                                                        const std::string& name);
           Expression ParseArrayInitialiser(const ast::NodePointer& initialiser,
                                            typeSystem::NonowningTypePointer arrayType, const std::string& name);
           [[nodiscard]] std::optional<std::uint64_t> InferArrayLength(const ast::NodePointer& initialiser,

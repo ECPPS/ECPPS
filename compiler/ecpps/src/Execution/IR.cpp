@@ -28,6 +28,7 @@
 #include "Shared/BumpAllocator.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
+#include "TypeSystem/ClassInfo.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
@@ -253,6 +254,85 @@ namespace
 
           return info;
      }
+
+     bool DeclaresNonType(const ecpps::ir::Scope& scope, const std::string& name)
+     {
+          for (const auto& func : scope.functions)
+               if (func->Name() == name) return true;
+          if (const auto* fn = dynamic_cast<const ecpps::ir::FunctionScope*>(&scope))
+               for (const auto& local : fn->Locals())
+                    if (local.Name() == name) return true;
+          return false;
+     }
+
+     ecpps::typeSystem::ClassKind ToClassKind(const ecpps::ast::ClassKey key)
+     {
+          switch (key)
+          {
+          case ecpps::ast::ClassKey::Class: return ecpps::typeSystem::ClassKind::Class;
+          case ecpps::ast::ClassKey::Struct: return ecpps::typeSystem::ClassKind::Struct;
+          case ecpps::ast::ClassKey::Union: return ecpps::typeSystem::ClassKind::Union;
+          }
+          return ecpps::typeSystem::ClassKind::Struct;
+     }
+
+     ecpps::typeSystem::Access ToAccess(const ecpps::ast::AccessSpecifier spec)
+     {
+          switch (spec)
+          {
+          case ecpps::ast::AccessSpecifier::Public: return ecpps::typeSystem::Access::Public;
+          case ecpps::ast::AccessSpecifier::Protected: return ecpps::typeSystem::Access::Protected;
+          case ecpps::ast::AccessSpecifier::Private: return ecpps::typeSystem::Access::Private;
+          }
+          return ecpps::typeSystem::Access::Private;
+     }
+
+     ecpps::typeSystem::Qualifiers QualifiersFrom(const bool isConst, const bool isVolatile)
+     {
+          using ecpps::typeSystem::Qualifiers;
+          if (isConst && isVolatile) return Qualifiers::ConstVolatile;
+          return isConst ? Qualifiers::Const : isVolatile ? Qualifiers::Volatile : Qualifiers::None;
+     }
+
+     ecpps::ir::TypeRequest ErrorRequest(void)
+     {
+          ecpps::ir::TypeRequest request{};
+          request.kind = ecpps::ir::TypeKind::Error;
+          request.data = ecpps::ir::InvalidRequest(nullptr, {});
+          return request;
+     }
+
+     enum struct Derivation : std::uint_fast8_t
+     {
+          None,
+          Pointer,
+          Reference,
+          Array,
+          Function
+     };
+
+     Derivation LastDerivation(const ecpps::ast::Declarator& declarator)
+     {
+          if (declarator.nested != nullptr)
+               if (const auto inner = LastDerivation(*declarator.nested); inner != Derivation::None) return inner;
+          if (!declarator.suffixes.empty())
+               return std::holds_alternative<ecpps::ast::ArrayBound>(declarator.suffixes.front())
+                           ? Derivation::Array
+                           : Derivation::Function;
+          if (!declarator.ptrOperators.empty())
+               return declarator.ptrOperators.back().kind == ecpps::ast::PtrOperator::Kind::Pointer ||
+                                declarator.ptrOperators.back().kind == ecpps::ast::PtrOperator::Kind::PointerToMember
+                           ? Derivation::Pointer
+                           : Derivation::Reference;
+          return Derivation::None;
+     }
+     const ecpps::ast::IdentifierNode* DeclaratorIdentifier(const ecpps::ast::Declarator& declarator)
+     {
+          const auto* level = &declarator;
+          while (level->nested != nullptr) level = level->nested.get();
+          return dynamic_cast<const ecpps::ast::IdentifierNode*>(level->declaredIdExpression.get());
+     }
+
 } // namespace
 
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(Expression expression,
@@ -994,6 +1074,11 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
      if (auto* const gotoNode = dynamic_cast<ast::GotoNode*>(node.get()); gotoNode != nullptr)
      {
           ParseGotoNode(*gotoNode);
+          return;
+     }
+     if (auto* const classNode = dynamic_cast<ast::ClassType*>(node.get()); classNode != nullptr)
+     {
+          ParseClassNode(*classNode);
           return;
      }
 
@@ -3395,53 +3480,67 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
      {
           const auto& value = basicType->Value();
 
-          const auto qualifiers = basicType->IsConst() && basicType->IsVolatile()
-                                       ? typeSystem::Qualifiers::ConstVolatile
-                                  : basicType->IsConst()    ? typeSystem::Qualifiers::Const
-                                  : basicType->IsVolatile() ? typeSystem::Qualifiers::Volatile
-                                                            : typeSystem::Qualifiers::None;
-
-          for (const auto& context : this->GetContext().contextSequence)
+          const auto qualifiers = QualifiersFrom(basicType->IsConst(), basicType->IsVolatile());
+          const auto lookup = LookupTypeName(value);
+          switch (lookup.kind)
           {
-               const auto& scope = context->GetScope();
+          case TypeNameLookup::Kind::Class:
+               request.kind = TypeKind::Compound;
+               request.qualifiers = qualifiers;
+               request.data = ClassRequest{.id = lookup.classId};
+               return request;
 
-               const auto aliasIt = scope.typeAliases.find(value);
-               if (aliasIt != scope.typeAliases.end())
+          case TypeNameLookup::Kind::NonType:
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "'" + value + "' is not a type name", basicType->Source()));
+               return ErrorRequest();
+
+          case TypeNameLookup::Kind::Alias:
+          {
+               const auto* targetType = lookup.alias;
+               if (const auto* classType = targetType->CastTo<typeSystem::ClassType>())
                {
-                    const auto* targetType = aliasIt->second;
-                    request.qualifiers = qualifiers;
-
-                    if (const auto* intType = targetType->CastTo<typeSystem::IntegralType>())
-                    {
-                         request.kind = TypeKind::Fundamental;
-                         StandardSignedIntegerRequest signedRequest{};
-                         signedRequest.signedness = intType->Sign();
-                         signedRequest.size = intType->Kind();
-                         signedRequest.isCharWithoutSign = (intType == typeSystem::g_char.get());
-                         request.data = signedRequest;
-                    }
-                    else if (const auto* ptrType = targetType->CastTo<typeSystem::PointerType>())
-                    {
-                         request.kind = TypeKind::Compound;
-                         request.data = PointerRequest{.elementType = ptrType->BaseType()};
-                    }
-                    else if (targetType == typeSystem::g_void.get())
-                    {
-                         request.kind = TypeKind::Fundamental;
-                         request.data = VoidRequest{};
-                    }
-                    else
-                         throw TracedException("Type aliases for this kind of type not yet implemented");
-
-                    if (basicType->IsConst() && basicType->IsVolatile())
-                         request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
-                    else if (basicType->IsConst())
-                         request.qualifiers = typeSystem::Qualifiers::Const;
-                    else if (basicType->IsVolatile())
-                         request.qualifiers = typeSystem::Qualifiers::Volatile;
-
+                    request.kind = TypeKind::Compound;
+                    request.qualifiers = QualifiersFrom(basicType->IsConst() || classType->IsConst(),
+                                                        basicType->IsVolatile() || classType->IsVolatile());
+                    request.data = ClassRequest{.id = classType->Info().id};
                     return request;
                }
+               request.qualifiers = qualifiers;
+
+               if (const auto* intType = targetType->CastTo<typeSystem::IntegralType>())
+               {
+                    request.kind = TypeKind::Fundamental;
+                    StandardSignedIntegerRequest signedRequest{};
+                    signedRequest.signedness = intType->Sign();
+                    signedRequest.size = intType->Kind();
+                    signedRequest.isCharWithoutSign = (intType == typeSystem::g_char.get());
+                    request.data = signedRequest;
+               }
+               else if (const auto* ptrType = targetType->CastTo<typeSystem::PointerType>())
+               {
+                    request.kind = TypeKind::Compound;
+                    request.data = PointerRequest{.elementType = ptrType->BaseType()};
+               }
+               else if (targetType == typeSystem::g_void.get())
+               {
+                    request.kind = TypeKind::Fundamental;
+                    request.data = VoidRequest{};
+               }
+               else
+                    throw TracedException("Type aliases for this kind of type not yet implemented");
+
+               if (basicType->IsConst() && basicType->IsVolatile())
+                    request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
+               else if (basicType->IsConst())
+                    request.qualifiers = typeSystem::Qualifiers::Const;
+               else if (basicType->IsVolatile())
+                    request.qualifiers = typeSystem::Qualifiers::Volatile;
+
+               return request;
+          }
+          case TypeNameLookup::Kind::NotFound: break;
           }
 
           request.kind = TypeKind::Fundamental;
@@ -3544,6 +3643,17 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
           }
 
           throw TracedException("Qualified types with namespaces not yet implemented");
+     }
+     if (const auto* classType = dynamic_cast<const ast::ClassType*>(base); classType != nullptr)
+     {
+          const auto id = dynamic_cast<const ast::ClassDefNode*>(classType) != nullptr
+                               ? DefineClass(static_cast<const ast::ClassDefNode&>(*classType)) // NOLINT
+                               : ResolveElaboratedClass(*classType);
+          if (id == typeSystem::InvalidClassId) return ErrorRequest();
+          request.kind = TypeKind::Compound;
+          request.qualifiers = QualifiersFrom(classType->IsConst(), classType->IsVolatile());
+          request.data = ClassRequest{.id = id};
+          return request;
      }
 
      throw TracedException("not implemented");
@@ -4208,4 +4318,502 @@ Expression ecpps::ir::IR::ParseRelationalExpression(Expression left, const ast::
           std::unique_ptr<high::CompareNode, IRDeleter>{new (*this->GetContext().nodeAllocator) high::CompareNode(
                std::move(left), std::move(right), SelectPredicate(operator_, isSigned), source)},
           false);
+}
+
+ecpps::ir::IR::TypeNameLookup ecpps::ir::IR::LookupTypeName(const std::string& name) const
+{
+     for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+     {
+          const auto& scope = context->GetScope();
+          if (DeclaresNonType(scope, name)) return {.kind = TypeNameLookup::Kind::NonType};
+          if (const auto it = scope.typeAliases.find(name); it != scope.typeAliases.end())
+               return {.kind = TypeNameLookup::Kind::Alias, .alias = it->second};
+          if (const auto it = scope.classes.find(name); it != scope.classes.end())
+               return {.kind = TypeNameLookup::Kind::Class, .classId = it->second};
+     }
+     return {};
+}
+
+std::optional<ecpps::typeSystem::ClassId> ecpps::ir::IR::LookupClassForElaboration(const std::string& name,
+                                                                                   const Location& source)
+{
+     for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+     {
+          const auto& scope = context->GetScope();
+          if (const auto it = scope.classes.find(name); it != scope.classes.end()) return it->second;
+          if (scope.typeAliases.contains(name))
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("'{}' names a typedef, not a class; it cannot be used in an elaborated "
+                                     "type specifier",
+                                     name),
+                         source));
+               return typeSystem::InvalidClassId;
+          }
+     }
+     return std::nullopt;
+}
+ecpps::ir::Scope& ecpps::ir::IR::NearestNamespaceOrBlockScope() const
+{
+     for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+          if (dynamic_cast<const ClassContext*>(context.get()) == nullptr) return context->GetScope();
+     throw TracedException("No enclosing namespace scope");
+}
+
+std::vector<std::string> ecpps::ir::IR::EnclosingPathUpTo(const Scope& target) const
+{
+     std::vector<std::string> path{};
+     for (const auto& context : this->GetContext().contextSequence)
+     {
+          const auto& scope = context->GetScope();
+          if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope); ns && ns->Name().has_value())
+               path.push_back(*ns->Name());
+          else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope); cs && !cs->name.empty())
+               path.push_back(cs->name);
+          else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
+               path.push_back(fn->Name().value_or("__unknown") + "()"); // local
+          if (&scope == &target) break;
+     }
+     return path;
+}
+
+void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node)
+{
+     const auto key = ToClassKind(node.Key());
+     if (key == info.kind) return;
+     const bool unionMismatch = (key == typeSystem::ClassKind::Union) != (info.kind == typeSystem::ClassKind::Union);
+     if (unionMismatch)
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("'{}' was declared as a {} but is redeclared as a {}", info.DisplayName(),
+                                info.KeyWord(), node.ToString(0)),
+                    node.Source()));
+     else
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::Warning>(
+               "warning",
+               std::format("'{}' was declared as a {} but is redeclared with a different class-key", info.DisplayName(),
+                           info.KeyWord()),
+               node.Source()));
+}
+
+ecpps::typeSystem::ClassId ecpps::ir::IR::DeclareClassInScope(Scope& scope, const ast::ClassType& node)
+{
+     typeSystem::ClassDeclaration declaration{};
+     declaration.kind = ToClassKind(node.Key());
+     declaration.name = node.Value();
+     declaration.enclosingPath = EnclosingPathUpTo(scope);
+     declaration.isLocal = dynamic_cast<const FunctionScope*>(&scope) != nullptr;
+     declaration.source = node.Source();
+
+     const auto id = GetTypeContext().DeclareClass(std::move(declaration));
+     if (!node.Value().empty()) scope.classes.emplace(node.Value(), id);
+     return id;
+}
+
+ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::ClassType& node)
+{
+     if (node.Value().empty())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                    "An elaborated type specifier requires a class name", node.Source()));
+          return typeSystem::InvalidClassId;
+     }
+     if (const auto found = LookupClassForElaboration(node.Value(), node.Source()); found.has_value())
+     {
+          if (*found != typeSystem::InvalidClassId) CheckClassKey(GetTypeContext().Class(*found), node);
+          return *found;
+     }
+     return DeclareClassInScope(NearestNamespaceOrBlockScope(), node);
+     // TODO: the `friend class X;` form has other rules ([namespace.memdef]/3). Just.. eh
+}
+
+ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& node)
+{
+     auto& types = GetTypeContext();
+     auto& scope = this->GetContext().contextSequence.back()->GetScope();
+
+     typeSystem::ClassId id{};
+     if (const auto it = scope.classes.find(node.Value()); !node.Value().empty() && it != scope.classes.end())
+     {
+          id = it->second;
+          CheckClassKey(types.Class(id), node);
+          if (types.Class(id).state != typeSystem::ClassState::Declared)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Redefinition of '{}'", types.Class(id).DisplayName()), node.Source()));
+               return id;
+          }
+     }
+     else
+          id = DeclareClassInScope(scope, node);
+
+     types.BeginDefinition(id);
+
+     auto classScope = std::make_unique<ClassScope>();
+     classScope->name = node.Value();
+     classScope->id = id;
+     classScope->parentScope = &scope;
+     if (!node.Value().empty()) classScope->classes.emplace(node.Value(), id); // injected-class-name
+     auto* rawScope = classScope.get();
+     scope.classScopes.push_back(std::move(classScope));
+
+     this->GetContext().contextSequence.push_back(std::make_shared<ClassContext>(rawScope, id));
+
+     auto access = node.Key() == ast::ClassKey::Class ? typeSystem::Access::Private : typeSystem::Access::Public;
+     std::vector<typeSystem::ClassField> fields{};
+     std::vector<std::function<void()>> deferred{};
+     for (const auto& member : node.MemberSpecifiers()) ParseClassMember(member, id, access, fields, deferred);
+
+     types.Complete(id, std::move(fields));
+
+     for (const auto& task : deferred) task();
+
+     this->GetContext().contextSequence.pop_back();
+     return id;
+}
+
+void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, [[maybe_unused]] const typeSystem::ClassId id,
+                                     typeSystem::Access& access, std::vector<typeSystem::ClassField>& fields,
+                                     std::vector<std::function<void()>>& deferred)
+{
+     // auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
+
+     if (const auto* spec = dynamic_cast<const ast::AccessSpecifierNode*>(member.get()))
+     {
+          access = ToAccess(spec->Value());
+          return;
+     }
+     if (const auto* declaration = dynamic_cast<const ast::MemberDeclarationNode*>(member.get()))
+     {
+          ParseMemberDeclaration(*declaration, access, fields, deferred);
+          return;
+     }
+     if (const auto* nested = dynamic_cast<const ast::ClassType*>(member.get())) // in case the parser emits it bare
+     {
+          ParseNestedClass(*nested, access, fields);
+          return;
+     }
+     if (const auto* alias = dynamic_cast<const ast::TypeAliasNode*>(member.get()))
+     {
+          ParseNode(member);
+          this->GetContext().contextSequence.back()->GetScope<ClassScope>().memberAccess[alias->AliasName()->ToString(
+               0)] = access;
+          return;
+     }
+
+     throw TracedException("TODO: unsupported member-declaration");
+}
+
+void ecpps::ir::IR::ParseClassNode(const ast::ClassType& node)
+{
+     if (const auto* definition = dynamic_cast<const ast::ClassDefNode*>(&node))
+     {
+          DefineClass(*definition);
+          return;
+     }
+     auto& scope = this->GetContext().contextSequence.back()->GetScope();
+     if (node.Value().empty())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("A class declaration requires a name",
+                                                                                 node.Source()));
+          return;
+     }
+     if (const auto it = scope.classes.find(node.Value()); it != scope.classes.end())
+     {
+          CheckClassKey(GetTypeContext().Class(it->second), node);
+          return;
+     }
+     DeclareClassInScope(scope, node);
+}
+bool ecpps::ir::IR::RequireComplete(const typeSystem::NonowningTypePointer type, const Location& source,
+                                    const std::string_view what) const
+{
+     if (type == nullptr || type->IsComplete()) return true;
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               std::format("Invalid use of incomplete type '{}' in {}", type->Name(), what), source));
+     return false;
+}
+
+std::optional<std::uint64_t> ecpps::ir::IR::EvaluateArrayBound(const ast::NodePointer& bound, const std::string& name)
+{
+     auto& list = this->GetContext().diagnostics.get().diagnosticsList;
+
+     const auto expression = ParseExpression(bound);
+     if (expression == nullptr) return std::nullopt;
+
+     auto constant = expression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+     if (!constant.has_value())
+     {
+          list.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("The bound of array '{}' must be a constant expression", name), bound->Source()));
+          auto& nested = constant.error();
+          while (!nested.empty())
+          {
+               list.push_back(std::move(nested.top()));
+               nested.pop();
+          }
+          return std::nullopt;
+     }
+     if (!std::holds_alternative<std::uint64_t>(constant->variant))
+     {
+          list.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("The bound of array '{}' must be an integer", name), bound->Source()));
+          return std::nullopt;
+     }
+     const auto length = std::get<std::uint64_t>(constant->variant);
+     if (length == 0)
+     {
+          list.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("The bound of array '{}' must be greater than zero", name), bound->Source()));
+          return std::nullopt;
+     }
+     return length;
+}
+
+ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const ast::Declarator& declarator,
+                                                                         typeSystem::NonowningTypePointer base,
+                                                                         const std::string& name,
+                                                                         const bool allowUnboundedOutermost)
+{
+     const DeclaratorTypeResult failure{.type = nullptr, .unboundedArray = false, .failed = true};
+     auto& list = this->GetContext().diagnostics.get().diagnosticsList;
+     const auto* idNode = DeclaratorIdentifier(declarator);
+     const Location idSource = idNode != nullptr ? idNode->Source() : Location{0, 0, 0};
+     const auto* current = base;
+
+     for (const auto& op : declarator.ptrOperators)
+     {
+          if (op.kind != ast::PtrOperator::Kind::Pointer)
+               throw TracedException("TODO: references and pointers to members are not implemented yet");
+
+          TypeRequest request{};
+          request.kind = TypeKind::Compound;
+          request.qualifiers = QualifiersFrom(op.isConst, op.isVolatile);
+          request.data = PointerRequest{.elementType = current};
+          current = GetTypeContext().Get(request);
+     }
+
+     bool unbounded = false;
+     for (std::size_t index = declarator.suffixes.size(); index-- > 0;)
+     {
+          const auto* array = std::get_if<ast::ArrayBound>(&declarator.suffixes[index]);
+          if (array == nullptr) throw TracedException("TODO: function declarators are not implemented yet");
+
+          if (array->size == nullptr)
+          {
+               if (index != 0) // only the outermost array (applied last) may omit its bound
+               {
+                    list.push_back(std::make_unique<diagnostics::TypeError>(
+                         std::format("Declaration of '{}' introduces an array of unbounded arrays which is not "
+                                     "allowed, only the outermost array might be unbounded",
+                                     name),
+                         idSource));
+                    return failure;
+               }
+               if (!RequireComplete(current, idSource, "an array element type")) return failure;
+               unbounded = true;
+               continue;
+          }
+
+          const auto length = EvaluateArrayBound(array->size, name);
+          if (!length.has_value()) return failure;
+          if (!RequireComplete(current, array->size->Source(), "an array element type")) return failure;
+
+          TypeRequest request{};
+          request.kind = TypeKind::Compound;
+          request.data = BoundedArrayRequest{.elementType = current, .size = *length};
+          current = GetTypeContext().Get(request);
+     }
+
+     const auto rejectUnbounded = [&]
+     {
+          list.push_back(std::make_unique<diagnostics::TypeError>(
+               std::format("The declaration of '{}' requires an array bound", name), idSource));
+          return failure;
+     };
+
+     if (declarator.nested != nullptr)
+     {
+          if (unbounded && LastDerivation(*declarator.nested) != Derivation::None)
+               throw TracedException("TODO: pointers to arrays of unknown bound are not implemented yet");
+          auto inner = ResolveDeclaratorType(*declarator.nested, current, name, allowUnboundedOutermost);
+          if (unbounded && !inner.failed)
+          {
+               if (!allowUnboundedOutermost) return rejectUnbounded();
+               inner.unboundedArray = true;
+          }
+          return inner;
+     }
+
+     if (unbounded && !allowUnboundedOutermost) return rejectUnbounded();
+     return {.type = current, .unboundedArray = unbounded, .failed = false};
+}
+void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSystem::Access access,
+                                     std::vector<typeSystem::ClassField>& fields)
+{
+     auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
+     const auto* definition = dynamic_cast<const ast::ClassDefNode*>(&nested);
+
+     if (nested.Value().empty())
+     {
+          if (definition == nullptr || nested.Key() != ast::ClassKey::Union)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A declaration must declare something; only anonymous unions may be unnamed members",
+                         nested.Source()));
+               return;
+          }
+          const auto anonymousId = DefineClass(*definition);
+          typeSystem::ClassField field{};
+          field.type =
+               GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = anonymousId}});
+          field.access = access;
+          field.isAnonymousUnion = true;
+          field.source = nested.Source();
+          fields.push_back(std::move(field));
+          return;
+     }
+
+     ParseClassNode(nested);
+     classScope.memberAccess[nested.Value()] = access;
+}
+void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::Access access,
+                                           std::vector<typeSystem::ClassField>& fields,
+                                           std::vector<std::function<void()>>& deferred)
+{
+     const auto& specifiers = node.Specifiers();
+     auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
+     const auto report = [&](std::string message, const Location& source)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), source));
+     };
+
+     if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
+     if (specifiers.definingTypeSpecifier == nullptr)
+          throw TracedException("TODO: constructors, destructors and conversion functions are not implemented yet");
+
+     const auto* classSpecifier = dynamic_cast<const ast::ClassType*>(specifiers.definingTypeSpecifier.get());
+
+     if (node.Declarators().empty())
+     {
+          if (classSpecifier != nullptr) ParseNestedClass(*classSpecifier, access, fields);
+          else
+               report("A declaration must declare something", node.Source());
+          return;
+     }
+
+     if (specifiers.storageSpecifier & ast::StorageClassSpecifier::Static)
+          throw TracedException("TODO: static data members are not implemented yet");
+     if ((specifiers.storageSpecifier & ast::StorageClassSpecifier::ThreadLocal) ||
+         (specifiers.storageSpecifier & ast::StorageClassSpecifier::Extern))
+     {
+          report("'thread_local' and 'extern' cannot be applied to a non-static data member", node.Source());
+          return;
+     }
+     if (specifiers.isInline || specifiers.functionSpecifier.isVirtual ||
+         specifiers.functionSpecifier.explicitSpecifier.has_value() ||
+         specifiers.constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+     {
+          report("'inline', 'virtual', 'explicit', 'constexpr', 'consteval' and 'constinit' cannot be applied to a "
+                 "non-static data member or a typedef",
+                 node.Source());
+          return;
+     }
+     const bool isMutable = specifiers.storageSpecifier & ast::StorageClassSpecifier::Mutable;
+
+     const auto* declaredType = ParseType(specifiers.definingTypeSpecifier);
+     if (declaredType == nullptr)
+     {
+          report(std::format("Unknown type {} in member declaration", specifiers.definingTypeSpecifier->ToString(0)),
+                 node.Source());
+          return;
+     }
+     if (const auto* definition = dynamic_cast<const ast::ClassDefNode*>(classSpecifier);
+         definition != nullptr && !definition->Value().empty())
+          classScope.memberAccess[definition->Value()] = access;
+
+     for (const auto& declarator : node.Declarators())
+     {
+          const auto* identifier = DeclaratorIdentifier(declarator);
+          if (identifier == nullptr)
+          {
+               report("Expected an unqualified identifier in member declarator", node.Source());
+               continue;
+          }
+          const std::string& name = identifier->Value();
+
+          if (!specifiers.isTypedef && LastDerivation(declarator) == Derivation::Function)
+               throw TracedException("TODO: member functions are not implemented yet (bodies go into `deferred`)");
+          if (declarator.isBitField) throw TracedException("TODO: bit-fields are not implemented yet");
+
+          const auto resolved = ResolveDeclaratorType(declarator, declaredType, name, false);
+          if (resolved.failed || resolved.type == nullptr) continue;
+
+          if (specifiers.isTypedef)
+          {
+               if (const auto existing = classScope.typeAliases.find(name);
+                   existing != classScope.typeAliases.end() && existing->second != resolved.type)
+               {
+                    report("Redefinition of '" + name + "' as a different type", node.Source());
+                    continue;
+               }
+               classScope.typeAliases[name] = resolved.type;
+               classScope.memberAccess[name] = access;
+               continue;
+          }
+
+          if (IsReference(resolved.type)) throw TracedException("TODO: reference data members are not implemented");
+          if (!RequireComplete(resolved.type, node.Source(), "a non-static data member")) continue;
+
+          if (isMutable)
+               if (const auto* qualified = resolved.type->CastTo<typeSystem::QualifiedType>();
+                   qualified != nullptr && qualified->IsConst())
+               {
+                    report("A 'mutable' member cannot have a const-qualified type", node.Source());
+                    continue;
+               }
+
+          if (std::ranges::any_of(fields,
+                                  [&](const typeSystem::ClassField& f)
+                                  {
+                                       return f.name == name;
+                                  }))
+          {
+               report("Duplicate member '" + name + "'", identifier->Source());
+               continue;
+          }
+
+          typeSystem::ClassField field{};
+          field.name = name;
+          field.type = resolved.type;
+          field.access = access;
+          // field.isMutable = isMutable;
+          field.source = identifier->Source();
+          fields.push_back(std::move(field));
+          classScope.memberAccess[name] = access;
+
+          if (declarator.initialiser == nullptr) continue;
+          if (declarator.initialisationType == ast::InitialisationType::ParenthesisedExpressionList)
+          {
+               report("A default member initialiser must use '=' or braces", declarator.initialiser->Source());
+               continue;
+          }
+
+          // TODO: store the expression on the field.
+          const auto* declaratorPointer = &declarator;
+          const auto* memberType = resolved.type;
+          deferred.emplace_back(
+               [this, declaratorPointer, memberType]
+               {
+                    (void)PickInitialiser(declaratorPointer->initialiser, memberType,
+                                          declaratorPointer->initialisationType);
+               });
+     }
 }
