@@ -294,12 +294,30 @@ namespace
           return isConst ? Qualifiers::Const : isVolatile ? Qualifiers::Volatile : Qualifiers::None;
      }
 
-     ecpps::ir::TypeRequest ErrorRequest(void)
+     ecpps::ir::TypeRequest ErrorRequest(std::vector<ecpps::diagnostics::DiagnosticsMessage> diagnostics = {})
      {
           ecpps::ir::TypeRequest request{};
           request.kind = ecpps::ir::TypeKind::Error;
-          request.data = ecpps::ir::InvalidRequest(nullptr, {});
+          request.data = ecpps::ir::InvalidRequest(nullptr, std::move(diagnostics));
           return request;
+     }
+     [[nodiscard]] bool IsValidIntegerSpecifierCombination(const std::vector<std::string_view>& tokens)
+     {
+          const auto count = [&](const std::string_view keyword)
+          {
+               return std::ranges::count(tokens, keyword);
+          };
+          const auto chars = count("char");
+          const auto shorts = count("short");
+          const auto ints = count("int");
+          const auto longs = count("long");
+          const auto isSigned = count("signed");
+          const auto isUnsigned = count("unsigned");
+          if (chars > 1 || shorts > 1 || ints > 1 || isSigned > 1 || isUnsigned > 1 || longs > 2) return false;
+          if (isSigned != 0 && isUnsigned != 0) return false;
+          if (chars != 0 && (shorts != 0 || ints != 0 || longs != 0)) return false;
+          if (shorts != 0 && longs != 0) return false;
+          return true;
      }
 
      enum struct Derivation : std::uint_fast8_t
@@ -1099,6 +1117,13 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      }
 
      const auto* returnType = this->ParseType(node.Signature().type);
+     if (returnType == nullptr || std::ranges::any_of(parameters,
+                                                      [](const FunctionScope::Parameter& parameter)
+                                                      {
+                                                           return parameter.type == nullptr;
+                                                      }))
+          return; // TODO: Fallback to int, and maybe eventually guess the type?
+
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
@@ -1179,6 +1204,12 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      IR ir{this->_context};
      const auto* returnType = this->ParseType(node.Signature().type);
+     if (returnType == nullptr || std::ranges::any_of(parameters,
+                                                      [](const FunctionScope::Parameter& parameter)
+                                                      {
+                                                           return parameter.type == nullptr;
+                                                      }))
+          return; // TODO: Fallback to int, and maybe eventually guess the type?
      abi::Linkage linkage = abi::Linkage::External;
 
      if (returnType != nullptr && !typeSystem::g_void->CommonWith(returnType))
@@ -3589,73 +3620,68 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
           }
 
           request.kind = TypeKind::Fundamental;
+          request.qualifiers = qualifiers;
 
-          if (basicType->IsConst() && basicType->IsVolatile())
-               request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
-          else if (basicType->IsConst())
-               request.qualifiers = typeSystem::Qualifiers::Const;
-          else if (basicType->IsVolatile())
-               request.qualifiers = typeSystem::Qualifiers::Volatile;
+          const auto fail = [&](std::string message)
+          {
+               std::vector<diagnostics::DiagnosticsMessage> diagnosticsList{};
+               diagnosticsList.push_back(diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::move(message), basicType->Source()));
+               return ErrorRequest(std::move(diagnosticsList));
+          };
 
           if (value == "void")
           {
                request.data = VoidRequest{};
                return request;
           }
-
-          StandardSignedIntegerRequest signedRequest{};
-
-          std::vector<std::string_view> tokens;
+          if (value == "bool")
           {
-               std::string_view sv{value};
-               while (!sv.empty())
-               {
-                    const auto pos = sv.find(' ');
-                    tokens.emplace_back(sv.substr(0, pos));
-                    if (pos == std::string_view::npos) break;
-                    sv.remove_prefix(pos + 1);
-               }
+               request.data = BooleanRequest{};
+               return request;
           }
 
-          const auto has = [&](std::string_view t)
+          std::vector<std::string_view> tokens;
+          std::string_view sv{value};
+          while (!sv.empty())
+          {
+               const auto pos = sv.find(' ');
+               tokens.emplace_back(sv.substr(0, pos));
+               if (pos == std::string_view::npos) break;
+               sv.remove_prefix(pos + 1);
+          }
+          using std::operator""sv;
+
+          constexpr std::array integerKeywords{"char"sv, "short"sv, "int"sv, "long"sv, "signed"sv, "unsigned"sv};
+          constexpr std::array unsupportedKeywords{"float"sv,   "double"sv,   "wchar_t"sv,
+                                                   "char8_t"sv, "char16_t"sv, "char32_t"sv};
+          for (const auto token : tokens)
+          {
+               if (std::ranges::contains(unsupportedKeywords, token))
+                    return fail(std::format("The type '{}' is not supported yet", token));
+               if (!std::ranges::contains(integerKeywords, token))
+                    return fail(tokens.size() == 1 ? std::format("Unknown type name '{}'", value)
+                                                   : std::format("Invalid type specifier '{}'", value));
+          }
+          if (!IsValidIntegerSpecifierCombination(tokens))
+               return fail(std::format("Invalid type specifier '{}'", value));
+
+          StandardSignedIntegerRequest signedRequest{};
+          const auto has = [&](const std::string_view t)
           {
                return std::ranges::contains(tokens, t);
           };
-
-          const auto longCount = std::ranges::count(tokens, "long");
-
+          const auto longCount = std::ranges::count(tokens, "long"sv);
           const bool isChar = has("char");
           const bool isShort = has("short");
-          const bool isInt = has("int");
-          const bool isLong = longCount > 0;
           const bool isSigned = has("signed");
           const bool isUnsigned = has("unsigned");
 
-          if (!(isChar || isShort || isInt || isLong || isSigned || isUnsigned))
-          {
-               signedRequest.signedness = typeSystem::Signedness::Signed;
-               signedRequest.size = typeSystem::TypeKind::Int;
-               request.data = signedRequest;
-
-               std::vector<diagnostics::DiagnosticsMessage> diagnosticsList{};
-               diagnosticsList.push_back(diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Invalid type specifier: " + value, basicType->Source()));
-               TypeRequest fallbackRequest{};
-               fallbackRequest.kind = TypeKind::Error;
-               fallbackRequest.data =
-                    InvalidRequest(std::make_unique<TypeRequest>(request), std::move(diagnosticsList));
-               return fallbackRequest;
-          }
-
-          if (isChar && !isSigned && !isUnsigned)
-          {
-               signedRequest.isCharWithoutSign = true;
-          }
+          if (isChar && !isSigned && !isUnsigned) signedRequest.isCharWithoutSign = true;
           else
           {
                signedRequest.signedness =
                     isUnsigned ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
-
                if (isChar) signedRequest.size = typeSystem::TypeKind::Char;
                else if (isShort)
                     signedRequest.size = typeSystem::TypeKind::Short;
