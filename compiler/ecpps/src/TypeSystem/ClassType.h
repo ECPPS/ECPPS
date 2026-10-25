@@ -39,21 +39,22 @@ namespace ecpps::typeSystem
                return std::format("{}{}{}", this->IsConst() ? "const " : "", this->IsVolatile() ? "volatile " : "",
                                   this->_info->RawName());
           }
-
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               const bool isUnion = this->_info->kind == ClassKind::Union;
+               TypeTraits traits{TypeTraitEnum::Object, TypeTraitEnum::Class};
+               if (this->_info->kind == ClassKind::Union) traits.Set(TypeTraitEnum::Union);
+               // TODO: Literal needs the constexpr constructor/destructor rules.
                if (!this->_info->IsComplete())
-                    return isUnion ? TypeTraits{TypeTraitEnum::Union, TypeTraitEnum::Class}
-                                   : TypeTraits{TypeTraitEnum::Class};
-
+               {
+                    traits.Set(TypeTraitEnum::Incomplete);
+                    return traits;
+               }
                if (this->_info->triviallyCopyable)
-                    return isUnion ? TypeTraits{TypeTraitEnum::Union, TypeTraitEnum::Class,
-                                                TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime}
-                                   : TypeTraits{TypeTraitEnum::Class, TypeTraitEnum::TriviallyCopyable,
-                                                TypeTraitEnum::ImplicitLifetime};
-               return isUnion ? TypeTraits{TypeTraitEnum::Union, TypeTraitEnum::Class}
-                              : TypeTraits{TypeTraitEnum::Class};
+               {
+                    traits.Set(TypeTraitEnum::TriviallyCopyable);
+                    traits.Set(TypeTraitEnum::ImplicitLifetime);
+               }
+               return traits;
           }
 
           [[nodiscard]] ConversionSequence CompareTo(const TypeBase* other) const override

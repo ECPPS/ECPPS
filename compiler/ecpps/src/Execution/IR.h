@@ -231,16 +231,18 @@ namespace ecpps::ir
                                                                    const std::string& name,
                                                                    bool allowUnboundedOutermost);
           void CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node);
-          void ParseMemberDeclaration(const ast::MemberDeclarationNode& node, typeSystem::Access access,
-                                      std::vector<typeSystem::ClassField>& fields,
+          void ParseMemberDeclaration(const ast::MemberDeclarationNode& node, typeSystem::ClassId id,
+                                      typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
                                       std::vector<std::function<void()>>& deferred);
           [[nodiscard]] bool RequireComplete(typeSystem::NonowningTypePointer type, const Location& source,
                                              std::string_view what) const;
           [[nodiscard]] bool RejectClassByValue(typeSystem::NonowningTypePointer type, const Location& source,
                                                 std::string_view what) const;
           [[nodiscard]] bool CanAccess(typeSystem::ClassId id, typeSystem::Access access) const;
-
-          void ParseNestedClass(const ast::ClassType& nested, const typeSystem::Access access,
+          void StoreDefaultMemberInitialiser(typeSystem::ClassId id, std::size_t fieldIndex,
+                                             const ast::MemberDeclarator& declarator,
+                                             typeSystem::NonowningTypePointer memberType, const Location& source);
+          void ParseNestedClass(const ast::ClassType& nested, typeSystem::Access access,
                                 std::vector<typeSystem::ClassField>& fields);
 
           [[nodiscard]] std::optional<std::uint64_t> EvaluateArrayBound(const ast::NodePointer& bound,

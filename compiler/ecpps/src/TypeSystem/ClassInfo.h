@@ -39,7 +39,9 @@ namespace ecpps::typeSystem
           NonowningTypePointer type{};
           Access access{Access::Public};
           bool isAnonymousUnion{}; // [class.union.anon]; TODO: name patching
-          std::size_t offset{};    // valid once ::Complete
+          bool isMutable{};
+          bool hasDefaultInitialiser{};
+          std::size_t offset{}; // valid once ::Complete
           Location source{0, 0, 0};
      };
      struct ClassInfo

@@ -4425,7 +4425,7 @@ std::optional<ecpps::typeSystem::ClassId> ecpps::ir::IR::LookupClassForElaborati
      }
      return std::nullopt;
 }
-ecpps::ir::Scope& ecpps::ir::IR::NearestNamespaceOrBlockScope() const
+ecpps::ir::Scope& ecpps::ir::IR::NearestNamespaceOrBlockScope(void) const
 {
      for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
           if (dynamic_cast<const ClassContext*>(context.get()) == nullptr) return context->GetScope();
@@ -4460,7 +4460,7 @@ void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::
                     std::format("'{}' was declared as a {} but is redeclared as a {}", info.DisplayName(),
                                 info.KeyWord(), node.ToString(0)),
                     node.Source()));
-     else
+     else // TODO: Check if MS ABI, since that is ABI violating and shall reject the program
           this->GetContext().diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::Warning>(
                "warning",
                std::format("'{}' was declared as a {} but is redeclared with a different class-key", info.DisplayName(),
@@ -4546,7 +4546,7 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
      return id;
 }
 
-void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, [[maybe_unused]] const typeSystem::ClassId id,
+void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeSystem::ClassId id,
                                      typeSystem::Access& access, std::vector<typeSystem::ClassField>& fields,
                                      std::vector<std::function<void()>>& deferred)
 {
@@ -4559,7 +4559,7 @@ void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, [[maybe_unu
      }
      if (const auto* declaration = dynamic_cast<const ast::MemberDeclarationNode*>(member.get()))
      {
-          ParseMemberDeclaration(*declaration, access, fields, deferred);
+          ParseMemberDeclaration(*declaration, id, access, fields, deferred);
           return;
      }
      if (const auto* nested = dynamic_cast<const ast::ClassType*>(member.get())) // in case the parser emits it bare
@@ -4754,8 +4754,8 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
      ParseClassNode(nested);
      classScope.memberAccess[nested.Value()] = access;
 }
-void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::Access access,
-                                           std::vector<typeSystem::ClassField>& fields,
+void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::ClassId id,
+                                           const typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
                                            std::vector<std::function<void()>>& deferred)
 {
      const auto& specifiers = node.Specifiers();
@@ -4865,9 +4865,11 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           field.name = name;
           field.type = resolved.type;
           field.access = access;
-          // field.isMutable = isMutable;
+          field.isMutable = isMutable;
           field.source = identifier->Source();
+          field.hasDefaultInitialiser = declarator.initialiser != nullptr;
           fields.push_back(std::move(field));
+          const auto fieldIndex = fields.size() - 1;
           classScope.memberAccess[name] = access;
 
           if (declarator.initialiser == nullptr) continue;
@@ -4877,14 +4879,12 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                continue;
           }
 
-          // TODO: store the expression on the field.
           const auto* declaratorPointer = &declarator;
           const auto* memberType = resolved.type;
           deferred.emplace_back(
-               [this, declaratorPointer, memberType]
+               [this, id, fieldIndex, declaratorPointer, memberType, source = identifier->Source()]
                {
-                    (void)PickInitialiser(declaratorPointer->initialiser, memberType,
-                                          declaratorPointer->initialisationType);
+                    StoreDefaultMemberInitialiser(id, fieldIndex, *declaratorPointer, memberType, source);
                });
      }
 }
@@ -4896,4 +4896,12 @@ bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer ty
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
      return true;
+}
+void ecpps::ir::IR::StoreDefaultMemberInitialiser([[maybe_unused]] const typeSystem::ClassId id,
+                                                  [[maybe_unused]] const std::size_t fieldIndex,
+                                                  [[maybe_unused]] const ast::MemberDeclarator& declarator,
+                                                  [[maybe_unused]] const typeSystem::NonowningTypePointer memberType,
+                                                  [[maybe_unused]] const Location& source)
+{
+     // TODO: Implement
 }
