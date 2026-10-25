@@ -348,18 +348,21 @@ namespace ecpps::ir
 
                std::vector<abi::MemberLayoutInput> inputs;
                inputs.reserve(fields.size());
+               bool triviallyCopyable = true;
                for (const auto& field : fields)
                {
                     runtime_assert(field.type != nullptr && field.type->IsComplete(),
                                    "Incomplete member reached layout");
+                    triviallyCopyable = triviallyCopyable && IsTriviallyCopyable(field.type);
                     inputs.push_back({.size = field.type->Size(), .alignment = field.type->Alignment()});
                }
                const auto layout = abi::ABI::Current().LayoutClass(info.kind == typeSystem::ClassKind::Union, inputs);
-               for (std::size_t i = 0; i < fields.size(); ++i) fields[i].offset = layout.offsets.at(i);
+               for (std::size_t i = 0; i < fields.size(); i++) fields[i].offset = layout.offsets.at(i);
 
                info.fields = std::move(fields);
                info.size = layout.size;
                info.alignment = layout.alignment;
+               info.triviallyCopyable = triviallyCopyable;
                info.state = typeSystem::ClassState::Complete;
           }
 
