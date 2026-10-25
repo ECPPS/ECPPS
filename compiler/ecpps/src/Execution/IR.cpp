@@ -1171,9 +1171,22 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
      if (parameters.size() == 1 && *parameters.at(0).type == typeSystem::g_void.get()) parameters.clear();
 
+     for (const auto& param : parameters)
+     {
+          if (!RequireComplete(param.type, node.Source(), "a function parameter")) return;
+          if (RejectClassByValue(param.type, node.Source(), "a by-value parameter")) return;
+     }
+
      IR ir{this->_context};
      const auto* returnType = this->ParseType(node.Signature().type);
      abi::Linkage linkage = abi::Linkage::External;
+
+     if (returnType != nullptr && !typeSystem::g_void->CommonWith(returnType))
+     {
+          if (!RequireComplete(returnType, node.Source(), "a function return type")) return;
+          if (RejectClassByValue(returnType, node.Source(), "a return type")) return;
+     }
+
      if (node.Signature().externOptional.has_value())
      {
           const std::string& languageLinkage =
@@ -1586,7 +1599,11 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                TypeRequest arrayRequest{};
                arrayRequest.kind = TypeKind::Compound;
                arrayRequest.data = BoundedArrayRequest{.elementType = variableType, .size = *inferredLength};
-
+               if (!RequireComplete(variableType, decl.name->Source(), "an array element type"))
+               {
+                    arrayBoundsFailed = true;
+                    break;
+               }
                variableType = GetTypeContext().Get(arrayRequest);
           }
 
@@ -1617,6 +1634,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          "Redefinition of variable '" + varName + "'", decl.name->Source()));
                continue;
           }
+          if (!RequireComplete(variableType, decl.name->Source(), "an object definition")) continue;
 
           auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
           runtime_assert(function != nullptr, "Function was null when parsing the function");
@@ -1635,6 +1653,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
           this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{
                new (allocator) ir::AllocationNode(std::move(ssaNodeUnique), decl.name->Source())});
+
+          if (decl.initialiser != nullptr &&
+              RejectClassByValue(variableType, decl.name->Source(), "an initialised object"))
+               continue;
 
           if (decl.initialiser == nullptr)
           {
@@ -1800,7 +1822,16 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
                std::swap(leftPointer, rightPointer);
           }
 
-          const auto elementSize = leftPointer->BaseType()->Size();
+          const auto* pointee = leftPointer->BaseType();
+          if (!pointee->IsComplete() || pointee->Size() == 0)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Cannot perform pointer arithmetic on a pointer to a void or incomplete type", source));
+               return nullptr;
+          }
+          const auto elementSize = pointee->Size();
+
           if (elementSize == 0)
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
@@ -2508,6 +2539,8 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
 }
 Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source) const
 {
+     if (RejectClassByValue(left->Type(), source, "an assignment operand")) return nullptr;
+
      if (IsIndirectLValue(left))
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
@@ -2741,6 +2774,16 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
           if (candidates.empty()) continue;
           const auto& candidate = candidates.top().second;
+
+          for (const auto& param : candidate->parameters)
+               if (!RequireComplete(param.type, node.Source(), "a function call") ||
+                   RejectClassByValue(param.type, node.Source(), "a by-value argument"))
+                    return nullptr;
+          if (candidate->returnType != nullptr && !typeSystem::g_void->CommonWith(candidate->returnType) &&
+              (!RequireComplete(candidate->returnType, node.Source(), "a function call") ||
+               RejectClassByValue(candidate->returnType, node.Source(), "a return value")))
+               return nullptr;
+
           auto moveRange = std::ranges::subrange(std::make_move_iterator(arguments.begin()),
                                                  std::make_move_iterator(arguments.end()));
 
@@ -2886,7 +2929,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                               expression.Value()->Source()));
                     return nullptr;
                }
-               const auto size = type->Size();
+
+               const auto size = RequireComplete(type, expression.Source(), "a sizeof expression") ? type->Size() : 1;
 
                TypeRequest sizeTypeRequest{};
                sizeTypeRequest.kind = TypeKind::Fundamental;
@@ -2917,7 +2961,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                     "Cannot determine the type of the operand in a sizeof expression", expression.Value()->Source()));
           return nullptr;
      }
-     const auto size = operandType->Size();
+     const auto size =
+          RequireComplete(operandType, expression.Source(), "a sizeof expression") ? operandType->Size() : 1;
      TypeRequest sizeTypeRequest{};
      sizeTypeRequest.kind = TypeKind::Fundamental;
      sizeTypeRequest.data = PlatformIntegerRequest{.kind = PlatformIntegerKind::Size};
@@ -4816,4 +4861,13 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                           declaratorPointer->initialisationType);
                });
      }
+}
+bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer type, const Location& source,
+                                       const std::string_view what) const
+{
+     if (!typeSystem::IsClass(type)) return false;
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
+     return true;
 }
