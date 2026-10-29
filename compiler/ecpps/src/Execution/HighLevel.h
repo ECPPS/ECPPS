@@ -726,4 +726,15 @@ namespace ecpps::ir::high
           Expression _operand;
           std::size_t _increment;
      };
+     class ThisExpressionNode final : public NodeBase
+     {
+     public:
+          explicit ThisExpressionNode(Location source) : NodeBase(NodeKind::ThisExpression, source)
+          {
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + "this";
+          }
+     };
 } // namespace ecpps::ir::high

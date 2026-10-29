@@ -15,9 +15,11 @@
 #include <variant>
 #include <vector>
 #include "../Machine/ABI.h"
+#include "../Parsing/AST.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Entities.h"
+#include "Execution/Expressions.h"
 #include "Execution/NodeBase.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
@@ -62,6 +64,11 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer elementType{};
      };
+     struct ReferenceRequest
+     {
+          typeSystem::NonowningTypePointer elementType{};
+          typeSystem::ReferenceType::Kind kind{typeSystem::ReferenceType::Kind::LValue};
+     };
      struct BooleanRequest
      {
      };
@@ -91,7 +98,7 @@ namespace ecpps::ir
      {
           using VarRequest =
                std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest, PointerRequest,
-                            PlatformIntegerRequest, BooleanRequest, ClassRequest, InvalidRequest>;
+                            ReferenceRequest, PlatformIntegerRequest, BooleanRequest, ClassRequest, InvalidRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -134,6 +141,14 @@ namespace ecpps::ir
                     const auto& otherData = std::get<PointerRequest>(other.data);
 
                     return thisData.elementType == otherData.elementType;
+               }
+
+               if (std::holds_alternative<ReferenceRequest>(this->data))
+               {
+                    if (!std::holds_alternative<ReferenceRequest>(other.data)) return false;
+                    const auto& thisData = std::get<ReferenceRequest>(this->data);
+                    const auto& otherData = std::get<ReferenceRequest>(other.data);
+                    return thisData.elementType == otherData.elementType && thisData.kind == otherData.kind;
                }
 
                if (std::holds_alternative<VoidRequest>(this->data))
@@ -229,6 +244,11 @@ namespace ecpps::ir
                          else if constexpr (std::is_same_v<T, PointerRequest>)
                          {
                               seed = HashCombine(seed, data.elementType);
+                         }
+                         else if constexpr (std::is_same_v<T, ReferenceRequest>)
+                         {
+                              seed = HashCombine(seed, data.elementType);
+                              seed = HashCombine(seed, data.kind);
                          }
                          else if constexpr (std::is_same_v<T, VoidRequest>)
                          {
@@ -332,6 +352,10 @@ namespace ecpps::ir
                return id;
           }
           [[nodiscard]] const typeSystem::ClassInfo& Class(typeSystem::ClassId id) const
+          {
+               return this->_classes.at(id);
+          }
+          [[nodiscard]] typeSystem::ClassInfo& Class(typeSystem::ClassId id)
           {
                return this->_classes.at(id);
           }
@@ -504,6 +528,15 @@ namespace ecpps::ir
                               pointerData.elementType, std::format("{}* {}", pointerData.elementType->Name(), cv),
                               request.qualifiers);
                     }
+                    if (std::holds_alternative<ReferenceRequest>(request.data))
+                    {
+                         const auto& referenceData = std::get<ReferenceRequest>(request.data);
+                         const auto* const suffix =
+                              referenceData.kind == typeSystem::ReferenceType::Kind::LValue ? "&" : "&&";
+                         return std::make_unique<typeSystem::ReferenceType>(
+                              referenceData.elementType, referenceData.kind,
+                              std::format("{}{}", referenceData.elementType->Name(), suffix));
+                    }
                     if (std::holds_alternative<ClassRequest>(request.data))
                     {
                          const auto& info = this->_classes.at(std::get<ClassRequest>(request.data).id);
@@ -542,7 +575,6 @@ namespace ecpps::ir
           std::string name{};
           typeSystem::ClassId id{typeSystem::InvalidClassId};
           std::unordered_map<std::string, typeSystem::Access> memberAccess{}; // all the meows
-          // TODO: membew functions?
      };
 
      struct ContextBase
@@ -583,6 +615,16 @@ namespace ecpps::ir
           std::string name;
           std::vector<typeSystem::NonowningTypePointer> parameters;
           std::uint32_t nextRegisterIndex = 0;
+          typeSystem::NonowningTypePointer thisType{};
+
+          void RegisterThisAllocReg(const ir::SingleAssignRegisterNode* node) noexcept
+          {
+               this->_thisAllocReg = node;
+          }
+          [[nodiscard]] const ir::SingleAssignRegisterNode* GetThisRegister(void) const noexcept
+          {
+               return this->_thisAllocReg;
+          }
 
           explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention,
                                    [[maybe_unused]] typeSystem::NonowningTypePointer returnType, std::string name,
@@ -616,6 +658,7 @@ namespace ecpps::ir
 
           std::unordered_map<std::string, SSANode> _nameToSSAMapping{};
           std::unordered_map<std::uint64_t, const ir::SingleAssignRegisterNode*> _indexToSSAMapping{};
+          const ir::SingleAssignRegisterNode* _thisAllocReg{};
      };
 
      struct ClassContext final : ContextBase
@@ -674,6 +717,8 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
+          bool isMemberFunctionDefined = false;
+          bool isDeleted = false;
           bool isInline = false;
           bool isFriend = false;
           bool isExtern = false;
@@ -684,6 +729,9 @@ namespace ecpps::ir
           std::string dllImportName{};
           Location source{0, 0, 0};
           std::size_t emittedOffset = std::numeric_limits<std::size_t>::max();
+          const typeSystem::ClassInfo* memberClassInfo{};
+          abi::MemberFunctionInfo memberFunctionInfo{};
+          typeSystem::Access memberAccess{typeSystem::Access::Public};
 
           struct Parameter
           {
@@ -692,6 +740,13 @@ namespace ecpps::ir
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
+
+          [[nodiscard]] std::size_t CallingConventionParameterCount(void) const noexcept
+          {
+               return this->parameters.size() +
+                      static_cast<std::size_t>(this->memberClassInfo != nullptr && !this->isStatic);
+          }
+
           ///
           /// A local entity is a variable with automatic storage duration, a structured binding whose corresponding
           /// variable is such an entity, or the *this object.
@@ -913,11 +968,39 @@ namespace ecpps::ir
                                   this->Name().has_value() ? this->Name().value() : "<anonymous>");
           }
      };
+     struct DefaultMemberInitialiser
+     {
+          std::size_t fieldIndex{};
+          const ast::NodePointer* initialiser{};
+          ast::InitialisationType initialisationType{ast::InitialisationType::Default};
+          bool invalid{};
+          Location source{0, 0, 0};
+     };
+
+     struct ClassConstructor
+     {
+          std::vector<FunctionScope::Parameter> parameters{};
+          const ast::MemberDeclarator* declaration{};
+          typeSystem::Access access{typeSystem::Access::Public};
+          bool isExplicit{};
+     };
+
+     struct ClassIrData
+     {
+          ClassScope* scope{};
+          std::vector<DefaultMemberInitialiser> memberInitialisers{};
+          std::vector<ClassConstructor> constructors{};
+     };
+     struct ClassSideTable
+     {
+          std::unordered_map<typeSystem::ClassId, ClassIrData> classes{};
+     };
 
      struct Context
      {
           std::reference_wrapper<Diagnostics> diagnostics;
           BumpAllocator* nodeAllocator;
+          std::shared_ptr<ClassSideTable> classTable = std::make_shared<ClassSideTable>();
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           std::deque<ContextPointer> contextSequence{};

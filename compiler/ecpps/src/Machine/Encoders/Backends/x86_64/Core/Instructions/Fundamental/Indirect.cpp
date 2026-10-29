@@ -107,6 +107,43 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 }
 
 template <>
+std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::IndirectStore>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
+{
+     std::vector<ecpps::ir::abstract::Instruction> built{};
+     runtime_assert(registerArray.size() == 2,
+                    std::format("Invalid register array! Specified: {}, expected: [destination pointer, source]",
+                                registerArray.size()));
+     if (registerArray.size() != 2) return built;
+
+     const auto destinationPointer = registerArray[0];
+     const auto source = registerArray[1];
+     if (this->IsLargeObject(source))
+     {
+          built.append_range(this->EnsureMaterialisation(destinationPointer));
+          auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
+          const MemoryLocation destination{.base = MemoryOperand{.relativeTo = pointer.Register(), .offset = 0},
+                                           .disposable = true};
+          const MemoryLocation sourceLocation{.base = this->EnsureStackSlot(source)};
+          this->EmitMemoryCopy(built, destination, sourceLocation, this->GetVRM().GetSize(source));
+          this->DereferenceAndMaybeFree(destinationPointer);
+          this->DereferenceAndMaybeFree(source);
+          return built;
+     }
+
+     built.append_range(this->EnsureMaterialisation(destinationPointer));
+     auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
+     built.append_range(this->EnsureMaterialisation(source));
+     auto value = ScratchRegister::Take(this->_registerAllocator, source);
+     built.push_back(BuildMov(MapWidth(this->GetVRM().GetWidth(source)),
+                              MemoryOperand{.relativeTo = pointer.Register(), .offset = 0}, value.AsOperand()));
+     this->DereferenceAndMaybeFree(destinationPointer);
+     this->DereferenceAndMaybeFree(source);
+     return built;
+}
+
+template <>
 ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Indirection>(
           const ecpps::ir::abstract::VirtualRegister owner, const std::span<const std::byte> data)

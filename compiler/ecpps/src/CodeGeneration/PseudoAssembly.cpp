@@ -108,6 +108,12 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                     this->ParseArrayStoreNode(*arrayStoreNode);
                     return;
                }
+               if (const auto* indirectStoreNode = dynamic_cast<const ecpps::ir::SSAIndirectStoreNode*>(node);
+                   indirectStoreNode != nullptr)
+               {
+                    this->ParseIndirectStoreNode(*indirectStoreNode);
+                    return;
+               }
                const auto* storeNode = dynamic_cast<const ecpps::ir::SSAStoreNode*>(node);
                runtime_assert(storeNode != nullptr, "Store node was not a store!");
                this->ParseStoreNode(*storeNode);
@@ -227,9 +233,12 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           break;
           case ecpps::ir::NodeKind::PointerConversion:
           {
-               const auto* convertNode = dynamic_cast<const ecpps::ir::SSAPointerConvertFromDecayNode*>(node);
-               runtime_assert(convertNode != nullptr, "Pointer conversion was not a conversion!");
-               this->ParsePointerConvertNode(*convertNode);
+               if (const auto* decayNode = dynamic_cast<const ecpps::ir::SSAPointerConvertFromDecayNode*>(node))
+                    this->ParsePointerConvertNode(*decayNode);
+               else if (const auto* convertNode = dynamic_cast<const ecpps::ir::SSAPointerConvertNode*>(node))
+                    this->ParsePointerConvertNode(*convertNode);
+               else
+                    runtime_assert(false, "Pointer conversion was not a conversion!");
           }
           break;
           case ecpps::ir::NodeKind::AddressOf:
@@ -331,6 +340,20 @@ void ecpps::codegen::ParsingContext::ParseStoreNode(const ir::SSAStoreNode& node
           .operands = {virtualTarget, virtualSource},
      };
      this->instructions.push_back(instruction);
+}
+void ecpps::codegen::ParsingContext::ParseIndirectStoreNode(const ir::SSAIndirectStoreNode& node)
+{
+     const auto ssaTargetIndex = node.Target().Index();
+     const auto ssaSourceIndex = node.Src().Index();
+     const auto virtualTargetIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
+     const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+
+     this->DereferenceSSA(ssaTargetIndex);
+     this->DereferenceSSA(ssaSourceIndex);
+
+     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::IndirectStore,
+                                   .operands = {ir::abstract::VirtualRegister{virtualTargetIndex},
+                                                ir::abstract::VirtualRegister{virtualSourceIndex}}});
 }
 void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreIntegerNode& node)
 {
@@ -857,6 +880,27 @@ void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::Parameter
      };
      this->instructions.push_back(instruction);
 }
+void ecpps::codegen::ParsingContext::ParsePointerConvertNode(const ir::SSAPointerConvertNode& node)
+{
+     const auto ssaSourceIndex = node.Src().Index();
+     const auto ssaResultIndex = node.Result().Index();
+     const auto resultWidth = node.Result().Width();
+     runtime_assert(node.Src().Width() == resultWidth, "Pointer conversion changed the pointer width");
+
+     const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaSourceIndex);
+     const ir::abstract::VirtualRegister allocatedIndex(
+          this->AllocateVirtual(ssaResultIndex, resultWidth, AllocationDescriptor::Type::Temporary));
+     const ir::abstract::VirtualRegister virtualSource{virtualSourceIndex};
+
+     this->DereferenceSSA(ssaSourceIndex);
+
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::Copy,
+          .operands = {allocatedIndex, virtualSource},
+     };
+     this->instructions.push_back(instruction);
+}
+
 void ecpps::codegen::ParsingContext::ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node)
 {
      const auto ssaResultIndex = node.Result().Index();
@@ -1164,17 +1208,24 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
 
      diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 
+     const auto parameters = node.ParameterList() |
+                            std::views::transform(
+                                 [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                 {
+                                      return parameter.type;
+                                 }) |
+                            std::ranges::to<std::vector>();
+     const auto* functionScope = node.Scope();
+     const auto mangledName = functionScope->memberClassInfo != nullptr
+                                   ? ecpps::abi::ABI::MangleMemberName(
+                                          node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+                                          parameters, functionScope->memberClassInfo->QualifiedScope(),
+                                          functionScope->memberFunctionInfo)
+                                   : ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
+                                                                 node.ReturnType(), parameters, node.NamespacePath());
+
      return Routine(std::move(parseContext.instructions),
-                    ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
-                                                node.ReturnType(),
-                                                node.ParameterList() |
-                                                     std::views::transform(
-                                                          [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                                          {
-                                                               return parameter.type;
-                                                          }) |
-                                                     std::ranges::to<std::vector>(),
-                                                node.NamespacePath()),
+                    mangledName,
                     std::vector<ecpps::ir::abstract::Instruction>{}, parseContext.functionUsageTable, node.Scope(),
                     parseContext.functionUsageTable);
 }
@@ -1230,7 +1281,8 @@ void ecpps::codegen::ParsingContext::ParseBranchNode(const ir::SSABranchNode& no
           return;
      }
 
-     const auto pending = *std::exchange(this->pendingCompare, std::nullopt);
+     const auto pending = this->pendingCompare.value();
+     this->pendingCompare.reset();
 
      const auto trueId = this->LabelId(node.TrueLabel());
      const auto falseId = this->LabelId(node.FalseLabel());

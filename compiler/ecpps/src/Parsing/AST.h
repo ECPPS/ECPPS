@@ -1104,6 +1104,32 @@ namespace ecpps::ast
           std::vector<NodePointer> _initialisers;
      };
 
+     class DesignatedInitialiserNode final : public Node
+     {
+     public:
+          explicit DesignatedInitialiserNode(std::string member, NodePointer initialiser, Location source)
+              : Node(source), _member(std::move(member)), _initialiser(std::move(initialiser))
+          {
+          }
+          [[nodiscard]] const std::string& Member(void) const noexcept
+          {
+               return this->_member;
+          }
+          [[nodiscard]] const NodePointer& Initialiser(void) const noexcept
+          {
+               return this->_initialiser;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "." + this->_member + " = " +
+                      (this->_initialiser == nullptr ? "__unknown" : this->_initialiser->ToString(0));
+          }
+
+     private:
+          std::string _member;
+          NodePointer _initialiser;
+     };
+
      /// <summary>
      /// Keep both operands for error recovery.
      /// </summary>

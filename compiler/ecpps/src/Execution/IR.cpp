@@ -2,8 +2,12 @@
 #include <RuntimeAssert.h>
 #include <TypeSystem/TypeBase.h>
 #include <algorithm>
+#include <bit>
+#include <cctype>
 #include <deque>
 #include <format>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <queue>
 #include <ranges>
@@ -19,6 +23,7 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/MemoryAccess.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "NodeBase.h"
@@ -36,21 +41,78 @@ using ecpps::Expression;
 
 namespace
 {
+     [[nodiscard]] std::string FormatTypeName(const ecpps::typeSystem::NonowningTypePointer type)
+     {
+          if (type == nullptr) return "__unknown";
+          std::string name = type->Name();
+          while (!name.empty() && std::isspace(static_cast<unsigned char>(name.back())) != 0) name.pop_back();
+          return name;
+     }
+
+     [[nodiscard, maybe_unused]] ecpps::ir::MemoryAccess AccessFor(const ecpps::typeSystem::NonowningTypePointer type)
+     {
+          ecpps::ir::MemoryAccess access{};
+          access.alignment = static_cast<std::uint32_t>(type->Alignment());
+          if (const auto* qualified = type->CastTo<ecpps::typeSystem::QualifiedType>())
+               access.isVolatile = qualified->IsVolatile();
+          return access;
+     }
+     [[nodiscard]] std::size_t ConversionCost(const ecpps::typeSystem::ConversionSequence::ConversionKind kind) noexcept
+     {
+          using Kind = ecpps::typeSystem::ConversionSequence::ConversionKind;
+          switch (kind)
+          {
+          case Kind::LvalueToRValue:
+          case Kind::ArrayToPointer:
+          case Kind::FunctionToPointer:
+          case Kind::Materialisation:
+          case Kind::QualifierConversion: return 0;
+          case Kind::IntegralPromotion:
+          case Kind::FloatingPointPromotion: return 1;
+          case Kind::IntegralConversion:
+          case Kind::FloatingPointConversion:
+          case Kind::FloatingIntegralConversion:
+          case Kind::PointerConversion:
+          case Kind::MemberFunctionConversion:
+          case Kind::FunctionPointerConversion: return 2;
+          case Kind::BooleanConversion: return 3;
+          case Kind::UserDefined: return 4;
+          case Kind::Ellipsis: return 5;
+          }
+          return 5;
+     }
      std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
      {
-          std::string signature = func->Name().value_or("__unknown") + "(";
+          std::string signature;
+          if (func->memberClassInfo != nullptr)
+          {
+               if (func->isStatic) signature += "static ";
+               signature += func->memberClassInfo->DisplayName() + "::";
+          }
+          signature += func->Name().value_or("__unknown") + "(";
           bool first = true;
           for (const auto& param : func->parameters)
           {
                if (!first) signature += ", ";
                first = false;
-               signature += param.type->Name();
+               signature += FormatTypeName(param.type);
                if (!param.name.empty()) signature += " " + param.name;
           }
           signature += ")";
+          if (func->memberClassInfo != nullptr && !func->isStatic)
+          {
+               if (func->memberFunctionInfo.isConst) signature += " const";
+               if (func->memberFunctionInfo.isVolatile) signature += " volatile";
+               switch (func->memberFunctionInfo.refQualifier)
+               {
+               case ecpps::abi::MemberRefQualifier::None: break;
+               case ecpps::abi::MemberRefQualifier::LValue: signature += " &"; break;
+               case ecpps::abi::MemberRefQualifier::RValue: signature += " &&"; break;
+               }
+          }
           if (func->returnType)
           {
-               signature += " -> " + func->returnType->Name();
+               signature += " -> " + FormatTypeName(func->returnType);
           }
           return signature;
      }
@@ -220,19 +282,19 @@ namespace
                     static_cast<std::size_t>(-1),
                     std::format("Expected {} argument{}, got {}", function->parameters.size(),
                                 function->parameters.size() == 1 ? ""sv : "s"sv, arguments.size()));
-               return info;
           }
 
-          auto parameterIterator = function->parameters.begin();
-          std::size_t paramIndex = 1;
-          for (const auto& argument : arguments)
+          const std::size_t matchedCount = std::min(arguments.size(), function->parameters.size());
+          for (std::size_t index = 0; index < matchedCount; index++)
           {
-               const auto& parameter = *parameterIterator++;
+               const auto& argument = arguments[index];
+               const auto& parameter = function->parameters[index];
+               const std::size_t argumentIndex = index + 1;
                if (argument == nullptr)
                {
                     info.parameterFailures.emplace_back(
-                         paramIndex, std::format("Parameter {}: Invalid argument expression", paramIndex));
-                    paramIndex++;
+                         argumentIndex,
+                         std::format("Argument {} cannot be checked because its expression is invalid", argumentIndex));
                     continue;
                }
 
@@ -243,13 +305,25 @@ namespace
 
                if (!seq.IsValid())
                {
-                    std::string reason = std::format("Parameter {} ({}): Cannot convert from '{}' to '{}'", paramIndex,
-                                                     parameter.name.empty() ? "<unnamed>" : parameter.name,
-                                                     fromType->Name(), toType->Name());
-                    info.parameterFailures.emplace_back(paramIndex, reason);
+                    std::string reason =
+                         std::format("Argument {} of type '{}' cannot convert to parameter '{}' of type '{}'",
+                                     argumentIndex, FormatTypeName(fromType),
+                                     parameter.name.empty() ? "<unnamed>" : parameter.name, FormatTypeName(toType));
+                    info.parameterFailures.emplace_back(argumentIndex, std::move(reason));
                }
+          }
 
-               paramIndex++;
+          for (std::size_t index = matchedCount; index < arguments.size(); index++)
+               info.parameterFailures.emplace_back(
+                    index + 1, std::format("Argument {} has no corresponding parameter", index + 1));
+
+          for (std::size_t index = matchedCount; index < function->parameters.size(); index++)
+          {
+               const auto& parameter = function->parameters[index];
+               info.parameterFailures.emplace_back(
+                    index + 1,
+                    std::format("Missing argument {} for parameter '{}' of type '{}'", index + 1,
+                                parameter.name.empty() ? "<unnamed>" : parameter.name, FormatTypeName(parameter.type)));
           }
 
           return info;
@@ -376,7 +450,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(
      auto* loadedResult = new (allocator) SingleAssignRegisterNode(idx, info, type->Width(), type->Alignment(), source);
 
      built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
-          std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, source)});
+          std::unique_ptr<SingleAssignRegisterNode, IRDeleter>(loadedResult), resultReg, AccessFor(type), source)});
      return loadedResult;
 }
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expression expression,
@@ -429,7 +503,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
                     new (allocator) SSADerefNode(std::move(loaded), slot.reg, source)});
           else
                built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-                    new (allocator) SSALoadNode(std::move(loaded), slot.reg, source)});
+                    new (allocator) SSALoadNode(std::move(loaded), slot.reg, AccessFor(expression->Type()), source)});
           return loadedPtr;
      };
 
@@ -467,7 +541,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-               new (allocator) SSALoadNode(std::move(result), allocReg, source)});
+               new (allocator) SSALoadNode(std::move(result), allocReg, AccessFor(expression->Type()), source)});
           return resultPtr;
      }
      if (auto* const referenceNode = dynamic_cast<ReferenceNode*>(valueNode))
@@ -895,6 +969,27 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSACompareNode, IRDeleter>{
                new (allocator) SSACompareNode(std::move(result), leftReg, rightReg, predicate, source)});
+          return resultPtr;
+     }
+
+     if ([[maybe_unused]] auto* const thisExpression = dynamic_cast<high::ThisExpressionNode*>(valueNode))
+     {
+          if (!this->_objectInitialisationStack.empty() && this->_objectInitialisationStack.back().address != nullptr)
+               return this->_objectInitialisationStack.back().address;
+
+          const auto* thisAlloc = functionCtx->GetThisRegister();
+          if (thisAlloc == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "`this` used outside of a non-static member function", source));
+               return nullptr;
+          }
+
+          auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
+          auto* resultPtr = result.get();
+          built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
+               new (allocator) SSALoadNode(std::move(result), thisAlloc, AccessFor(expression->Type()), source)});
           return resultPtr;
      }
 
@@ -1685,20 +1780,88 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           this->_built.push_back(std::unique_ptr<ir::AllocationNode, IRDeleter>{
                new (allocator) ir::AllocationNode(std::move(ssaNodeUnique), decl.name->Source())});
 
-          if (decl.initialiser != nullptr &&
-              RejectClassByValue(variableType, decl.name->Source(), "an initialised object"))
+          const auto arrayContainsClass = [](typeSystem::NonowningTypePointer type)
+          {
+               while (true)
+               {
+                    const auto* arrayType = type->CastTo<typeSystem::ArrayType>();
+                    if (arrayType == nullptr) break;
+                    type = arrayType->ElementType();
+               }
+               return typeSystem::IsClass(type);
+          };
+          const auto diagnoseConstScalarDefaultInitialisation = [&](typeSystem::NonowningTypePointer type)
+          {
+               const auto* qualifiedType = type->CastTo<typeSystem::QualifiedType>();
+               if (qualifiedType == nullptr || !qualifiedType->IsConst()) return;
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "A const-qualified scalar object requires an initializer during default-initialization",
+                         decl.name->Source()));
+          };
+
+          if (typeSystem::IsClass(variableType))
+          {
+               const auto* objectAddress = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
+               if (decl.initialiser == nullptr)
+                    InitialiseAtAddress(variableType, objectAddress, nullptr, ast::InitialisationType::Default,
+                                        ObjectInitialisationMode::Default, decl.name->Source());
+               else
+                    InitialiseAtAddress(variableType, objectAddress, &decl.initialiser, decl.initialiserType,
+                                        ObjectInitialisationMode::Explicit, decl.initialiser->Source());
                continue;
+          }
+
+          if (variableType->CastTo<typeSystem::ReferenceType>() != nullptr)
+          {
+               if (decl.initialiser == nullptr)
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "A reference variable requires an initializer", decl.name->Source()));
+                    continue;
+               }
+               const auto* referenceStorage = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
+               InitialiseReferenceAtAddress(variableType, referenceStorage, &decl.initialiser, decl.initialiserType,
+                                            decl.initialiser->Source());
+               continue;
+          }
 
           if (decl.initialiser == nullptr)
           {
-               // TODO: default-initialiser
-               // for scalars it is an indeterminate value, but TODO: class types
-               // TODO: Error for references
+               if (isArray && arrayContainsClass(variableType))
+               {
+                    const auto* objectAddress = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
+                    InitialiseAtAddress(variableType, objectAddress, nullptr, ast::InitialisationType::Default,
+                                        ObjectInitialisationMode::Default, decl.name->Source());
+               }
+               else if (isArray)
+               {
+                    auto elementType = variableType;
+                    while (const auto* arrayType = elementType->CastTo<typeSystem::ArrayType>())
+                         elementType = arrayType->ElementType();
+                    diagnoseConstScalarDefaultInitialisation(elementType);
+               }
+               else
+                    diagnoseConstScalarDefaultInitialisation(variableType);
                continue;
           }
 
           if (isArray)
           {
+               if (arrayContainsClass(variableType))
+               {
+                    const auto* objectAddress = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
+                    if (dynamic_cast<const ast::InitialiserListNode*>(decl.initialiser.get()) != nullptr)
+                         InitialiseAtAddress(variableType, objectAddress, &decl.initialiser, decl.initialiserType,
+                                             ObjectInitialisationMode::Explicit, decl.initialiser->Source());
+                    else
+                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   "An array of class objects requires a braced initializer",
+                                   decl.initialiser->Source()));
+                    continue;
+               }
                // Arrays are initialised with a single aggregate store. Elements without an initialiser are
                // value-initialised (zero), which is part of the aggregate that is stored.
                auto arrayInitialiser = ParseArrayInitialiser(decl.initialiser, variableType, varName);
@@ -2147,11 +2310,11 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
 {
      runtime_assert(operand != nullptr, "Operand was null");
 
-     if (!operand->IsLValue())
+     if (!operand->IsGLValue())
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "An lvalue is required for a the address-of operator", operand->Value()->Source()));
+                    "A glvalue is required for the address-of operator", operand->Value()->Source()));
 
           return nullptr;
      }
@@ -2651,6 +2814,66 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
 {
      const auto operator_ = node.Value();
      auto left = ParseExpression(node.Left());
+     if (left == nullptr) return nullptr;
+
+     if (operator_ == ast::Operator::FullStop || operator_ == ast::Operator::Arrow)
+     {
+          const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(node.Right().get());
+          if (memberName == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Expected a data member name after the member access operator", node.Source()));
+               return nullptr;
+          }
+
+          typeSystem::NonowningTypePointer objectType = left->Type();
+          Expression objectPointer{};
+          if (operator_ == ast::Operator::Arrow)
+          {
+               const auto* pointerType = objectType->CastTo<typeSystem::PointerType>();
+               if (pointerType == nullptr)
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "The '->' operator requires a pointer to a class type", node.Source()));
+                    return nullptr;
+               }
+               objectType = pointerType->BaseType();
+               objectPointer = std::move(left);
+          }
+          else
+          {
+               if (!typeSystem::IsClass(objectType) || !left->IsLValue())
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "The '.' operator requires a class lvalue", node.Source()));
+                    return nullptr;
+               }
+               objectPointer = ParseAddressOfExpression(std::move(left), node.Source());
+          }
+
+          const auto* classType = objectType->CastTo<typeSystem::ClassType>();
+          if (classType == nullptr)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Member access requires a class type", node.Source()));
+               return nullptr;
+          }
+          for (const auto& field : classType->Info().fields)
+               if (!field.name.empty() && field.name == memberName->Value())
+                    return this->BuildMemberAccess(std::move(objectPointer), classType->Info(), field, node.Source());
+
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Class '{}' has no data member named '{}'", classType->Info().DisplayName(),
+                                memberName->Value()),
+                    memberName->Source()));
+          return nullptr;
+     }
+
      auto right = ParseExpression(node.Right());
      if (left == nullptr || right == nullptr) return nullptr;
 
@@ -2689,15 +2912,379 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
 
 struct CompareByPriority
 {
-     bool operator()(const std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>& a,
-                     const std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>& b) const
+     struct Candidate
      {
-          return a.first < b.first;
+          ecpps::ir::MatchingScore argumentScore;
+          std::size_t objectQualificationPenalty{};
+          std::shared_ptr<ecpps::ir::FunctionScope> function;
+     };
+
+     bool operator()(const Candidate& a, const Candidate& b) const
+     {
+          if (a.argumentScore != b.argumentScore) return a.argumentScore < b.argumentScore;
+          return a.objectQualificationPenalty > b.objectQualificationPenalty;
      }
 };
 
+Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode& node,
+                                                    const ast::BinaryOperatorNode& memberAccess)
+{
+     const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(memberAccess.Right().get());
+     const auto report = [&](std::string message, const Location& source) -> Expression
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), source));
+          return nullptr;
+     };
+     if (memberName == nullptr)
+          return report("Expected a member function name after the member access operator", memberAccess.Source());
+
+     auto receiver = ParseExpression(memberAccess.Left());
+     if (receiver == nullptr) return nullptr;
+
+     typeSystem::NonowningTypePointer objectType = receiver->Type();
+     Expression receiverPointer{};
+     bool receiverIsLvalue = memberAccess.Value() == ast::Operator::Arrow;
+     if (memberAccess.Value() == ast::Operator::Arrow)
+     {
+          const auto* pointerType = objectType->CastTo<typeSystem::PointerType>();
+          if (pointerType == nullptr)
+               return report("The '->' operator requires a pointer to a class type", memberAccess.Source());
+          objectType = pointerType->BaseType();
+          receiverPointer = std::move(receiver);
+     }
+     else if (memberAccess.Value() == ast::Operator::FullStop)
+     {
+          if (!typeSystem::IsClass(objectType))
+               return report("Member function access requires a class object", memberAccess.Source());
+          receiverIsLvalue = receiver->IsLValue();
+          if (!receiver->IsGLValue())
+               return report("A glvalue object is required to call a member function", memberAccess.Source());
+          receiverPointer = ParseAddressOfExpression(std::move(receiver), memberAccess.Source());
+          if (receiverPointer == nullptr) return nullptr;
+     }
+     else
+          return report("Expected '.' or '->' for member function access", memberAccess.Source());
+
+     const auto* pointerType = receiverPointer->Type()->CastTo<typeSystem::PointerType>();
+     const auto* classType =
+          pointerType != nullptr ? pointerType->BaseType()->CastTo<typeSystem::ClassType>() : nullptr;
+     if (classType == nullptr)
+          return report("Member function access requires a pointer to a class", memberAccess.Source());
+
+     const auto classRecord = this->GetContext().classTable->classes.find(classType->Info().id);
+     if (classRecord == this->GetContext().classTable->classes.end() || classRecord->second.scope == nullptr)
+          return report(std::format("Member functions of '{}' are unavailable", classType->Info().DisplayName()),
+                        memberName->Source());
+
+     std::vector<Expression> arguments = node.Arguments() |
+                                         std::views::transform(
+                                              [this](const ast::NodePointer& argument)
+                                              {
+                                                   return this->ParseExpression(argument);
+                                              }) |
+                                         std::ranges::to<std::vector>();
+     if (std::ranges::any_of(arguments,
+                             [](const Expression& argument)
+                             {
+                                  return argument == nullptr;
+                             }))
+          return nullptr;
+
+     const auto& memberFunctions = classRecord->second.scope->functions;
+     std::vector<std::shared_ptr<FunctionScope>> sameNameCandidates{};
+     for (const auto& function : memberFunctions)
+          if (function->Name() == memberName->Value() && function->memberClassInfo != nullptr)
+               sameNameCandidates.push_back(function);
+
+     const auto receiverFailuresFor = [&](const std::shared_ptr<FunctionScope>& function)
+     {
+          std::vector<std::string> failures{};
+          if (function->isStatic) return failures;
+
+          if (classType->IsConst() && !function->memberFunctionInfo.isConst)
+               failures.emplace_back("The receiver is const, but this candidate is not const-qualified");
+          if (classType->IsVolatile() && !function->memberFunctionInfo.isVolatile)
+               failures.emplace_back("The receiver is volatile, but this candidate is not volatile-qualified");
+          if (function->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue && !receiverIsLvalue)
+               failures.emplace_back("The receiver is an rvalue, but this candidate requires an lvalue receiver");
+          if (function->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue && receiverIsLvalue)
+               failures.emplace_back("The receiver is an lvalue, but this candidate requires an rvalue receiver");
+          return failures;
+     };
+
+     const auto accessName = [](const typeSystem::Access access)
+     {
+          switch (access)
+          {
+          case typeSystem::Access::Public: return std::string{"public"};
+          case typeSystem::Access::Protected: return std::string{"protected"};
+          case typeSystem::Access::Private: return std::string{"private"};
+          }
+          return std::string{"inaccessible"};
+     };
+
+     const auto makeCandidateNote = [&](const std::shared_ptr<FunctionScope>& function,
+                                        const bool includeArgumentFailures, const bool includeReceiverFailures)
+     {
+          auto candidateNote = std::make_unique<diagnostics::Information>(
+               "candidate", "Candidate: " + FormatFunctionSignature(function), function->source);
+          if (includeArgumentFailures)
+          {
+               const auto failureInfo = AnalyseCandidateFailure(function, arguments);
+               for (const auto& [argumentIndex, failure] : failureInfo.parameterFailures)
+               {
+                    Location failureSource = memberName->Source();
+                    if (std::cmp_not_equal(argumentIndex, -1) && argumentIndex > 0 &&
+                        argumentIndex <= node.Arguments().Size())
+                         failureSource = node.Arguments()[argumentIndex - 1]->Source();
+                    auto failureNote = std::make_unique<diagnostics::Information>("note", failure, failureSource);
+                    if (std::cmp_not_equal(argumentIndex, -1) && argumentIndex > 0 &&
+                        argumentIndex <= arguments.size() && argumentIndex <= function->parameters.size())
+                    {
+                         const auto& argument = arguments[argumentIndex - 1];
+                         const auto& parameter = function->parameters[argumentIndex - 1];
+                         if (argument != nullptr &&
+                             (typeSystem::IsPointer(argument->Type()) || typeSystem::IsArray(argument->Type())) &&
+                             !typeSystem::IsPointer(parameter.type) && !typeSystem::IsArray(parameter.type))
+                              failureNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                                   "note", "Did you mean to dereference the argument?", failureSource));
+                    }
+                    candidateNote->SubDiagnostics().push_back(std::move(failureNote));
+               }
+          }
+          if (includeReceiverFailures)
+               for (const auto& failure : receiverFailuresFor(function))
+                    candidateNote->SubDiagnostics().push_back(
+                         std::make_unique<diagnostics::Information>("note", failure, memberAccess.Left()->Source()));
+
+          if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess))
+               candidateNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                    "note",
+                    std::format("This candidate is {} and is inaccessible here", accessName(function->memberAccess)),
+                    function->source));
+          if (function->isDeleted)
+               candidateNote->SubDiagnostics().push_back(
+                    std::make_unique<diagnostics::Information>("note", "This candidate is deleted", function->source));
+          return candidateNote;
+     };
+
+     using FunctionCandidate = CompareByPriority::Candidate;
+     std::priority_queue<FunctionCandidate, std::vector<FunctionCandidate>, CompareByPriority> candidates{};
+     for (const auto& candidate : classRecord->second.scope->functions)
+     {
+          if (candidate->Name() != memberName->Value() || candidate->memberClassInfo == nullptr) continue;
+          std::size_t objectQualificationPenalty{};
+          const auto receiverFailures = receiverFailuresFor(candidate);
+          if (!candidate->isStatic)
+          {
+               if (!receiverFailures.empty()) continue;
+               if (!classType->IsConst() && candidate->memberFunctionInfo.isConst) objectQualificationPenalty++;
+               if (!classType->IsVolatile() && candidate->memberFunctionInfo.isVolatile) objectQualificationPenalty++;
+          }
+          const auto match = MatchFunction(candidate, arguments);
+          if (!match) continue;
+          candidates.push({.argumentScore = match,
+                           .objectQualificationPenalty = objectQualificationPenalty,
+                           .function = candidate});
+     }
+
+     const auto addSimilarMembers = [&](diagnostics::Error& diagnostic)
+     {
+          struct MemberSuggestion
+          {
+               std::string name{};
+               std::size_t score{};
+               bool acceptsArguments{};
+               bool isDataMember{};
+               std::vector<std::shared_ptr<FunctionScope>> functions{};
+               Location source{};
+          };
+          std::vector<MemberSuggestion> suggestions{};
+          const std::size_t maximumDistance = std::max<std::size_t>(3, memberName->Value().length() / 3);
+
+          for (const auto& function : memberFunctions)
+          {
+               if (function->Name() == memberName->Value() || function->memberClassInfo == nullptr) continue;
+               const auto functionName = function->Name().value_or("__unknown");
+               const auto distance = LevenshteinDistance(memberName->Value(), functionName);
+               if (distance == 0 || distance > maximumDistance) continue;
+
+               auto suggestion = std::ranges::find(suggestions, functionName, &MemberSuggestion::name);
+               if (suggestion == suggestions.end())
+               {
+                    suggestions.push_back(MemberSuggestion{.name = functionName,
+                                                           .score = std::numeric_limits<std::size_t>::max(),
+                                                           .acceptsArguments = false,
+                                                           .isDataMember = false,
+                                                           .functions = {},
+                                                           .source = function->source});
+                    suggestion = std::prev(suggestions.end());
+               }
+               suggestion->functions.push_back(function);
+               const auto match = MatchFunction(function, arguments);
+               const auto failures = AnalyseCandidateFailure(function, arguments).parameterFailures.size();
+               suggestion->acceptsArguments = suggestion->acceptsArguments || static_cast<bool>(match);
+               const std::size_t score = distance * 4 + failures * 2 + static_cast<std::size_t>(!match);
+               suggestion->score = std::min(suggestion->score, score);
+          }
+
+          for (const auto& field : classType->Info().fields)
+          {
+               if (field.name.empty() || field.name == memberName->Value()) continue;
+               const auto distance = LevenshteinDistance(memberName->Value(), field.name);
+               if (distance == 0 || distance > maximumDistance) continue;
+
+               auto suggestion = std::ranges::find(suggestions, field.name, &MemberSuggestion::name);
+               if (suggestion == suggestions.end())
+                    suggestions.push_back(MemberSuggestion{.name = field.name,
+                                                           .score = distance * 4 + 1,
+                                                           .acceptsArguments = false,
+                                                           .isDataMember = true,
+                                                           .functions = {},
+                                                           .source = field.source});
+               else
+                    suggestion->isDataMember = true;
+          }
+
+          if (suggestions.empty()) return;
+          std::ranges::sort(suggestions,
+                            [](const MemberSuggestion& left, const MemberSuggestion& right)
+                            {
+                                 if (left.acceptsArguments != right.acceptsArguments)
+                                      return left.acceptsArguments > right.acceptsArguments;
+                                 if (left.score != right.score) return left.score < right.score;
+                                 return left.name < right.name;
+                            });
+
+          auto suggestionGroup = std::make_unique<diagnostics::Information>(
+               "suggestions", "Similar members (ranked by spelling and argument fit; * marks the top five)",
+               memberName->Source());
+          for (std::size_t index = 0; index < suggestions.size(); index++)
+          {
+               const auto& suggestion = suggestions[index];
+               std::string description =
+                    std::format("{} member '{}'", index < 5 ? "* Similar" : "Similar", suggestion.name);
+               if (!suggestion.functions.empty())
+                    description += suggestion.acceptsArguments ? " has a parameter list accepting these arguments"
+                                                               : " has no overload accepting these arguments";
+               if (suggestion.isDataMember)
+                    description += suggestion.functions.empty() ? " is a data member and is not callable"
+                                                                : "; it is also a data member and is not callable";
+               auto suggestionNote =
+                    std::make_unique<diagnostics::Information>("suggestion", description, suggestion.source);
+               for (const auto& function : suggestion.functions)
+                    suggestionNote->SubDiagnostics().push_back(makeCandidateNote(function, true, true));
+               suggestionGroup->SubDiagnostics().push_back(std::move(suggestionNote));
+          }
+          diagnostic.SubDiagnostics().push_back(std::move(suggestionGroup));
+     };
+
+     if (candidates.empty())
+     {
+          std::string message;
+          if (sameNameCandidates.empty())
+          {
+               const auto dataMember =
+                    std::ranges::find(classType->Info().fields, memberName->Value(), &typeSystem::ClassField::name);
+               if (dataMember != classType->Info().fields.end())
+                    message = std::format("Member '{}' of '{}' is a data member and cannot be called",
+                                          memberName->Value(), classType->Info().DisplayName());
+               else
+                    message = std::format("Class '{}' has no member function named '{}'",
+                                          classType->Info().DisplayName(), memberName->Value());
+          }
+          else
+               message = std::format("No overload of member function '{}::{}' matches these arguments",
+                                     classType->Info().DisplayName(), memberName->Value());
+
+          auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), memberName->Source());
+          for (const auto& candidate : sameNameCandidates)
+          {
+               auto note = makeCandidateNote(candidate, true, true);
+               diagnostic->SubDiagnostics().push_back(std::move(note));
+          }
+          if (sameNameCandidates.empty())
+               for (const auto& field : classType->Info().fields)
+                    if (field.name == memberName->Value())
+                    {
+                         diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
+                              "declaration", "Data member declared here; data members are not callable", field.source));
+                         break;
+                    }
+          addSimilarMembers(*diagnostic);
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+          return nullptr;
+     }
+
+     auto rankedCandidates = candidates;
+     const auto selectedCandidate = rankedCandidates.top();
+     rankedCandidates.pop();
+     auto ambiguity =
+          std::make_unique<diagnostics::TypeError>(std::format("Call to member function '{}::{}' is ambiguous",
+                                                               classType->Info().DisplayName(), memberName->Value()),
+                                                   memberName->Source());
+     std::vector<std::shared_ptr<FunctionScope>> tiedBestCandidates{selectedCandidate.function};
+     while (!rankedCandidates.empty() && rankedCandidates.top().argumentScore == selectedCandidate.argumentScore &&
+            rankedCandidates.top().objectQualificationPenalty == selectedCandidate.objectQualificationPenalty)
+     {
+          tiedBestCandidates.push_back(rankedCandidates.top().function);
+          rankedCandidates.pop();
+     }
+     if (tiedBestCandidates.size() > 1)
+     {
+          for (const auto& tiedCandidate : tiedBestCandidates)
+               ambiguity->SubDiagnostics().push_back(makeCandidateNote(tiedCandidate, false, false));
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(ambiguity));
+          return nullptr;
+     }
+
+     const auto& candidate = candidates.top().function;
+     const bool isAccessible = this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess);
+     if (!isAccessible || candidate->isDeleted)
+     {
+          std::string message;
+          if (!isAccessible && candidate->isDeleted)
+               message = std::format("Selected member function '{}' is inaccessible and deleted",
+                                     FormatFunctionSignature(candidate));
+          else if (!isAccessible)
+               message = std::format("Selected member function '{}' is inaccessible ({})",
+                                     FormatFunctionSignature(candidate), accessName(candidate->memberAccess));
+          else
+               message = std::format("Selected member function '{}' is deleted", FormatFunctionSignature(candidate));
+          auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), memberName->Source());
+          diagnostic->SubDiagnostics().push_back(makeCandidateNote(candidate, false, false));
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+          return nullptr;
+     }
+     if (!RequireComplete(candidate->returnType, node.Source(), "a member function call") ||
+         RejectClassByValue(candidate->returnType, node.Source(), "a return value"))
+          return nullptr;
+     for (const auto& parameter : candidate->parameters)
+          if (!RequireComplete(parameter.type, node.Source(), "a member function call") ||
+              RejectClassByValue(parameter.type, node.Source(), "a by-value argument"))
+               return nullptr;
+
+     std::vector<Expression> evaluatedArguments{};
+     evaluatedArguments.reserve(arguments.size() + static_cast<std::size_t>(!candidate->isStatic));
+     if (candidate->isStatic) (void)LowerExpression(std::move(receiverPointer), this->_built);
+     else
+          evaluatedArguments.push_back(std::move(receiverPointer));
+     for (std::size_t index = 0; index < arguments.size(); index++)
+          evaluatedArguments.push_back(ConvertTo(std::move(arguments[index]), candidate->parameters[index].type));
+
+     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
+          candidate, std::move(evaluatedArguments), node.Source())};
+     return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
+}
+
 Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 {
+     if (const auto* memberAccess = dynamic_cast<const ast::BinaryOperatorNode*>(node.Function().get());
+         memberAccess != nullptr &&
+         (memberAccess->Value() == ast::Operator::FullStop || memberAccess->Value() == ast::Operator::Arrow))
+          return this->ParseMemberCallExpression(node, *memberAccess);
+
      const ast::IdentifierNode* identifierFunction = nullptr;
      std::vector<std::string> qualifiers;
      bool isFromGlobalNamespace = false;
@@ -2725,11 +3312,9 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Expected a function name in a call expression, found global scope specifier",
                          node.Function()->Source()));
-               identifierFunction =
-                    new ast::IdentifierNode("__unknown", node.Function()->Source()); // a leak yeah, but uh
+               return nullptr;
           }
-          else
-               identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
+          identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
      }
 
      if (!identifierFunction)
@@ -2743,10 +3328,8 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      }
 
      const std::string& name = identifierFunction->Value();
-     std::priority_queue<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>,
-                         std::vector<std::pair<ecpps::ir::MatchingScore, std::shared_ptr<ecpps::ir::FunctionScope>>>,
-                         CompareByPriority>
-          candidates{};
+     using FunctionCandidate = CompareByPriority::Candidate;
+     std::priority_queue<FunctionCandidate, std::vector<FunctionCandidate>, CompareByPriority> candidates{};
 
      bool didMatchName = false;
      for (const auto& context : (isFromGlobalNamespace ? std::deque{this->GetContext().contextSequence.front()}
@@ -2762,6 +3345,19 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                auto* currentScope = scope;
                for (const auto& qualifier : qualifiers)
                {
+                    if (const auto className = currentScope->classes.find(qualifier);
+                        className != currentScope->classes.end())
+                    {
+                         const auto classRecord = this->GetContext().classTable->classes.find(className->second);
+                         if (classRecord == this->GetContext().classTable->classes.end() ||
+                             classRecord->second.scope == nullptr)
+                         {
+                              matchesQualifiers = false;
+                              break;
+                         }
+                         currentScope = classRecord->second.scope;
+                         continue;
+                    }
                     const auto* namespaceScope = dynamic_cast<ecpps::ir::NamespaceScope*>(currentScope);
                     if (!namespaceScope)
                     {
@@ -2797,14 +3393,92 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           {
                if (candidate->Name() != name) continue;
 
+               std::size_t objectQualificationPenalty{};
+               if (candidate->memberClassInfo != nullptr)
+               {
+                    if (!candidate->isStatic)
+                    {
+                         typeSystem::NonowningTypePointer receiverType{};
+                         if (!this->_objectInitialisationStack.empty())
+                         {
+                              const auto* activeClass =
+                                   this->_objectInitialisationStack.back().type->CastTo<typeSystem::ClassType>();
+                              if (activeClass != nullptr && activeClass->Info().id == candidate->memberClassInfo->id)
+                                   receiverType = this->PointerTo(this->_objectInitialisationStack.back().type);
+                         }
+                         if (receiverType == nullptr)
+                              for (const auto& activeContext : this->GetContext().contextSequence | std::views::reverse)
+                              {
+                                   const auto* activeFunction =
+                                        dynamic_cast<const FunctionContext*>(activeContext.get());
+                                   if (activeFunction == nullptr || activeFunction->thisType == nullptr) continue;
+                                   const auto* activePointer =
+                                        activeFunction->thisType->CastTo<typeSystem::PointerType>();
+                                   const auto* activeClass =
+                                        activePointer != nullptr
+                                             ? activePointer->BaseType()->CastTo<typeSystem::ClassType>()
+                                             : nullptr;
+                                   if (activeClass != nullptr &&
+                                       activeClass->Info().id == candidate->memberClassInfo->id)
+                                        receiverType = activeFunction->thisType;
+                                   break;
+                              }
+                         if (receiverType == nullptr) continue;
+                         const auto* receiverPointer = receiverType->CastTo<typeSystem::PointerType>();
+                         const auto* receiverClass = receiverPointer != nullptr
+                                                          ? receiverPointer->BaseType()->CastTo<typeSystem::ClassType>()
+                                                          : nullptr;
+                         if (receiverClass == nullptr ||
+                             (receiverClass->IsConst() && !candidate->memberFunctionInfo.isConst) ||
+                             (receiverClass->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) ||
+                             candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue)
+                              continue;
+                         if (!receiverClass->IsConst() && candidate->memberFunctionInfo.isConst)
+                              objectQualificationPenalty++;
+                         if (!receiverClass->IsVolatile() && candidate->memberFunctionInfo.isVolatile)
+                              objectQualificationPenalty++;
+                    }
+               }
+
                didMatchName = true;
                const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
                if (!match) continue;
-               candidates.emplace(match, candidate);
+               candidates.push({.argumentScore = match,
+                                .objectQualificationPenalty = objectQualificationPenalty,
+                                .function = candidate});
           }
 
           if (candidates.empty()) continue;
-          const auto& candidate = candidates.top().second;
+
+          auto rankedCandidates = candidates;
+          const auto selectedCandidate = rankedCandidates.top();
+          rankedCandidates.pop();
+          if (!rankedCandidates.empty() && rankedCandidates.top().argumentScore == selectedCandidate.argumentScore &&
+              rankedCandidates.top().objectQualificationPenalty == selectedCandidate.objectQualificationPenalty)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Call to function '{}' is ambiguous", name), identifierFunction->Source()));
+               return nullptr;
+          }
+          const auto& candidate = candidates.top().function;
+
+          if (candidate->memberClassInfo != nullptr &&
+              !this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess))
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Member function '{}' is not accessible", name), identifierFunction->Source()));
+               return nullptr;
+          }
+
+          if (candidate->isDeleted)
+          {
+               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         std::format("Function '{}' is deleted", name), identifierFunction->Source()));
+               return nullptr;
+          }
 
           for (const auto& param : candidate->parameters)
                if (!RequireComplete(param.type, node.Source(), "a function call") ||
@@ -2818,14 +3492,57 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           auto moveRange = std::ranges::subrange(std::make_move_iterator(arguments.begin()),
                                                  std::make_move_iterator(arguments.end()));
 
-          std::vector<Expression> evaluatedArguments = std::views::zip(candidate->parameters, moveRange) |
-                                                       std::views::transform(
-                                                            [this](auto&& pair)
-                                                            {
-                                                                 auto&& [param, arg] = pair;
-                                                                 return ConvertTo(std::move(arg), param.type);
-                                                            }) |
-                                                       std::ranges::to<std::vector>();
+          std::vector<Expression> evaluatedArguments{};
+          evaluatedArguments.reserve(
+               arguments.size() +
+               static_cast<std::size_t>(candidate->memberClassInfo != nullptr && !candidate->isStatic));
+          if (candidate->memberClassInfo != nullptr && !candidate->isStatic)
+          {
+               Expression receiver{};
+               if (!this->_objectInitialisationStack.empty())
+               {
+                    const auto* activeClass =
+                         this->_objectInitialisationStack.back().type->CastTo<typeSystem::ClassType>();
+                    if (activeClass != nullptr && activeClass->Info().id == candidate->memberClassInfo->id)
+                         receiver = std::make_unique<PRValue>(
+                              this->PointerTo(this->_objectInitialisationStack.back().type),
+                              std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                   new (*this->GetContext().nodeAllocator)
+                                        high::ThisExpressionNode(identifierFunction->Source())},
+                              false);
+               }
+               if (receiver == nullptr)
+                    for (const auto& activeContext : this->GetContext().contextSequence | std::views::reverse)
+                    {
+                         const auto* activeFunction = dynamic_cast<const FunctionContext*>(activeContext.get());
+                         if (activeFunction == nullptr || activeFunction->thisType == nullptr) continue;
+                         const auto* activePointer = activeFunction->thisType->CastTo<typeSystem::PointerType>();
+                         const auto* activeClass = activePointer != nullptr
+                                                        ? activePointer->BaseType()->CastTo<typeSystem::ClassType>()
+                                                        : nullptr;
+                         if (activeClass != nullptr && activeClass->Info().id == candidate->memberClassInfo->id)
+                              receiver = std::make_unique<PRValue>(
+                                   activeFunction->thisType,
+                                   std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                        new (*this->GetContext().nodeAllocator)
+                                             high::ThisExpressionNode(identifierFunction->Source())},
+                                   false);
+                         break;
+                    }
+               if (receiver == nullptr)
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "A non-static member function requires an object", identifierFunction->Source()));
+                    return nullptr;
+               }
+               evaluatedArguments.push_back(std::move(receiver));
+          }
+          for (auto&& pair : std::views::zip(candidate->parameters, moveRange))
+          {
+               auto&& [parameter, argument] = pair;
+               evaluatedArguments.push_back(ConvertTo(std::move(argument), parameter.type));
+          }
 
           auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
                new (*this->GetContext().nodeAllocator)
@@ -3060,33 +3777,130 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
      return std::make_unique<PRValue>(sizeType, std::move(node), true);
 }
 
+Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
+{
+     if (!this->_objectInitialisationStack.empty())
+     {
+          const auto* objectType = this->_objectInitialisationStack.back().type;
+          return std::make_unique<PRValue>(this->PointerTo(objectType),
+                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ThisExpressionNode(source)},
+                                           false);
+     }
+
+     for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+     {
+          const auto* function = dynamic_cast<const FunctionContext*>(context.get());
+          if (function == nullptr || function->thisType == nullptr) continue;
+          return std::make_unique<PRValue>(function->thisType,
+                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     high::ThisExpressionNode(source)},
+                                           false);
+     }
+
+     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               "'this' is only available in a non-static member function or member initializer", source));
+     return nullptr;
+}
+
 Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expression)
 {
      const std::string& name = expression.Value();
 
-     for (const auto& context : this->GetContext().contextSequence)
+     if (name == "this") return this->ParseThisExpression(expression.Source());
+
+     const auto lookupLocal = [&]() -> Expression
      {
-          const auto& scope = context->GetScope();
-          if (const auto* const functionScope = dynamic_cast<const FunctionScope*>(&scope))
+          bool isInnermostContext = true;
+          for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
           {
-               for (const auto& local : functionScope->Locals())
+               if (!isInnermostContext && !this->_objectInitialisationStack.empty() &&
+                   this->_objectInitialisationStack.back().allowLocalLookup)
+                    break;
+               isInnermostContext = false;
+               const auto* functionScope = dynamic_cast<const FunctionScope*>(&context->GetScope());
+               if (functionScope == nullptr) continue;
+               for (const auto& local : functionScope->Locals() | std::views::reverse)
                {
-                    if (std::holds_alternative<Variable>(local.local))
+                    if (!std::holds_alternative<Variable>(local.local)) continue;
+                    const auto& variable = std::get<Variable>(local.local);
+                    if (variable.Name().value_or("__unknown_local") != name) continue;
+                    if (const auto* referenceType = variable.type->CastTo<typeSystem::ReferenceType>())
                     {
-                         const auto& variable = std::get<Variable>(local.local);
-                         if (variable.Name().value_or("__unknown_local") == name)
-                         {
-                              return std::make_unique<LValue>(
-                                   variable.type,
-                                   std::unique_ptr<ReferenceNode, IRDeleter>{
-                                        new (*this->GetContext().nodeAllocator) ReferenceNode(
-                                             variable.Name().value_or("__unknown_local"), expression.Source())},
-                                   false);
-                         }
+                         auto referenceStorage = std::make_unique<LValue>(
+                              PointerTo(referenceType->BaseType()),
+                              std::unique_ptr<ReferenceNode, IRDeleter>{
+                                   new (*this->GetContext().nodeAllocator) ReferenceNode(
+                                        variable.Name().value_or("__unknown_local"), expression.Source())},
+                              false);
+                         return std::make_unique<LValue>(
+                              referenceType->BaseType(),
+                              std::unique_ptr<high::DereferenceNode, IRDeleter>{
+                                   new (*this->GetContext().nodeAllocator)
+                                        high::DereferenceNode(std::move(referenceStorage), expression.Source())},
+                              false);
                     }
+                    return std::make_unique<LValue>(
+                         variable.type,
+                         std::unique_ptr<ReferenceNode, IRDeleter>{
+                              new (*this->GetContext().nodeAllocator)
+                                   ReferenceNode(variable.Name().value_or("__unknown_local"), expression.Source())},
+                         false);
                }
           }
+          return nullptr;
+     };
+
+     if (!this->_objectInitialisationStack.empty() && this->_objectInitialisationStack.back().allowLocalLookup)
+          if (auto local = lookupLocal(); local != nullptr) return local;
+
+     if (!this->_objectInitialisationStack.empty())
+     {
+          const auto& active = this->_objectInitialisationStack.back();
+          const auto* classType = active.type->CastTo<typeSystem::ClassType>();
+          if (classType != nullptr)
+               for (const auto& field : classType->Info().fields)
+                    if (!field.name.empty() && field.name == name)
+                    {
+                         auto objectPointer = std::make_unique<PRValue>(
+                              this->PointerTo(active.type),
+                              std::unique_ptr<high::ThisExpressionNode, IRDeleter>{new (
+                                   *this->GetContext().nodeAllocator) high::ThisExpressionNode(expression.Source())},
+                              false);
+                         return this->BuildMemberAccess(std::move(objectPointer), classType->Info(), field,
+                                                        expression.Source());
+                    }
      }
+     else
+     {
+          for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+          {
+               const auto* function = dynamic_cast<const FunctionContext*>(context.get());
+               if (function == nullptr || function->thisType == nullptr) continue;
+               const auto* thisPointer = function->thisType->CastTo<typeSystem::PointerType>();
+               const auto* classType =
+                    thisPointer != nullptr ? thisPointer->BaseType()->CastTo<typeSystem::ClassType>() : nullptr;
+               if (classType == nullptr) break;
+               for (const auto& field : classType->Info().fields)
+                    if (!field.name.empty() && field.name == name)
+                    {
+                         auto objectPointer = std::make_unique<PRValue>(
+                              function->thisType,
+                              std::unique_ptr<high::ThisExpressionNode, IRDeleter>{new (
+                                   *this->GetContext().nodeAllocator) high::ThisExpressionNode(expression.Source())},
+                              false);
+                         return this->BuildMemberAccess(std::move(objectPointer), classType->Info(), field,
+                                                        expression.Source());
+                    }
+               break;
+          }
+     }
+
+     if (this->_objectInitialisationStack.empty())
+          if (auto local = lookupLocal(); local != nullptr) return local;
 
      std::string errorMessage = "Unresolved identifier " + name;
 
@@ -3139,6 +3953,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseUnaryExpression(*unaryExpression);
      if (auto* const functionCall = dynamic_cast<ast::CallOperatorNode*>(expression.get()); functionCall != nullptr)
           return this->ParseCallExpression(*functionCall);
+     if (dynamic_cast<ast::ThisNode*>(expression.get()) != nullptr)
+          return this->ParseThisExpression(expression->Source());
      if (auto* const identifier = dynamic_cast<ast::IdentifierNode*>(expression.get()); identifier != nullptr)
           return this->ParseIdExpression(*identifier);
      if (auto* const stringLiteral = dynamic_cast<ast::StringLiteralNode*>(expression.get()); stringLiteral != nullptr)
@@ -3204,6 +4020,9 @@ Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer&
                                                   ecpps::typeSystem::NonowningTypePointer desiredType)
 {
      runtime_assert(desiredType != nullptr, "Invalid variable type");
+     if (desiredType == nullptr || expression == nullptr) return nullptr;
+     if (dynamic_cast<const ast::InitialiserListNode*>(expression.get()) != nullptr)
+          return this->ParseListInitialisation(expression, desiredType);
      auto operand = ParseExpression(expression);
 
      auto converted = ConvertTo(std::move(operand), desiredType);
@@ -3219,6 +4038,14 @@ Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer&
 
 Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source)
 {
+     if (desiredType == nullptr) return nullptr;
+     if (desiredType->CastTo<typeSystem::PointerType>() != nullptr)
+     {
+          return std::make_unique<PRValue>(desiredType,
+                                           std::unique_ptr<IntegralNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator) IntegralNode(0, source)},
+                                           true);
+     }
      if (IsScalar(desiredType))
      {
           if (IsIntegral(desiredType))
@@ -3249,6 +4076,7 @@ Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePoint
 Expression ecpps::ir::IR::ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source)
 {
      // TODO: Classes
+     if (desiredType == nullptr) return nullptr;
      return ParseZeroInitialisation(desiredType, source);
 }
 
@@ -3454,6 +4282,7 @@ void ecpps::ir::IR::EmitBranch(const SingleAssignRegisterNode* condition, std::s
 Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expression,
                                                   typeSystem::NonowningTypePointer desiredType)
 {
+     if (expression == nullptr || desiredType == nullptr) return nullptr;
      const auto* initialiserListNode = dynamic_cast<const ast::InitialiserListNode*>(expression.get());
      if (initialiserListNode == nullptr)
      {
@@ -3461,6 +4290,12 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Expected an initialiser list for list initialisation", expression->Source()));
           return nullptr;
+     }
+
+     // TODO: Check if aggregate
+     if (IsClass(desiredType) /* && IsAggregate(desiredType) */)
+     {
+          return ParseAggregateInitialisation(expression, desiredType);
      }
      std::vector<Expression> initialisers{};
      for (const auto& init : initialiserListNode->Initialisers())
@@ -3501,6 +4336,16 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           values.reserve(arrayType->ElementCount());
           for (const auto& initialiser : initialisers)
           {
+               if (IsNarrowingConversion(initialiser, arrayType->ElementType()))
+               {
+                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              std::format("Narrowing conversion from '{}' to '{}' is not allowed in array "
+                                          "aggregate initialization",
+                                          initialiser->Type()->Name(), arrayType->ElementType()->Name()),
+                              initialiser->Value()->Source()));
+                    return nullptr;
+               }
                const auto constant = initialiser->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
                if (!constant.has_value() || !std::holds_alternative<std::uint64_t>(constant->variant))
                {
@@ -3530,6 +4375,7 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
                          "Narrowing conversion from '" + initialiserExpression->Type()->Name() + "' to '" +
                               desiredType->Name() + "' is not allowed in list initialisation",
                          expression->Source()));
+               return nullptr;
           }
           return ConvertTo(std::move(initialiserExpression), desiredType);
      }
@@ -3537,12 +4383,6 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                "List initialisation with multiple initialisers is not supported yet", expression->Source()));
      return nullptr;
-}
-
-bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& expression,
-                                          [[maybe_unused]] typeSystem::NonowningTypePointer toType) const
-{
-     return false;
 }
 
 [[nodiscard]] ecpps::ir::TypeRequest ecpps::ir::IR::TypeASTToRequest(const ast::NodePointer& type)
@@ -3823,30 +4663,41 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                          variableName = referenceNode->Address();
                     else if (const auto* const loadNode = dynamic_cast<const LoadNode*>(expression->Value().get()))
                          variableName = loadNode->Address();
-                    else
-                         throw TracedException("array-to-pointer is not supported yet");
 
                     const auto source = expression->Value()->Source();
-                    const auto* const allocReg = ResolveAllocReg(variableName);
-                    if (allocReg == nullptr)
+                    if (!variableName.empty())
                     {
-                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "Cannot resolve allocation register for variable '" + variableName + "'", source));
-                         return nullptr;
+                         const auto* const allocReg = ResolveAllocReg(variableName);
+                         if (allocReg == nullptr)
+                         {
+                              this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        "Cannot resolve allocation register for variable '" + variableName + "'",
+                                        source));
+                              return nullptr;
+                         }
+
+                         auto& allocator = *this->GetContext().nodeAllocator;
+                         auto registerReference =
+                              std::make_unique<LValue>(expression->Type(),
+                                                       std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                            new (allocator) SSARegisterReferenceNode(allocReg, source)},
+                                                       false);
+
+                         NodePointer decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(
+                              new (allocator) LoadArrayDecayNode(std::move(registerReference), source));
+
+                         return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
                     }
 
-                    auto& allocator = *this->GetContext().nodeAllocator;
-                    auto registerReference =
-                         std::make_unique<LValue>(expression->Type(),
-                                                  std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
-                                                       new (allocator) SSARegisterReferenceNode(allocReg, source)},
-                                                  false);
-
-                    NodePointer decayNode = std::unique_ptr<LoadArrayDecayNode, IRDeleter>(
-                         new (allocator) LoadArrayDecayNode(std::move(registerReference), source));
-
-                    return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
+                    auto arrayAddress = this->ParseAddressOfExpression(std::move(expression), source);
+                    if (arrayAddress == nullptr) return nullptr;
+                    return std::make_unique<PRValue>(
+                         pointerType,
+                         std::unique_ptr<high::PointerConversionNode, IRDeleter>{
+                              new (*this->GetContext().nodeAllocator)
+                                   high::PointerConversionNode(std::move(arrayAddress), pointerType, source)},
+                         wasConstexpr);
                }
 
                throw TracedException(std::logic_error("Unsupported conversion"));
@@ -4432,18 +5283,18 @@ ecpps::ir::Scope& ecpps::ir::IR::NearestNamespaceOrBlockScope(void) const
      throw TracedException("No enclosing namespace scope");
 }
 
-std::vector<std::string> ecpps::ir::IR::EnclosingPathUpTo(const Scope& target) const
+std::vector<ecpps::typeSystem::ScopeSegment> ecpps::ir::IR::EnclosingPathUpTo(const Scope& target) const
 {
-     std::vector<std::string> path{};
+     std::vector<typeSystem::ScopeSegment> path{};
      for (const auto& context : this->GetContext().contextSequence)
      {
           const auto& scope = context->GetScope();
           if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope); ns && ns->Name().has_value())
-               path.push_back(*ns->Name());
+               path.push_back({typeSystem::ScopeKind::Namespace, *ns->Name()}); // TODO: unnamed namespaces are skipped
           else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope); cs && !cs->name.empty())
-               path.push_back(cs->name);
+               path.push_back({typeSystem::ScopeKind::Class, cs->name});
           else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
-               path.push_back(fn->Name().value_or("__unknown") + "()"); // local
+               path.push_back({typeSystem::ScopeKind::Function, fn->Name().value_or("__unknown")}); // local class
           if (&scope == &target) break;
      }
      return path;
@@ -4458,13 +5309,13 @@ void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("'{}' was declared as a {} but is redeclared as a {}", info.DisplayName(),
-                                info.KeyWord(), node.ToString(0)),
+                                info.Keyword(), node.ToString(0)),
                     node.Source()));
      else // TODO: Check if MS ABI, since that is ABI violating and shall reject the program
           this->GetContext().diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::Warning>(
                "warning",
                std::format("'{}' was declared as a {} but is redeclared with a different class-key", info.DisplayName(),
-                           info.KeyWord()),
+                           info.Keyword()),
                node.Source()));
 }
 
@@ -4530,6 +5381,7 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
      if (!node.Value().empty()) classScope->classes.emplace(node.Value(), id); // injected-class-name
      auto* rawScope = classScope.get();
      scope.classScopes.push_back(std::move(classScope));
+     this->GetContext().classTable->classes[id].scope = rawScope;
 
      this->GetContext().contextSequence.push_back(std::make_shared<ClassContext>(rawScope, id));
 
@@ -4659,14 +5511,36 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const a
 
      for (const auto& op : declarator.ptrOperators)
      {
-          if (op.kind != ast::PtrOperator::Kind::Pointer)
-               throw TracedException("TODO: references and pointers to members are not implemented yet");
+          if (op.kind == ast::PtrOperator::Kind::Pointer)
+          {
+               TypeRequest request{};
+               request.kind = TypeKind::Compound;
+               request.qualifiers = QualifiersFrom(op.isConst, op.isVolatile);
+               request.data = PointerRequest{.elementType = current};
+               current = GetTypeContext().Get(request);
+          }
+          else if (op.kind == ast::PtrOperator::Kind::LValueReference ||
+                   op.kind == ast::PtrOperator::Kind::RValueReference)
+          {
+               auto referenceKind = op.kind == ast::PtrOperator::Kind::LValueReference
+                                         ? typeSystem::ReferenceType::Kind::LValue
+                                         : typeSystem::ReferenceType::Kind::RValue;
+               if (const auto* existingReference = current->CastTo<typeSystem::ReferenceType>())
+               {
+                    referenceKind = existingReference->GetKind() == typeSystem::ReferenceType::Kind::LValue ||
+                                              referenceKind == typeSystem::ReferenceType::Kind::LValue
+                                         ? typeSystem::ReferenceType::Kind::LValue
+                                         : typeSystem::ReferenceType::Kind::RValue;
+                    current = existingReference->BaseType();
+               }
 
-          TypeRequest request{};
-          request.kind = TypeKind::Compound;
-          request.qualifiers = QualifiersFrom(op.isConst, op.isVolatile);
-          request.data = PointerRequest{.elementType = current};
-          current = GetTypeContext().Get(request);
+               TypeRequest request{};
+               request.kind = TypeKind::Compound;
+               request.data = ReferenceRequest{.elementType = current, .kind = referenceKind};
+               current = GetTypeContext().Get(request);
+          }
+          else
+               throw TracedException("TODO: pointers to members are not implemented yet");
      }
 
      bool unbounded = false;
@@ -4677,6 +5551,14 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const a
 
           if (array->size == nullptr)
           {
+               if (current->CastTo<typeSystem::ReferenceType>() != nullptr)
+               {
+                    list.push_back(std::make_unique<diagnostics::TypeError>(
+                         std::format("Declaration of '{}' introduces an array of references, which is not allowed",
+                                     name),
+                         idSource));
+                    return failure;
+               }
                if (index != 0) // only the outermost array (applied last) may omit its bound
                {
                     list.push_back(std::make_unique<diagnostics::TypeError>(
@@ -4693,6 +5575,13 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const a
 
           const auto length = EvaluateArrayBound(array->size, name);
           if (!length.has_value()) return failure;
+          if (current->CastTo<typeSystem::ReferenceType>() != nullptr)
+          {
+               list.push_back(std::make_unique<diagnostics::TypeError>(
+                    std::format("Declaration of '{}' introduces an array of references, which is not allowed", name),
+                    array->size->Source()));
+               return failure;
+          }
           if (!RequireComplete(current, array->size->Source(), "an array element type")) return failure;
 
           TypeRequest request{};
@@ -4768,7 +5657,86 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
 
      if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
      if (specifiers.definingTypeSpecifier == nullptr)
-          throw TracedException("TODO: constructors, destructors and conversion functions are not implemented yet");
+     {
+          const auto className = GetTypeContext().Class(id).name;
+          if (node.Declarators().size() != 1 || !node.Declarators().front().IsFunction())
+          {
+               report("Expected a constructor declaration", node.Source());
+               return;
+          }
+
+          const auto& declarator = node.Declarators().front();
+          const auto* identifier = DeclaratorIdentifier(declarator);
+          if (identifier == nullptr || identifier->Value() != className)
+          {
+               report("Destructors and conversion functions are not supported", node.Source());
+               return;
+          }
+          if (specifiers.functionSpecifier.isVirtual ||
+              specifiers.storageSpecifier & ast::StorageClassSpecifier::Static)
+          {
+               report("A constructor cannot be virtual or static", node.Source());
+               return;
+          }
+
+          const ast::ParametersAndQualifiers* functionSuffix = nullptr;
+          for (const auto& suffix : declarator.suffixes)
+               if (const auto* parameters = std::get_if<ast::ParametersAndQualifiers>(&suffix))
+               {
+                    functionSuffix = parameters;
+                    break;
+               }
+          if (functionSuffix == nullptr)
+          {
+               report("Expected constructor parameter list", node.Source());
+               return;
+          }
+
+          ClassConstructor constructor{};
+          constructor.declaration = &declarator;
+          constructor.access = access;
+          constructor.isExplicit = specifiers.functionSpecifier.explicitSpecifier.has_value();
+          for (std::size_t index = 0; index < functionSuffix->parameters.size(); index++)
+          {
+               const auto& parameter = functionSuffix->parameters[index];
+               if (parameter.defaultInitialiser != nullptr)
+               {
+                    report("Default constructor arguments are not supported yet",
+                           parameter.defaultInitialiser->Source());
+                    return;
+               }
+               const auto* parameterType = ParseType(parameter.type);
+               if (parameterType == nullptr)
+               {
+                    report("Invalid constructor parameter type", parameter.type->Source());
+                    return;
+               }
+               constructor.parameters.push_back(
+                    {parameter.name != nullptr ? parameter.name->ToString(0) : std::format("__arg{}", index),
+                     parameterType, false});
+          }
+
+          auto& classInfo = GetTypeContext().Class(id);
+          classInfo.hasUserDeclaredConstructors = true;
+          auto& constructors = this->GetContext().classTable->classes[id].constructors;
+          const bool duplicate =
+               std::ranges::any_of(constructors,
+                                   [&](const ClassConstructor& existing)
+                                   {
+                                        if (existing.parameters.size() != constructor.parameters.size()) return false;
+                                        for (std::size_t index = 0; index < constructor.parameters.size(); index++)
+                                             if (existing.parameters[index].type != constructor.parameters[index].type)
+                                                  return false;
+                                        return true;
+                                   });
+          if (duplicate)
+          {
+               report("Constructor is declared more than once", node.Source());
+               return;
+          }
+          constructors.push_back(std::move(constructor));
+          return;
+     }
 
      const auto* classSpecifier = dynamic_cast<const ast::ClassType*>(specifiers.definingTypeSpecifier.get());
 
@@ -4780,23 +5748,6 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           return;
      }
 
-     if (specifiers.storageSpecifier & ast::StorageClassSpecifier::Static)
-          throw TracedException("TODO: static data members are not implemented yet");
-     if ((specifiers.storageSpecifier & ast::StorageClassSpecifier::ThreadLocal) ||
-         (specifiers.storageSpecifier & ast::StorageClassSpecifier::Extern))
-     {
-          report("'thread_local' and 'extern' cannot be applied to a non-static data member", node.Source());
-          return;
-     }
-     if (specifiers.isInline || specifiers.functionSpecifier.isVirtual ||
-         specifiers.functionSpecifier.explicitSpecifier.has_value() ||
-         specifiers.constexprSpecifier != ast::ConstantExpressionSpecifier::None)
-     {
-          report("'inline', 'virtual', 'explicit', 'constexpr', 'consteval' and 'constinit' cannot be applied to a "
-                 "non-static data member or a typedef",
-                 node.Source());
-          return;
-     }
      const bool isMutable = specifiers.storageSpecifier & ast::StorageClassSpecifier::Mutable;
 
      const auto* declaredType = ParseType(specifiers.definingTypeSpecifier);
@@ -4821,7 +5772,224 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           const std::string& name = identifier->Value();
 
           if (!specifiers.isTypedef && LastDerivation(declarator) == Derivation::Function)
-               throw TracedException("TODO: member functions are not implemented yet (bodies go into `deferred`)");
+          {
+               if (specifiers.storageSpecifier & ast::StorageClassSpecifier::ThreadLocal ||
+                   specifiers.storageSpecifier & ast::StorageClassSpecifier::Extern || isMutable)
+               {
+                    report("Invalid storage class specifier on a member function", node.Source());
+                    continue;
+               }
+               if (specifiers.functionSpecifier.isVirtual || declarator.isOverride || declarator.isFinal ||
+                   declarator.isPure)
+               {
+                    report("Virtual member functions are not supported yet", identifier->Source());
+                    continue;
+               }
+               if (specifiers.functionSpecifier.explicitSpecifier.has_value())
+               {
+                    report("'explicit' is only supported on constructors", identifier->Source());
+                    continue;
+               }
+               if (specifiers.constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+               {
+                    report("'constexpr', 'consteval' and 'constinit' member functions are not supported",
+                           identifier->Source());
+                    continue;
+               }
+               if (name == "main")
+               {
+                    report("'main' cannot be declared as a member function", identifier->Source());
+                    continue;
+               }
+
+               const auto suffix =
+                    std::ranges::find_if(declarator.suffixes,
+                                         [](const ast::DeclaratorSuffix& item)
+                                         {
+                                              return std::holds_alternative<ast::ParametersAndQualifiers>(item);
+                                         });
+               if (suffix == declarator.suffixes.end())
+               {
+                    report("Expected a parameter list for member function", identifier->Source());
+                    continue;
+               }
+               const auto& functionType = std::get<ast::ParametersAndQualifiers>(*suffix);
+               if (declarator.nested != nullptr || !declarator.ptrOperators.empty())
+               {
+                    report("Member function declarators with derived return types are not supported yet",
+                           identifier->Source());
+                    continue;
+               }
+               const bool isStatic = specifiers.storageSpecifier & ast::StorageClassSpecifier::Static;
+               if (isStatic && (functionType.isConst || functionType.isVolatile ||
+                                functionType.refQualifier != ast::RefQualifier::None))
+               {
+                    report("A static member function cannot have cv- or ref-qualifiers", identifier->Source());
+                    continue;
+               }
+               if (functionType.isVariadic)
+               {
+                    report("Variadic member functions are not supported", identifier->Source());
+                    continue;
+               }
+
+               std::vector<FunctionScope::Parameter> parameters{};
+               parameters.reserve(functionType.parameters.size());
+               bool invalidParameters = false;
+               for (std::size_t index = 0; index < functionType.parameters.size(); index++)
+               {
+                    const auto& parameter = functionType.parameters[index];
+                    if (parameter.explicitThis == ast::ExplicitThisSpecifier::Yes)
+                    {
+                         report("Explicit object parameters are not supported", parameter.type->Source());
+                         invalidParameters = true;
+                         break;
+                    }
+                    if (parameter.defaultInitialiser != nullptr)
+                    {
+                         report("Default member function arguments are not supported yet",
+                                parameter.defaultInitialiser->Source());
+                         invalidParameters = true;
+                         break;
+                    }
+                    const auto* parameterType = ParseType(parameter.type);
+                    if (parameterType == nullptr ||
+                        !RequireComplete(parameterType, parameter.type->Source(), "a member function parameter") ||
+                        RejectClassByValue(parameterType, parameter.type->Source(), "a by-value parameter"))
+                    {
+                         invalidParameters = true;
+                         break;
+                    }
+                    parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0)
+                                                                      : std::format("__arg{}", index),
+                                            parameterType, false);
+               }
+               if (invalidParameters) continue;
+               if (parameters.size() == 1 && parameters.front().type == typeSystem::g_void.get()) parameters.clear();
+               if (!typeSystem::g_void->CommonWith(declaredType) &&
+                   (!RequireComplete(declaredType, node.Source(), "a member function return type") ||
+                    RejectClassByValue(declaredType, node.Source(), "a return type")))
+                    continue;
+
+               if (declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+               {
+                    report("Only special member functions may be defaulted", identifier->Source());
+                    continue;
+               }
+
+               abi::MemberFunctionInfo memberInfo{};
+               memberInfo.isStatic = isStatic;
+               memberInfo.isConst = functionType.isConst;
+               memberInfo.isVolatile = functionType.isVolatile;
+               if (functionType.refQualifier == ast::RefQualifier::LValue)
+                    memberInfo.refQualifier = abi::MemberRefQualifier::LValue;
+               else if (functionType.refQualifier == ast::RefQualifier::RValue)
+                    memberInfo.refQualifier = abi::MemberRefQualifier::RValue;
+
+               auto& memberFunctions = classScope.functions;
+               const auto sameSignature = [&](const std::shared_ptr<FunctionScope>& existing)
+               {
+                    if (existing->Name() != name || existing->memberClassInfo == nullptr ||
+                        existing->memberFunctionInfo.isConst != memberInfo.isConst ||
+                        existing->memberFunctionInfo.isVolatile != memberInfo.isVolatile ||
+                        existing->memberFunctionInfo.refQualifier != memberInfo.refQualifier ||
+                        existing->parameters.size() != parameters.size())
+                         return false;
+                    for (std::size_t index = 0; index < parameters.size(); index++)
+                         if (existing->parameters[index].type != parameters[index].type) return false;
+                    return true;
+               };
+               auto existing = std::ranges::find_if(memberFunctions, sameSignature);
+               std::shared_ptr<FunctionScope> function{};
+               if (existing != memberFunctions.end())
+               {
+                    function = *existing;
+                    if (function->isStatic != isStatic)
+                    {
+                         report("A static and non-static member function cannot have the same signature",
+                                identifier->Source());
+                         continue;
+                    }
+                    if (declarator.functionBody == ast::FunctionBodyKind::Block && function->isMemberFunctionDefined)
+                    {
+                         report("Member function is defined more than once", identifier->Source());
+                         continue;
+                    }
+                    if (function->returnType != declaredType)
+                    {
+                         report("Member function redeclaration has a different return type", identifier->Source());
+                         continue;
+                    }
+                    function->isInline = function->isInline || specifiers.isInline;
+               }
+               else
+               {
+                    auto functionScope =
+                         MakeFunctionScope()
+                              .Name(name)
+                              .ReturnType(declaredType)
+                              .CallingConvention(abi::ABI::Current().DefaultCallingConventionName())
+                              .Linkage(abi::Linkage::External)
+                              .IsInline(specifiers.isInline || declarator.functionBody == ast::FunctionBodyKind::Block)
+                              .IsStatic(isStatic)
+                              .IsFriend(false)
+                              .IsExtern(false)
+                              .ConstexprSpecifier(specifiers.constexprSpecifier ==
+                                                            ast::ConstantExpressionSpecifier::Constexpr
+                                                       ? ConstexprType::Constexpr
+                                                       : ConstexprType::None)
+                              .IsDllImportExport(false)
+                              .Parameters(parameters)
+                              .Source(identifier->Source())
+                              .NamespacePath(NamespacePathFromContext())
+                              .Build();
+                    functionScope->parameters = parameters;
+                    functionScope->parentScope = &classScope;
+                    functionScope->memberClassInfo = &GetTypeContext().Class(id);
+                    functionScope->memberFunctionInfo = memberInfo;
+                    functionScope->memberAccess = access;
+                    memberFunctions.push_back(std::move(functionScope));
+                    function = memberFunctions.back();
+               }
+
+               classScope.memberAccess[name] = access;
+               if (declarator.functionBody == ast::FunctionBodyKind::Deleted)
+               {
+                    function->isDeleted = true;
+                    function->isMemberFunctionDefined = true;
+               }
+               else if (declarator.functionBody == ast::FunctionBodyKind::Block)
+               {
+                    function->isInline = true;
+                    function->isMemberFunctionDefined = true;
+                    const auto* declaratorPointer = &declarator;
+                    deferred.emplace_back(
+                         [this, declaratorPointer, function, id]
+                         {
+                              EmitMemberFunctionBody(*declaratorPointer, function, id);
+                         });
+               }
+               continue;
+          }
+
+          if (specifiers.storageSpecifier & ast::StorageClassSpecifier::Static)
+               throw TracedException("TODO: static data members are not implemented yet");
+          if ((specifiers.storageSpecifier & ast::StorageClassSpecifier::ThreadLocal) ||
+              (specifiers.storageSpecifier & ast::StorageClassSpecifier::Extern))
+          {
+               report("'thread_local' and 'extern' cannot be applied to a non-static data member", node.Source());
+               continue;
+          }
+          if (specifiers.isInline || specifiers.functionSpecifier.isVirtual ||
+              specifiers.functionSpecifier.explicitSpecifier.has_value() ||
+              specifiers.constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+          {
+               report(
+                    "'inline', 'virtual', 'explicit', 'constexpr', 'consteval' and 'constinit' cannot be applied to a "
+                    "non-static data member or a typedef",
+                    node.Source());
+               continue;
+          }
           if (declarator.isBitField) throw TracedException("TODO: bit-fields are not implemented yet");
 
           const auto resolved = ResolveDeclaratorType(declarator, declaredType, name, false);
@@ -4840,7 +6008,6 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                continue;
           }
 
-          if (IsReference(resolved.type)) throw TracedException("TODO: reference data members are not implemented");
           if (!RequireComplete(resolved.type, node.Source(), "a non-static data member")) continue;
 
           if (isMutable)
@@ -4888,6 +6055,87 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                });
      }
 }
+void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarator,
+                                           const std::shared_ptr<FunctionScope>& function, const typeSystem::ClassId id)
+{
+     if (function == nullptr || declarator.functionBody != ast::FunctionBodyKind::Block) return;
+
+     IR functionIr{this->_context};
+     functionIr.GetContext() = this->GetContext();
+
+     typeSystem::NonowningTypePointer thisType{};
+     if (!function->isStatic)
+     {
+          const auto* classType =
+               GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound,
+                                                .qualifiers = QualifiersFrom(function->memberFunctionInfo.isConst,
+                                                                             function->memberFunctionInfo.isVolatile),
+                                                .data = ClassRequest{.id = id}});
+          thisType = PointerTo(classType);
+     }
+
+     auto functionContext = std::make_shared<FunctionContext>(function.get(), function->callingConvention,
+                                                              function->returnType, function->Name().value_or(""),
+                                                              function->parameters |
+                                                                   std::views::transform(
+                                                                        [](const FunctionScope::Parameter& parameter)
+                                                                        {
+                                                                             return parameter.type;
+                                                                        }) |
+                                                                   std::ranges::to<std::vector>());
+     functionContext->thisType = thisType;
+
+     struct RestoreContextSequence
+     {
+          Context* context{};
+          std::size_t size{};
+
+          ~RestoreContextSequence(void)
+          {
+               this->context->contextSequence.resize(this->size);
+          }
+     };
+     RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
+                                                  .size = functionIr.GetContext().contextSequence.size()};
+     functionIr.GetContext().contextSequence.push_back(functionContext);
+
+     auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+     locals->reserve(function->parameters.size() + static_cast<std::size_t>(!function->isStatic));
+     if (!function->isStatic) locals->push_back(FunctionScope::LocalEntity{FunctionScope::LocalEntity::ThisTag{}});
+     function->SetLocals(locals);
+
+     if (!function->isStatic) functionIr.EmitThisPrologue(thisType, declarator.location);
+     std::uint64_t parameterIndex = static_cast<std::uint64_t>(!function->isStatic);
+     for (const auto& parameter : function->parameters)
+     {
+          Variable variable{parameter.name, parameter.type, StorageDuration::Automatic};
+          locals->emplace_back(std::move(variable));
+
+          auto* activeFunction = dynamic_cast<FunctionContext*>(functionIr.GetContext().contextSequence.back().get());
+          runtime_assert(activeFunction != nullptr, "Expected member function context during parameter emission");
+          RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+          auto allocation = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    SingleAssignRegisterNode(activeFunction->GetNextRegisterIndex(), info, parameter.type->Width(),
+                                             parameter.type->Alignment(), declarator.location)};
+          auto* allocationPointer = allocation.get();
+          activeFunction->RegisterParamAllocReg(parameter.name, allocationPointer);
+          functionIr._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{new (
+               *functionIr.GetContext().nodeAllocator) AllocationNode(std::move(allocation), declarator.location)});
+          functionIr._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    ParameterNode(function.get(), parameterIndex++, allocationPointer, declarator.location)});
+     }
+
+     for (const auto& statement : declarator.body) functionIr.ParseNode(statement);
+     if (typeSystem::g_void->CommonWith(function->returnType))
+          functionIr._built.push_back(std::unique_ptr<SSAReturnNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator) SSAReturnNode(nullptr, declarator.location)});
+
+     this->_built.push_back(std::unique_ptr<ProcedureNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator)
+               ProcedureNode(function.get(), std::move(locals), std::move(functionIr._built), declarator.location)});
+}
 bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer type, const Location& source,
                                        const std::string_view what) const
 {
@@ -4897,11 +6145,481 @@ bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer ty
                std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
      return true;
 }
-void ecpps::ir::IR::StoreDefaultMemberInitialiser([[maybe_unused]] const typeSystem::ClassId id,
-                                                  [[maybe_unused]] const std::size_t fieldIndex,
-                                                  [[maybe_unused]] const ast::MemberDeclarator& declarator,
-                                                  [[maybe_unused]] const typeSystem::NonowningTypePointer memberType,
-                                                  [[maybe_unused]] const Location& source)
+ecpps::ir::IR::DefaultMemberInitialiserValidator::DefaultMemberInitialiserValidator(IR& ir,
+                                                                                    const typeSystem::ClassId ownerId,
+                                                                                    Location source,
+                                                                                    const std::size_t diagnosticCount)
+    : _ir(ir), _ownerId(ownerId), _source(std::move(source)), _diagnosticCount(diagnosticCount)
 {
-     // TODO: Implement
+}
+
+void ecpps::ir::IR::DefaultMemberInitialiserValidator::Report(std::string message, const Location& at)
+{
+     _ir.GetContext().diagnostics.get().diagnosticsList.push_back(
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
+}
+
+bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
+     const typeSystem::ClassType* classType, const std::vector<const ast::NodePointer*>& argumentNodes,
+     const bool copyList, const bool isListInitialisation, const Location& at)
+{
+     const auto classRecord = _ir.GetContext().classTable->classes.find(classType->Info().id);
+     if (classRecord == _ir.GetContext().classTable->classes.end() || classRecord->second.constructors.empty())
+     {
+          Report(std::format("No constructor of '{}' matches this initializer", classType->Info().DisplayName()), at);
+          return false;
+     }
+
+     std::vector<Expression> arguments{};
+     for (const auto* argumentNode : argumentNodes)
+     {
+          if (argumentNode == nullptr || *argumentNode == nullptr ||
+              dynamic_cast<const ast::InitialiserListNode*>(argumentNode->get()) != nullptr)
+          {
+               Report("Nested braced constructor arguments are not supported yet", at);
+               return false;
+          }
+          auto argument = _ir.ParseExpression(*argumentNode);
+          if (argument == nullptr) return false;
+          arguments.push_back(std::move(argument));
+     }
+
+     const ClassConstructor* selected = nullptr;
+     std::size_t bestScore = std::numeric_limits<std::size_t>::max();
+     bool ambiguous = false;
+     for (const auto& candidate : classRecord->second.constructors)
+     {
+          if (candidate.parameters.size() != arguments.size()) continue;
+          std::size_t score = 0;
+          bool viable = true;
+          for (std::size_t index = 0; index < arguments.size(); index++)
+          {
+               const auto* parameterType = candidate.parameters[index].type;
+               const auto& argument = arguments[index];
+               if (parameterType->CastTo<typeSystem::ClassType>() != nullptr ||
+                   parameterType->CastTo<typeSystem::ArrayType>() != nullptr)
+               {
+                    viable = false;
+                    break;
+               }
+               if (const auto* reference = parameterType->CastTo<typeSystem::ReferenceType>())
+               {
+                    const auto* target = reference->BaseType()->CastTo<typeSystem::QualifiedType>();
+                    const auto* sourceType = argument->Type()->CastTo<typeSystem::QualifiedType>();
+                    const auto* targetIntegral = reference->BaseType()->CastTo<typeSystem::IntegralType>();
+                    const auto* sourceIntegral = argument->Type()->CastTo<typeSystem::IntegralType>();
+                    const bool same = reference->BaseType() == argument->Type() ||
+                                      (targetIntegral != nullptr && sourceIntegral != nullptr &&
+                                       targetIntegral->Sign() == sourceIntegral->Sign() &&
+                                       targetIntegral->Kind() == sourceIntegral->Kind() &&
+                                       IsBoolean(reference->BaseType()) == IsBoolean(argument->Type()));
+                    if (same && sourceType != nullptr &&
+                        ((sourceType->IsConst() && (target == nullptr || !target->IsConst())) ||
+                         (sourceType->IsVolatile() && (target == nullptr || !target->IsVolatile()))))
+                    {
+                         viable = false;
+                         break;
+                    }
+                    const bool lvalueReference = reference->GetKind() == typeSystem::ReferenceType::Kind::LValue;
+                    const bool directCategory =
+                         lvalueReference
+                              ? argument->IsLValue() || (target != nullptr && target->IsConst() && argument->IsXValue())
+                              : argument->IsXValue();
+                    const bool convertible = !same && reference->BaseType()->CompareTo(argument->Type()).IsValid();
+                    const bool bindTemp = (!lvalueReference || (target != nullptr && target->IsConst())) &&
+                                          (argument->IsRValue() || convertible);
+                    if (!(same && directCategory) && !bindTemp)
+                    {
+                         viable = false;
+                         break;
+                    }
+                    score += bindTemp ? 8 : 0;
+                    continue;
+               }
+               const auto conversion = parameterType->CompareTo(argument->Type());
+               if (!conversion.IsValid())
+               {
+                    viable = false;
+                    break;
+               }
+               for (const auto kind : conversion.Sequence()) score += ConversionCost(kind);
+          }
+          if (!viable) continue;
+          if (score < bestScore)
+          {
+               selected = &candidate;
+               bestScore = score;
+               ambiguous = false;
+          }
+          else if (score == bestScore)
+               ambiguous = true;
+     }
+     if (selected == nullptr || ambiguous)
+     {
+          Report(ambiguous
+                      ? "Constructor initializer is ambiguous"
+                      : std::format("No constructor of '{}' matches this initializer", classType->Info().DisplayName()),
+                 at);
+          return false;
+     }
+     if (copyList && selected->isExplicit)
+     {
+          Report("Copy-list initialization cannot select an explicit constructor", at);
+          return false;
+     }
+     if (isListInitialisation)
+          for (std::size_t index = 0; index < arguments.size(); index++)
+          {
+               const auto* parameterType = selected->parameters[index].type;
+               if (const auto* reference = parameterType->CastTo<typeSystem::ReferenceType>())
+                    parameterType = reference->BaseType();
+               if (!_ir.IsNarrowingConversion(arguments[index], parameterType)) continue;
+               Report(std::format("Narrowing conversion from '{}' to '{}' is not allowed in list "
+                                  "initialization",
+                                  arguments[index]->Type()->Name(), parameterType->Name()),
+                      (*argumentNodes[index])->Source());
+               return false;
+          }
+     if (selected->access != typeSystem::Access::Public && classType->Info().id != _ownerId)
+     {
+          Report("Selected constructor is not accessible", at);
+          return false;
+     }
+     if (selected->declaration == nullptr || selected->declaration->functionBody == ast::FunctionBodyKind::Deleted)
+     {
+          Report("The selected constructor is deleted or unavailable", at);
+          return false;
+     }
+     if (selected->declaration->functionBody == ast::FunctionBodyKind::None)
+     {
+          Report("The selected constructor is declared but has no definition", at);
+          return false;
+     }
+     return true;
+}
+
+bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateEmpty(typeSystem::NonowningTypePointer type)
+{
+     if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
+     {
+          Report("An omitted reference member has no initializer", _source);
+          return false;
+     }
+     if (const auto* array = type->CastTo<typeSystem::ArrayType>()) return ValidateEmpty(array->ElementType());
+     if (const auto* classType = type->CastTo<typeSystem::ClassType>())
+     {
+          if (classType->Info().kind == typeSystem::ClassKind::Union)
+          {
+               Report("Union initialization is not supported yet", _source);
+               return false;
+          }
+          if (!_ir.IsAggregateClass(type) && classType->Info().hasUserDeclaredConstructors)
+          {
+               return ValidateConstructor(classType, {}, true, true, _source);
+          }
+          bool valid = true;
+          for (const auto& field : classType->Info().fields)
+               if (!field.hasDefaultInitialiser) valid = ValidateEmpty(field.type) && valid;
+          return valid;
+     }
+     return true;
+}
+
+bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateClassList(const typeSystem::ClassType* classType,
+                                                                         const ast::InitialiserListNode& list,
+                                                                         const bool copyList)
+{
+     if (classType->Info().kind == typeSystem::ClassKind::Union)
+     {
+          Report("Union initialization is not supported yet", list.Source());
+          return false;
+     }
+     if (!_ir.IsAggregateClass(classType) && classType->Info().hasUserDeclaredConstructors)
+     {
+          std::vector<const ast::NodePointer*> arguments{};
+          for (const auto& clause : list.Initialisers()) arguments.push_back(&clause);
+          return ValidateConstructor(classType, arguments, copyList, true, list.Source());
+     }
+     if (!_ir.IsAggregateClass(classType) && list.Initialisers().empty()) return ValidateEmpty(classType);
+     if (!_ir.IsAggregateClass(classType))
+     {
+          Report(std::format("Class '{}' is not an aggregate and has no matching constructor",
+                             classType->Info().DisplayName()),
+                 list.Source());
+          return false;
+     }
+
+     const auto& fields = classType->Info().fields;
+     const auto& clauses = list.Initialisers();
+     const bool hasDesignators =
+          std::ranges::any_of(clauses,
+                              [](const ast::NodePointer& clause)
+                              {
+                                   return dynamic_cast<const ast::DesignatedInitialiserNode*>(clause.get()) != nullptr;
+                              });
+     if (hasDesignators)
+     {
+          std::vector<const ast::NodePointer*> explicitInitialisers(fields.size(), nullptr);
+          std::size_t previousIndex = 0;
+          bool hasPrevious = false;
+          for (const auto& clause : clauses)
+          {
+               const auto* designated = dynamic_cast<const ast::DesignatedInitialiserNode*>(clause.get());
+               if (designated == nullptr)
+               {
+                    Report("Positional and designated initialisers cannot be mixed", clause->Source());
+                    return false;
+               }
+               std::optional<std::size_t> fieldIndex;
+               for (std::size_t index = 0; index < fields.size(); index++)
+                    if (fields[index].name == designated->Member())
+                    {
+                         fieldIndex = index;
+                         break;
+                    }
+               if (!fieldIndex.has_value())
+               {
+                    Report(std::format("'{}' is not a direct data member of '{}'", designated->Member(),
+                                       classType->Info().DisplayName()),
+                           designated->Source());
+                    return false;
+               }
+               if (explicitInitialisers[*fieldIndex] != nullptr)
+               {
+                    Report(std::format("Member '{}' is initialized more than once", designated->Member()),
+                           designated->Source());
+                    return false;
+               }
+               if (hasPrevious && *fieldIndex <= previousIndex)
+               {
+                    Report("Designated initialisers must follow member declaration order", designated->Source());
+                    return false;
+               }
+               previousIndex = *fieldIndex;
+               hasPrevious = true;
+               explicitInitialisers[*fieldIndex] = &designated->Initialiser();
+          }
+
+          bool valid = true;
+          for (std::size_t index = 0; index < fields.size(); index++)
+          {
+               if (explicitInitialisers[index] == nullptr)
+               {
+                    if (!fields[index].hasDefaultInitialiser) valid = ValidateEmpty(fields[index].type) && valid;
+                    continue;
+               }
+               const auto& value = *explicitInitialisers[index];
+               const auto initType = dynamic_cast<const ast::InitialiserListNode*>(value.get()) != nullptr
+                                          ? ast::InitialisationType::BracedInitialiser
+                                          : ast::InitialisationType::EqualInitialiser;
+               valid = Validate(fields[index].type, value, initType, true) && valid;
+          }
+          return valid;
+     }
+
+     std::size_t nextClause = 0;
+     std::function<bool(typeSystem::NonowningTypePointer, bool)> validateSubobject;
+     std::function<bool(const typeSystem::ClassType*)> validatePositionalClass;
+     validatePositionalClass = [&](const typeSystem::ClassType* nested)
+     {
+          bool valid = true;
+          for (const auto& field : nested->Info().fields)
+               valid = validateSubobject(field.type, field.hasDefaultInitialiser) && valid;
+          return valid;
+     };
+     validateSubobject = [&](typeSystem::NonowningTypePointer subobjectType, const bool hasDefaultInitialiser)
+     {
+          if (nextClause >= clauses.size()) return hasDefaultInitialiser || ValidateEmpty(subobjectType);
+
+          const auto& clause = clauses[nextClause];
+          if (dynamic_cast<const ast::InitialiserListNode*>(clause.get()) != nullptr)
+          {
+               nextClause++;
+               return Validate(subobjectType, clause, ast::InitialisationType::BracedInitialiser, true);
+          }
+          if (const auto* array = subobjectType->CastTo<typeSystem::ArrayType>())
+          {
+               bool valid = true;
+               for (std::size_t index = 0; index < array->ElementCount() && nextClause < clauses.size(); index++)
+               {
+                    const auto before = nextClause;
+                    valid = validateSubobject(array->ElementType(), false) && valid;
+                    if (nextClause == before) break;
+               }
+               if (nextClause >= clauses.size() && array->ElementCount() > 0)
+                    valid = ValidateEmpty(array->ElementType()) && valid;
+               return valid;
+          }
+          if (const auto* nested = subobjectType->CastTo<typeSystem::ClassType>();
+              nested != nullptr && _ir.IsAggregateClass(subobjectType))
+          {
+               if (nested->Info().fields.empty())
+               {
+                    Report("An empty aggregate subobject cannot be skipped during brace elision", clause->Source());
+                    return false;
+               }
+               return validatePositionalClass(nested);
+          }
+
+          nextClause++;
+          return Validate(subobjectType, clause, ast::InitialisationType::EqualInitialiser, true);
+     };
+
+     const bool valid = validatePositionalClass(classType);
+     if (nextClause < clauses.size())
+     {
+          Report("Too many initialisers for aggregate class", clauses[nextClause]->Source());
+          return false;
+     }
+     return valid;
+}
+
+bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::NonowningTypePointer type,
+                                                                const ast::NodePointer& value,
+                                                                const ast::InitialisationType initialisationType,
+                                                                const bool aggregateElement)
+{
+     if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
+     {
+          _ir.InitialiseReferenceAtAddress(type, nullptr, &value, initialisationType, value->Source(),
+                                           aggregateElement);
+          return _ir.GetContext().diagnostics.get().diagnosticsList.size() == _diagnosticCount;
+     }
+     if (const auto* array = type->CastTo<typeSystem::ArrayType>())
+     {
+          const auto* list = dynamic_cast<const ast::InitialiserListNode*>(value.get());
+          if (list == nullptr)
+          {
+               Report("An array default member initializer must use a braced initializer", value->Source());
+               return false;
+          }
+          if (list->Initialisers().size() > array->ElementCount())
+          {
+               Report("Too many initialisers for array member", value->Source());
+               return false;
+          }
+          bool valid = true;
+          const auto explicitCount = std::min(array->ElementCount(), list->Initialisers().size());
+          for (std::size_t index = 0; index < explicitCount; index++)
+          {
+               const auto& clause = list->Initialisers()[index];
+               const auto initType = dynamic_cast<const ast::InitialiserListNode*>(clause.get()) != nullptr
+                                          ? ast::InitialisationType::BracedInitialiser
+                                          : ast::InitialisationType::EqualInitialiser;
+               valid = Validate(array->ElementType(), clause, initType, true) && valid;
+          }
+          if (array->ElementCount() > explicitCount) valid = ValidateEmpty(array->ElementType()) && valid;
+          return valid;
+     }
+     if (const auto* classType = type->CastTo<typeSystem::ClassType>())
+     {
+          const auto* list = dynamic_cast<const ast::InitialiserListNode*>(value.get());
+          if (list == nullptr)
+          {
+               if (classType->Info().hasUserDeclaredConstructors)
+                    return ValidateConstructor(classType, {&value},
+                                               initialisationType == ast::InitialisationType::EqualInitialiser, false,
+                                               value->Source());
+               Report(std::format("Class '{}' needs constructor or copy initialization support",
+                                  classType->Info().DisplayName()),
+                      value->Source());
+               return false;
+          }
+          return ValidateClassList(classType, *list, initialisationType == ast::InitialisationType::EqualInitialiser);
+     }
+
+     const ast::NodePointer* scalarValue = &value;
+     if (const auto* list = dynamic_cast<const ast::InitialiserListNode*>(value.get()))
+     {
+          if (list->Initialisers().empty()) return true;
+          if (list->Initialisers().size() != 1)
+          {
+               Report("A scalar initializer list must contain exactly one initializer", value->Source());
+               return false;
+          }
+          scalarValue = &list->Initialisers().front();
+     }
+
+     auto expression = _ir.ParseExpression(*scalarValue);
+     if (expression == nullptr) return false;
+     if (aggregateElement && _ir.IsNarrowingConversion(expression, type))
+     {
+          Report(std::format("Narrowing conversion from '{}' to '{}' is not allowed in aggregate "
+                             "initialization",
+                             expression->Type()->Name(), type->Name()),
+                 (*scalarValue)->Source());
+          return false;
+     }
+     return _ir.ConvertTo(std::move(expression), type) != nullptr;
+}
+
+void ecpps::ir::IR::StoreDefaultMemberInitialiser(const typeSystem::ClassId id, const std::size_t fieldIndex,
+                                                  const ast::MemberDeclarator& declarator,
+                                                  const typeSystem::NonowningTypePointer memberType,
+                                                  const Location& source)
+{
+     bool validInitialiser = false;
+     const auto* initialiser = &declarator.initialiser;
+     if (initialiser != nullptr && *initialiser != nullptr && memberType != nullptr)
+     {
+          TypeRequest classRequest;
+          classRequest.kind = TypeKind::Compound;
+          ClassRequest classRequestData;
+          classRequestData.id = id;
+          classRequest.data = std::move(classRequestData);
+          const auto* ownerType = GetTypeContext().Get(classRequest);
+          ActiveObjectInitialisation activeObject;
+          activeObject.type = ownerType;
+          this->_objectInitialisationStack.push_back(activeObject);
+          const auto builtSize = this->_built.size();
+          const auto diagnosticCount = this->GetContext().diagnostics.get().diagnosticsList.size();
+
+          struct RestoreValidationState
+          {
+               std::vector<ActiveObjectInitialisation>* objects{};
+               std::vector<NodePointer>* built{};
+               std::size_t builtSize{};
+               ~RestoreValidationState(void)
+               {
+                    objects->pop_back();
+                    built->resize(builtSize);
+               }
+          };
+          RestoreValidationState restore;
+          restore.objects = &this->_objectInitialisationStack;
+          restore.built = &this->_built;
+          restore.builtSize = builtSize;
+
+          DefaultMemberInitialiserValidator validator(*this, id, source, diagnosticCount);
+          validInitialiser = validator.Validate(memberType, *initialiser, declarator.initialisationType, false);
+     }
+
+     DefaultMemberInitialiser record;
+     record.fieldIndex = fieldIndex;
+     record.initialiser = &declarator.initialiser;
+     record.initialisationType = declarator.initialisationType;
+     record.invalid = !validInitialiser;
+     record.source = source;
+     this->GetContext().classTable->classes[id].memberInitialisers.push_back(record);
+}
+
+void ecpps::ir::IR::EmitThisPrologue(const typeSystem::NonowningTypePointer thisType, const Location& source)
+{
+     auto* const funcCtx = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(funcCtx != nullptr, "Expected function context during `this` emission");
+     if (funcCtx == nullptr || thisType == nullptr) return;
+     auto& allocator = *this->GetContext().nodeAllocator;
+
+     RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+     auto allocReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
+          funcCtx->GetNextRegisterIndex(), info, thisType->Width(), thisType->Alignment(), source)};
+     auto* allocRegPtr = allocReg.get();
+
+     funcCtx->thisType = thisType;
+     funcCtx->RegisterThisAllocReg(allocRegPtr);
+
+     this->_built.push_back(
+          std::unique_ptr<AllocationNode, IRDeleter>{new (allocator) AllocationNode(std::move(allocReg), source)});
+     this->_built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+          new (allocator) ParameterNode(&funcCtx->GetScope<FunctionScope>(), 0, allocRegPtr, source)});
 }

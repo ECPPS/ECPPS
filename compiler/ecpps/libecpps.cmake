@@ -49,9 +49,11 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/PE.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/WindowsLinker.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/ClassInitialisation.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/NodeBase.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Entities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Context.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/MemoryAccess.cpp"
 )
 include(src/Machine/Encoders/Backends/sources.cmake)
 
