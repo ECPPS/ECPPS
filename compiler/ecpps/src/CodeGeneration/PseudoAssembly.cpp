@@ -238,7 +238,9 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                else if (const auto* convertNode = dynamic_cast<const ecpps::ir::SSAPointerConvertNode*>(node))
                     this->ParsePointerConvertNode(*convertNode);
                else
+               {
                     runtime_assert(false, "Pointer conversion was not a conversion!");
+               }
           }
           break;
           case ecpps::ir::NodeKind::AddressOf:
