@@ -1209,25 +1209,23 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
 
      const auto parameters = node.ParameterList() |
-                            std::views::transform(
-                                 [](const ecpps::ir::FunctionScope::Parameter& parameter)
-                                 {
-                                      return parameter.type;
-                                 }) |
-                            std::ranges::to<std::vector>();
+                             std::views::transform(
+                                  [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                  {
+                                       return parameter.type;
+                                  }) |
+                             std::ranges::to<std::vector>();
      const auto* functionScope = node.Scope();
-     const auto mangledName = functionScope->memberClassInfo != nullptr
-                                   ? ecpps::abi::ABI::MangleMemberName(
-                                          node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
-                                          parameters, functionScope->memberClassInfo->QualifiedScope(),
-                                          functionScope->memberFunctionInfo)
-                                   : ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(),
-                                                                 node.ReturnType(), parameters, node.NamespacePath());
+     const auto mangledName =
+          functionScope->memberClassInfo != nullptr
+               ? ecpps::abi::ABI::MangleMemberName(
+                      node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(), parameters,
+                      functionScope->memberClassInfo->QualifiedScope(), functionScope->memberFunctionInfo)
+               : ecpps::abi::ABI::MangleName(node.Linkage(), node.Name(), node.CallingConvention(), node.ReturnType(),
+                                             parameters, node.NamespacePath());
 
-     return Routine(std::move(parseContext.instructions),
-                    mangledName,
-                    std::vector<ecpps::ir::abstract::Instruction>{}, parseContext.functionUsageTable, node.Scope(),
-                    parseContext.functionUsageTable);
+     return Routine(std::move(parseContext.instructions), mangledName, std::vector<ecpps::ir::abstract::Instruction>{},
+                    parseContext.functionUsageTable, node.Scope(), parseContext.functionUsageTable);
 }
 
 void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, SourceFile& source,

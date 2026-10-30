@@ -67,16 +67,15 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                                  return parameter.type;
                                             }) |
                                        std::ranges::to<std::vector>();
-               const auto mangled = function->memberClassInfo != nullptr
-                                         ? ecpps::abi::ABI::MangleMemberName(
-                                                function->linkage, function->Name().value_or("__undefined_call"),
-                                                function->callingConvention, function->returnType, parameters,
-                                                function->memberClassInfo->QualifiedScope(),
-                                                function->memberFunctionInfo)
-                                         : ecpps::abi::ABI::MangleName(
-                                                function->linkage, function->Name().value_or("__undefined_call"),
-                                                function->callingConvention, function->returnType, parameters,
-                                                function->namespacePath);
+               const auto mangled =
+                    function->memberClassInfo != nullptr
+                         ? ecpps::abi::ABI::MangleMemberName(
+                                function->linkage, function->Name().value_or("__undefined_call"),
+                                function->callingConvention, function->returnType, parameters,
+                                function->memberClassInfo->QualifiedScope(), function->memberFunctionInfo)
+                         : ecpps::abi::ABI::MangleName(function->linkage, function->Name().value_or("__undefined_call"),
+                                                       function->callingConvention, function->returnType, parameters,
+                                                       function->namespacePath);
                this->linkerForwardedRelocations.emplace(
                     ByteOffset(offset + routine.emittedOffset),
                     Relocation{.symbolName = mangled,

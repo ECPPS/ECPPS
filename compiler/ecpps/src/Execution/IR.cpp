@@ -3783,9 +3783,8 @@ Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
      {
           const auto* objectType = this->_objectInitialisationStack.back().type;
           return std::make_unique<PRValue>(this->PointerTo(objectType),
-                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ThisExpressionNode(source)},
+                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{new (
+                                                *this->GetContext().nodeAllocator) high::ThisExpressionNode(source)},
                                            false);
      }
 
@@ -3794,9 +3793,8 @@ Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
           const auto* function = dynamic_cast<const FunctionContext*>(context.get());
           if (function == nullptr || function->thisType == nullptr) continue;
           return std::make_unique<PRValue>(function->thisType,
-                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
-                                                new (*this->GetContext().nodeAllocator)
-                                                     high::ThisExpressionNode(source)},
+                                           std::unique_ptr<high::ThisExpressionNode, IRDeleter>{new (
+                                                *this->GetContext().nodeAllocator) high::ThisExpressionNode(source)},
                                            false);
      }
 
@@ -6096,7 +6094,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
           }
      };
      RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
-                                                  .size = functionIr.GetContext().contextSequence.size()};
+                                                   .size = functionIr.GetContext().contextSequence.size()};
      functionIr.GetContext().contextSequence.push_back(functionContext);
 
      auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();

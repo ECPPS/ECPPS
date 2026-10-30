@@ -815,8 +815,8 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
                Advance();
                if (AtEnd() || Peek().type != TokenType::Identifier)
                {
-                    this->_diagnostics.get().diagnosticsList.push_back(
-                         std::make_unique<diagnostics::SyntaxError>("Expected a member name after '.'", Peek().location));
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected a member name after '.'", Peek().location));
                     return nullptr;
                }
 
@@ -824,8 +824,8 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
                Advance();
                if (!IsOperatorToken(Peek(), "="))
                {
-                    this->_diagnostics.get().diagnosticsList.push_back(
-                         std::make_unique<diagnostics::SyntaxError>("Expected '=' after designated member", Peek().location));
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected '=' after designated member", Peek().location));
                     return nullptr;
                }
                Advance();

@@ -105,8 +105,7 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Indirection>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
-     X8664VirtualInstructionEncoder::EncoderImplementation<
-          ecpps::ir::abstract::VirtualInstructionType::IndirectStore>(
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::IndirectStore>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
