@@ -1183,7 +1183,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                const auto match = MatchFunction(function, arguments);
                const auto failures = AnalyseCandidateFailure(function, arguments).parameterFailures.size();
                suggestion->acceptsArguments = suggestion->acceptsArguments || static_cast<bool>(match);
-               const std::size_t score = distance * 4 + failures * 2 + static_cast<std::size_t>(!match);
+               const std::size_t score = (distance * 4) + (failures * 2) + static_cast<std::size_t>(!match);
                suggestion->score = std::min(suggestion->score, score);
           }
 
@@ -1196,7 +1196,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                auto suggestion = std::ranges::find(suggestions, field.name, &MemberSuggestion::name);
                if (suggestion == suggestions.end())
                     suggestions.push_back(MemberSuggestion{.name = field.name,
-                                                           .score = distance * 4 + 1,
+                                                           .score = (distance * 4) + 1,
                                                            .acceptsArguments = false,
                                                            .isDataMember = true,
                                                            .functions = {},

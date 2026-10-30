@@ -582,11 +582,13 @@ std::vector<ecpps::typeSystem::ScopeSegment> ecpps::ir::IR::EnclosingPathUpTo(co
      {
           const auto& scope = context->GetScope();
           if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope); ns && ns->Name().has_value())
-               path.push_back({typeSystem::ScopeKind::Namespace, *ns->Name()}); // TODO: unnamed namespaces are skipped
+               path.push_back({.kind = typeSystem::ScopeKind::Namespace,
+                               .name = *ns->Name()}); // TODO: unnamed namespaces are skipped
           else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope); cs && !cs->name.empty())
-               path.push_back({typeSystem::ScopeKind::Class, cs->name});
+               path.push_back({.kind = typeSystem::ScopeKind::Class, .name = cs->name});
           else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
-               path.push_back({typeSystem::ScopeKind::Function, fn->Name().value_or("__unknown")}); // local class
+               path.push_back(
+                    {.kind = typeSystem::ScopeKind::Function, .name = fn->Name().value_or("__unknown")}); // local class
           if (&scope == &target) break;
      }
      return path;

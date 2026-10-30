@@ -380,7 +380,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                }
                else if (isArray)
                {
-                    auto elementType = variableType;
+                    const auto* elementType = variableType;
                     while (const auto* arrayType = elementType->CastTo<typeSystem::ArrayType>())
                          elementType = arrayType->ElementType();
                     diagnoseConstScalarDefaultInitialisation(elementType);

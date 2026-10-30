@@ -301,8 +301,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     return;
                }
                constructor.parameters.push_back(
-                    {parameter.name != nullptr ? parameter.name->ToString(0) : std::format("__arg{}", index),
-                     parameterType, false});
+                    {.name = parameter.name != nullptr ? parameter.name->ToString(0) : std::format("__arg{}", index),
+                     .type = parameterType,
+                     .isVariadic = false});
           }
 
           auto& classInfo = GetTypeContext().Class(id);
@@ -731,7 +732,7 @@ ecpps::ir::IR::DefaultMemberInitialiserValidator::DefaultMemberInitialiserValida
                                                                                     const typeSystem::ClassId ownerId,
                                                                                     Location source,
                                                                                     const std::size_t diagnosticCount)
-    : _ir(ir), _ownerId(ownerId), _source(std::move(source)), _diagnosticCount(diagnosticCount)
+    : _ir(ir), _ownerId(ownerId), _source(source), _diagnosticCount(diagnosticCount)
 {
 }
 
@@ -1148,7 +1149,7 @@ void ecpps::ir::IR::StoreDefaultMemberInitialiser(const typeSystem::ClassId id, 
           classRequest.kind = TypeKind::Compound;
           ClassRequest classRequestData;
           classRequestData.id = id;
-          classRequest.data = std::move(classRequestData);
+          classRequest.data = classRequestData;
           const auto* ownerType = GetTypeContext().Get(classRequest);
           ActiveObjectInitialisation activeObject;
           activeObject.type = ownerType;
