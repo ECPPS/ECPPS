@@ -49,6 +49,13 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/PE.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/WindowsLinker.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Expressions.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Initialisation.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Statements.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Types.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Classes.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Lowering.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Internal.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/ClassInitialisation.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/NodeBase.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Entities.cpp"
@@ -86,6 +93,11 @@ target_link_libraries(parserlib PRIVATE ecpps_defaults platformlib utilitieslib)
 target_link_libraries(typesystemlib PRIVATE ecpps_defaults platformlib utilitieslib backendlib)
 target_link_libraries(backendlib PRIVATE ecpps_defaults platformlib utilitieslib typesystemlib)
 target_link_libraries(libecpps PRIVATE ecpps_defaults platformlib utilitieslib)
+if(MSVC)
+    target_compile_options(backendlib PRIVATE /bigobj)
+elseif(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(backendlib PRIVATE -Wa,-mbig-obj)
+endif()
 if (LINUX)
     target_link_libraries(libecpps PRIVATE stdc++exp)
 endif()
