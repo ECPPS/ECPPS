@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 #include "RuntimeAssert.h"
 
