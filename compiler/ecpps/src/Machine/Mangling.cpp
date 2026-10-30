@@ -227,7 +227,7 @@ std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::s
 {
      std::vector<typeSystem::ScopeSegment> scope;
      scope.reserve(namespacePath.size());
-     for (const auto& ns : namespacePath) scope.push_back({typeSystem::ScopeKind::Namespace, ns});
+     for (const auto& ns : namespacePath) scope.push_back({.kind = typeSystem::ScopeKind::Namespace, .name = ns});
      return BuildName(linkage, name, callingConvention, returnType, parameters, scope, nullptr);
 }
 
