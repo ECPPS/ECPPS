@@ -1,6 +1,7 @@
 #pragma once
 #include <RuntimeAssert.h>
 #include <cstddef>
+#include <span>
 #include <string>
 #include <vector>
 #include "../TypeSystem/TypeBase.h"
