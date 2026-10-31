@@ -806,10 +806,39 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
      }
 
      std::vector<NodePointer> initialisers{};
-     // TODO: designated initialisers
      while (!AtEnd() && Peek().type != TokenType::RightBrace)
      {
-          auto initialiser = ParseInitialiserClause(context);
+          NodePointer initialiser{};
+          if (IsOperatorToken(Peek(), "."))
+          {
+               const auto source = Peek().location;
+               Advance();
+               if (AtEnd() || Peek().type != TokenType::Identifier)
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected a member name after '.'", Peek().location));
+                    return nullptr;
+               }
+
+               const auto member = Peek().AsIdentifier();
+               Advance();
+               if (!IsOperatorToken(Peek(), "="))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected '=' after designated member", Peek().location));
+                    return nullptr;
+               }
+               Advance();
+
+               auto value = ParseInitialiserClause(context);
+               if (value == nullptr) return nullptr;
+               initialiser = std::unique_ptr<DesignatedInitialiserNode, ecpps::ast::ASTDeleter>(
+                    new (context) DesignatedInitialiserNode(member, std::move(value), source));
+          }
+          else
+               initialiser = ParseInitialiserClause(context);
+
+          if (initialiser == nullptr) return nullptr;
           initialisers.push_back(std::move(initialiser));
           if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
           {

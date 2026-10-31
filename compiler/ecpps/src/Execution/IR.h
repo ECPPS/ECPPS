@@ -12,6 +12,7 @@
 #include "Context.h"
 #include "Expressions.h"
 #include "NodeBase.h"
+#include "TypeSystem/ClassInfo.h"
 
 namespace ecpps::ir
 {
@@ -118,6 +119,47 @@ namespace ecpps::ir
           }
           std::vector<NodePointer> _built{};
           Context* _context;
+          enum struct ObjectInitialisationMode : std::uint_fast8_t
+          {
+               Default,
+               Value,
+               Explicit,
+               EmptyList
+          };
+          struct ActiveObjectInitialisation
+          {
+               typeSystem::NonowningTypePointer type{};
+               const SingleAssignRegisterNode* address{};
+               bool allowLocalLookup{};
+          };
+          struct ConstructorSelection
+          {
+               const ClassConstructor* constructor{};
+               std::vector<Expression> arguments{};
+          };
+          class DefaultMemberInitialiserValidator
+          {
+          public:
+               DefaultMemberInitialiserValidator(IR& ir, typeSystem::ClassId ownerId, Location source,
+                                                 std::size_t diagnosticCount);
+               [[nodiscard]] bool Validate(typeSystem::NonowningTypePointer type, const ast::NodePointer& value,
+                                           ast::InitialisationType initialisationType, bool aggregateElement);
+
+          private:
+               IR& _ir; // NOLINT
+               typeSystem::ClassId _ownerId;
+               Location _source;
+               std::size_t _diagnosticCount;
+
+               void Report(std::string message, const Location& at);
+               [[nodiscard]] bool ValidateConstructor(const typeSystem::ClassType* classType,
+                                                      const std::vector<const ast::NodePointer*>& argumentNodes,
+                                                      bool copyList, bool isListInitialisation, const Location& at);
+               [[nodiscard]] bool ValidateEmpty(typeSystem::NonowningTypePointer type);
+               [[nodiscard]] bool ValidateClassList(const typeSystem::ClassType* classType,
+                                                    const ast::InitialiserListNode& list, bool copyList);
+          };
+          std::vector<ActiveObjectInitialisation> _objectInitialisationStack{};
           [[nodiscard]] Context& GetContext(void) const noexcept
           {
                return *this->_context;
@@ -143,6 +185,7 @@ namespace ecpps::ir
           void ParseGotoNode(const ast::GotoNode& node);
           void ParseBreakNode(const ast::BreakNode& node);
           void ParseContinueNode(const ast::ContinueNode& node);
+          void ParseClassNode(const ast::ClassType& node);
 
           [[nodiscard]] std::vector<std::string> NamespacePathFromContext(void) const;
 
@@ -174,7 +217,10 @@ namespace ecpps::ir
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
+          Expression ParseMemberCallExpression(const ast::CallOperatorNode& node,
+                                               const ast::BinaryOperatorNode& memberAccess);
           Expression ParseStringLiteral(const ast::StringLiteralNode& expression) const;
+          Expression ParseThisExpression(const Location& source);
           Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseSizeofExpression(const ast::SizeOfNode& expression);
           Expression ParseAlignofExpression(const ast::AlignOfNode& expression);
@@ -192,7 +238,138 @@ namespace ecpps::ir
           Expression ParseDefaultInitialisation(typeSystem::NonowningTypePointer desiredType);
           Expression ParseZeroInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
           Expression ParseValueInitialisation(typeSystem::NonowningTypePointer desiredType, const Location& source);
+          Expression ParseAggregateInitialisation(const ast::NodePointer& expression,
+                                                  typeSystem::NonowningTypePointer desiredType);
+          [[nodiscard]] bool IsAggregateClass(typeSystem::NonowningTypePointer type) const;
+          [[nodiscard]] bool IsConstDefaultConstructible(typeSystem::NonowningTypePointer type) const;
+          [[nodiscard]] typeSystem::NonowningTypePointer PointerTo(typeSystem::NonowningTypePointer type) const;
+          [[nodiscard]] const SingleAssignRegisterNode* AddressOfAllocation(const SingleAssignRegisterNode* object,
+                                                                            typeSystem::NonowningTypePointer type,
+                                                                            const Location& source);
+          [[nodiscard]] const SingleAssignRegisterNode* AddByteOffset(const SingleAssignRegisterNode* address,
+                                                                      std::size_t offset, const Location& source);
+          void InitialiseAtAddress(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                   const ast::NodePointer* initialiser, ast::InitialisationType initialisationType,
+                                   ObjectInitialisationMode mode, const Location& source,
+                                   bool aggregateElement = false);
+          void InitialiseClassAtAddress(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                        const ast::NodePointer* initialiser, ast::InitialisationType initialisationType,
+                                        ObjectInitialisationMode mode, const Location& source);
+          [[nodiscard]] std::optional<std::vector<Expression>> ParseConstructorArguments(
+               const ast::NodePointer* initialiser, ObjectInitialisationMode mode);
+          [[nodiscard]] std::optional<std::size_t> ConstructorArgumentCost(
+               typeSystem::NonowningTypePointer parameterType, const Expression& argument) const;
+          [[nodiscard]] std::optional<ConstructorSelection> SelectConstructor(const typeSystem::ClassInfo& info,
+                                                                              std::vector<Expression> arguments,
+                                                                              const Location& source);
+          void InitialiseClassWithConstructors(typeSystem::NonowningTypePointer type,
+                                               const SingleAssignRegisterNode* address,
+                                               const ast::NodePointer* initialiser,
+                                               ast::InitialisationType initialisationType,
+                                               ObjectInitialisationMode mode, const Location& source,
+                                               const typeSystem::ClassType* classType);
+          void ExecuteConstructor(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                  const typeSystem::ClassInfo& info, ConstructorSelection selection,
+                                  ObjectInitialisationMode mode, const ast::NodePointer* initialiser,
+                                  const Location& source);
+          void InlineConstructor(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                 const typeSystem::ClassInfo& info, ConstructorSelection& selection,
+                                 const Location& source);
+          void InitialiseClassWithoutConstructors(typeSystem::NonowningTypePointer type,
+                                                  const SingleAssignRegisterNode* address,
+                                                  const ast::NodePointer* initialiser, ObjectInitialisationMode mode,
+                                                  const Location& source, const typeSystem::ClassType* classType);
+          void InitialiseEmptyClassList(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                        const Location& source, const typeSystem::ClassType* classType);
+          void InitialisePositionalAggregate(const SingleAssignRegisterNode* address,
+                                             const ast::InitialiserListNode& list, const Location& source,
+                                             const typeSystem::ClassType* classType);
+          void InitialiseDesignatedAggregate(typeSystem::NonowningTypePointer type,
+                                             const SingleAssignRegisterNode* address,
+                                             const ast::InitialiserListNode& list, const Location& source,
+                                             const typeSystem::ClassType* classType);
+          void InitialiseArrayAtAddress(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                        const ast::NodePointer* initialiser, ast::InitialisationType initialisationType,
+                                        ObjectInitialisationMode mode, const Location& source);
+          void InitialiseClassMembers(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                      const Location& source);
+          void InitialiseDefaultMember(typeSystem::NonowningTypePointer classType, const typeSystem::ClassField& field,
+                                       std::size_t fieldIndex, const SingleAssignRegisterNode* objectAddress,
+                                       const SingleAssignRegisterNode* memberAddress, const Location& source);
+          void ZeroInitialiseAtAddress(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
+                                       const Location& source);
+          void InitialiseReferenceAtAddress(typeSystem::NonowningTypePointer type,
+                                            const SingleAssignRegisterNode* address,
+                                            const ast::NodePointer* initialiser,
+                                            ast::InitialisationType initialisationType, const Location& source,
+                                            bool aggregateElement = false);
+          [[nodiscard]] const SingleAssignRegisterNode* BindReferenceExpression(typeSystem::NonowningTypePointer type,
+                                                                                Expression referent,
+                                                                                const Location& source,
+                                                                                bool materialize = true);
+          void StoreAtAddress(const SingleAssignRegisterNode* address, const SingleAssignRegisterNode* value,
+                              typeSystem::NonowningTypePointer type, const Location& source);
+          [[nodiscard]] Expression BuildMemberAccess(Expression objectPointer, const typeSystem::ClassInfo& info,
+                                                     const typeSystem::ClassField& field, const Location& source);
 
+          struct TypeNameLookup
+          {
+               enum struct Kind : std::uint_fast8_t
+               {
+                    NotFound,
+                    NonType,
+                    Alias,
+                    Class
+               };
+
+               Kind kind{Kind::NotFound};
+               typeSystem::NonowningTypePointer alias{};
+               typeSystem::ClassId classId{typeSystem::InvalidClassId};
+          };
+
+          struct DeclaratorTypeResult
+          {
+               typeSystem::NonowningTypePointer type{};
+               bool unboundedArray{};
+               bool failed{};
+          };
+
+          [[nodiscard]] TypeNameLookup LookupTypeName(const std::string& name) const; // ordinary lookup
+          [[nodiscard]] std::optional<typeSystem::ClassId> LookupClassForElaboration(const std::string& name,
+                                                                                     const Location&);
+          [[nodiscard]] Scope& NearestNamespaceOrBlockScope(void) const;
+          [[nodiscard]] std::vector<typeSystem::ScopeSegment> EnclosingPathUpTo(const Scope& target) const;
+          typeSystem::ClassId DeclareClassInScope(Scope& scope, const ast::ClassType& node);
+          typeSystem::ClassId ResolveElaboratedClass(const ast::ClassType& node); // `struct X *p`
+          typeSystem::ClassId DefineClass(const ast::ClassDefNode& node);
+          void ParseClassMember(const ast::NodePointer& member, typeSystem::ClassId id, typeSystem::Access& access,
+                                std::vector<typeSystem::ClassField>& fields,
+                                std::vector<std::function<void()>>& deferred);
+          [[nodiscard]] DeclaratorTypeResult ResolveDeclaratorType(const ast::Declarator& declarator,
+                                                                   typeSystem::NonowningTypePointer base,
+                                                                   const std::string& name,
+                                                                   bool allowUnboundedOutermost);
+          void CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node);
+          void ParseMemberDeclaration(const ast::MemberDeclarationNode& node, typeSystem::ClassId id,
+                                      typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
+                                      std::vector<std::function<void()>>& deferred);
+          void EmitMemberFunctionBody(const ast::MemberDeclarator& declarator,
+                                      const std::shared_ptr<FunctionScope>& function, typeSystem::ClassId id);
+          [[nodiscard]] bool RequireComplete(typeSystem::NonowningTypePointer type, const Location& source,
+                                             std::string_view what) const;
+          [[nodiscard]] bool RejectClassByValue(typeSystem::NonowningTypePointer type, const Location& source,
+                                                std::string_view what) const;
+          [[nodiscard]] bool CanAccess(typeSystem::ClassId id, typeSystem::Access access) const;
+          [[nodiscard]] typeSystem::NonowningTypePointer AddQualifiers(typeSystem::NonowningTypePointer type,
+                                                                       typeSystem::Qualifiers qualifiers) const;
+          void StoreDefaultMemberInitialiser(typeSystem::ClassId id, std::size_t fieldIndex,
+                                             const ast::MemberDeclarator& declarator,
+                                             typeSystem::NonowningTypePointer memberType, const Location& source);
+          void ParseNestedClass(const ast::ClassType& nested, typeSystem::Access access,
+                                std::vector<typeSystem::ClassField>& fields);
+
+          [[nodiscard]] std::optional<std::uint64_t> EvaluateArrayBound(const ast::NodePointer& bound,
+                                                                        const std::string& name);
           Expression ParseArrayInitialiser(const ast::NodePointer& initialiser,
                                            typeSystem::NonowningTypePointer arrayType, const std::string& name);
           [[nodiscard]] std::optional<std::uint64_t> InferArrayLength(const ast::NodePointer& initialiser,
@@ -234,19 +411,19 @@ namespace ecpps::ir
 
           struct JumpScope
           {
-               JumpScope(IR& ir, std::string breakLabel, std::optional<std::string> continueLabel) : _ir(ir)
+               JumpScope(IR& ir, std::string breakLabel, std::optional<std::string> continueLabel) : _ir(&ir)
                {
-                    this->_ir._jumpStack.push_back({std::move(breakLabel), std::move(continueLabel)});
+                    this->_ir->_jumpStack.push_back({std::move(breakLabel), std::move(continueLabel)});
                }
                JumpScope(const JumpScope&) = delete;
                JumpScope& operator=(const JumpScope&) = delete;
                ~JumpScope()
                {
-                    this->_ir._jumpStack.pop_back();
+                    this->_ir->_jumpStack.pop_back();
                }
 
           private:
-               IR& _ir;
+               IR* _ir;
           };
 
           [[nodiscard]] bool EmitConditionalBranch(const ast::NodePointer& condition, const std::string& trueLabel,
@@ -287,7 +464,7 @@ namespace ecpps::ir
 
           struct BlockScope
           {
-               explicit BlockScope(IR& ir) noexcept : _ir(ir)
+               explicit BlockScope(IR& ir) noexcept : _ir(&ir)
                {
                }
                BlockScope(const BlockScope&) = delete;
@@ -295,7 +472,9 @@ namespace ecpps::ir
                ~BlockScope() = default;
 
           private:
-               [[maybe_unused]] IR& _ir;
+               [[maybe_unused]] IR* _ir;
           };
+
+          void EmitThisPrologue(typeSystem::NonowningTypePointer thisType, const Location& source);
      };
 } // namespace ecpps::ir

@@ -47,7 +47,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& source = registerArray[1];
      const auto parameterIndex = static_cast<std::size_t>(registerArray[2].index);
      const ir::FunctionScope* scope = this->Scopes()[scopeIndex];
-     const auto numberOfParameters = scope->parameters.size();
+     const auto numberOfParameters = scope->CallingConventionParameterCount();
      const auto& platform = *this->_target->platform;
 
      runtime_assert(parameterIndex < numberOfParameters,

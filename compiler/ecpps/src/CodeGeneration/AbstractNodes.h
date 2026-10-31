@@ -128,7 +128,8 @@ namespace ecpps::ir::abstract
           ZeroMemory,
           CopyFromData,
           Division,
-          Indirection
+          Indirection,
+          IndirectStore
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -166,6 +167,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Multiplication: return "multiply";
           case VirtualInstructionType::Division: return "divide";
           case VirtualInstructionType::Indirection: return "indirect";
+          case VirtualInstructionType::IndirectStore: return "indirect-store";
           }
           throw TracedException("control flow");
      }

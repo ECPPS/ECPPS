@@ -5,6 +5,7 @@
 #include <optional>
 #include "../Parsing/AST.h"
 #include "Context.h"
+#include "Execution/MemoryAccess.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 
@@ -18,14 +19,6 @@ namespace ecpps::ir
           Atomic,
           Assign,
           AtomicAssign,
-     };
-
-     enum struct MemoryOrdering : std::uint_fast8_t
-     {
-          Acquire,
-          Release,
-          Relaxed,
-          Sequenced,
      };
 
      class SSARegisterReferenceNode final : public NodeBase
@@ -105,13 +98,19 @@ namespace ecpps::ir
      class SSALoadNode final : public NodeBase
      {
      public:
-          explicit SSALoadNode(SSAPointer result, const SingleAssignRegisterNode* address, Location source)
-              : NodeBase(NodeKind::Load, source), _result(std::move(result)), _address(address)
+          explicit SSALoadNode(SSAPointer result, const SingleAssignRegisterNode* address, MemoryAccess access,
+                               Location source)
+              : NodeBase(NodeKind::Load, source), _result(std::move(result)), _address(address), _access(access)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_address != nullptr, "Invalid SSA address");
 
                if (this->_address != nullptr) this->_address->Use();
+               this->_access.Verify();
+          }
+          [[nodiscard]] const MemoryAccess& Access(void) const noexcept
+          {
+               return this->_access;
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
@@ -125,13 +124,14 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{: <{}}{} = __load({})", ' ', indent * ast::PrettyIndent, this->_result->ToString(0),
-                                  this->_address->ToString(0));
+               return std::format("{: <{}}{} = {} __load({})", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_access.ToString(), this->_address->ToString(0));
           }
 
      private:
           SSAPointer _result;
           const SingleAssignRegisterNode* _address;
+          MemoryAccess _access;
      };
 
      class SSALabelNode final : public NodeBase
@@ -1308,7 +1308,67 @@ namespace ecpps::ir
      private:
           std::unique_ptr<SingleAssignRegisterNode, IRDeleter> _ssa;
      };
+     class ThisNode final : public NodeBase
+     {
+     public:
+          explicit ThisNode(const FunctionScope* function, typeSystem::NonowningTypePointer thisType,
+                            const SingleAssignRegisterNode* allocReg, Location source)
+              : NodeBase(NodeKind::IncomingThis, source), _function(function), _thisType(thisType), _allocReg(allocReg)
+          {
+               runtime_assert(this->_function != nullptr, "Invalid function scope");
+               runtime_assert(this->_thisType != nullptr && typeSystem::IsPointer(this->_thisType),
+                              "`this` must be a pointer");
+               runtime_assert(this->_allocReg != nullptr, "Invalid alloc register");
+          }
 
+          [[nodiscard]] const FunctionScope& Function(void) const noexcept
+          {
+               return *this->_function;
+          }
+          [[nodiscard]] typeSystem::NonowningTypePointer ThisType(void) const noexcept
+          {
+               return this->_thisType;
+          }
+          [[nodiscard]] const SingleAssignRegisterNode& AllocReg(void) const noexcept
+          {
+               return *this->_allocReg;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("store {}, __this", this->_allocReg->ToString(0));
+          }
+
+     private:
+          const FunctionScope* _function;
+          typeSystem::NonowningTypePointer _thisType;
+          const SingleAssignRegisterNode* _allocReg;
+     };
+     class SSAStoreThisNode final : public NodeBase
+     {
+     public:
+          explicit SSAStoreThisNode(const SingleAssignRegisterNode* pointer, Location source)
+              : NodeBase(NodeKind::StoreThis, source), _pointer(pointer)
+          {
+               runtime_assert(this->_pointer != nullptr, "Invalid `this` pointer register");
+               if (this->_pointer != nullptr) this->_pointer->Use();
+          }
+
+          [[nodiscard]] const SingleAssignRegisterNode& Pointer(void) const noexcept
+          {
+               return *this->_pointer;
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') +
+                      std::format("__store_this {}", this->_pointer->ToString(0));
+          }
+
+     private:
+          const SingleAssignRegisterNode* _pointer;
+     };
      class ParameterNode final : public NodeBase
      {
      public:

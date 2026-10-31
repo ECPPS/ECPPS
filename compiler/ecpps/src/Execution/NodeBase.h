@@ -50,7 +50,11 @@ namespace ecpps::ir
           Label,
           Compare,
           Branch,
-          Jump
+          Jump,
+          IncomingThis,
+          StoreThis,
+          ThisExpression,
+          IncomingReturnSlot
      };
      enum struct ComparisonPredicate : std::uint_fast8_t
      {

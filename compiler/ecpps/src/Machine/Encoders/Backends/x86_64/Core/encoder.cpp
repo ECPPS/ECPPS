@@ -104,6 +104,9 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::Indirection>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>&);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::IndirectStore>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>&);
 
 extern template ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::MaterialisationImplementation<ecpps::ir::abstract::VirtualInstructionType::Copy>(
@@ -460,6 +463,7 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
      case Type::Call:
      case Type::CallWithResult:
      case Type::CopyParameter: return {};
+     case Type::IndirectStore: return operands;
      case Type::Return: return operands;
      case Type::PassArgument:
           if (operands.size() < 2) return {};
@@ -636,6 +640,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Indirection:
           instructions.append_range(
                EncoderImplementation<ir::abstract::VirtualInstructionType::Indirection>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::IndirectStore:
+          instructions.append_range(
+               EncoderImplementation<ir::abstract::VirtualInstructionType::IndirectStore>(instruction.operands));
           break;
 
      default: throw TracedException("Unknown instruction");

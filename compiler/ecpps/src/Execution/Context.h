@@ -15,13 +15,17 @@
 #include <variant>
 #include <vector>
 #include "../Machine/ABI.h"
+#include "../Parsing/AST.h"
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Entities.h"
+#include "Execution/Expressions.h"
 #include "Execution/NodeBase.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
 #include "TypeSystem/ArithmeticTypes.h"
+#include "TypeSystem/ClassInfo.h"
+#include "TypeSystem/ClassType.h"
 #include "TypeSystem/CompoundTypes.h"
 
 namespace ecpps::ir
@@ -60,8 +64,17 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer elementType{};
      };
+     struct ReferenceRequest
+     {
+          typeSystem::NonowningTypePointer elementType{};
+          typeSystem::ReferenceType::Kind kind{typeSystem::ReferenceType::Kind::LValue};
+     };
      struct BooleanRequest
      {
+     };
+     struct ClassRequest
+     {
+          typeSystem::ClassId id{typeSystem::InvalidClassId};
      };
      using VoidRequest = std::monostate;
      struct TypeRequest;
@@ -83,8 +96,9 @@ namespace ecpps::ir
 
      struct TypeRequest
      {
-          using VarRequest = std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest,
-                                          PointerRequest, PlatformIntegerRequest, BooleanRequest, InvalidRequest>;
+          using VarRequest =
+               std::variant<VoidRequest, StandardSignedIntegerRequest, BoundedArrayRequest, PointerRequest,
+                            ReferenceRequest, PlatformIntegerRequest, BooleanRequest, ClassRequest, InvalidRequest>;
 
           TypeKind kind{};
           typeSystem::Qualifiers qualifiers{};
@@ -100,6 +114,7 @@ namespace ecpps::ir
                     if (!std::holds_alternative<StandardSignedIntegerRequest>(other.data)) return false;
                     const auto& thisData = std::get<StandardSignedIntegerRequest>(this->data);
                     const auto& otherData = std::get<StandardSignedIntegerRequest>(other.data);
+                    if (thisData.isCharWithoutSign != otherData.isCharWithoutSign) return false;
 
                     if (thisData.signedness != otherData.signedness) return false;
                     if (thisData.size != otherData.size) return false;
@@ -128,6 +143,14 @@ namespace ecpps::ir
                     return thisData.elementType == otherData.elementType;
                }
 
+               if (std::holds_alternative<ReferenceRequest>(this->data))
+               {
+                    if (!std::holds_alternative<ReferenceRequest>(other.data)) return false;
+                    const auto& thisData = std::get<ReferenceRequest>(this->data);
+                    const auto& otherData = std::get<ReferenceRequest>(other.data);
+                    return thisData.elementType == otherData.elementType && thisData.kind == otherData.kind;
+               }
+
                if (std::holds_alternative<VoidRequest>(this->data))
                {
                     return std::holds_alternative<VoidRequest>(other.data);
@@ -147,6 +170,13 @@ namespace ecpps::ir
 
                     return thisData.kind == otherData.kind;
                }
+
+               if (std::holds_alternative<ClassRequest>(this->data))
+               {
+                    return std::holds_alternative<ClassRequest>(other.data) &&
+                           std::get<ClassRequest>(this->data).id == std::get<ClassRequest>(other.data).id;
+               }
+               if (std::holds_alternative<InvalidRequest>(this->data)) return this == &other;
 
                throw TracedException("Not implemented");
           }
@@ -215,12 +245,19 @@ namespace ecpps::ir
                          {
                               seed = HashCombine(seed, data.elementType);
                          }
+                         else if constexpr (std::is_same_v<T, ReferenceRequest>)
+                         {
+                              seed = HashCombine(seed, data.elementType);
+                              seed = HashCombine(seed, data.kind);
+                         }
                          else if constexpr (std::is_same_v<T, VoidRequest>)
                          {
                          }
                          else if constexpr (std::is_same_v<T, BooleanRequest>)
                          {
                          }
+                         else if constexpr (std::is_same_v<T, ClassRequest>)
+                              seed = HashCombine(seed, data.id);
                          else if constexpr (std::is_same_v<T, InvalidRequest>)
                               seed = HashCombine(seed, &data);
                          else
@@ -257,6 +294,13 @@ namespace ecpps::ir
 
           typeSystem::NonowningTypePointer Get(const TypeRequest& request)
           {
+               if (request.kind == TypeKind::Error)
+               {
+                    const auto* invalid = std::get_if<InvalidRequest>(&request.data);
+                    return invalid != nullptr && invalid->suggestedRequest ? this->Get(*invalid->suggestedRequest)
+                                                                           : nullptr;
+               }
+
                // TODO: Atomic? or not?
                if (this->_typeDatabase.contains(request))
                {
@@ -285,10 +329,66 @@ namespace ecpps::ir
                       std::ranges::to<std::vector>();
           }
 
-          // [[nodiscard]] const typeSystem::TypeBase* Get(typeSystem::TypeId id) const noexcept
-          // {
-          //      return this->_typeDatabase[id.value].get();
-          // }
+          typeSystem::ClassId DeclareClass(typeSystem::ClassDeclaration declaration)
+          {
+               const auto id = static_cast<typeSystem::ClassId>(this->_classes.size());
+               auto& info = this->_classes.emplace_back();
+               info.id = id;
+               info.kind = declaration.kind;
+               info.name = std::move(declaration.name);
+               info.enclosingPath = std::move(declaration.enclosingPath);
+               info.isLocal = declaration.isLocal;
+               info.source = declaration.source;
+               return id;
+          }
+
+          typeSystem::ClassId DeclareInstantiation(std::string key, typeSystem::ClassDeclaration declaration)
+          {
+               if (const auto it = this->_instantiations.find(key); it != this->_instantiations.end())
+                    return it->second;
+               const auto id = this->DeclareClass(std::move(declaration));
+               this->_classes[id].instantiationKey = key;
+               this->_instantiations.emplace(std::move(key), id);
+               return id;
+          }
+          [[nodiscard]] const typeSystem::ClassInfo& Class(typeSystem::ClassId id) const
+          {
+               return this->_classes.at(id);
+          }
+          [[nodiscard]] typeSystem::ClassInfo& Class(typeSystem::ClassId id)
+          {
+               return this->_classes.at(id);
+          }
+          void BeginDefinition(typeSystem::ClassId id)
+          {
+               auto& info = this->_classes.at(id);
+               runtime_assert(info.state == typeSystem::ClassState::Declared, "Class defined twice");
+               info.state = typeSystem::ClassState::Defining;
+          }
+          void Complete(typeSystem::ClassId id, std::vector<typeSystem::ClassField> fields)
+          {
+               auto& info = this->_classes.at(id);
+               runtime_assert(info.state == typeSystem::ClassState::Defining, "Complete() without BeginDefinition()");
+
+               std::vector<abi::MemberLayoutInput> inputs;
+               inputs.reserve(fields.size());
+               bool triviallyCopyable = true;
+               for (const auto& field : fields)
+               {
+                    runtime_assert(field.type != nullptr && field.type->IsComplete(),
+                                   "Incomplete member reached layout");
+                    triviallyCopyable = triviallyCopyable && IsTriviallyCopyable(field.type);
+                    inputs.push_back({.size = field.type->Size(), .alignment = field.type->Alignment()});
+               }
+               const auto layout = abi::ABI::Current().LayoutClass(info.kind == typeSystem::ClassKind::Union, inputs);
+               for (std::size_t i = 0; i < fields.size(); i++) fields[i].offset = layout.offsets.at(i);
+
+               info.fields = std::move(fields);
+               info.size = layout.size;
+               info.alignment = layout.alignment;
+               info.triviallyCopyable = triviallyCopyable;
+               info.state = typeSystem::ClassState::Complete;
+          }
 
           OptimisationFeatureSets optimisations{};
 
@@ -428,16 +528,34 @@ namespace ecpps::ir
                               pointerData.elementType, std::format("{}* {}", pointerData.elementType->Name(), cv),
                               request.qualifiers);
                     }
+                    if (std::holds_alternative<ReferenceRequest>(request.data))
+                    {
+                         const auto& referenceData = std::get<ReferenceRequest>(request.data);
+                         const auto* const suffix =
+                              referenceData.kind == typeSystem::ReferenceType::Kind::LValue ? "&" : "&&";
+                         return std::make_unique<typeSystem::ReferenceType>(
+                              referenceData.elementType, referenceData.kind,
+                              std::format("{}{}", referenceData.elementType->Name(), suffix));
+                    }
+                    if (std::holds_alternative<ClassRequest>(request.data))
+                    {
+                         const auto& info = this->_classes.at(std::get<ClassRequest>(request.data).id);
+                         return std::make_unique<typeSystem::ClassType>(
+                              &info, std::format("{}{}", cv, info.DisplayName()), request.qualifiers);
+                    }
                }
 
                throw TracedException("Invalid data type");
           }
 
           std::unordered_map<TypeRequest, Node, TypeRequestHash> _typeDatabase{};
+          std::deque<typeSystem::ClassInfo> _classes{}; // stable bointers
+          std::unordered_map<std::string, typeSystem::ClassId> _instantiations{};
      };
 
      TypeContext& GetTypeContext(void);
 
+     struct ClassScope;
      struct Scope
      {
           virtual ~Scope(void);
@@ -448,8 +566,16 @@ namespace ecpps::ir
                types{};
           std::vector<std::shared_ptr<FunctionScope>> functions{};
           std::unordered_map<std::string, typeSystem::NonowningTypePointer> typeAliases{};
+          std::unordered_map<std::string, typeSystem::ClassId> classes{};
+          std::vector<std::unique_ptr<ClassScope>> classScopes{};
      };
      using ScopePtr = std::shared_ptr<Scope>;
+     struct ClassScope final : Scope
+     {
+          std::string name{};
+          typeSystem::ClassId id{typeSystem::InvalidClassId};
+          std::unordered_map<std::string, typeSystem::Access> memberAccess{}; // all the meows
+     };
 
      struct ContextBase
      {
@@ -489,6 +615,16 @@ namespace ecpps::ir
           std::string name;
           std::vector<typeSystem::NonowningTypePointer> parameters;
           std::uint32_t nextRegisterIndex = 0;
+          typeSystem::NonowningTypePointer thisType{};
+
+          void RegisterThisAllocReg(const ir::SingleAssignRegisterNode* node) noexcept
+          {
+               this->_thisAllocReg = node;
+          }
+          [[nodiscard]] const ir::SingleAssignRegisterNode* GetThisRegister(void) const noexcept
+          {
+               return this->_thisAllocReg;
+          }
 
           explicit FunctionContext(Scope* vScope, abi::CallingConventionName callingConvention,
                                    [[maybe_unused]] typeSystem::NonowningTypePointer returnType, std::string name,
@@ -522,9 +658,15 @@ namespace ecpps::ir
 
           std::unordered_map<std::string, SSANode> _nameToSSAMapping{};
           std::unordered_map<std::uint64_t, const ir::SingleAssignRegisterNode*> _indexToSSAMapping{};
+          const ir::SingleAssignRegisterNode* _thisAllocReg{};
      };
+
      struct ClassContext final : ContextBase
      {
+          explicit ClassContext(Scope* vScope, typeSystem::ClassId classId) : ContextBase(vScope), classId(classId)
+          {
+          }
+          typeSystem::ClassId classId;
      };
      struct NamespaceContext final : ContextBase
      {
@@ -575,6 +717,8 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
+          bool isMemberFunctionDefined = false;
+          bool isDeleted = false;
           bool isInline = false;
           bool isFriend = false;
           bool isExtern = false;
@@ -585,6 +729,9 @@ namespace ecpps::ir
           std::string dllImportName{};
           Location source{0, 0, 0};
           std::size_t emittedOffset = std::numeric_limits<std::size_t>::max();
+          const typeSystem::ClassInfo* memberClassInfo{};
+          abi::MemberFunctionInfo memberFunctionInfo{};
+          typeSystem::Access memberAccess{typeSystem::Access::Public};
 
           struct Parameter
           {
@@ -593,6 +740,13 @@ namespace ecpps::ir
                bool isVariadic = false;
           };
           std::vector<Parameter> parameters{};
+
+          [[nodiscard]] std::size_t CallingConventionParameterCount(void) const noexcept
+          {
+               return this->parameters.size() +
+                      static_cast<std::size_t>(this->memberClassInfo != nullptr && !this->isStatic);
+          }
+
           ///
           /// A local entity is a variable with automatic storage duration, a structured binding whose corresponding
           /// variable is such an entity, or the *this object.
@@ -797,19 +951,10 @@ namespace ecpps::ir
           return FunctionScopeBuilder{new FunctionScope{}};
      }
 
-     struct ClassScope final : Scope
-     {
-          std::string name{};
-          std::vector<std::unique_ptr<FunctionScope>> memberFunctions{};
-          std::vector<std::unique_ptr<FunctionScope>> staticMemberFunctions{};
-          std::vector<std::unique_ptr<ClassScope>> nestedClasses{};
-     };
-
      struct NamespaceScope final : Scope, ir::Entity
      {
           bool isInline = false;
           std::vector<std::unique_ptr<NamespaceScope>> subNamespaces{};
-          std::vector<std::unique_ptr<ClassScope>> classes{};
           explicit NamespaceScope(void) : ir::Entity(ir::EntityKind::Namespace, std::nullopt)
           {
           }
@@ -823,11 +968,39 @@ namespace ecpps::ir
                                   this->Name().has_value() ? this->Name().value() : "<anonymous>");
           }
      };
+     struct DefaultMemberInitialiser
+     {
+          std::size_t fieldIndex{};
+          const ast::NodePointer* initialiser{};
+          ast::InitialisationType initialisationType{ast::InitialisationType::Default};
+          bool invalid{};
+          Location source{0, 0, 0};
+     };
+
+     struct ClassConstructor
+     {
+          std::vector<FunctionScope::Parameter> parameters{};
+          const ast::MemberDeclarator* declaration{};
+          typeSystem::Access access{typeSystem::Access::Public};
+          bool isExplicit{};
+     };
+
+     struct ClassIrData
+     {
+          ClassScope* scope{};
+          std::vector<DefaultMemberInitialiser> memberInitialisers{};
+          std::vector<ClassConstructor> constructors{};
+     };
+     struct ClassSideTable
+     {
+          std::unordered_map<typeSystem::ClassId, ClassIrData> classes{};
+     };
 
      struct Context
      {
           std::reference_wrapper<Diagnostics> diagnostics;
           BumpAllocator* nodeAllocator;
+          std::shared_ptr<ClassSideTable> classTable = std::make_shared<ClassSideTable>();
 
           ScopePtr globalScope = std::make_unique<NamespaceScope>();
           std::deque<ContextPointer> contextSequence{};

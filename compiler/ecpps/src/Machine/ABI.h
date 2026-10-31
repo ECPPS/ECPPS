@@ -1,19 +1,13 @@
 #pragma once
 #include <RuntimeAssert.h>
 #include <cstddef>
-#include <memory>
+#include <span>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <variant>
 #include <vector>
-#include "../CodeGeneration/Nodes.h"
 #include "../TypeSystem/TypeBase.h"
-#include "CodeGeneration/AbstractNodes.h"
 #include "Machine.h"
-#include "Machine/Encoders/API/VirtualInstructionEncoder.h"
-#include "Machine/Encoders/InstructionEncoder.h"
-#include "Storage.h"
+#include "Machine/Mangling.h"
+#include "TypeSystem/ClassInfo.h"
 
 /// <summary>
 /// The term "width" is always measured in bits, while "size" in bytes. ECPPS ABI defines one byte to be exactly eight
@@ -22,18 +16,25 @@
 
 namespace ecpps::abi
 {
-     enum struct Linkage : std::uint_fast8_t
+     enum struct SpecialMemberKind : std::uint_fast8_t
      {
-          NoLinkage,
-          Internal,
-          External,
-          Module,
-          CLinkage
+          Constructor,
+          Destructor
      };
-
-     enum struct CallingConventionName : std::uint_fast16_t // NOLINT(performance-enum-size)
+     struct MemberLayoutInput
      {
-          Microsoftx64
+          std::size_t size{};
+          std::size_t alignment{};
+     };
+     struct ClassLayoutResult
+     {
+          std::size_t size{};
+          std::size_t alignment{};
+          std::vector<std::size_t> offsets{};
+     };
+     struct SpecialMemberAbi
+     {
+          bool constructorsReturnThis{};
      };
 
      template <typename T>
@@ -90,6 +91,19 @@ namespace ecpps::abi
           typeSystem::TypeKind intptrSize{};
 
           std::string importPrefix{};
+
+          [[nodiscard]] ClassLayoutResult LayoutClass(bool isUnion, std::span<const MemberLayoutInput> members) const;
+          [[nodiscard]] SpecialMemberAbi SpecialMembers(void) const noexcept;
+          [[nodiscard]] CallingConventionName ImplicitMemberCallingConvention(void) const noexcept;
+          [[nodiscard]] Linkage ImplicitMemberLinkage(void) const noexcept;
+          [[nodiscard]] static std::string MangleMemberName(
+               Linkage linkage, const std::string& name, CallingConventionName callingConvention,
+               typeSystem::NonowningTypePointer returnType,
+               const std::vector<typeSystem::NonowningTypePointer>& parameters,
+               const std::vector<typeSystem::ScopeSegment>& scope, const MemberFunctionInfo& member);
+          [[nodiscard]] std::string MangleSpecialMember(
+               const typeSystem::ClassInfo& info, SpecialMemberKind kind,
+               const std::vector<typeSystem::NonowningTypePointer>& parameters) const;
 
      private:
           static ABI _current;

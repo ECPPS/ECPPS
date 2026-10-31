@@ -194,6 +194,7 @@ namespace ecpps::codegen
           void ParseAllocateNode(const ir::AllocationNode& node);
           void ParseReturnNode(const ir::SSAReturnNode& node);
           void ParseStoreNode(const ir::SSAStoreNode& node);
+          void ParseIndirectStoreNode(const ir::SSAIndirectStoreNode& node);
           void ParseStoreIntNode(const ir::SSAStoreIntegerNode& node);
           void ParseArrayStoreNode(const ir::SSAArrayStoreNode& node);
           void ParseAddNode(const ir::SSAAddNode& node);
@@ -212,6 +213,7 @@ namespace ecpps::codegen
           void ParseIntNode(const ir::SSAImmNode& node);
           void ParseCallNode(const ir::SSACallNode& node);
           void ParseParameterStoreNode(const ir::ParameterNode& node);
+          void ParsePointerConvertNode(const ir::SSAPointerConvertNode& node);
           void ParsePointerConvertNode(const ir::SSAPointerConvertFromDecayNode& node);
           void ParseAddressOfNode(const ir::SSAAddressOfNode& node);
           void ParseLabelNode(const ir::SSALabelNode& node);
