@@ -51,6 +51,11 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
+    needs:
+      - build-windows
+      - build-linux
+      - tests-build
+      - sanitisers
     uses: ./.github/workflows/_clang-tidy.yml
     with:
       llvm-version: "20.1.8"
