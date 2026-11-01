@@ -18,6 +18,13 @@ jobs:
       release_tag: ${{ steps.gate.outputs.release_tag }}
 
     steps:
+      - name: Reject manual dispatches from other refs
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/development'
+        shell: bash
+        run: |
+          echo "Manual nightly builds must be dispatched from development." >&2
+          exit 1
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: development
@@ -76,7 +83,6 @@ jobs:
     if: needs.gate.outputs.publish == 'true'
     uses: ./.github/workflows/_compiler-package.yml
     with:
-      source-ref: ${{ needs.gate.outputs.source_sha }}
       source-sha: ${{ needs.gate.outputs.source_sha }}
       package-version: ${{ needs.gate.outputs.release_tag }}
 

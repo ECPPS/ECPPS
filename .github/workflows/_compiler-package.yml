@@ -3,10 +3,6 @@ name: _compiler-package
 on:
   workflow_call:
     inputs:
-      source-ref:
-        description: "Git ref or commit to package"
-        required: true
-        type: string
       source-sha:
         description: "Full source commit SHA"
         required: true
@@ -23,6 +19,7 @@ on:
 
 permissions:
   contents: read
+cache-mode: none
 
 jobs:
   windows:
@@ -30,9 +27,19 @@ jobs:
     runs-on: windows-2025
 
     steps:
+      - name: Validate package source commit
+        shell: pwsh
+        env:
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          if ($env:SOURCE_SHA -cnotmatch '^[0-9a-f]{40}$') {
+            throw "Expected a full lowercase 40-character commit SHA."
+          }
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source-ref }}
+          ref: ${{ inputs.source-sha }}
+          persist-credentials: false
 
       - name: Verify Clang
         shell: pwsh
@@ -146,9 +153,20 @@ jobs:
     runs-on: ubuntu-26.04
 
     steps:
+      - name: Validate package source commit
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Expected a full lowercase 40-character commit SHA." >&2
+            exit 1
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source-ref }}
+          ref: ${{ inputs.source-sha }}
+          persist-credentials: false
 
       - name: Install LLVM 20
         shell: bash

@@ -92,7 +92,6 @@ jobs:
       - tests
     uses: ./.github/workflows/_compiler-package.yml
     with:
-      source-ref: ${{ github.sha }}
       source-sha: ${{ github.sha }}
       package-version: ${{ github.ref_name }}
       smoke-test-package: true
