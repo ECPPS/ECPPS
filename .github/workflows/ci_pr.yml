@@ -3,7 +3,6 @@ name: CI — Pull Request
 on:
   pull_request:
     branches:
-      - main
       - development
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
@@ -44,7 +43,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_tests.yml
     with:
-      enable-ccache: true
+      llvm-version: "20.1.8"
 
   clang-tidy:
     name: "clang-tidy"
@@ -81,8 +80,8 @@ jobs:
         run: |
           results='${{ toJSON(needs.*.result) }}'
           echo "Job results: $results"
-          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
-            echo "One or more required jobs failed or were cancelled."
+          if echo "$results" | grep -qE '"(failure|cancelled|skipped)"'; then
+            echo "One or more required jobs failed, were skipped, or were cancelled."
             exit 1
           fi
           echo "All required jobs passed."

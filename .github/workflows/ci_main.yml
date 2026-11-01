@@ -1,12 +1,12 @@
-name: CI — Main
+name: CI — Stable Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*"
 
 concurrency:
-  group: ci-main
+  group: ci-stable-release
   cancel-in-progress: false
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_tests.yml
     with:
-      enable-ccache: true
+      llvm-version: "20.1.8"
 
   clang-tidy:
     name: "clang-tidy"
@@ -55,76 +55,65 @@ jobs:
 
   sanitisers:
     name: "Sanitisers"
-    needs: build
+    needs:
+      - build-windows
+      - build-linux
     uses: ./.github/workflows/_sanitisers.yml
     with:
       llvm-version: "20.1.8"
       enable-ccache: true
 
-  release:
-    name: "Release"
+  packages:
+    name: "Compiler packages"
     needs:
+      - build-windows
+      - build-linux
       - clang-tidy
       - sanitisers
       - tests
+    uses: ./.github/workflows/_compiler-package.yml
+    with:
+      source-ref: ${{ github.sha }}
+      source-sha: ${{ github.sha }}
+      package-version: ${{ github.ref_name }}
+
+  release:
+    name: "Release"
+    needs:
+      - build-windows
+      - build-linux
+      - clang-tidy
+      - sanitisers
+      - tests
+      - packages
     runs-on: windows-latest
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download Clang Release artifact
+      - name: Download Windows compiler package
         uses: actions/download-artifact@v4
         with:
-          name: build-clang20-Release
-          path: dist/clang-release
+          name: compiler-package-windows
+          path: dist/windows
 
-      - name: Derive version from tag or SHA
-        shell: pwsh
-        run: |
-          $sha    = "${{ github.sha }}".Substring(0, 8)
-          $gitTag = git tag --points-at HEAD | Select-Object -First 1
-          $version = if ($gitTag) { $gitTag } else { "release-clang-$sha" }
-
-          echo "VERSION=$version" >> $env:GITHUB_ENV
-          echo "SHA_SHORT=$sha"   >> $env:GITHUB_ENV
-
-      - name: Package release archive
-        shell: pwsh
-        run: |
-          $archive = "ecpps-${{ env.VERSION }}-clang.zip"
-
-          $items = @(
-            (Get-ChildItem -Recurse dist\clang-release -Include "*.exe","*.pdb") |
-              Select-Object -ExpandProperty FullName
-          )
-
-          if ($items.Count -eq 0) {
-            Write-Error "No build outputs found in dist/clang-release"
-            exit 1
-          }
-
-          Compress-Archive -Path $items -DestinationPath $archive -Force
-          echo "ARCHIVE=$archive" >> $env:GITHUB_ENV
+      - name: Download Linux compiler package
+        uses: actions/download-artifact@v4
+        with:
+          name: compiler-package-linux
+          path: dist/linux
 
       - name: Create stable release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "${{ env.VERSION }}"
-          name: "ECPPS ${{ env.VERSION }}"
+          tag_name: ${{ github.ref_name }}
+          name: "ECPPS ${{ github.ref_name }}"
           body: |
-            **Stable release** built from `main` @ `${{ github.sha }}`.
-
-            Compiler: Clang 20.1.8
-            Commit:   `${{ github.sha }}`
-
-            ### What's included
-            - `*.exe`  — ECPPS compiler binaries
-            - `*.pdb`  — Debug symbols
+            Automated stable release for Windows x64 and Linux x64 (Clang 20 Release).
           prerelease: false
-          files: ${{ env.ARCHIVE }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/windows/ecpps-windows-x64-clang.zip
+            dist/linux/ecpps-linux-x64-clang.zip
           fail_on_unmatched_files: true
           generate_release_notes: true

@@ -1,0 +1,242 @@
+name: _compiler-package
+
+on:
+  workflow_call:
+    inputs:
+      source-ref:
+        description: "Git ref or commit to package"
+        required: true
+        type: string
+      source-sha:
+        description: "Full source commit SHA"
+        required: true
+        type: string
+      package-version:
+        description: "Release or nightly identifier"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: "Windows x64 / Clang Release"
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source-ref }}
+
+      - name: Verify Clang
+        shell: pwsh
+        run: |
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          $clang = Join-Path $llvmBin "clang.exe"
+          if (-not (Test-Path $clang)) {
+            throw "LLVM installation not found at $clang"
+          }
+
+          $versionLine = (& $clang --version | Select-Object -First 1).ToString()
+          Write-Host $versionLine
+          if ($versionLine -notmatch "clang version 20\.1\.8(\s|$)") {
+            throw "Expected LLVM 20.1.8 but found: $versionLine"
+          }
+
+          echo $llvmBin >> $env:GITHUB_PATH
+
+      - name: Configure Release build
+        shell: pwsh
+        run: |
+          cmake --preset Win64-Clang `
+            -DBUILD_TESTING=OFF `
+            -DENABLE_CCACHE=OFF `
+            -DENABLE_LTO=ON
+
+      - name: Build compiler
+        shell: pwsh
+        run: cmake --build --preset Win64-Clang-Release --target ecpps --parallel
+
+      - name: Install and package compiler
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ inputs.package-version }}
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP "ecpps-stage"
+          $archive = Join-Path $env:RUNNER_TEMP "ecpps-windows-x64-clang.zip"
+          cmake --install out/build/Win64-Clang --config Release --component compiler --prefix $stage
+
+          $executable = Join-Path $stage "bin\ecpps.exe"
+          if (-not (Test-Path $executable)) {
+            throw "CMake install did not produce bin\ecpps.exe"
+          }
+          if (-not (Test-Path (Join-Path $stage "include\cstdio"))) {
+            throw "CMake install did not produce stdlib include headers"
+          }
+
+          $imports = & llvm-readobj --coff-imports $executable
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unable to inspect Windows runtime imports"
+          }
+          $imports | Set-Content -Path (Join-Path $stage "runtime-dependencies.txt") -Encoding utf8
+
+          $clangVersion = (& clang++ --version | Select-Object -First 1).ToString()
+          $builtAt = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $readme = @"
+          ECPPS $env:PACKAGE_VERSION (Windows x64)
+
+          Commit: $env:SOURCE_SHA
+          Built (UTC): $builtAt
+          Compiler: $clangVersion
+          Contents: bin\ecpps.exe, include\
+          Runtime dependencies: runtime-dependencies.txt
+          "@
+          $readme | Set-Content -Path (Join-Path $stage "README.txt") -Encoding utf8
+
+          $manifest = [ordered]@{
+            package_version = $env:PACKAGE_VERSION
+            commit = $env:SOURCE_SHA
+            built_at_utc = $builtAt
+            target = "windows-x64"
+            configuration = "Release"
+            compiler = $clangVersion
+            external_runtime_prerequisites = @(
+              "Windows runtime DLLs listed in runtime-dependencies.txt",
+              "Microsoft Visual C++ 2015-2022 Redistributable (x64), when required"
+            )
+          }
+          $manifest | ConvertTo-Json -Depth 4 |
+            Set-Content -Path (Join-Path $stage "manifest.json") -Encoding utf8
+
+          Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $archive
+
+      - name: Upload Windows compiler package
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-package-windows
+          path: ${{ runner.temp }}/ecpps-windows-x64-clang.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  linux:
+    name: "Linux x64 / Clang Release"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source-ref }}
+
+      - name: Install LLVM 20
+        shell: bash
+        run: |
+          llvm_bin="/usr/lib/llvm-20/bin"
+          if [[ ! -x "$llvm_bin/clang++" ]]; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh 20 all
+          fi
+          echo "$llvm_bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$llvm_bin/../lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Install GCC 15 C++ runtime
+        shell: bash
+        run: |
+          if ! command -v gcc-15 >/dev/null || ! command -v g++-15 >/dev/null; then
+            sudo apt-get install -y software-properties-common
+            sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          fi
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
+
+      - name: Configure Release build
+        shell: bash
+        run: |
+          cmake --preset Linux-Clang \
+            -DBUILD_TESTING=OFF \
+            -DENABLE_CCACHE=OFF \
+            -DENABLE_LTO=ON
+
+      - name: Build compiler
+        shell: bash
+        run: cmake --build --preset Linux-Clang-Release --target ecpps --parallel
+
+      - name: Install and package compiler
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ inputs.package-version }}
+          SOURCE_SHA: ${{ inputs.source-sha }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/ecpps-stage"
+          archive="$RUNNER_TEMP/ecpps-linux-x64-clang.zip"
+          cmake --install out/build/Linux-Clang --config Release --component compiler --prefix "$stage"
+
+          executable="$stage/bin/ecpps"
+          test -x "$executable"
+          test -f "$stage/include/cstdio"
+          ldd "$executable" | tee "$stage/runtime-dependencies.txt"
+          if grep -q "not found" "$stage/runtime-dependencies.txt"; then
+            echo "The installed compiler has unresolved runtime dependencies." >&2
+            exit 1
+          fi
+
+          export BUILT_AT_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          export TOOLCHAIN_VERSION="$(clang++ --version | head -n 1)"
+          export RUNNER_OS_VERSION="$(. /etc/os-release && printf '%s' "$PRETTY_NAME")"
+          export GLIBC_VERSION="$(ldd --version | head -n 1)"
+          python3 - "$stage" "$archive" <<'PY'
+          import json
+          import os
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          stage = Path(sys.argv[1])
+          archive = Path(sys.argv[2])
+          manifest = {
+              "package_version": os.environ["PACKAGE_VERSION"],
+              "commit": os.environ["SOURCE_SHA"],
+              "built_at_utc": os.environ["BUILT_AT_UTC"],
+              "target": "linux-x64",
+              "runner_image": os.environ["RUNNER_OS_VERSION"],
+              "configuration": "Release",
+              "compiler": os.environ["TOOLCHAIN_VERSION"],
+              "glibc": os.environ["GLIBC_VERSION"],
+              "external_runtime_prerequisites": [
+                  "Host glibc and libstdc++ versions shown in runtime-dependencies.txt"
+              ],
+          }
+          (stage / "manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          (stage / "README.txt").write_text(
+          f"""ECPPS {manifest["package_version"]} (Linux x64)
+
+          Commit: {manifest["commit"]}
+          Built (UTC): {manifest["built_at_utc"]}
+          Runner image: {manifest["runner_image"]}
+          Compiler: {manifest["compiler"]}
+          glibc: {manifest["glibc"]}
+          Contents: bin/ecpps, include/
+          Runtime dependencies: runtime-dependencies.txt
+          """,
+              encoding="utf-8",
+          )
+          with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as package:
+              for path in sorted(stage.rglob("*")):
+                  if path.is_file():
+                      package.write(path, path.relative_to(stage).as_posix())
+          PY
+
+      - name: Upload Linux compiler package
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiler-package-linux
+          path: ${{ runner.temp }}/ecpps-linux-x64-clang.zip
+          if-no-files-found: error
+          retention-days: 1

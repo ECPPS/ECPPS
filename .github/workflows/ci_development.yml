@@ -42,7 +42,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_tests.yml
     with:
-      enable-ccache: true
+      llvm-version: "20.1.8"
 
   clang-tidy:
     name: "clang-tidy"
@@ -55,7 +55,9 @@ jobs:
 
   sanitisers:
     name: "Sanitisers"
-    needs: build
+    needs:
+      - build-windows
+      - build-linux
     uses: ./.github/workflows/_sanitisers.yml
     with:
       llvm-version: "20.1.8"
