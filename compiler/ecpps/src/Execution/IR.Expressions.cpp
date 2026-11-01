@@ -607,11 +607,12 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
      {
-          if (!operand->IsLValue())
+          const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
+          if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for a the builtin pre-increment operator",
+                         "A modifiable lvalue is required for the builtin pre-increment operator",
                          operand->Value()->Source()));
                return nullptr;
           }
@@ -646,11 +647,12 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
      {
-          if (!operand->IsLValue())
+          const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
+          if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for a the builtin post-increment operator",
+                         "A modifiable lvalue is required for the builtin post-increment operator",
                          operand->Value()->Source()));
                return nullptr;
           }
@@ -679,11 +681,12 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
      {
-          if (!operand->IsLValue())
+          const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
+          if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for a the builtin pre-decrement operator",
+                         "A modifiable lvalue is required for the builtin pre-decrement operator",
                          operand->Value()->Source()));
                return nullptr;
           }
@@ -718,11 +721,12 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
      const auto& operandType = operand->Type();
      if (IsScalar(operandType))
      {
-          if (!operand->IsLValue())
+          const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
+          if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for a the builtin post-decrement operator",
+                         "A modifiable lvalue is required for the builtin post-decrement operator",
                          operand->Value()->Source()));
                return nullptr;
           }
@@ -834,6 +838,7 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
+          return nullptr;
      }
      if (leftIntegral->IsConst())
      {
@@ -842,6 +847,7 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
                     "Assignment expressions require modifiable lvalues. Cannot perform this binary operation on " +
                          left->Type()->Name() + " and " + right->Type()->Name(),
                     left->Value()->Source()));
+          return nullptr;
      }
 
      if (right->Type() != left->Type())
@@ -857,6 +863,72 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
                                           new (*this->GetContext().nodeAllocator)
                                                high::AssignNode(std::move(left), std::move(right), source)},
                                      false);
+}
+
+Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Expression right,
+                                                            const ast::Operator operator_, const Location& source) const
+{
+     if (RejectClassByValue(left->Type(), source, "a compound assignment operand")) return nullptr;
+
+     if (IsIndirectLValue(left))
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
+                                                                               source));
+          return nullptr;
+     }
+
+     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     if (leftIntegral == nullptr)
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform compound assignment on " + left->Type()->Name(), left->Value()->Source()));
+          return nullptr;
+     }
+
+     if (!left->IsLValue())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "A modifiable lvalue is required for compound assignment", left->Value()->Source()));
+          return nullptr;
+     }
+     if (leftIntegral->IsConst())
+     {
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Assignment expressions require modifiable lvalues", left->Value()->Source()));
+          return nullptr;
+     }
+
+     if (right->Type() != left->Type())
+     {
+          right = ConvertTo(std::move(right), left->Type());
+          if (right == nullptr) return nullptr;
+     }
+
+     const auto* resultType = left->Type();
+     switch (operator_)
+     {
+     case ast::Operator::PlusAssign:
+          return std::make_unique<LValue>(resultType,
+                                          std::unique_ptr<high::AdditionAssignNode, IRDeleter>{
+                                               new (*this->GetContext().nodeAllocator) high::AdditionAssignNode(
+                                                    std::move(left), std::move(right), source)},
+                                          false);
+     case ast::Operator::MinusAssign:
+          return std::make_unique<LValue>(resultType,
+                                          std::unique_ptr<high::SubtractionAssignNode, IRDeleter>{
+                                               new (*this->GetContext().nodeAllocator) high::SubtractionAssignNode(
+                                                    std::move(left), std::move(right), source)},
+                                          false);
+     default:
+          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Compound assignment operator '" + ast::ToString(operator_) + "' is not supported yet", source));
+          return nullptr;
+     }
 }
 
 Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& node)
@@ -973,6 +1045,17 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           return this->ParseBinaryXorExpression(std::move(left), std::move(right), node.Source());
      case ast::Operator::Assignment:
           return this->ParseAssignmentExpression(std::move(left), std::move(right), node.Source());
+     case ast::Operator::PlusAssign:
+     case ast::Operator::MinusAssign:
+     case ast::Operator::MultiplyAssign:
+     case ast::Operator::DivideAssign:
+     case ast::Operator::ModuloAssign:
+     case ast::Operator::XorAssign:
+     case ast::Operator::AndAssign:
+     case ast::Operator::OrAssign:
+     case ast::Operator::LeftShiftAssign:
+     case ast::Operator::RightShiftAssign:
+          return this->ParseCompoundAssignmentExpression(std::move(left), std::move(right), operator_, node.Source());
      case ast::Operator::EqualsSign:
      case ast::Operator::NotEqual:
      case ast::Operator::Less:
