@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: development
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Gate duplicate scheduled builds
@@ -83,7 +83,6 @@ jobs:
     if: needs.gate.outputs.publish == 'true'
     uses: ./.github/workflows/_compiler-package.yml
     with:
-      source-sha: ${{ needs.gate.outputs.source_sha }}
       package-version: ${{ needs.gate.outputs.release_tag }}
 
   publish:

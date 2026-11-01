@@ -3,10 +3,6 @@ name: _compiler-package
 on:
   workflow_call:
     inputs:
-      source-sha:
-        description: "Full source commit SHA"
-        required: true
-        type: string
       package-version:
         description: "Release or nightly identifier"
         required: true
@@ -30,7 +26,7 @@ jobs:
       - name: Validate package source commit
         shell: pwsh
         env:
-          SOURCE_SHA: ${{ inputs.source-sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           if ($env:SOURCE_SHA -cnotmatch '^[0-9a-f]{40}$') {
             throw "Expected a full lowercase 40-character commit SHA."
@@ -38,7 +34,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source-sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Verify Clang
@@ -74,7 +70,7 @@ jobs:
         shell: pwsh
         env:
           PACKAGE_VERSION: ${{ inputs.package-version }}
-          SOURCE_SHA: ${{ inputs.source-sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           $stage = Join-Path $env:RUNNER_TEMP "ecpps-stage"
           $archive = Join-Path $env:RUNNER_TEMP "ecpps-windows-x64-clang.zip"
@@ -156,7 +152,7 @@ jobs:
       - name: Validate package source commit
         shell: bash
         env:
-          SOURCE_SHA: ${{ inputs.source-sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "Expected a full lowercase 40-character commit SHA." >&2
@@ -165,7 +161,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source-sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Install LLVM 20
@@ -215,7 +211,7 @@ jobs:
         shell: bash
         env:
           PACKAGE_VERSION: ${{ inputs.package-version }}
-          SOURCE_SHA: ${{ inputs.source-sha }}
+          SOURCE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/ecpps-stage"
