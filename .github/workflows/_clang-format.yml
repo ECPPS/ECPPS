@@ -48,10 +48,12 @@ jobs:
         run: |
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
-
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh "$llvm_major" all
+          llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
+          if [[ ! -x "$llvm_bin/clang-format" ]]; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh "$llvm_major" all
+          fi
 
       - name: Add LLVM to PATH (Linux)
         if: runner.os == 'Linux'

@@ -3,11 +3,6 @@ name: _tests
 on:
   workflow_call:
     inputs:
-      enable-ccache:
-        description: "Use ccache compiler cache if available"
-        required: false
-        type: boolean
-        default: true
       llvm-version:
         description: "LLVM version for the report-only unit coverage job"
         required: false
@@ -25,33 +20,12 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Restore ccache
-        if: inputs.enable-ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.LOCALAPPDATA }}\ccache
-          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-msvc-Debug-
-            ccache-${{ runner.os }}-
-
-      - name: Setup ccache (if available)
-        if: inputs.enable-ccache
-        shell: bash
-        run: |
-          if command -v ccache &> /dev/null; then
-            ccache --max-size=500M --set-config=compression=true
-            echo "[OK] ccache configured"
-          else
-            echo "[WARN] ccache not found - proceeding without cache"
-          fi
-
       - name: Configure with BUILD_TESTING=ON
         shell: pwsh
         run: |
           cmake --preset Win64-MSVC `
             -DBUILD_TESTING=ON `
-            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+            -DENABLE_CCACHE=OFF
 
       - name: Build tests
         shell: pwsh
@@ -65,6 +39,7 @@ jobs:
         run: |
           ctest `
             --preset Win64-MSVC-Debug `
+            --parallel 2 `
             --output-on-failure
 
   coverage-report:
@@ -74,19 +49,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build python3
-
       - name: Install LLVM
         run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
-          sudo ./llvm.sh "$llvm_major" all
-          echo "/usr/lib/llvm-${llvm_major}/bin" >> "$GITHUB_PATH"
+          llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
+          if [[ ! -x "$llvm_bin/clang++" || ! -x "$llvm_bin/llvm-profdata" || ! -x "$llvm_bin/llvm-cov" ]]; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh "$llvm_major" all
+          fi
+          echo "$llvm_bin" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=/usr/lib/llvm-${llvm_major}/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
       - name: Configure coverage build
@@ -96,7 +69,7 @@ jobs:
         run: cmake --build --preset Linux-Clang-Coverage-Debug --parallel
 
       - name: Run unit tests
-        run: ctest --test-dir out/build/Linux-Clang-Coverage -C Debug -L unit --output-on-failure
+        run: ctest --test-dir out/build/Linux-Clang-Coverage -C Debug -L unit --parallel 2 --output-on-failure
 
       - name: Generate coverage report
         run: |

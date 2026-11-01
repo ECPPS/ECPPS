@@ -143,11 +143,18 @@ jobs:
         if: matrix.needs_msvc_env
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Set ccache directory
+        if: inputs.enable-ccache && matrix.compiler == 'GCC'
+        shell: pwsh
+        run: |
+          $ccacheDir = Join-Path $env:RUNNER_TEMP "ccache"
+          Add-Content -Path $env:GITHUB_ENV -Value "CCACHE_DIR=$ccacheDir"
+
       - name: Restore ccache
-        if: inputs.enable-ccache
+        if: inputs.enable-ccache && matrix.compiler == 'GCC'
         uses: actions/cache@v4
         with:
-          path: ${{ env.LOCALAPPDATA }}\ccache
+          path: ${{ runner.temp }}/ccache
           key: ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-${{ github.sha }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ matrix.name }}-${{ matrix.build_type }}-
@@ -155,7 +162,7 @@ jobs:
             ccache-${{ runner.os }}-
 
       - name: Setup ccache (if available)
-        if: inputs.enable-ccache
+        if: inputs.enable-ccache && matrix.compiler == 'GCC'
         shell: bash
         run: |
           if command -v ccache &> /dev/null; then
@@ -176,7 +183,7 @@ jobs:
         run: |
           cmake --preset "${{ matrix.preset_configure }}" `
             -DBUILD_TESTING=OFF `
-            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }} `
+            -DENABLE_CCACHE=${{ inputs.enable-ccache && matrix.compiler == 'GCC' && 'ON' || 'OFF' }} `
             -DENABLE_LTO=${{ inputs.enable-lto && 'ON' || 'OFF' }}
 
       - name: Build
@@ -187,7 +194,7 @@ jobs:
             --parallel
 
       - name: Print ccache statistics
-        if: inputs.enable-ccache
+        if: inputs.enable-ccache && matrix.compiler == 'GCC'
         shell: bash
         run: |
           if command -v ccache &> /dev/null; then

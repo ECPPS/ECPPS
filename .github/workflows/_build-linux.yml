@@ -64,22 +64,26 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build ccache
+          sudo apt-get install -y ccache
 
       - name: Install LLVM
         if: matrix.needs_llvm
         run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh ${{ inputs.llvm-version }} all
+          llvm_bin="/usr/lib/llvm-${{ inputs.llvm-version }}/bin"
+          if [[ ! -x "$llvm_bin/clang++" ]]; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh ${{ inputs.llvm-version }} all
+          fi
 
       - name: Install GCC 15 (libstdc++)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-          sudo apt-get update
-          sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          if ! command -v gcc-15 &> /dev/null || ! command -v g++-15 &> /dev/null; then
+            sudo apt-get install -y software-properties-common
+            sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            sudo apt-get update
+            sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          fi
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
 

@@ -23,33 +23,12 @@ jobs:
       - name: Setup MSVC Developer Environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Restore ccache
-        if: inputs.enable-ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.LOCALAPPDATA }}\ccache
-          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-msvc-Debug-
-            ccache-${{ runner.os }}-
-
-      - name: Setup ccache (if available)
-        if: inputs.enable-ccache
-        shell: bash
-        run: |
-          if command -v ccache &> /dev/null; then
-            ccache --max-size=500M --set-config=compression=true
-            echo "ccache configured"
-          else
-            echo "ccache not found, proceeding without cache"
-          fi
-
       - name: Configure (ASan)
         shell: pwsh
         run: |
           cmake --preset Win64-MSVC-ASan `
             -DBUILD_TESTING=ON `
-            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+            -DENABLE_CCACHE=OFF
 
       - name: Build
         shell: pwsh
@@ -64,6 +43,7 @@ jobs:
           $env:ASAN_OPTIONS = "abort_on_error=1:detect_leaks=0"
           ctest `
             --preset Win64-MSVC-ASan-Debug `
+            --parallel 2 `
             --output-on-failure
 
 
@@ -77,20 +57,35 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build ccache
+          sudo apt-get install -y ccache
 
       - name: Install LLVM
         run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 20 all
+          llvm_bin="/usr/lib/llvm-20/bin"
+          if [[ ! -x "$llvm_bin/clang++" ]]; then
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh 20 all
+          fi
 
       - name: Add LLVM to PATH
         run: |
           echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
           echo "LD_LIBRARY_PATH=/usr/lib/llvm-20/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
 
+      - name: Check GCC 15 availability
+        id: gcc15
+        run: |
+          if command -v gcc-15 >/dev/null && command -v g++-15 >/dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+          source /etc/os-release
+          echo "version=$VERSION_ID" >> "$GITHUB_OUTPUT"
+
       - name: Cache GCC 15
+        if: steps.gcc15.outputs.available != 'true'
         id: cache-gcc
         uses: actions/cache@v4
         with:
@@ -99,10 +94,10 @@ jobs:
             /usr/bin/gcc-15
             /usr/bin/g++-15
             /usr/include/c++
-          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+          key: gcc-15-${{ runner.os }}-${{ steps.gcc15.outputs.version }}-${{ hashFiles('.github/workflows/**') }}
 
       - name: Install GCC 15 (libstdc++)
-        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        if: steps.gcc15.outputs.available != 'true' && steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
@@ -145,6 +140,7 @@ jobs:
         run: |
           ctest \
             --preset Linux-Clang-ASan-UBSan-Debug \
+            --parallel 2 \
             --output-on-failure
 
 
@@ -155,7 +151,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check GCC 15 availability
+        id: gcc15
+        run: |
+          if command -v gcc-15 >/dev/null && command -v g++-15 >/dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+          source /etc/os-release
+          echo "version=$VERSION_ID" >> "$GITHUB_OUTPUT"
+
       - name: Cache GCC 15
+        if: steps.gcc15.outputs.available != 'true'
         id: cache-gcc
         uses: actions/cache@v4
         with:
@@ -164,10 +172,10 @@ jobs:
             /usr/bin/gcc-15
             /usr/bin/g++-15
             /usr/include/c++
-          key: gcc-15-${{ runner.os }}-${{ hashFiles('.github/workflows/**') }}
+          key: gcc-15-${{ runner.os }}-${{ steps.gcc15.outputs.version }}-${{ hashFiles('.github/workflows/**') }}
 
       - name: Install GCC 15 (libstdc++)
-        if: steps.cache-gcc.outputs.cache-hit != 'true'
+        if: steps.gcc15.outputs.available != 'true' && steps.cache-gcc.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
@@ -210,4 +218,5 @@ jobs:
         run: |
           ctest \
             --preset Linux-GCC-ASan-UBSan-Debug \
+            --parallel 2 \
             --output-on-failure
