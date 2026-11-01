@@ -60,8 +60,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
           if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
           {
                const auto* promotedSource = PromoteInteger(otherIntegral);
-               const bool isPromotion = promotedSource->Sign() == this->_sign &&
-                                        promotedSource->Kind() == this->_kind;
+               const bool isPromotion = promotedSource->Sign() == this->_sign && promotedSource->Kind() == this->_kind;
                sequence.Push(isPromotion ? ConversionSequence::ConversionKind::IntegralPromotion
                                          : ConversionSequence::ConversionKind::IntegralConversion);
           }
