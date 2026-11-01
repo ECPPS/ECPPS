@@ -24,11 +24,11 @@ TEST_CASE("IR - Overload resolution prefers an exact match", "[unit][ir][overloa
      auto nodes = fixture.Parse(MakeOverloadProgram(fixture, "short", "int", "short"));
 
      const auto* procedure = FindProcedure(nodes, "caller");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* call = FindCall(*procedure);
-     REQUIRE(call != nullptr);
-     REQUIRE(call->Function().parameters.size() == 1);
-     REQUIRE(call->Function().parameters.front().type->RawName() == "short");
+     REQUIRE((call != nullptr));
+     REQUIRE((call->Function().parameters.size() == 1));
+     REQUIRE((call->Function().parameters.front().type->RawName() == "short"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -38,11 +38,11 @@ TEST_CASE("IR - Overload resolution prefers promotion to conversion", "[unit][ir
      auto nodes = fixture.Parse(MakeOverloadProgram(fixture, "int", "long long", "short"));
 
      const auto* procedure = FindProcedure(nodes, "caller");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* call = FindCall(*procedure);
-     REQUIRE(call != nullptr);
-     REQUIRE(call->Function().parameters.size() == 1);
-     REQUIRE(call->Function().parameters.front().type->RawName() == "int");
+     REQUIRE((call != nullptr));
+     REQUIRE((call->Function().parameters.size() == 1));
+     REQUIRE((call->Function().parameters.front().type->RawName() == "int"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -52,7 +52,7 @@ TEST_CASE("IR - Overload resolution diagnoses equal-rank candidates", "[unit][ir
      auto nodes = fixture.Parse(MakeOverloadProgram(fixture, "short", "long long", "int"));
 
      const auto* procedure = FindProcedure(nodes, "caller");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(FindCall(*procedure) == nullptr);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((FindCall(*procedure) == nullptr));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "ambiguous"));
 }

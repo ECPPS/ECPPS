@@ -20,18 +20,18 @@ TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][code
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "sum");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 
      const auto* lhsParameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(lhsParameter != nullptr);
+     REQUIRE((lhsParameter != nullptr));
      const ecpps::ir::ParameterNode* rhsParameter = nullptr;
      for (const auto& node : procedure->Body())
           if (const auto* parameter = dynamic_cast<const ecpps::ir::ParameterNode*>(node.get());
               parameter != nullptr && parameter->Index() == 1)
                rhsParameter = parameter;
-     REQUIRE(lhsParameter->Index() == 0);
-     REQUIRE(rhsParameter != nullptr);
+     REQUIRE((lhsParameter->Index() == 0));
+     REQUIRE((rhsParameter != nullptr));
 
      const ecpps::ir::SSALoadNode* lhsLoad = nullptr;
      const ecpps::ir::SSALoadNode* rhsLoad = nullptr;
@@ -41,15 +41,15 @@ TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][code
                if (&load->Address() == lhsParameter->Result()) lhsLoad = load;
                if (&load->Address() == rhsParameter->Result()) rhsLoad = load;
           }
-     REQUIRE(lhsLoad != nullptr);
-     REQUIRE(rhsLoad != nullptr);
+     REQUIRE((lhsLoad != nullptr));
+     REQUIRE((rhsLoad != nullptr));
 
      const auto* additionNode = FindNode<ecpps::ir::SSAAddNode>(procedure->Body());
-     REQUIRE(additionNode != nullptr);
-     REQUIRE(&additionNode->Left() == &lhsLoad->Result());
-     REQUIRE(&additionNode->Right() == &rhsLoad->Result());
+     REQUIRE((additionNode != nullptr));
+     REQUIRE((&additionNode->Left() == &lhsLoad->Result()));
+     REQUIRE((&additionNode->Right() == &rhsLoad->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
-     REQUIRE(returnNode->Operand() == &additionNode->Result());
+     REQUIRE((returnNode != nullptr));
+     REQUIRE((returnNode->Operand() == &additionNode->Result()));
 }

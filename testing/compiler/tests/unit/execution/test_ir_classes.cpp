@@ -56,9 +56,9 @@ namespace
      {
           const auto* fieldLoad = FindNode<ecpps::ir::SSADerefNode>(procedure.Body());
           const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure.Body());
-          REQUIRE(fieldLoad != nullptr);
-          REQUIRE(returnNode != nullptr);
-          REQUIRE(returnNode->Operand() == &fieldLoad->Result());
+          REQUIRE((fieldLoad != nullptr));
+          REQUIRE((returnNode != nullptr));
+          REQUIRE((returnNode->Operand() == &fieldLoad->Result()));
      }
 } // namespace
 
@@ -72,14 +72,14 @@ TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
      const std::string className{"PairForLayout"};
      const auto& info = FindClassInfo(fixture, className);
 
-     REQUIRE(info.state == ecpps::typeSystem::ClassState::Complete);
-     REQUIRE(info.fields.size() == 2);
-     REQUIRE(info.fields[0].name == "number");
-     REQUIRE(info.fields[0].offset == 0);
-     REQUIRE(info.fields[1].name == "marker");
-     REQUIRE(info.fields[1].offset == 4);
-     REQUIRE(info.size == 8);
-     REQUIRE(info.alignment == 4);
+     REQUIRE((info.state == ecpps::typeSystem::ClassState::Complete));
+     REQUIRE((info.fields.size() == 2));
+     REQUIRE((info.fields[0].name == "number"));
+     REQUIRE((info.fields[0].offset == 0));
+     REQUIRE((info.fields[1].name == "marker"));
+     REQUIRE((info.fields[1].offset == 4));
+     REQUIRE((info.size == 8));
+     REQUIRE((info.alignment == 4));
      REQUIRE(info.triviallyCopyable);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -105,7 +105,7 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "make");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 
      const ecpps::ir::SSAImmNode* seven = nullptr;
@@ -131,16 +131,16 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
                          zeroOffset = immediate;
           }
 
-     REQUIRE(seven != nullptr);
-     REQUIRE(zeroOffset != nullptr);
-     REQUIRE(store != nullptr);
-     REQUIRE(fieldAddress != nullptr);
+     REQUIRE((seven != nullptr));
+     REQUIRE((zeroOffset != nullptr));
+     REQUIRE((store != nullptr));
+     REQUIRE((fieldAddress != nullptr));
 
      const auto* fieldLoad = FindNode<ecpps::ir::SSADerefNode>(procedure->Body());
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(fieldLoad != nullptr);
-     REQUIRE(returnNode != nullptr);
-     REQUIRE(returnNode->Operand() == &fieldLoad->Result());
+     REQUIRE((fieldLoad != nullptr));
+     REQUIRE((returnNode != nullptr));
+     REQUIRE((returnNode->Operand() == &fieldLoad->Result()));
 }
 
 TEST_CASE("IR - Positional aggregate initialization assigns each field in order", "[unit][ir][classes]")
@@ -167,9 +167,9 @@ TEST_CASE("IR - Positional aggregate initialization assigns each field in order"
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "makePair");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
-     REQUIRE(stores.size() == 2);
+     REQUIRE((stores.size() == 2));
      REQUIRE(HasAggregateFieldStore(stores, 5, 0));
      REQUIRE(HasAggregateFieldStore(stores, 9, 4));
      RequireSecondFieldIsReturned(*procedure);
@@ -198,9 +198,9 @@ TEST_CASE("IR - Omitted aggregate fields receive zero initialization", "[unit][i
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "secondOrZero");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
-     REQUIRE(stores.size() == 2);
+     REQUIRE((stores.size() == 2));
      REQUIRE(HasAggregateFieldStore(stores, 5, 0));
      REQUIRE(HasAggregateFieldStore(stores, 0, 4));
      RequireSecondFieldIsReturned(*procedure);
@@ -231,9 +231,9 @@ TEST_CASE("IR - Designated aggregate initialization targets the named field", "[
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "readSecond");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
-     REQUIRE(stores.size() == 2);
+     REQUIRE((stores.size() == 2));
      REQUIRE(HasAggregateFieldStore(stores, 0, 0));
      REQUIRE(HasAggregateFieldStore(stores, 9, 4));
      RequireSecondFieldIsReturned(*procedure);
@@ -266,7 +266,7 @@ TEST_CASE("IR - Designated aggregate initializers must follow member order", "[u
 
      const auto nodes = fixture.Parse(std::move(ast));
 
-     REQUIRE(FindProcedure(nodes, "invalidOrder") != nullptr);
+     REQUIRE((FindProcedure(nodes, "invalidOrder") != nullptr));
      REQUIRE(
           HasTypeErrorContaining(fixture.diagnostics, "Designated initialisers must follow member declaration order"));
 }

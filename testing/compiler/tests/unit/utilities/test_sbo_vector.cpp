@@ -57,8 +57,8 @@ TEST_CASE("SBOVector - Capacity transitions", "[utilities][sbo_vector]")
           {
                vec.Push(i);
           }
-          REQUIRE(vec.Size() == SBOVector<std::size_t>::InlineCapacity);
-          for (std::size_t i = 0; i < vec.Size(); i++) REQUIRE(vec.begin()[i] == i);
+          REQUIRE((vec.Size() == SBOVector<std::size_t>::InlineCapacity));
+          for (std::size_t i = 0; i < vec.Size(); i++) REQUIRE((vec.begin()[i] == i));
           REQUIRE(vec.UseSBO()); // Should still use SBO
      }
 

@@ -53,18 +53,18 @@ TEST_CASE("IR - If/else lowers a signed comparison to branch targets", "[unit][i
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "choose");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* compare = FindNode<ecpps::ir::SSACompareNode>(procedure->Body());
-     REQUIRE(compare != nullptr);
-     REQUIRE(compare->Predicate() == ecpps::ir::ComparisonPredicate::SignedLess);
+     REQUIRE((compare != nullptr));
+     REQUIRE((compare->Predicate() == ecpps::ir::ComparisonPredicate::SignedLess));
 
      const auto* branch = FindNode<ecpps::ir::SSABranchNode>(procedure->Body());
-     REQUIRE(branch != nullptr);
-     REQUIRE(&branch->Condition() == &compare->Result());
-     REQUIRE(branch->TrueLabel() != branch->FalseLabel());
+     REQUIRE((branch != nullptr));
+     REQUIRE((&branch->Condition() == &compare->Result()));
+     REQUIRE((branch->TrueLabel() != branch->FalseLabel()));
      REQUIRE(HasLabel(procedure->Body(), branch->TrueLabel()));
      REQUIRE(HasLabel(procedure->Body(), branch->FalseLabel()));
-     REQUIRE(CountNodes<ecpps::ir::SSAReturnNode>(procedure->Body()) == 2);
+     REQUIRE((CountNodes<ecpps::ir::SSAReturnNode>(procedure->Body()) == 2));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -83,25 +83,25 @@ TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][a
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "update");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
      const auto* immediate = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(immediate != nullptr);
-     REQUIRE(immediate->Value() == 9);
+     REQUIRE((immediate != nullptr));
+     REQUIRE((immediate->Value() == 9));
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &immediate->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &immediate->Result()));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &load->Result());
+     REQUIRE((returnNode->Operand() == &load->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -120,32 +120,32 @@ TEST_CASE("IR - Post-increment stores the increment but returns the previous val
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "advance");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* one = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(one != nullptr);
-     REQUIRE(one->Value() == 1);
+     REQUIRE((one != nullptr));
+     REQUIRE((one->Value() == 1));
 
      const auto* addition = FindNode<ecpps::ir::SSAAddNode>(procedure->Body());
-     REQUIRE(addition != nullptr);
-     REQUIRE(&addition->Left() == &load->Result());
-     REQUIRE(&addition->Right() == &one->Result());
+     REQUIRE((addition != nullptr));
+     REQUIRE((&addition->Left() == &load->Result()));
+     REQUIRE((&addition->Right() == &one->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &addition->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &addition->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &load->Result());
+     REQUIRE((returnNode->Operand() == &load->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -161,7 +161,7 @@ TEST_CASE("IR - Post-increment rejects const operands", "[unit][ir][increment]")
      auto signature = fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}});
      auto* const parameterType =
           dynamic_cast<ecpps::ast::BasicType*>(signature.parameters.parameters.front().type.get());
-     REQUIRE(parameterType != nullptr);
+     REQUIRE((parameterType != nullptr));
      parameterType->SetConst(true);
 
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -170,9 +170,9 @@ TEST_CASE("IR - Post-increment rejects const operands", "[unit][ir][increment]")
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "modifiable lvalue"));
 }
 
@@ -191,32 +191,32 @@ TEST_CASE("IR - Post-decrement stores the decrement but returns the previous val
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "retreat");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* one = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(one != nullptr);
-     REQUIRE(one->Value() == 1);
+     REQUIRE((one != nullptr));
+     REQUIRE((one->Value() == 1));
 
      const auto* subtraction = FindNode<ecpps::ir::SSASubNode>(procedure->Body());
-     REQUIRE(subtraction != nullptr);
-     REQUIRE(&subtraction->Left() == &load->Result());
-     REQUIRE(&subtraction->Right() == &one->Result());
+     REQUIRE((subtraction != nullptr));
+     REQUIRE((&subtraction->Left() == &load->Result()));
+     REQUIRE((&subtraction->Right() == &one->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &subtraction->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &subtraction->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &load->Result());
+     REQUIRE((returnNode->Operand() == &load->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -235,32 +235,32 @@ TEST_CASE("IR - Prefix decrement stores and returns the updated value", "[unit][
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "retreat");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* one = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(one != nullptr);
-     REQUIRE(one->Value() == 1);
+     REQUIRE((one != nullptr));
+     REQUIRE((one->Value() == 1));
 
      const auto* subtraction = FindNode<ecpps::ir::SSASubNode>(procedure->Body());
-     REQUIRE(subtraction != nullptr);
-     REQUIRE(&subtraction->Left() == &load->Result());
-     REQUIRE(&subtraction->Right() == &one->Result());
+     REQUIRE((subtraction != nullptr));
+     REQUIRE((&subtraction->Left() == &load->Result()));
+     REQUIRE((&subtraction->Right() == &one->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &subtraction->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &subtraction->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &subtraction->Result());
+     REQUIRE((returnNode->Operand() == &subtraction->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -276,7 +276,7 @@ TEST_CASE("IR - Prefix decrement rejects const operands", "[unit][ir][increment]
      auto signature = fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}});
      auto* const parameterType =
           dynamic_cast<ecpps::ast::BasicType*>(signature.parameters.parameters.front().type.get());
-     REQUIRE(parameterType != nullptr);
+     REQUIRE((parameterType != nullptr));
      parameterType->SetConst(true);
 
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -285,9 +285,9 @@ TEST_CASE("IR - Prefix decrement rejects const operands", "[unit][ir][increment]
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSASubNode>(procedure->Body()) == 0);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSASubNode>(procedure->Body()) == 0));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "modifiable lvalue"));
 }
 
@@ -306,32 +306,32 @@ TEST_CASE("IR - Prefix increment stores and returns the updated value", "[unit][
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "advance");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* one = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(one != nullptr);
-     REQUIRE(one->Value() == 1);
+     REQUIRE((one != nullptr));
+     REQUIRE((one->Value() == 1));
 
      const auto* addition = FindNode<ecpps::ir::SSAAddNode>(procedure->Body());
-     REQUIRE(addition != nullptr);
-     REQUIRE(&addition->Left() == &load->Result());
-     REQUIRE(&addition->Right() == &one->Result());
+     REQUIRE((addition != nullptr));
+     REQUIRE((&addition->Left() == &load->Result()));
+     REQUIRE((&addition->Right() == &one->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &addition->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &addition->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &addition->Result());
+     REQUIRE((returnNode->Operand() == &addition->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -347,7 +347,7 @@ TEST_CASE("IR - Prefix increment rejects const operands", "[unit][ir][increment]
      auto signature = fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}});
      auto* const parameterType =
           dynamic_cast<ecpps::ast::BasicType*>(signature.parameters.parameters.front().type.get());
-     REQUIRE(parameterType != nullptr);
+     REQUIRE((parameterType != nullptr));
      parameterType->SetConst(true);
 
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -356,9 +356,9 @@ TEST_CASE("IR - Prefix increment rejects const operands", "[unit][ir][increment]
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "modifiable lvalue"));
 }
 
@@ -377,32 +377,32 @@ TEST_CASE("IR - Subtraction assignment stores and returns the updated value", "[
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "reduce");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* three = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(three != nullptr);
-     REQUIRE(three->Value() == 3);
+     REQUIRE((three != nullptr));
+     REQUIRE((three->Value() == 3));
 
      const auto* subtraction = FindNode<ecpps::ir::SSASubNode>(procedure->Body());
-     REQUIRE(subtraction != nullptr);
-     REQUIRE(&subtraction->Left() == &load->Result());
-     REQUIRE(&subtraction->Right() == &three->Result());
+     REQUIRE((subtraction != nullptr));
+     REQUIRE((&subtraction->Left() == &load->Result()));
+     REQUIRE((&subtraction->Right() == &three->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &subtraction->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &subtraction->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &subtraction->Result());
+     REQUIRE((returnNode->Operand() == &subtraction->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -421,32 +421,32 @@ TEST_CASE("IR - Addition assignment stores and returns the updated value", "[uni
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "increase");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
-     REQUIRE(parameter != nullptr);
+     REQUIRE((parameter != nullptr));
 
      const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
-     REQUIRE(load != nullptr);
-     REQUIRE(&load->Address() == parameter->Result());
+     REQUIRE((load != nullptr));
+     REQUIRE((&load->Address() == parameter->Result()));
 
      const auto* three = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
-     REQUIRE(three != nullptr);
-     REQUIRE(three->Value() == 3);
+     REQUIRE((three != nullptr));
+     REQUIRE((three->Value() == 3));
 
      const auto* addition = FindNode<ecpps::ir::SSAAddNode>(procedure->Body());
-     REQUIRE(addition != nullptr);
-     REQUIRE(&addition->Left() == &load->Result());
-     REQUIRE(&addition->Right() == &three->Result());
+     REQUIRE((addition != nullptr));
+     REQUIRE((&addition->Left() == &load->Result()));
+     REQUIRE((&addition->Right() == &three->Result()));
 
      const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
-     REQUIRE(store != nullptr);
-     REQUIRE(&store->Target() == parameter->Result());
-     REQUIRE(&store->Src() == &addition->Result());
+     REQUIRE((store != nullptr));
+     REQUIRE((&store->Target() == parameter->Result()));
+     REQUIRE((&store->Src() == &addition->Result()));
 
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
-     REQUIRE(returnNode != nullptr);
+     REQUIRE((returnNode != nullptr));
      REQUIRE(returnNode->HasOperand());
-     REQUIRE(returnNode->Operand() == &addition->Result());
+     REQUIRE((returnNode->Operand() == &addition->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -468,8 +468,8 @@ TEST_CASE("IR - Compound assignment rejects rvalue operands", "[unit][ir][assign
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "A modifiable lvalue is required for compound assignment"));
 }
 
@@ -485,7 +485,7 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
      auto signature = fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}});
      auto* const parameterType =
           dynamic_cast<ecpps::ast::BasicType*>(signature.parameters.parameters.front().type.get());
-     REQUIRE(parameterType != nullptr);
+     REQUIRE((parameterType != nullptr));
      parameterType->SetConst(true);
 
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -494,9 +494,9 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
-     REQUIRE(CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
+     REQUIRE((CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Assignment expressions require modifiable lvalues"));
 }
 
@@ -522,9 +522,9 @@ TEST_CASE("IR - Compound assignment diagnoses unsupported indirect targets", "[u
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "update");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
-     REQUIRE(CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
+     REQUIRE((CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0));
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Modifying an object through a pointer is not supported yet"));
 }
 
@@ -543,12 +543,12 @@ TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][i
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "spin");
-     REQUIRE(procedure != nullptr);
-     REQUIRE(CountNodes<ecpps::ir::SSABranchNode>(procedure->Body()) == 2);
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSABranchNode>(procedure->Body()) == 2));
 
      const auto* firstBranch = FindNode<ecpps::ir::SSABranchNode>(procedure->Body());
-     REQUIRE(firstBranch != nullptr);
-     REQUIRE(firstBranch->TrueLabel() != firstBranch->FalseLabel());
+     REQUIRE((firstBranch != nullptr));
+     REQUIRE((firstBranch->TrueLabel() != firstBranch->FalseLabel()));
      REQUIRE(HasLabel(procedure->Body(), firstBranch->TrueLabel()));
      REQUIRE(HasLabel(procedure->Body(), firstBranch->FalseLabel()));
 
@@ -561,9 +561,9 @@ TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][i
                else
                     secondBranch = branch;
           }
-     REQUIRE(secondBranch != nullptr);
-     REQUIRE(secondBranch->TrueLabel() == firstBranch->TrueLabel());
-     REQUIRE(secondBranch->FalseLabel() == firstBranch->FalseLabel());
+     REQUIRE((secondBranch != nullptr));
+     REQUIRE((secondBranch->TrueLabel() == firstBranch->TrueLabel()));
+     REQUIRE((secondBranch->FalseLabel() == firstBranch->FalseLabel()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -583,12 +583,12 @@ TEST_CASE("IR - Break jumps to the enclosing loop exit", "[unit][ir][control-flo
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "stop");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* branch = FindNode<ecpps::ir::SSABranchNode>(procedure->Body());
-     REQUIRE(branch != nullptr);
+     REQUIRE((branch != nullptr));
      const auto* jump = FindNode<ecpps::ir::SSAGotoNode>(procedure->Body());
-     REQUIRE(jump != nullptr);
-     REQUIRE(jump->Name() == branch->FalseLabel());
+     REQUIRE((jump != nullptr));
+     REQUIRE((jump->Name() == branch->FalseLabel()));
      REQUIRE(HasLabel(procedure->Body(), jump->Name()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -609,9 +609,9 @@ TEST_CASE("IR - Continue jumps to the loop continuation", "[unit][ir][control-fl
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "repeat");
-     REQUIRE(procedure != nullptr);
+     REQUIRE((procedure != nullptr));
      const auto* jump = FindNode<ecpps::ir::SSAGotoNode>(procedure->Body());
-     REQUIRE(jump != nullptr);
+     REQUIRE((jump != nullptr));
 
      std::size_t jumpIndex = procedure->Body().size();
      std::size_t continuationLabelIndex = procedure->Body().size();
@@ -627,7 +627,7 @@ TEST_CASE("IR - Continue jumps to the loop continuation", "[unit][ir][control-fl
                followingBranchIndex = index;
      }
 
-     REQUIRE(jumpIndex < continuationLabelIndex);
-     REQUIRE(continuationLabelIndex < followingBranchIndex);
+     REQUIRE((jumpIndex < continuationLabelIndex));
+     REQUIRE((continuationLabelIndex < followingBranchIndex));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
