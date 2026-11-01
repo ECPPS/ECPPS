@@ -15,6 +15,11 @@ on:
         description: "Release or nightly identifier"
         required: true
         type: string
+      smoke-test-package:
+        description: "Extract and execute the installed compiler package"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,10 +27,10 @@ permissions:
 jobs:
   windows:
     name: "Windows x64 / Clang Release"
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source-ref }}
 
@@ -112,8 +117,24 @@ jobs:
 
           Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $archive
 
+      - name: Smoke-test Windows package
+        if: inputs.smoke-test-package
+        shell: pwsh
+        env:
+          ARCHIVE: ${{ runner.temp }}/ecpps-windows-x64-clang.zip
+        run: |
+          $smoke = Join-Path $env:RUNNER_TEMP "ecpps-package-smoke"
+          Expand-Archive -LiteralPath $env:ARCHIVE -DestinationPath $smoke
+          if (-not (Test-Path (Join-Path $smoke "include\cstdio"))) {
+            throw "The extracted compiler package is missing stdlib headers."
+          }
+          & (Join-Path $smoke "bin\ecpps.exe") /version
+          if ($LASTEXITCODE -ne 0) {
+            throw "The extracted compiler package failed its version check."
+          }
+
       - name: Upload Windows compiler package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: compiler-package-windows
           path: ${{ runner.temp }}/ecpps-windows-x64-clang.zip
@@ -122,10 +143,10 @@ jobs:
 
   linux:
     name: "Linux x64 / Clang Release"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source-ref }}
 
@@ -134,24 +155,31 @@ jobs:
         run: |
           llvm_bin="/usr/lib/llvm-20/bin"
           if [[ ! -x "$llvm_bin/clang++" ]]; then
-            wget -q https://apt.llvm.org/llvm.sh
-            chmod +x llvm.sh
-            sudo ./llvm.sh 20 all
+            echo "LLVM 20 is missing from the pinned Ubuntu runner image." >&2
+            exit 1
           fi
+          version="$("$llvm_bin/clang++" --version | head -n 1)"
+          [[ "$version" == *"clang version 20.1.8 "* ]] || {
+            echo "Expected Clang 20.1.8 but found: $version" >&2
+            exit 1
+          }
           echo "$llvm_bin" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=$llvm_bin/../lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
       - name: Install GCC 15 C++ runtime
         shell: bash
         run: |
-          if ! command -v gcc-15 >/dev/null || ! command -v g++-15 >/dev/null; then
-            sudo apt-get install -y software-properties-common
-            sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-            sudo apt-get update
-            sudo apt-get install -y gcc-15 g++-15 libstdc++-15-dev
+          for compiler in gcc-15 g++-15; do
+            if ! command -v "$compiler" >/dev/null; then
+              echo "$compiler is missing from the pinned Ubuntu runner image." >&2
+              exit 1
+            fi
+          done
+          version="$(g++-15 -dumpfullversion -dumpversion)"
+          if [[ "$version" != "15.2.0" ]]; then
+            echo "Expected GCC 15.2.0 but found $version." >&2
+            exit 1
           fi
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 150
-          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 150
 
       - name: Configure Release build
         shell: bash
@@ -233,8 +261,21 @@ jobs:
                       package.write(path, path.relative_to(stage).as_posix())
           PY
 
+      - name: Smoke-test Linux package
+        if: inputs.smoke-test-package
+        shell: bash
+        env:
+          ARCHIVE: ${{ runner.temp }}/ecpps-linux-x64-clang.zip
+        run: |
+          set -euo pipefail
+          smoke="$RUNNER_TEMP/ecpps-package-smoke"
+          mkdir -p "$smoke"
+          unzip -q "$ARCHIVE" -d "$smoke"
+          test -f "$smoke/include/cstdio"
+          "$smoke/bin/ecpps" /version
+
       - name: Upload Linux compiler package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: compiler-package-linux
           path: ${{ runner.temp }}/ecpps-linux-x64-clang.zip

@@ -15,10 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-2025, ubuntu-26.04]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup LLVM (Windows)
         if: runner.os == 'Windows'
@@ -50,9 +50,13 @@ jobs:
           llvm_major="${llvm_major%%.*}"
           llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
           if [[ ! -x "$llvm_bin/clang-format" ]]; then
-            wget -q https://apt.llvm.org/llvm.sh
-            chmod +x llvm.sh
-            sudo ./llvm.sh "$llvm_major" all
+            echo "clang-format is missing from the pinned Ubuntu runner image." >&2
+            exit 1
+          fi
+          version="$("$llvm_bin/clang-format" --version)"
+          if [[ "$version" != *"${{ inputs.llvm-version }}"* ]]; then
+            echo "Expected clang-format ${{ inputs.llvm-version }} but found: $version" >&2
+            exit 1
           fi
 
       - name: Add LLVM to PATH (Linux)

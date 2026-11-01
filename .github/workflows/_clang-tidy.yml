@@ -11,10 +11,10 @@ on:
 jobs:
 #   clang-tidy-ubuntu:
 #     name: clang-tidy (Ubuntu)
-#     runs-on: ubuntu-latest
+#     runs-on: ubuntu-26.04
 
 #     steps:
-#       - uses: actions/checkout@v4
+#       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
 #       - name: Install dependencies
 #         run: |
@@ -32,7 +32,7 @@ jobs:
 #           echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
 
 #       - name: Download build artifact
-#         uses: actions/download-artifact@v4
+#         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
 #         with:
 #           name: build-linux-clang20-Release
 #           path: out/build
@@ -63,10 +63,10 @@ jobs:
 
   clang-tidy-windows:
     name: clang-tidy (Windows)
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup LLVM
         shell: pwsh
@@ -89,25 +89,11 @@ jobs:
           Write-Host "Using preinstalled LLVM $expectedVersion"
           echo $llvmBin >> $env:GITHUB_PATH
 
-      - name: Download Clang Release build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-windows-clang20-Release
-          path: out/build
-
       - name: Setup MSVC Developer Environment
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Clear FetchContent update stamps
-        shell: pwsh
-        run: |
-          Get-ChildItem -Recurse -Filter "*-update*" `
-            -Path out/build `
-            -ErrorAction SilentlyContinue |
-            Remove-Item -Force
+        uses: ./.github/actions/setup-msvc
 
       - name: Cache FetchContent dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: out/build/Win64-Clang/_deps
           key: fetchcontent-${{ runner.os }}-${{ hashFiles('cmake/meta-targets/mimalloc.cmake', 'cmake/meta-targets/catch2.cmake') }}
@@ -125,16 +111,9 @@ jobs:
       - name: Run clang-tidy (parallel, warnings-as-errors)
         shell: bash
         run: |
+          test -f out/build/Win64-Clang/compile_commands.json
           git ls-files '*.cpp' '*.cxx' '*.cc' '*.ixx' \
-            | xargs -P "$(nproc)" -I {} clang-tidy {} \
+            | xargs -P 2 -I {} clang-tidy {} \
+                -p out/build/Win64-Clang \
                 --warnings-as-errors='*' \
-                --extra-arg=-std=c++23 \
-                -- \
-                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include" \
-                -I"${GITHUB_WORKSPACE}/compiler/platformlib/include/platformlib" \
-                -I"${GITHUB_WORKSPACE}/compiler/ecpps/src" \
-                -I"${GITHUB_WORKSPACE}/testing/compiler/fixtures" \
-                -I"${GITHUB_WORKSPACE}/compiler/utilitieslib/include/utilitieslib" \
-                -I"${GITHUB_WORKSPACE}/out/build/Win64-Clang/_deps/catch2" \
-                -DCLANG_TIDY \
-                -DNOMINMAX
+                --quiet

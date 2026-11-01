@@ -32,7 +32,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_build-linux.yml
     with:
-      llvm-version: "20"
+      llvm-version: "20.1.8"
       upload-artifacts: false
       enable-lto: false
       enable-ccache: true

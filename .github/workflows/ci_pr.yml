@@ -5,9 +5,13 @@ on:
     branches:
       - development
     types: [opened, synchronize, reopened, labeled, unlabeled]
+  merge_group:
+    branches:
+      - development
+    types: [checks_requested]
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number }}
+  group: pr-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -33,7 +37,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_build-linux.yml
     with:
-      llvm-version: "20"
+      llvm-version: "20.1.8"
       upload-artifacts: true
       enable-lto: false
       enable-ccache: true
@@ -47,9 +51,6 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
-    needs:
-      - build-windows
-      - build-linux
     uses: ./.github/workflows/_clang-tidy.yml
     with:
       llvm-version: "20.1.8"
@@ -74,7 +75,7 @@ jobs:
       - tests-build
       - clang-tidy
       - sanitisers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Check all jobs succeeded
         run: |

@@ -32,7 +32,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_build-linux.yml
     with:
-      llvm-version: "20"
+      llvm-version: "20.1.8"
       upload-artifacts: true
       enable-lto: true
       enable-ccache: true
@@ -46,9 +46,6 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
-    needs:
-      - build-windows
-      - build-linux
     uses: ./.github/workflows/_clang-tidy.yml
     with:
       llvm-version: "20.1.8"

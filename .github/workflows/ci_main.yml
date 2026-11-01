@@ -6,12 +6,29 @@ on:
       - "v*"
 
 concurrency:
-  group: ci-stable-release
+  group: ci-stable-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  validate-tag:
+    name: Validate stable version tag
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - name: Require a stable semantic version tag
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Expected a stable vMAJOR.MINOR.PATCH tag; received '$TAG'." >&2
+            exit 1
+          fi
+
   clang-format:
     name: "clang-format"
+    needs: validate-tag
     uses: ./.github/workflows/_clang-format.yml
     with:
       llvm-version: "20.1.8"
@@ -32,7 +49,7 @@ jobs:
     needs: clang-format
     uses: ./.github/workflows/_build-linux.yml
     with:
-      llvm-version: "20"
+      llvm-version: "20.1.8"
       upload-artifacts: true
       enable-lto: true
       enable-ccache: true
@@ -46,9 +63,6 @@ jobs:
 
   clang-tidy:
     name: "clang-tidy"
-    needs:
-      - build-windows
-      - build-linux
     uses: ./.github/workflows/_clang-tidy.yml
     with:
       llvm-version: "20.1.8"
@@ -76,6 +90,7 @@ jobs:
       source-ref: ${{ github.sha }}
       source-sha: ${{ github.sha }}
       package-version: ${{ github.ref_name }}
+      smoke-test-package: true
 
   release:
     name: "Release"
@@ -86,34 +101,59 @@ jobs:
       - sanitisers
       - tests
       - packages
-    runs-on: windows-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Download Windows compiler package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: compiler-package-windows
           path: dist/windows
 
       - name: Download Linux compiler package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: compiler-package-linux
           path: dist/linux
 
+      - name: Create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist/windows && sha256sum *.zip) > dist/SHA256SUMS.txt
+          (cd dist/linux && sha256sum *.zip) >> dist/SHA256SUMS.txt
+
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/windows/*.zip
+            dist/linux/*.zip
+            dist/SHA256SUMS.txt
+
       - name: Create stable release
-        uses: softprops/action-gh-release@v2
+        id: create-release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.ref_name }}
           name: "ECPPS ${{ github.ref_name }}"
-          body: |
-            Automated stable release for Windows x64 and Linux x64 (Clang 20 Release).
+          body: "Automated release."
           prerelease: false
+          draft: true
           target_commitish: ${{ github.sha }}
           files: |
             dist/windows/ecpps-windows-x64-clang.zip
             dist/linux/ecpps-linux-x64-clang.zip
+            dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
-          generate_release_notes: true
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.create-release.outputs.id }}
+        run: gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" -F draft=false

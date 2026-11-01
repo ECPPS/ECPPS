@@ -2,7 +2,7 @@ name: Daily Compiler Nightly
 
 on:
   schedule:
-    - cron: "0 10 * * *"
+    - cron: "17 10 * * *"
   workflow_dispatch:
 
 permissions:
@@ -11,14 +11,14 @@ permissions:
 jobs:
   gate:
     name: "Check whether to publish this commit"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       publish: ${{ steps.gate.outputs.publish }}
       source_sha: ${{ steps.gate.outputs.source_sha }}
       release_tag: ${{ steps.gate.outputs.release_tag }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: development
           fetch-depth: 0
@@ -28,6 +28,7 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git fetch --force --tags origin
@@ -35,17 +36,37 @@ jobs:
           date_utc="$(date -u +%Y%m%d)"
           release_tag="nightly-${date_utc}-${source_sha}"
 
-          if [[ "$EVENT_NAME" == "schedule" ]] &&
-             [[ -n "$(git tag --list "nightly-*-${source_sha}*")" ]]; then
-            echo "Commit $source_sha already has a nightly release; skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-              release_tag="${release_tag}-manual-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          publish=true
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            stable_tag="$(git tag --list 'v*' --sort=-version:refname \
+              | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' \
+              | head -n 1 || true)"
+
+            if [[ -n "$stable_tag" ]]; then
+              stable_sha="$(git rev-list -n 1 "$stable_tag")"
+              new_commit_count="$(git rev-list --count "$source_sha" "^$stable_sha")"
+              if [[ "$new_commit_count" == "0" ]]; then
+                echo "No development commits exist since $stable_tag; skipping."
+                publish=false
+              fi
             fi
-            echo "publish=true" >> "$GITHUB_OUTPUT"
+
+            nightly_tags="$(git tag --list "nightly-*-${source_sha}*")"
+            while IFS= read -r candidate_tag; do
+              [[ -n "$candidate_tag" ]] || continue
+              draft="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${candidate_tag}" \
+                --jq '.draft' 2>/dev/null || true)"
+              if [[ "$draft" == "false" ]]; then
+                echo "Commit $source_sha already has a published nightly release; skipping."
+                publish=false
+                break
+              fi
+            done <<< "$nightly_tags"
+          else
+            release_tag="${release_tag}-manual-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           fi
 
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
 
@@ -65,34 +86,60 @@ jobs:
       - gate
       - packages
     if: needs.gate.outputs.publish == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Download Windows compiler package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: compiler-package-windows
           path: dist/windows
 
       - name: Download Linux compiler package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: compiler-package-linux
           path: dist/linux
 
+      - name: Create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist/windows && sha256sum *.zip) > dist/SHA256SUMS.txt
+          (cd dist/linux && sha256sum *.zip) >> dist/SHA256SUMS.txt
+
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            dist/windows/*.zip
+            dist/linux/*.zip
+            dist/SHA256SUMS.txt
+
       - name: Create nightly pre-release
-        uses: softprops/action-gh-release@v2
+        id: create-release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ needs.gate.outputs.release_tag }}
           name: "ECPPS Nightly ${{ needs.gate.outputs.release_tag }}"
           target_commitish: ${{ needs.gate.outputs.source_sha }}
           prerelease: true
+          draft: true
           make_latest: false
-          body: |
-            Automated nightly release for Windows x64 and Linux x64 (Clang Release).
+          body: "Automated nightly build."
           files: |
             dist/windows/ecpps-windows-x64-clang.zip
             dist/linux/ecpps-linux-x64-clang.zip
+            dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
+
+      - name: Publish immutable nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.create-release.outputs.id }}
+        run: gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" -F draft=false
