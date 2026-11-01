@@ -3,6 +3,7 @@
 #include <catch_amalgamated.hpp>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 using namespace IRTestHelpers;
@@ -68,7 +69,8 @@ TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
      ast.push_back(fixture.MakeStructDefinition("PairForLayout", {{"int", "number"}, {"char", "marker"}}));
 
      (void)fixture.Parse(std::move(ast));
-     const auto& info = FindClassInfo(fixture, "PairForLayout");
+     const std::string className{"PairForLayout"};
+     const auto& info = FindClassInfo(fixture, className);
 
      REQUIRE(info.state == ecpps::typeSystem::ClassState::Complete);
      REQUIRE(info.fields.size() == 2);
