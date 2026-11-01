@@ -96,10 +96,13 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      const auto* functionName = dynamic_cast<const ecpps::ast::IdentifierNode*>(function->Signature().name.get());
      REQUIRE((functionName != nullptr));
+     if (functionName == nullptr) return;
      REQUIRE((functionName->Value() == "add"));
      REQUIRE((function->Signature().parameters.parameters.size() == 2));
+     if (function->Signature().parameters.parameters.size() != 2) return;
 
      const auto* firstParameter =
           dynamic_cast<const ecpps::ast::IdentifierNode*>(function->Signature().parameters.parameters[0].name.get());
@@ -107,18 +110,22 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
           dynamic_cast<const ecpps::ast::IdentifierNode*>(function->Signature().parameters.parameters[1].name.get());
      REQUIRE((firstParameter != nullptr));
      REQUIRE((secondParameter != nullptr));
+     if (firstParameter == nullptr || secondParameter == nullptr) return;
      REQUIRE((firstParameter->Value() == "lhs"));
      REQUIRE((secondParameter->Value() == "rhs"));
 
      const auto* returnNode = GetReturn(*function);
      REQUIRE((returnNode != nullptr));
+     if (returnNode == nullptr) return;
      const auto* addition = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(returnNode->Value().get());
      REQUIRE((addition != nullptr));
+     if (addition == nullptr) return;
      REQUIRE((addition->Value() == ecpps::ast::Operator::Plus));
      const auto* lhs = dynamic_cast<const ecpps::ast::IdentifierNode*>(addition->Left().get());
      const auto* rhs = dynamic_cast<const ecpps::ast::IdentifierNode*>(addition->Right().get());
      REQUIRE((lhs != nullptr));
      REQUIRE((rhs != nullptr));
+     if (lhs == nullptr || rhs == nullptr) return;
      REQUIRE((lhs->Value() == "lhs"));
      REQUIRE((rhs->Value() == "rhs"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());

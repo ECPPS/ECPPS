@@ -1,6 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include <IRTestHelpers.h>
 #include <catch_amalgamated.hpp>
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -47,9 +48,11 @@ namespace
      bool HasAggregateFieldStore(const std::vector<AggregateFieldStore>& stores, const std::uint64_t value,
                                  const std::uint64_t offset)
      {
-          for (const auto& store : stores)
-               if (store.value == value && store.offset == offset) return true;
-          return false;
+          return std::ranges::any_of(stores,
+                                     [value, offset](const AggregateFieldStore& store)
+                                     {
+                                          return store.value == value && store.offset == offset;
+                                     });
      }
 
      void RequireSecondFieldIsReturned(const ecpps::ir::ProcedureNode& procedure)
