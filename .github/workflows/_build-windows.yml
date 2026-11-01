@@ -123,6 +123,7 @@ jobs:
           echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Setup MinGW (GCC)
+        id: setup-msys2
         if: matrix.compiler == 'GCC'
         uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
         with:
@@ -136,14 +137,22 @@ jobs:
 
       - name: Add MinGW to PATH
         if: matrix.compiler == 'GCC'
-        shell: bash
+        shell: pwsh
+        env:
+          MSYS2_LOCATION: ${{ steps.setup-msys2.outputs.msys2-location }}
         run: |
-          echo "C:/msys64/ucrt64/bin" >> "$GITHUB_PATH"
-          version="$(C:/msys64/ucrt64/bin/g++.exe -dumpfullversion -dumpversion)"
-          if [[ "$version" != "16.2.0" ]]; then
-            echo "Expected UCRT64 GCC 16.2.0 but found $version." >&2
-            exit 1
-          fi
+          $ucrt64Bin = Join-Path $env:MSYS2_LOCATION "ucrt64\bin"
+          $gxx = Join-Path $ucrt64Bin "g++.exe"
+          if (-not (Test-Path $gxx)) {
+            throw "UCRT64 g++ was not found at $gxx"
+          }
+
+          $version = (& $gxx -dumpfullversion -dumpversion | Out-String).Trim()
+          if ($version -ne "16.2.0") {
+            throw "Expected UCRT64 GCC 16.2.0 but found $version."
+          }
+
+          Add-Content -Path $env:GITHUB_PATH -Value $ucrt64Bin
 
       - name: Setup MSVC Developer Environment
         if: matrix.needs_msvc_env
