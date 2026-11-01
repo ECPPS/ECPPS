@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: true
+      llvm-version:
+        description: "LLVM version for the report-only unit coverage job"
+        required: false
+        type: string
+        default: "20.1.8"
 
 jobs:
   build-and-test:
@@ -61,3 +66,48 @@ jobs:
           ctest `
             --preset Win64-MSVC-Debug `
             --output-on-failure
+
+  coverage-report:
+    name: Unit Coverage Report (Clang)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3
+
+      - name: Install LLVM
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          llvm_major="${{ inputs.llvm-version }}"
+          llvm_major="${llvm_major%%.*}"
+          sudo ./llvm.sh "$llvm_major" all
+          echo "/usr/lib/llvm-${llvm_major}/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-${llvm_major}/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configure coverage build
+        run: cmake --preset Linux-Clang-Coverage -DENABLE_CCACHE=OFF
+
+      - name: Build unit tests
+        run: cmake --build --preset Linux-Clang-Coverage-Debug --parallel
+
+      - name: Run unit tests
+        run: ctest --test-dir out/build/Linux-Clang-Coverage -C Debug -L unit --output-on-failure
+
+      - name: Generate coverage report
+        run: |
+          python3 scripts/coverage/report.py \
+            --build-dir out/build/Linux-Clang-Coverage \
+            --configuration Debug
+          cat out/build/Linux-Clang-Coverage/coverage/summary.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage-report
+          path: out/build/Linux-Clang-Coverage/coverage/
+          retention-days: 14

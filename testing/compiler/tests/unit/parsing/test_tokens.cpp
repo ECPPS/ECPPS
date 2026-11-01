@@ -3,6 +3,7 @@
 #include <Parsing/Tokeniser.h>
 #include <catch_amalgamated.hpp>
 #include <algorithm>
+#include <cmath>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -17,6 +18,14 @@ static ecpps::PreprocessingToken ConstructOperator(const std::string& name)
 {
      return ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator, name,
                                       ecpps::Location{0, 0, 0}};
+}
+static ecpps::PreprocessingToken ConstructNumber(const std::string& value)
+{
+     return ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::Number, value, ecpps::Location{0, 0, 0}};
+}
+static ecpps::PreprocessingToken ConstructString(const std::string& value)
+{
+     return ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::StringLiteral, value, ecpps::Location{0, 0, 0}};
 }
 
 TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
@@ -278,5 +287,48 @@ TEST_CASE("Literals", "[parsing][tokeniser]")
      REQUIRE(tokens[0].IsLiteral());
      REQUIRE(tokens[1].IsLiteral());
      REQUIRE(tokens[2].IsLiteral());
+}
+
+TEST_CASE("Tokeniser - Boolean identifiers become boolean literals", "[unit][parsing][tokeniser]")
+{
+     const std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructIdentifier("true"),
+                                                              ConstructIdentifier("false")};
+
+     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
+
+     REQUIRE(tokens.size() == 2);
+     REQUIRE(tokens[0].type == ecpps::TokenType::Literal);
+     REQUIRE(std::holds_alternative<bool>(tokens[0].value));
+     REQUIRE(std::get<bool>(tokens[0].value));
+     REQUIRE(tokens[1].type == ecpps::TokenType::Literal);
+     REQUIRE(std::holds_alternative<bool>(tokens[1].value));
+     REQUIRE_FALSE(std::get<bool>(tokens[1].value));
+}
+
+TEST_CASE("Tokeniser - Integer and exponent literals retain parsed values", "[unit][parsing][tokeniser]")
+{
+     const std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructNumber("42"), ConstructNumber("1.5e-2")};
+
+     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
+
+     REQUIRE(tokens.size() == 2);
+     REQUIRE(tokens[0].type == ecpps::TokenType::Literal);
+     REQUIRE(std::holds_alternative<ecpps::IntegerLiteral>(tokens[0].value));
+     REQUIRE(std::get<ecpps::IntegerLiteral>(tokens[0].value).value == 42);
+     REQUIRE(tokens[1].type == ecpps::TokenType::Literal);
+     REQUIRE(std::holds_alternative<ecpps::FloatingPointLiteral>(tokens[1].value));
+     REQUIRE(std::abs(std::get<ecpps::FloatingPointLiteral>(tokens[1].value).value - 0.015L) < 0.000001L);
+}
+
+TEST_CASE("Tokeniser - String escapes decode to their character values", "[unit][parsing][tokeniser]")
+{
+     const std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructString(R"(line\n\x21\u03A9)")};
+
+     const auto tokens = ecpps::Tokeniser::Tokenise(ppTokens);
+
+     REQUIRE(tokens.size() == 1);
+     REQUIRE(tokens[0].type == ecpps::TokenType::Literal);
+     REQUIRE(std::holds_alternative<ecpps::StringLiteral>(tokens[0].value));
+     REQUIRE(std::get<ecpps::StringLiteral>(tokens[0].value).value == std::string{"line\n!\xCE\xA9"});
 }
 // NOLINTEND(bugprone-chained-comparison)

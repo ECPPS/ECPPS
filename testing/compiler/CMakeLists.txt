@@ -16,6 +16,11 @@ function(add_compiler_test target_name SOURCES_FILES label)
 
     add_test(NAME ${target_name} COMMAND $<TARGET_FILE:${target_name}>)
     set_tests_properties(${target_name} PROPERTIES LABELS ${label})
+    if(ENABLE_COVERAGE)
+        set_tests_properties(${target_name} PROPERTIES
+            ENVIRONMENT "LLVM_PROFILE_FILE=${CMAKE_BINARY_DIR}/profiles/%p.profraw"
+        )
+    endif()
 endfunction()
 
 add_compiler_test(test_bump_allocator                tests/unit/utilities/test_bump_allocator.cpp    unit)
@@ -24,6 +29,12 @@ add_compiler_test(test_arithmetic_types              tests/unit/typesystem/test_
 add_compiler_test(test_x86_64_opcodes                tests/unit/test_x86_64_opcodes.cpp              unit)
 add_compiler_test(test_unit_preprocessing_tokens     tests/unit/parsing/test_pp_tokens.cpp           unit)
 add_compiler_test(test_unit_tokens                   tests/unit/parsing/test_tokens.cpp              unit)
+add_compiler_test(test_unit_ast                      tests/unit/parsing/test_ast.cpp                 unit)
+add_compiler_test(test_unit_sbo_vector               tests/unit/utilities/test_sbo_vector.cpp       unit)
+add_compiler_test(test_unit_ir_overload_resolution   tests/unit/execution/test_ir_overload_resolution.cpp unit)
+add_compiler_test(test_unit_ir_classes               tests/unit/execution/test_ir_classes.cpp       unit)
+add_compiler_test(test_unit_ir_codegen               tests/unit/execution/test_ir_codegen.cpp       unit)
+add_compiler_test(test_unit_ir_control_flow          tests/unit/execution/test_ir_control_flow.cpp  unit)
 
 add_compiler_test(test_tokeniser_to_ast              tests/integration/test_tokeniser_to_ast.cpp     integration)
 add_compiler_test(test_integration_tokens            tests/integration/test_tokeniser.cpp            integration)

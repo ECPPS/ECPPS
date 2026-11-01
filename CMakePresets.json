@@ -209,6 +209,20 @@
 			}
 		},
 		{
+			"name": "Linux-Clang-Coverage",
+			"displayName": "Linux / Clang / Unit Coverage",
+			"inherits": [
+				"Linux-Clang"
+			],
+			"binaryDir": "${sourceDir}/out/build/Linux-Clang-Coverage",
+			"installDir": "${sourceDir}/out/install/Linux-Clang-Coverage",
+			"cacheVariables": {
+				"BUILD_TESTING": "ON",
+				"ENABLE_COVERAGE": "ON",
+				"USE_MIMALLOC": "OFF"
+			}
+		},
+		{
 			"name": "Linux-GCC",
 			"displayName": "Linux / GCC",
 			"inherits": [
@@ -458,6 +472,14 @@
 			]
 		},
 		{
+			"name": "Linux-Clang-Coverage-Debug",
+			"configurePreset": "Linux-Clang-Coverage",
+			"configuration": "Debug",
+			"targets": [
+				"all"
+			]
+		},
+		{
 			"name": "Linux-GCC-Debug-Tests",
 			"configurePreset": "Linux-GCC",
 			"configuration": "Debug",
@@ -555,6 +577,11 @@
 		{
 			"name": "Linux-Clang-Debug",
 			"configurePreset": "Linux-Clang",
+			"configuration": "Debug"
+		},
+		{
+			"name": "Linux-Clang-Coverage",
+			"configurePreset": "Linux-Clang-Coverage",
 			"configuration": "Debug"
 		},
 		{
