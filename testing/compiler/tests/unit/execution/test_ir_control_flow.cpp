@@ -7,42 +7,40 @@ using namespace IRTestHelpers;
 
 namespace
 {
-     template <typename TNode>
-     std::size_t CountNodes(const std::vector<ecpps::ir::NodePointer>& nodes)
+     template <typename TNode> std::size_t CountNodes(const std::vector<ecpps::ir::NodePointer>& nodes)
      {
-          return static_cast<std::size_t>(std::ranges::count_if(
-               nodes,
-               [](const ecpps::ir::NodePointer& node)
-               {
-                    return dynamic_cast<const TNode*>(node.get()) != nullptr;
-               }));
+          return static_cast<std::size_t>(std::ranges::count_if(nodes,
+                                                                [](const ecpps::ir::NodePointer& node)
+                                                                {
+                                                                     return dynamic_cast<const TNode*>(node.get()) !=
+                                                                            nullptr;
+                                                                }));
      }
 
      bool HasLabel(const std::vector<ecpps::ir::NodePointer>& nodes, const std::string& name)
      {
-          return std::ranges::any_of(
-               nodes,
-               [&name](const ecpps::ir::NodePointer& node)
-               {
-                    const auto* label = dynamic_cast<const ecpps::ir::SSALabelNode*>(node.get());
-                    return label != nullptr && label->Name() == name;
-               });
+          return std::ranges::any_of(nodes,
+                                     [&name](const ecpps::ir::NodePointer& node)
+                                     {
+                                          const auto* label = dynamic_cast<const ecpps::ir::SSALabelNode*>(node.get());
+                                          return label != nullptr && label->Name() == name;
+                                     });
      }
 } // namespace
 
 TEST_CASE("IR - If/else lowers a signed comparison to branch targets", "[unit][ir][control-flow]")
 {
      Fixture fixture{};
-     auto condition = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
-          fixture.astAllocator, fixture.MakeIdentifier("lhs"), ecpps::ast::Operator::Less,
-          fixture.MakeIdentifier("rhs"), Source);
+     auto condition = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator, fixture.MakeIdentifier("lhs"),
+                                                                  ecpps::ast::Operator::Less,
+                                                                  fixture.MakeIdentifier("rhs"), Source);
 
      std::vector<ecpps::ast::NodePointer> thenBody{};
-     thenBody.push_back(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(1),
-                                                            Source));
+     thenBody.push_back(
+          MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(1), Source));
      std::vector<ecpps::ast::NodePointer> elseBody{};
-     elseBody.push_back(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(0),
-                                                            Source));
+     elseBody.push_back(
+          MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(0), Source));
      auto ifStatement = MakeASTNode<ecpps::ast::IfStatementNode>(fixture.astAllocator, std::move(condition),
                                                                  std::move(thenBody), std::move(elseBody), Source);
 
@@ -80,8 +78,8 @@ TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][a
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "update", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "update", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "update");
@@ -110,15 +108,15 @@ TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][a
 TEST_CASE("IR - Post-increment stores the increment but returns the previous value", "[unit][ir][increment]")
 {
      Fixture fixture{};
-     auto increment = MakeASTNode<ecpps::ast::UnaryOperatorNode>(
-          fixture.astAllocator, ecpps::ast::Operator::Increment, fixture.MakeIdentifier("value"),
-          ecpps::ast::UnaryOperatorType::Postfix, Source);
+     auto increment = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, ecpps::ast::Operator::Increment,
+                                                                 fixture.MakeIdentifier("value"),
+                                                                 ecpps::ast::UnaryOperatorType::Postfix, Source);
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(increment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "advance");
@@ -296,15 +294,15 @@ TEST_CASE("IR - Prefix decrement rejects const operands", "[unit][ir][increment]
 TEST_CASE("IR - Prefix increment stores and returns the updated value", "[unit][ir][increment]")
 {
      Fixture fixture{};
-     auto increment = MakeASTNode<ecpps::ast::UnaryOperatorNode>(
-          fixture.astAllocator, ecpps::ast::Operator::Increment, fixture.MakeIdentifier("value"),
-          ecpps::ast::UnaryOperatorType::Prefix, Source);
+     auto increment = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, ecpps::ast::Operator::Increment,
+                                                                 fixture.MakeIdentifier("value"),
+                                                                 ecpps::ast::UnaryOperatorType::Prefix, Source);
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(increment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "advance");
@@ -374,8 +372,8 @@ TEST_CASE("IR - Subtraction assignment stores and returns the updated value", "[
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "reduce", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "reduce", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "reduce");
@@ -418,8 +416,8 @@ TEST_CASE("IR - Addition assignment stores and returns the updated value", "[uni
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "increase", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "increase", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "increase");
@@ -455,18 +453,18 @@ TEST_CASE("IR - Addition assignment stores and returns the updated value", "[uni
 TEST_CASE("IR - Compound assignment rejects rvalue operands", "[unit][ir][assignment]")
 {
      Fixture fixture{};
-     auto sum = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
-          fixture.astAllocator, fixture.MakeIdentifier("value"), ecpps::ast::Operator::Plus,
-          fixture.MakeIntegerLiteral(1), Source);
-     auto assignment = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
-          fixture.astAllocator, std::move(sum), ecpps::ast::Operator::PlusAssign,
-          fixture.MakeIntegerLiteral(3), Source);
+     auto sum = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator, fixture.MakeIdentifier("value"),
+                                                            ecpps::ast::Operator::Plus, fixture.MakeIntegerLiteral(1),
+                                                            Source);
+     auto assignment = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator, std::move(sum),
+                                                                   ecpps::ast::Operator::PlusAssign,
+                                                                   fixture.MakeIntegerLiteral(3), Source);
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
 
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeFunctionDefinition(
-          fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}}), std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}}),
+                                                  std::move(body)));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
@@ -492,7 +490,7 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
-                                                                    std::move(body), Source));
+                                                                   std::move(body), Source));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "invalid");
@@ -505,30 +503,29 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
 TEST_CASE("IR - Compound assignment diagnoses unsupported indirect targets", "[unit][ir][assignment]")
 {
      Fixture fixture{};
-     auto dereference = MakeASTNode<ecpps::ast::UnaryOperatorNode>(
-          fixture.astAllocator, ecpps::ast::Operator::Asterisk, fixture.MakeIdentifier("value"),
-          ecpps::ast::UnaryOperatorType::Prefix, Source);
-     auto assignment = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
-          fixture.astAllocator, std::move(dereference), ecpps::ast::Operator::PlusAssign,
-          fixture.MakeIntegerLiteral(3), Source);
+     auto dereference = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, ecpps::ast::Operator::Asterisk,
+                                                                   fixture.MakeIdentifier("value"),
+                                                                   ecpps::ast::UnaryOperatorType::Prefix, Source);
+     auto assignment = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator, std::move(dereference),
+                                                                   ecpps::ast::Operator::PlusAssign,
+                                                                   fixture.MakeIntegerLiteral(3), Source);
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
 
      auto signature = fixture.MakeFunctionSignature("int", "update", {{"int", "value"}});
-     signature.parameters.parameters.front().type = MakeASTNode<ecpps::ast::PointerType>(
-          fixture.astAllocator, fixture.MakeBasicType("int"), Source);
+     signature.parameters.parameters.front().type =
+          MakeASTNode<ecpps::ast::PointerType>(fixture.astAllocator, fixture.MakeBasicType("int"), Source);
 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
-                                                                    std::move(body), Source));
+                                                                   std::move(body), Source));
      auto nodes = fixture.Parse(std::move(ast));
 
      const auto* procedure = FindProcedure(nodes, "update");
      REQUIRE(procedure != nullptr);
      REQUIRE(CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0);
      REQUIRE(CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0);
-     REQUIRE(HasTypeErrorContaining(fixture.diagnostics,
-                                    "Modifying an object through a pointer is not supported yet"));
+     REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Modifying an object through a pointer is not supported yet"));
 }
 
 TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][ir][control-flow]")
@@ -560,8 +557,7 @@ TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][i
      for (const auto& node : procedure->Body())
           if (const auto* branch = dynamic_cast<const ecpps::ir::SSABranchNode*>(node.get()); branch != nullptr)
           {
-               if (!foundFirstBranch)
-                    foundFirstBranch = true;
+               if (!foundFirstBranch) foundFirstBranch = true;
                else
                     secondBranch = branch;
           }
@@ -627,8 +623,7 @@ TEST_CASE("IR - Continue jumps to the loop continuation", "[unit][ir][control-fl
           if (const auto* label = dynamic_cast<const ecpps::ir::SSALabelNode*>(node.get());
               label != nullptr && label->Name() == jump->Name())
                continuationLabelIndex = index;
-          if (continuationLabelIndex < index &&
-              dynamic_cast<const ecpps::ir::SSABranchNode*>(node.get()) != nullptr)
+          if (continuationLabelIndex < index && dynamic_cast<const ecpps::ir::SSABranchNode*>(node.get()) != nullptr)
                followingBranchIndex = index;
      }
 

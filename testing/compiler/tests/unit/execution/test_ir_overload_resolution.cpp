@@ -6,8 +6,7 @@ using namespace IRTestHelpers;
 
 namespace
 {
-     std::vector<ecpps::ast::NodePointer> MakeOverloadProgram(Fixture& fixture,
-                                                              const std::string& firstParameter,
+     std::vector<ecpps::ast::NodePointer> MakeOverloadProgram(Fixture& fixture, const std::string& firstParameter,
                                                               const std::string& secondParameter,
                                                               const std::string& callerParameter)
      {

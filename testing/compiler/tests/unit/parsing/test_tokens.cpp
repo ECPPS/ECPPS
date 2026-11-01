@@ -4,7 +4,6 @@
 #include <catch_amalgamated.hpp>
 #include <algorithm>
 #include <cmath>
-#include <ranges>
 #include <string>
 #include <vector>
 

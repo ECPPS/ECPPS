@@ -47,10 +47,12 @@ namespace
 
      std::vector<ecpps::Token> ZeroArgumentFunction(std::string name, std::vector<ecpps::Token> expression)
      {
-          std::vector<ecpps::Token> tokens{
-               Keyword("int"), Identifier(std::move(name)), Punctuation(ecpps::TokenType::LeftParenthesis),
-               Punctuation(ecpps::TokenType::RightParenthesis), Punctuation(ecpps::TokenType::LeftBrace),
-               Keyword("return")};
+          std::vector<ecpps::Token> tokens{Keyword("int"),
+                                           Identifier(std::move(name)),
+                                           Punctuation(ecpps::TokenType::LeftParenthesis),
+                                           Punctuation(ecpps::TokenType::RightParenthesis),
+                                           Punctuation(ecpps::TokenType::LeftBrace),
+                                           Keyword("return")};
           tokens.insert(tokens.end(), std::make_move_iterator(expression.begin()),
                         std::make_move_iterator(expression.end()));
           tokens.push_back(Punctuation(ecpps::TokenType::SemiColon));
@@ -58,8 +60,7 @@ namespace
           return tokens;
      }
 
-     const ecpps::ast::FunctionDefinitionNode* GetFunction(
-          const std::vector<ecpps::ast::NodePointer>& nodes)
+     const ecpps::ast::FunctionDefinitionNode* GetFunction(const std::vector<ecpps::ast::NodePointer>& nodes)
      {
           if (nodes.size() != 1) return nullptr;
           return dynamic_cast<const ecpps::ast::FunctionDefinitionNode*>(nodes.front().get());
@@ -75,12 +76,22 @@ namespace
 TEST_CASE("AST - Function definition preserves its signature and return expression", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     std::vector<ecpps::Token> tokens{
-          Keyword("int"), Identifier("add"), Punctuation(ecpps::TokenType::LeftParenthesis),
-          Keyword("int"), Identifier("lhs"), Operator(","), Keyword("int"), Identifier("rhs"),
-          Punctuation(ecpps::TokenType::RightParenthesis), Punctuation(ecpps::TokenType::LeftBrace), Keyword("return"),
-          Identifier("lhs"), Operator("+"), Identifier("rhs"), Punctuation(ecpps::TokenType::SemiColon),
-          Punctuation(ecpps::TokenType::RightBrace)};
+     std::vector<ecpps::Token> tokens{Keyword("int"),
+                                      Identifier("add"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Keyword("int"),
+                                      Identifier("lhs"),
+                                      Operator(","),
+                                      Keyword("int"),
+                                      Identifier("rhs"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("return"),
+                                      Identifier("lhs"),
+                                      Operator("+"),
+                                      Identifier("rhs"),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace)};
 
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
@@ -90,10 +101,10 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
      REQUIRE(functionName->Value() == "add");
      REQUIRE(function->Signature().parameters.parameters.size() == 2);
 
-     const auto* firstParameter = dynamic_cast<const ecpps::ast::IdentifierNode*>(
-          function->Signature().parameters.parameters[0].name.get());
-     const auto* secondParameter = dynamic_cast<const ecpps::ast::IdentifierNode*>(
-          function->Signature().parameters.parameters[1].name.get());
+     const auto* firstParameter =
+          dynamic_cast<const ecpps::ast::IdentifierNode*>(function->Signature().parameters.parameters[0].name.get());
+     const auto* secondParameter =
+          dynamic_cast<const ecpps::ast::IdentifierNode*>(function->Signature().parameters.parameters[1].name.get());
      REQUIRE(firstParameter != nullptr);
      REQUIRE(secondParameter != nullptr);
      REQUIRE(firstParameter->Value() == "lhs");
@@ -116,8 +127,8 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
 TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     auto nodes = fixture.Parse(ZeroArgumentFunction(
-          "value", {Integer(1), Operator("+"), Integer(2), Operator("*"), Integer(3)}));
+     auto nodes = fixture.Parse(
+          ZeroArgumentFunction("value", {Integer(1), Operator("+"), Integer(2), Operator("*"), Integer(3)}));
 
      const auto* function = GetFunction(nodes);
      REQUIRE(function != nullptr);
@@ -135,8 +146,8 @@ TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[
 TEST_CASE("AST - Subtraction groups from left to right", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     auto nodes = fixture.Parse(ZeroArgumentFunction(
-          "value", {Integer(9), Operator("-"), Integer(4), Operator("-"), Integer(1)}));
+     auto nodes = fixture.Parse(
+          ZeroArgumentFunction("value", {Integer(9), Operator("-"), Integer(4), Operator("-"), Integer(1)}));
 
      const auto* function = GetFunction(nodes);
      REQUIRE(function != nullptr);
@@ -145,8 +156,7 @@ TEST_CASE("AST - Subtraction groups from left to right", "[unit][parsing][ast]")
      const auto* outerSubtraction = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(returnNode->Value().get());
      REQUIRE(outerSubtraction != nullptr);
      REQUIRE(outerSubtraction->Value() == ecpps::ast::Operator::Minus);
-     const auto* innerSubtraction =
-          dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(outerSubtraction->Left().get());
+     const auto* innerSubtraction = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(outerSubtraction->Left().get());
      REQUIRE(innerSubtraction != nullptr);
      REQUIRE(innerSubtraction->Value() == ecpps::ast::Operator::Minus);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -155,20 +165,31 @@ TEST_CASE("AST - Subtraction groups from left to right", "[unit][parsing][ast]")
 TEST_CASE("AST - If/else retains its condition and both bodies", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     std::vector<ecpps::Token> tokens{
-          Keyword("int"), Identifier("choose"), Punctuation(ecpps::TokenType::LeftParenthesis), Keyword("bool"),
-          Identifier("condition"), Punctuation(ecpps::TokenType::RightParenthesis),
-          Punctuation(ecpps::TokenType::LeftBrace), Keyword("if"), Punctuation(ecpps::TokenType::LeftParenthesis),
-          Identifier("condition"), Punctuation(ecpps::TokenType::RightParenthesis), Keyword("return"), Integer(1),
-          Punctuation(ecpps::TokenType::SemiColon), Keyword("else"), Keyword("return"), Integer(0),
-          Punctuation(ecpps::TokenType::SemiColon), Punctuation(ecpps::TokenType::RightBrace)};
+     std::vector<ecpps::Token> tokens{Keyword("int"),
+                                      Identifier("choose"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Keyword("bool"),
+                                      Identifier("condition"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("if"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Identifier("condition"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Keyword("return"),
+                                      Integer(1),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Keyword("else"),
+                                      Keyword("return"),
+                                      Integer(0),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace)};
 
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
      REQUIRE(function != nullptr);
      REQUIRE(function->Body().Size() == 1);
-     const auto* ifStatement =
-          dynamic_cast<const ecpps::ast::IfStatementNode*>(function->Body().Front().get());
+     const auto* ifStatement = dynamic_cast<const ecpps::ast::IfStatementNode*>(function->Body().Front().get());
      REQUIRE(ifStatement != nullptr);
      const auto* condition = dynamic_cast<const ecpps::ast::IdentifierNode*>(ifStatement->Condition().get());
      REQUIRE(condition != nullptr);
@@ -192,20 +213,28 @@ TEST_CASE("AST - If/else retains its condition and both bodies", "[unit][parsing
 TEST_CASE("AST - While retains its condition and continue statement", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     std::vector<ecpps::Token> tokens{
-          Keyword("void"), Identifier("repeat"), Punctuation(ecpps::TokenType::LeftParenthesis), Keyword("bool"),
-          Identifier("condition"), Punctuation(ecpps::TokenType::RightParenthesis),
-          Punctuation(ecpps::TokenType::LeftBrace), Keyword("while"), Punctuation(ecpps::TokenType::LeftParenthesis),
-          Identifier("condition"), Punctuation(ecpps::TokenType::RightParenthesis),
-          Punctuation(ecpps::TokenType::LeftBrace), Keyword("continue"), Punctuation(ecpps::TokenType::SemiColon),
-          Punctuation(ecpps::TokenType::RightBrace), Punctuation(ecpps::TokenType::RightBrace)};
+     std::vector<ecpps::Token> tokens{Keyword("void"),
+                                      Identifier("repeat"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Keyword("bool"),
+                                      Identifier("condition"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("while"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Identifier("condition"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("continue"),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace),
+                                      Punctuation(ecpps::TokenType::RightBrace)};
 
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
      REQUIRE(function != nullptr);
      REQUIRE(function->Body().Size() == 1);
-     const auto* whileStatement =
-          dynamic_cast<const ecpps::ast::WhileStatementNode*>(function->Body().Front().get());
+     const auto* whileStatement = dynamic_cast<const ecpps::ast::WhileStatementNode*>(function->Body().Front().get());
      REQUIRE(whileStatement != nullptr);
      const auto* condition = dynamic_cast<const ecpps::ast::IdentifierNode*>(whileStatement->Condition().get());
      REQUIRE(condition != nullptr);
@@ -243,10 +272,16 @@ TEST_CASE("AST - Initialized variable retains its type, name, and value", "[unit
 TEST_CASE("AST - Function declaration retains its signature", "[unit][parsing][ast]")
 {
      Fixture fixture{};
-     std::vector<ecpps::Token> tokens{
-          Keyword("int"), Identifier("add"), Punctuation(ecpps::TokenType::LeftParenthesis), Keyword("int"),
-          Identifier("lhs"), Operator(","), Keyword("int"), Identifier("rhs"),
-          Punctuation(ecpps::TokenType::RightParenthesis), Punctuation(ecpps::TokenType::SemiColon)};
+     std::vector<ecpps::Token> tokens{Keyword("int"),
+                                      Identifier("add"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Keyword("int"),
+                                      Identifier("lhs"),
+                                      Operator(","),
+                                      Keyword("int"),
+                                      Identifier("rhs"),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::SemiColon)};
 
      auto nodes = fixture.Parse(std::move(tokens));
      REQUIRE(nodes.size() == 1);

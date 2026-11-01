@@ -90,8 +90,8 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(7));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("BoxForInitialization", "box", std::move(initialiser)));
@@ -99,8 +99,7 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
           fixture.astAllocator, fixture.MakeIdentifier("box"), ecpps::ast::Operator::FullStop,
           fixture.MakeIdentifier("value"), Source);
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "make", {}),
-                                                  std::move(body)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "make", {}), std::move(body)));
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "make");
@@ -120,15 +119,13 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
                store = indirectStore;
      }
      for (const auto& node : procedure->Body())
-          if (const auto* add = dynamic_cast<const ecpps::ir::SSAAddNode*>(node.get()); add != nullptr &&
-                                                                 store != nullptr &&
-                                                                 &add->Result() == &store->Target())
+          if (const auto* add = dynamic_cast<const ecpps::ir::SSAAddNode*>(node.get());
+              add != nullptr && store != nullptr && &add->Result() == &store->Target())
           {
                fieldAddress = add;
                for (const auto& operandNode : procedure->Body())
                     if (const auto* immediate = dynamic_cast<const ecpps::ir::SSAImmNode*>(operandNode.get());
-                        immediate != nullptr && immediate->Value() == 0 &&
-                        &add->Right() == &immediate->Result())
+                        immediate != nullptr && immediate->Value() == 0 && &add->Right() == &immediate->Result())
                          zeroOffset = immediate;
           }
 
@@ -148,14 +145,14 @@ TEST_CASE("IR - Positional aggregate initialization assigns each field in order"
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairForPositionalInitialization",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(
+          fixture.MakeStructDefinition("PairForPositionalInitialization", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(5));
      initialisers.push_back(fixture.MakeIntegerLiteral(9));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairForPositionalInitialization", "pair", std::move(initialiser)));
@@ -163,8 +160,8 @@ TEST_CASE("IR - Positional aggregate initialization assigns each field in order"
           fixture.astAllocator, fixture.MakeIdentifier("pair"), ecpps::ast::Operator::FullStop,
           fixture.MakeIdentifier("second"), Source);
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "makePair", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "makePair", {}), std::move(body)));
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "makePair");
@@ -185,8 +182,8 @@ TEST_CASE("IR - Omitted aggregate fields receive zero initialization", "[unit][i
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(5));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairWithOmittedField", "pair", std::move(initialiser)));
@@ -194,8 +191,8 @@ TEST_CASE("IR - Omitted aggregate fields receive zero initialization", "[unit][i
           fixture.astAllocator, fixture.MakeIdentifier("pair"), ecpps::ast::Operator::FullStop,
           fixture.MakeIdentifier("second"), Source);
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "secondOrZero", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "secondOrZero", {}), std::move(body)));
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "secondOrZero");
@@ -212,14 +209,14 @@ TEST_CASE("IR - Designated aggregate initialization targets the named field", "[
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairForDesignatedInitialization",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(
+          fixture.MakeStructDefinition("PairForDesignatedInitialization", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "second", fixture.MakeIntegerLiteral(9), Source));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
+                                                                               fixture.MakeIntegerLiteral(9), Source));
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairForDesignatedInitialization", "pair", std::move(initialiser)));
@@ -227,8 +224,8 @@ TEST_CASE("IR - Designated aggregate initialization targets the named field", "[
           fixture.astAllocator, fixture.MakeIdentifier("pair"), ecpps::ast::Operator::FullStop,
           fixture.MakeIdentifier("second"), Source);
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "readSecond", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "readSecond", {}), std::move(body)));
 
      auto nodes = fixture.Parse(std::move(ast));
      const auto* procedure = FindProcedure(nodes, "readSecond");
@@ -245,16 +242,16 @@ TEST_CASE("IR - Designated aggregate initializers must follow member order", "[u
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairWithOutOfOrderDesignators",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(
+          fixture.MakeStructDefinition("PairWithOutOfOrderDesignators", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "second", fixture.MakeIntegerLiteral(9), Source));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "first", fixture.MakeIntegerLiteral(5), Source));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
+                                                                               fixture.MakeIntegerLiteral(9), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
+                                                                               fixture.MakeIntegerLiteral(5), Source));
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairWithOutOfOrderDesignators", "pair", std::move(initialiser)));
@@ -262,33 +259,32 @@ TEST_CASE("IR - Designated aggregate initializers must follow member order", "[u
           fixture.astAllocator, fixture.MakeIdentifier("pair"), ecpps::ast::Operator::FullStop,
           fixture.MakeIdentifier("second"), Source);
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "invalidOrder", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "invalidOrder", {}), std::move(body)));
 
      const auto nodes = fixture.Parse(std::move(ast));
 
      REQUIRE(FindProcedure(nodes, "invalidOrder") != nullptr);
-     REQUIRE(HasTypeErrorContaining(fixture.diagnostics,
-                                    "Designated initialisers must follow member declaration order"));
+     REQUIRE(
+          HasTypeErrorContaining(fixture.diagnostics, "Designated initialisers must follow member declaration order"));
 }
 
 TEST_CASE("IR - Unknown designated aggregate members are diagnosed", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairWithUnknownDesignator",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(fixture.MakeStructDefinition("PairWithUnknownDesignator", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "missing", fixture.MakeIntegerLiteral(7), Source));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "missing",
+                                                                               fixture.MakeIntegerLiteral(7), Source));
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairWithUnknownDesignator", "pair", std::move(initialiser)));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "unknownField", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "unknownField", {}), std::move(body)));
 
      (void)fixture.Parse(std::move(ast));
 
@@ -299,21 +295,20 @@ TEST_CASE("IR - Duplicate designated aggregate members are diagnosed", "[unit][i
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairWithDuplicateDesignator",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(fixture.MakeStructDefinition("PairWithDuplicateDesignator", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "first", fixture.MakeIntegerLiteral(5), Source));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "first", fixture.MakeIntegerLiteral(9), Source));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
+                                                                               fixture.MakeIntegerLiteral(5), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
+                                                                               fixture.MakeIntegerLiteral(9), Source));
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairWithDuplicateDesignator", "pair", std::move(initialiser)));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "duplicateField", {}),
-                                                  std::move(body)));
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "duplicateField", {}), std::move(body)));
 
      (void)fixture.Parse(std::move(ast));
 
@@ -324,15 +319,14 @@ TEST_CASE("IR - Positional and designated aggregate initializers cannot be mixed
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairWithMixedInitializers",
-                                                {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(fixture.MakeStructDefinition("PairWithMixedInitializers", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(5));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
-          fixture.astAllocator, "second", fixture.MakeIntegerLiteral(9), Source));
-     auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers),
-                                                                      Source);
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
+                                                                               fixture.MakeIntegerLiteral(9), Source));
+     auto initialiser =
+          MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(fixture.MakeVariableDeclaration("PairWithMixedInitializers", "pair", std::move(initialiser)));

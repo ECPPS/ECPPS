@@ -7,9 +7,9 @@ using namespace IRTestHelpers;
 TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][codegen]")
 {
      Fixture fixture{};
-     auto addition = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
-          fixture.astAllocator, fixture.MakeIdentifier("lhs"), ecpps::ast::Operator::Plus,
-          fixture.MakeIdentifier("rhs"), Source);
+     auto addition = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator, fixture.MakeIdentifier("lhs"),
+                                                                 ecpps::ast::Operator::Plus,
+                                                                 fixture.MakeIdentifier("rhs"), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(addition), Source));
