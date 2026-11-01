@@ -13,7 +13,7 @@ include(FetchContent)
 FetchContent_Declare(
     mimalloc
     GIT_REPOSITORY https://github.com/microsoft/mimalloc.git
-    GIT_TAG v3.4.5
+    GIT_TAG acf2fdd329f9dc2a7ffe3f12a133fe7175e39378
 )
 
 set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
