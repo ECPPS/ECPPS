@@ -139,13 +139,17 @@ TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[
 
      const auto* function = GetFunction(nodes);
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      const auto* returnNode = GetReturn(*function);
      REQUIRE((returnNode != nullptr));
+     if (returnNode == nullptr) return;
      const auto* addition = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(returnNode->Value().get());
      REQUIRE((addition != nullptr));
+     if (addition == nullptr) return;
      REQUIRE((addition->Value() == ecpps::ast::Operator::Plus));
      const auto* multiplication = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(addition->Right().get());
      REQUIRE((multiplication != nullptr));
+     if (multiplication == nullptr) return;
      REQUIRE((multiplication->Value() == ecpps::ast::Operator::Asterisk));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -158,13 +162,17 @@ TEST_CASE("AST - Subtraction groups from left to right", "[unit][parsing][ast]")
 
      const auto* function = GetFunction(nodes);
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      const auto* returnNode = GetReturn(*function);
      REQUIRE((returnNode != nullptr));
+     if (returnNode == nullptr) return;
      const auto* outerSubtraction = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(returnNode->Value().get());
      REQUIRE((outerSubtraction != nullptr));
+     if (outerSubtraction == nullptr) return;
      REQUIRE((outerSubtraction->Value() == ecpps::ast::Operator::Minus));
      const auto* innerSubtraction = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(outerSubtraction->Left().get());
      REQUIRE((innerSubtraction != nullptr));
+     if (innerSubtraction == nullptr) return;
      REQUIRE((innerSubtraction->Value() == ecpps::ast::Operator::Minus));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -195,23 +203,31 @@ TEST_CASE("AST - If/else retains its condition and both bodies", "[unit][parsing
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      REQUIRE((function->Body().Size() == 1));
+     if (function->Body().Size() != 1) return;
      const auto* ifStatement = dynamic_cast<const ecpps::ast::IfStatementNode*>(function->Body().Front().get());
      REQUIRE((ifStatement != nullptr));
+     if (ifStatement == nullptr) return;
      const auto* condition = dynamic_cast<const ecpps::ast::IdentifierNode*>(ifStatement->Condition().get());
      REQUIRE((condition != nullptr));
+     if (condition == nullptr) return;
      REQUIRE((condition->Value() == "condition"));
      REQUIRE((ifStatement->Body().size() == 1));
+     if (ifStatement->Body().size() != 1) return;
      REQUIRE((ifStatement->ElseBody().size() == 1));
+     if (ifStatement->ElseBody().size() != 1) return;
 
      const auto* thenReturn = dynamic_cast<const ecpps::ast::ReturnNode*>(ifStatement->Body().front().get());
      const auto* elseReturn = dynamic_cast<const ecpps::ast::ReturnNode*>(ifStatement->ElseBody().front().get());
      REQUIRE((thenReturn != nullptr));
      REQUIRE((elseReturn != nullptr));
+     if (thenReturn == nullptr || elseReturn == nullptr) return;
      const auto* thenValue = dynamic_cast<const ecpps::ast::IntegerLiteralNode*>(thenReturn->Value().get());
      const auto* elseValue = dynamic_cast<const ecpps::ast::IntegerLiteralNode*>(elseReturn->Value().get());
      REQUIRE((thenValue != nullptr));
      REQUIRE((elseValue != nullptr));
+     if (thenValue == nullptr || elseValue == nullptr) return;
      REQUIRE((thenValue->Value() == 1));
      REQUIRE((elseValue->Value() == 0));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -240,13 +256,18 @@ TEST_CASE("AST - While retains its condition and continue statement", "[unit][pa
      auto nodes = fixture.Parse(std::move(tokens));
      const auto* function = GetFunction(nodes);
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      REQUIRE((function->Body().Size() == 1));
+     if (function->Body().Size() != 1) return;
      const auto* whileStatement = dynamic_cast<const ecpps::ast::WhileStatementNode*>(function->Body().Front().get());
      REQUIRE((whileStatement != nullptr));
+     if (whileStatement == nullptr) return;
      const auto* condition = dynamic_cast<const ecpps::ast::IdentifierNode*>(whileStatement->Condition().get());
      REQUIRE((condition != nullptr));
+     if (condition == nullptr) return;
      REQUIRE((condition->Value() == "condition"));
      REQUIRE((whileStatement->Body().size() == 1));
+     if (whileStatement->Body().size() != 1) return;
      REQUIRE((dynamic_cast<const ecpps::ast::ContinueNode*>(whileStatement->Body().front().get()) != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -259,19 +280,25 @@ TEST_CASE("AST - Initialized variable retains its type, name, and value", "[unit
 
      auto nodes = fixture.Parse(std::move(tokens));
      REQUIRE((nodes.size() == 1));
+     if (nodes.size() != 1) return;
      const auto* declaration = dynamic_cast<const ecpps::ast::VariableDeclarationNode*>(nodes.front().get());
      REQUIRE((declaration != nullptr));
+     if (declaration == nullptr) return;
      const auto* type = dynamic_cast<const ecpps::ast::BasicType*>(declaration->Type().get());
      REQUIRE((type != nullptr));
+     if (type == nullptr) return;
      REQUIRE((type->Value() == "int"));
      REQUIRE((declaration->Declarators().size() == 1));
+     if (declaration->Declarators().size() != 1) return;
      const auto& declarator = declaration->Declarators().front();
      const auto* name = dynamic_cast<const ecpps::ast::IdentifierNode*>(declarator.name.get());
      REQUIRE((name != nullptr));
+     if (name == nullptr) return;
      REQUIRE((name->Value() == "count"));
      REQUIRE((declarator.initialiserType == ecpps::ast::InitialisationType::EqualInitialiser));
      const auto* initialiser = dynamic_cast<const ecpps::ast::IntegerLiteralNode*>(declarator.initialiser.get());
      REQUIRE((initialiser != nullptr));
+     if (initialiser == nullptr) return;
      REQUIRE((initialiser->Value() == 5));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -292,16 +319,20 @@ TEST_CASE("AST - Function declaration retains its signature", "[unit][parsing][a
 
      auto nodes = fixture.Parse(std::move(tokens));
      REQUIRE((nodes.size() == 1));
+     if (nodes.size() != 1) return;
      const auto* declaration = dynamic_cast<const ecpps::ast::FunctionDeclarationNode*>(nodes.front().get());
      REQUIRE((declaration != nullptr));
+     if (declaration == nullptr) return;
      const auto& signature = declaration->Signature();
      const auto* returnType = dynamic_cast<const ecpps::ast::BasicType*>(signature.type.get());
      const auto* name = dynamic_cast<const ecpps::ast::IdentifierNode*>(signature.name.get());
      REQUIRE((returnType != nullptr));
-     REQUIRE((returnType->Value() == "int"));
      REQUIRE((name != nullptr));
+     if (returnType == nullptr || name == nullptr) return;
+     REQUIRE((returnType->Value() == "int"));
      REQUIRE((name->Value() == "add"));
      REQUIRE((signature.parameters.parameters.size() == 2));
+     if (signature.parameters.parameters.size() != 2) return;
 
      const auto& lhsParameter = signature.parameters.parameters[0];
      const auto& rhsParameter = signature.parameters.parameters[1];
@@ -311,10 +342,11 @@ TEST_CASE("AST - Function declaration retains its signature", "[unit][parsing][a
      const auto* rhsName = dynamic_cast<const ecpps::ast::IdentifierNode*>(rhsParameter.name.get());
      REQUIRE((lhsType != nullptr));
      REQUIRE((rhsType != nullptr));
-     REQUIRE((lhsType->Value() == "int"));
-     REQUIRE((rhsType->Value() == "int"));
      REQUIRE((lhsName != nullptr));
      REQUIRE((rhsName != nullptr));
+     if (lhsType == nullptr || rhsType == nullptr || lhsName == nullptr || rhsName == nullptr) return;
+     REQUIRE((lhsType->Value() == "int"));
+     REQUIRE((rhsType->Value() == "int"));
      REQUIRE((lhsName->Value() == "lhs"));
      REQUIRE((rhsName->Value() == "rhs"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());

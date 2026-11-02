@@ -40,7 +40,7 @@ namespace
                                   immediate != nullptr && &address->Right() == &immediate->Result())
                                    offset = immediate->Value();
 
-               if (value.has_value() && offset.has_value()) stores.push_back({*value, *offset});
+               if (value.has_value() && offset.has_value()) stores.push_back({.value = *value, .offset = *offset});
           }
           return stores;
      }
