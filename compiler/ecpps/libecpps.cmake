@@ -72,6 +72,7 @@ set(SHARED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Shared/mimalloc.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Debugger/Debuggers/Win64.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Debugger/Debugger.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/FileSystem/IncludeDirectory.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/FileSystem/SourceScanner.cpp"
 )
 

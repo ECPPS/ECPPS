@@ -35,6 +35,7 @@
 #include <CodeGeneration/PseudoAssembly.h>
 #include <Debugger/Debugger.h>
 #include <Execution/IR.h>
+#include <FileSystem/IncludeDirectory.h>
 #include <FileSystem/SourceScanner.h>
 #include <Linker/Linker.h>
 #include <Parsing/AST.h>
@@ -652,6 +653,11 @@ int main(int argc, char* argv[])
           ecpps::abi::BackendRegistry::RegisterTargets();
 
           ecpps::CompilerConfig config{argc, argv};
+
+          const auto includeDirectory = ecpps::fs::DetectIncludeDirectory();
+          if (includeDirectory) config.includeDirectories.emplace_back(includeDirectory.path.string());
+          else
+               std::println(stderr, "ecpps: warning: {}", includeDirectory.error);
 
           ecpps::fs::GetSourceScanner().configuration = &config;
 
