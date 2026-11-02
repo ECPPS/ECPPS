@@ -1,0 +1,61 @@
+name: Setup MSVC developer environment
+description: Export the Visual Studio x64 developer environment to subsequent steps
+runs:
+  using: composite
+  steps:
+    - shell: pwsh
+      run: |
+        $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+        if (-not (Test-Path $vswhere)) {
+          throw "vswhere was not found at $vswhere"
+        }
+
+        $installationPath = & $vswhere -latest -products '*' `
+          -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+          -property installationPath
+        if (-not $installationPath) {
+          throw "A Visual Studio installation with x64 C++ tools was not found."
+        }
+
+        $devCmd = Join-Path $installationPath "Common7\Tools\VsDevCmd.bat"
+        if (-not (Test-Path $devCmd)) {
+          throw "VsDevCmd.bat was not found at $devCmd"
+        }
+
+        $batchPath = Join-Path $env:RUNNER_TEMP "ecpps-vsdevcmd-env.cmd"
+        $capturePath = Join-Path $env:RUNNER_TEMP "ecpps-vsdevcmd-env.txt"
+        $batch = @"
+        @echo off
+        call "$devCmd" -arch=x64 -host_arch=x64 -no_logo
+        if errorlevel 1 exit /b %errorlevel%
+        set
+        "@
+        [IO.File]::WriteAllText($batchPath, $batch, [Text.Encoding]::ASCII)
+
+        $command = "`"$batchPath`" > `"$capturePath`""
+        & $env:ComSpec /d /c $command
+        if ($LASTEXITCODE -ne 0) {
+          throw "VsDevCmd.bat failed with exit code $LASTEXITCODE."
+        }
+
+        $pathValue = $null
+        foreach ($line in Get-Content -LiteralPath $capturePath) {
+          $separator = $line.IndexOf('=')
+          if ($separator -lt 1) {
+            continue
+          }
+
+          $name = $line.Substring(0, $separator)
+          $value = $line.Substring($separator + 1)
+          if ($name -ieq 'Path') {
+            $pathValue = $value
+          }
+          elseif ($name -notmatch '^(GITHUB_|RUNNER_)') {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value "$name=$value"
+          }
+        }
+
+        if (-not $pathValue) {
+          throw "VsDevCmd.bat did not provide a PATH value."
+        }
+        Add-Content -LiteralPath $env:GITHUB_PATH -Value $pathValue

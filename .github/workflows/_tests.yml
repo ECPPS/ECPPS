@@ -3,50 +3,29 @@ name: _tests
 on:
   workflow_call:
     inputs:
-      enable-ccache:
-        description: "Use ccache compiler cache if available"
+      llvm-version:
+        description: "LLVM version for the report-only unit coverage job"
         required: false
-        type: boolean
-        default: true
+        type: string
+        default: "20.1.8"
 
 jobs:
   build-and-test:
     name: Build & Run Tests (MSVC Debug)
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup MSVC Developer Environment
-        uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Restore ccache
-        if: inputs.enable-ccache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.LOCALAPPDATA }}\ccache
-          key: ccache-${{ runner.os }}-msvc-Debug-${{ github.sha }}
-          restore-keys: |
-            ccache-${{ runner.os }}-msvc-Debug-
-            ccache-${{ runner.os }}-
-
-      - name: Setup ccache (if available)
-        if: inputs.enable-ccache
-        shell: bash
-        run: |
-          if command -v ccache &> /dev/null; then
-            ccache --max-size=500M --set-config=compression=true
-            echo "[OK] ccache configured"
-          else
-            echo "[WARN] ccache not found - proceeding without cache"
-          fi
+        uses: ./.github/actions/setup-msvc
 
       - name: Configure with BUILD_TESTING=ON
         shell: pwsh
         run: |
           cmake --preset Win64-MSVC `
             -DBUILD_TESTING=ON `
-            -DENABLE_CCACHE=${{ inputs.enable-ccache && 'ON' || 'OFF' }}
+            -DENABLE_CCACHE=OFF
 
       - name: Build tests
         shell: pwsh
@@ -60,4 +39,52 @@ jobs:
         run: |
           ctest `
             --preset Win64-MSVC-Debug `
+            --parallel 2 `
             --output-on-failure
+
+  coverage-report:
+    name: Unit Coverage Report (Clang)
+    runs-on: ubuntu-26.04
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install LLVM
+        run: |
+          llvm_major="${{ inputs.llvm-version }}"
+          llvm_major="${llvm_major%%.*}"
+          llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
+          if [[ ! -x "$llvm_bin/clang++" || ! -x "$llvm_bin/llvm-profdata" || ! -x "$llvm_bin/llvm-cov" ]]; then
+            echo "LLVM $llvm_major is missing from the pinned Ubuntu runner image." >&2
+            exit 1
+          fi
+          version="$("$llvm_bin/clang++" --version | head -n 1)"
+          if [[ "$version" != *"clang version ${{ inputs.llvm-version }} "* ]]; then
+            echo "Expected Clang ${{ inputs.llvm-version }} but found: $version" >&2
+            exit 1
+          fi
+          echo "$llvm_bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=/usr/lib/llvm-${llvm_major}/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configure coverage build
+        run: cmake --preset Linux-Clang-Coverage -DENABLE_CCACHE=OFF
+
+      - name: Build unit tests
+        run: cmake --build --preset Linux-Clang-Coverage-Debug --parallel
+
+      - name: Run unit tests
+        run: ctest --test-dir out/build/Linux-Clang-Coverage -C Debug -L unit --parallel 2 --output-on-failure
+
+      - name: Generate coverage report
+        run: |
+          python3 scripts/coverage/report.py \
+            --build-dir out/build/Linux-Clang-Coverage \
+            --configuration Debug
+          cat out/build/Linux-Clang-Coverage/coverage/summary.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unit-coverage-report
+          path: out/build/Linux-Clang-Coverage/coverage/
+          retention-days: 14

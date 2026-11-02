@@ -15,11 +15,11 @@ namespace ecpps
           std::size_t position;
           std::size_t endPosition;
 
-          explicit Location(const std::size_t line, const std::size_t position, const std::size_t endPosition)
+          constexpr explicit Location(const std::size_t line, const std::size_t position, const std::size_t endPosition)
               : line(line), position(position), endPosition(endPosition)
           {
           }
-          explicit(false) Location(void) : line(0), position(0), endPosition(0)
+          constexpr explicit(false) Location(void) : line(0), position(0), endPosition(0)
           {
           }
      };

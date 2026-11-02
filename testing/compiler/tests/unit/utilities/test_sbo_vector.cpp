@@ -53,11 +53,12 @@ TEST_CASE("SBOVector - Capacity transitions", "[utilities][sbo_vector]")
      SECTION("Inline storage - stays on stack")
      {
           // Add elements up to inline capacity
-          for (std::size_t i = 0; i < 8; i++)
+          for (std::size_t i = 0; i < SBOVector<std::size_t>::InlineCapacity; i++)
           {
                vec.Push(i);
           }
-          REQUIRE((vec.Size() == 8));
+          REQUIRE((vec.Size() == SBOVector<std::size_t>::InlineCapacity));
+          for (std::size_t i = 0; i < vec.Size(); i++) REQUIRE((vec.begin()[i] == i));
           REQUIRE(vec.UseSBO()); // Should still use SBO
      }
 
@@ -236,8 +237,8 @@ TEST_CASE("SBOVector - Modifiers", "[utilities][sbo_vector]")
 
      SECTION("EmplaceBack")
      {
-          vec.EmplaceBack(100);
-          vec.EmplaceBack(200);
+          vec.EmplaceBack(std::size_t{100});
+          vec.EmplaceBack(std::size_t{200});
 
           REQUIRE((vec.Size() == 2));
           REQUIRE((vec.begin()[0] == 100));

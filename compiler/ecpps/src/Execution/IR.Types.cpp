@@ -300,7 +300,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                const auto source = expression->Value()->Source();
                return MakeNonZeroTest(std::move(expression), source);
           }
-          if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion)
+          if (conversion == typeSystem::ConversionSequence::ConversionKind::IntegralConversion ||
+              conversion == typeSystem::ConversionSequence::ConversionKind::IntegralPromotion)
           {
                const auto* intType = toType->CastTo<typeSystem::IntegralType>();
                runtime_assert(intType != nullptr,

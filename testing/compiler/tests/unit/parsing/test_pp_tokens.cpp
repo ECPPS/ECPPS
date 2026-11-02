@@ -3,7 +3,6 @@
 #include <Parsing/Preprocessor.h>
 #include <catch_amalgamated.hpp>
 #include <algorithm>
-#include <ranges>
 #include <string>
 #include <vector>
 

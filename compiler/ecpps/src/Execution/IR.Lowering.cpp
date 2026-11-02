@@ -37,12 +37,13 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpressionLoaded(
 {
      if (expression == nullptr || expression->Value() == nullptr) return nullptr;
 
-     const bool isVariableReference = dynamic_cast<const ReferenceNode*>(expression->Value().get()) != nullptr;
+     const bool needsLValueLoad = dynamic_cast<const ReferenceNode*>(expression->Value().get()) != nullptr ||
+                                  dynamic_cast<const high::AssignNode*>(expression->Value().get()) != nullptr;
      const auto source = expression->Value()->Source();
      const auto* type = expression->Type();
 
      const auto* resultReg = LowerExpression(std::move(expression), built);
-     if (!isVariableReference || resultReg == nullptr) return resultReg;
+     if (!needsLValueLoad || resultReg == nullptr) return resultReg;
 
      auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
 

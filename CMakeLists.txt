@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 project(ECPPS LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -9,9 +9,23 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(ENABLE_PGO "Enable Profile Guided Optimisation" OFF)
 option(PGO_REBUILD "Enable Profile Guided Optimisation Rebuild" OFF)
 option(BUILD_TESTING "Build the testing suite" OFF)
+option(ENABLE_COVERAGE "Instrument Clang builds for source-based coverage reports" OFF)
 option(USE_MIMALLOC "Use mimalloc allocator" ON)
 option(ENABLE_CCACHE "Use ccache compiler cache" ON)
 option(ENABLE_LTO "Enable Link-Time Optimisation" OFF)
+
+if(ENABLE_COVERAGE)
+    if(NOT BUILD_TESTING)
+        message(FATAL_ERROR "ENABLE_COVERAGE requires BUILD_TESTING=ON")
+    endif()
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        message(FATAL_ERROR "ENABLE_COVERAGE requires Clang source-based coverage")
+    endif()
+
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+    add_link_options(-fprofile-instr-generate)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/profiles")
+endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

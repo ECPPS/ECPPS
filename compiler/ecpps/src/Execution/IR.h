@@ -213,6 +213,9 @@ namespace ecpps::ir
           [[nodiscard]] Expression ParseArithmeticNegationExpression(Expression operand, const Location& source) const;
           [[nodiscard]] Expression ParseAssignmentExpression(Expression left, Expression right,
                                                              const Location& source) const;
+          [[nodiscard]] Expression ParseCompoundAssignmentExpression(Expression left, Expression right,
+                                                                     ast::Operator operator_,
+                                                                     const Location& source) const;
 
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);

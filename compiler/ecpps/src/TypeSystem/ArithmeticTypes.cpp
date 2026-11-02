@@ -58,7 +58,12 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::IntegralType::CompareTo
           runtime_assert(otherIntegral != nullptr,
                          std::format("Integral type `{}` was not an integral type", other->RawName()));
           if (otherIntegral->_sign != this->_sign || otherIntegral->_kind != this->_kind)
-               sequence.Push(ConversionSequence::ConversionKind::IntegralConversion);
+          {
+               const auto* promotedSource = PromoteInteger(otherIntegral);
+               const bool isPromotion = promotedSource->Sign() == this->_sign && promotedSource->Kind() == this->_kind;
+               sequence.Push(isPromotion ? ConversionSequence::ConversionKind::IntegralPromotion
+                                         : ConversionSequence::ConversionKind::IntegralConversion);
+          }
           return ConversionSequence{sequence};
      }
 
