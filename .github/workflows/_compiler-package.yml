@@ -75,6 +75,7 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP "ecpps-stage"
           $archive = Join-Path $env:RUNNER_TEMP "ecpps-windows-x64-clang.zip"
           cmake --install out/build/Win64-Clang --config Release --component compiler --prefix $stage
+          Copy-Item LICENSE.MD -Destination (Join-Path $stage "LICENSE.MD")
 
           $executable = Join-Path $stage "bin\ecpps.exe"
           if (-not (Test-Path $executable)) {
@@ -98,7 +99,7 @@ jobs:
           Commit: $env:SOURCE_SHA
           Built (UTC): $builtAt
           Compiler: $clangVersion
-          Contents: bin\ecpps.exe, include\
+          Contents: LICENSE.MD, bin\ecpps.exe, include\
           Runtime dependencies: runtime-dependencies.txt
           "@
           $readme | Set-Content -Path (Join-Path $stage "README.txt") -Encoding utf8
@@ -128,6 +129,9 @@ jobs:
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP "ecpps-package-smoke"
           Expand-Archive -LiteralPath $env:ARCHIVE -DestinationPath $smoke
+          if (-not (Test-Path (Join-Path $smoke "LICENSE.MD"))) {
+            throw "The extracted compiler package is missing LICENSE.MD."
+          }
           if (-not (Test-Path (Join-Path $smoke "include\cstdio"))) {
             throw "The extracted compiler package is missing stdlib headers."
           }
@@ -217,6 +221,7 @@ jobs:
           stage="$RUNNER_TEMP/ecpps-stage"
           archive="$RUNNER_TEMP/ecpps-linux-x64-clang.zip"
           cmake --install out/build/Linux-Clang --config Release --component compiler --prefix "$stage"
+          cp LICENSE.MD "$stage/LICENSE.MD"
 
           executable="$stage/bin/ecpps"
           test -x "$executable"
@@ -264,7 +269,7 @@ jobs:
           Runner image: {manifest["runner_image"]}
           Compiler: {manifest["compiler"]}
           glibc: {manifest["glibc"]}
-          Contents: bin/ecpps, include/
+          Contents: LICENSE.MD, bin/ecpps, include/
           Runtime dependencies: runtime-dependencies.txt
           """,
               encoding="utf-8",
@@ -285,6 +290,7 @@ jobs:
           smoke="$RUNNER_TEMP/ecpps-package-smoke"
           mkdir -p "$smoke"
           unzip -q "$ARCHIVE" -d "$smoke"
+          test -f "$smoke/LICENSE.MD"
           test -f "$smoke/include/cstdio"
           "$smoke/bin/ecpps" /version
 
