@@ -18,13 +18,15 @@ By using, copying, or modifying this software, you agree to the following terms:
 - You **may redistribute** compiled binaries of the compiler **only if**:
   - This licence file is included;
   - The original author attribution is kept intact;
-  - The binary is not part of a public repository, product, or package.
+  - The binary is not part of a public repository, product, or package, with the exception of [Compiler Explorer](https://godbolt.org) or any repositories that are part of it.
 - You may contribute modifications to the compiler source, provided:
   - Contributions are submitted directly to the original author;
   - You retain the original copyright and author attribution.
 - You **may not publish, upload, mirror, sell, or include** the compiler (source or binary) in any public or commercial distribution.
 - You **may not remove or alter** this licence or the author attribution.
 - **Use or contribution does not grant any right to redistribute the source.**
+
+Notwithstanding the restrictions above, Compiler Explorer and its operators may copy, install, store and run the compiler binary on infrastructure used to provide Compiler Explorer, including godbolt.org and Compiler Explorer repositories and deployment packages, solely for that service.
 
 ---
 
