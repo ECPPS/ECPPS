@@ -7,10 +7,10 @@
 
 #ifdef _WIN32
 #include <Windows.h>
-#elif defined(__linux__)
+#elifdef __linux__
 #include <unistd.h>
 #include <cerrno>
-#elif defined(__APPLE__)
+#elifdef __APPLE__
 #include <cstdint>
 #include <mach-o/dyld.h>
 #else
@@ -24,7 +24,7 @@ namespace
      {
           return std::error_code(static_cast<int>(code), std::system_category()).message();
      }
-#elif defined(__linux__)
+#elifdef __linux__
      [[nodiscard]] std::string SystemErrorMessage(int code)
      {
           return std::error_code(code, std::generic_category()).message();
@@ -40,7 +40,7 @@ ecpps::fs::PathResult ecpps::fs::NativeExecutablePathProvider::GetExecutablePath
      if (length == 0) return {.error = "GetModuleFileNameW failed: " + SystemErrorMessage(GetLastError())};
      if (length >= buffer.size()) return {.error = "executable path is too long"};
      return {.path = std::filesystem::path(buffer.substr(0, length))};
-#elif defined(__linux__)
+#elifdef __linux__
      std::vector<char> buffer(256);
      while (true)
      {
@@ -52,7 +52,7 @@ ecpps::fs::PathResult ecpps::fs::NativeExecutablePathProvider::GetExecutablePath
                return {.error = "executable path is too long"};
           buffer.resize(buffer.size() * 2);
      }
-#elif defined(__APPLE__)
+#elifdef __APPLE__
      std::uint32_t size{};
      static_cast<void>(_NSGetExecutablePath(nullptr, &size));
      if (size == 0) return {.error = "_NSGetExecutablePath did not provide a buffer size"};

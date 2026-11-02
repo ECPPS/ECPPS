@@ -54,6 +54,7 @@ namespace
      }
 } // namespace
 
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 TEST_CASE("Include directory resolves ../include from the executable", "[unit][filesystem]")
 {
      TemporaryDirectory temporary;
@@ -66,16 +67,17 @@ TEST_CASE("Include directory resolves ../include from the executable", "[unit][f
      const auto result = ecpps::fs::DetectIncludeDirectory(provider);
 
      REQUIRE(result);
-     CHECK(result.path == std::filesystem::canonical(include));
+     CHECK((result.path == std::filesystem::canonical(include)));
      CHECK(result.path.is_absolute());
 
      CHECK(ecpps::fs::ValidateDirectory(include).empty());
      const auto normalised = ecpps::fs::NormalisePath(include / ".." / "include/");
      REQUIRE(normalised);
-     CHECK(normalised.path == std::filesystem::canonical(include));
+     CHECK((normalised.path == std::filesystem::canonical(include)));
 }
 
 #ifndef _WIN32
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 TEST_CASE("Include directory resolves executable symlinks", "[unit][filesystem]")
 {
      TemporaryDirectory temporary;
@@ -91,29 +93,31 @@ TEST_CASE("Include directory resolves executable symlinks", "[unit][filesystem]"
      const auto result = ecpps::fs::DetectIncludeDirectory(provider);
 
      REQUIRE(result);
-     CHECK(result.path == std::filesystem::canonical(include));
+     CHECK((result.path == std::filesystem::canonical(include)));
 }
 #endif
 
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 TEST_CASE("Include directory reports lookup, invalid path, and missing directory errors", "[unit][filesystem]")
 {
      const TestPathProvider lookupFailure{{.error = "test lookup failure"}};
      const auto lookupResult = ecpps::fs::DetectIncludeDirectory(lookupFailure);
-     CHECK(lookupResult.error.find("executable path lookup failed") != std::string::npos);
+     CHECK(lookupResult.error.contains("executable path lookup failed"));
 
      const TestPathProvider invalidPath{{.path = {}}};
      const auto invalidResult = ecpps::fs::DetectIncludeDirectory(invalidPath);
-     CHECK(invalidResult.error.find("invalid executable path") != std::string::npos);
+     CHECK(invalidResult.error.contains("invalid executable path"));
 
      TemporaryDirectory temporary;
      const auto executable = temporary.path / "package" / "bin" / "ecpps";
      MakeFile(executable);
      const TestPathProvider missingDirectory{{.path = executable}};
      const auto missingResult = ecpps::fs::DetectIncludeDirectory(missingDirectory);
-     CHECK(missingResult.error.find("directory is missing") != std::string::npos);
+     CHECK(missingResult.error.contains("directory is missing"));
      CHECK(!ecpps::fs::ValidateDirectory(executable).empty());
 }
 
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 TEST_CASE("Native executable path provider returns an absolute path", "[unit][filesystem]")
 {
      const ecpps::fs::NativeExecutablePathProvider provider{};
