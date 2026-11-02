@@ -31,6 +31,13 @@ if(NOT TARGET mimalloc-static)
     )
 endif()
 
+if(ENABLE_LTO AND WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(mimalloc-static
+        PRIVATE
+            $<$<CONFIG:Release>:-Wa,-mbig-obj>
+    )
+endif()
+
 target_link_libraries(ecpps_mimalloc
     INTERFACE
         mimalloc-static
