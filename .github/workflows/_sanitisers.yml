@@ -81,15 +81,15 @@ jobs:
           echo "/usr/lib/llvm-${llvm_major}/bin" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=/usr/lib/llvm-${llvm_major}/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
-      - name: Verify GCC 15 toolchain
+      - name: Verify GCC 14 toolchain
         run: |
-          version="$(g++-15 -dumpfullversion -dumpversion)"
-          if [[ "$version" != "15.2.0" ]]; then
-            echo "Expected GCC 15.2.0 but found $version." >&2
+          version="$(g++-14 -dumpfullversion -dumpversion)"
+          if [[ "$version" != "14.3.0" ]]; then
+            echo "Expected GCC 14.3.0 but found $version." >&2
             exit 1
           fi
-          echo "CC=gcc-15" >> $GITHUB_ENV
-          echo "CXX=g++-15" >> $GITHUB_ENV
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV
 
       - name: Restore ccache
         if: inputs.enable-ccache
@@ -130,15 +130,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Verify GCC 15 toolchain
+      - name: Verify GCC 14 toolchain
         run: |
-          version="$(g++-15 -dumpfullversion -dumpversion)"
-          if [[ "$version" != "15.2.0" ]]; then
-            echo "Expected GCC 15.2.0 but found $version." >&2
+          version="$(g++-14 -dumpfullversion -dumpversion)"
+          if [[ "$version" != "14.3.0" ]]; then
+            echo "Expected GCC 14.3.0 but found $version." >&2
             exit 1
           fi
-          echo "CC=gcc-15" >> $GITHUB_ENV
-          echo "CXX=g++-15" >> $GITHUB_ENV
+          echo "CC=gcc-14" >> $GITHUB_ENV
+          echo "CXX=g++-14" >> $GITHUB_ENV
 
       - name: Restore ccache
         if: inputs.enable-ccache
