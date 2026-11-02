@@ -43,14 +43,14 @@ jobs:
             preset_build: Linux-Clang-Release
             needs_llvm: true
           - compiler: GCC
-            name: gcc15
+            name: gcc14
             build_type: Debug
             preset_configure: Linux-GCC
             preset_build: Linux-GCC-Debug
             needs_llvm: false
 
           - compiler: GCC
-            name: gcc15
+            name: gcc14
             build_type: Release
             preset_configure: Linux-GCC
             preset_build: Linux-GCC-Release
@@ -82,21 +82,21 @@ jobs:
             exit 1
           fi
 
-      - name: Install GCC 15 (libstdc++)
+      - name: Install GCC 14 (libstdc++)
         run: |
-          for compiler in gcc-15 g++-15; do
+          for compiler in gcc-14 g++-14; do
             if ! command -v "$compiler" >/dev/null; then
               echo "$compiler is missing from the pinned Ubuntu runner image." >&2
               exit 1
             fi
           done
-          version="$(g++-15 -dumpfullversion -dumpversion)"
-          if [[ "$version" != "15.2.0" ]]; then
-            echo "Expected GCC 15.2.0 but found $version." >&2
+          version="$(g++-14 -dumpfullversion -dumpversion)"
+          if [[ "$version" != "14.3.0" ]]; then
+            echo "Expected GCC 14.3.0 but found $version." >&2
             exit 1
           fi
-          echo "CC=gcc-15" >> "$GITHUB_ENV"
-          echo "CXX=g++-15" >> "$GITHUB_ENV"
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
 
       - name: Add LLVM to PATH
         if: matrix.needs_llvm
@@ -111,8 +111,8 @@ jobs:
           if [ "${{ matrix.compiler }}" = "Clang" ]; then
             clang++ --version | grep -F "clang version ${{ inputs.llvm-version }} "
           else
-            [[ "$(g++-15 -dumpfullversion -dumpversion)" == "15.2.0" ]]
-            ls /usr/lib/gcc/x86_64-linux-gnu/15
+            [[ "$(g++-14 -dumpfullversion -dumpversion)" == "14.3.0" ]]
+            ls /usr/lib/gcc/x86_64-linux-gnu/14
           fi
 
       - name: Restore ccache
