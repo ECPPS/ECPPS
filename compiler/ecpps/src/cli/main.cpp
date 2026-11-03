@@ -650,8 +650,6 @@ int main(int argc, char* argv[])
      {
           const auto startTime = std::chrono::steady_clock::now();
 
-          ecpps::abi::BackendRegistry::RegisterTargets();
-
           ecpps::CompilerConfig config{argc, argv};
 
           const auto includeDirectory = ecpps::fs::DetectIncludeDirectory();
@@ -672,6 +670,21 @@ int main(int argc, char* argv[])
 
           const auto targetContext = config.target;
 
+          if (targetContext.cpu != ecpps::abi::encoding::MicroArch::Unknown ||
+              targetContext.extensions != ecpps::abi::ArchitectureExtensionFeatures::None)
+          {
+               std::println(stderr,
+                            "ecpps: warning: target CPU '{}' and extensions '{}' are not supported yet and will be "
+                            "ignored",
+                            targetContext.cpu, targetContext.extensions);
+
+               if (config.warningsAreErrors)
+               {
+                    std::println(stderr, "ecpps: error: unsupported target CPU/extensions warning treated as an error");
+                    return -1;
+               }
+          }
+
           if (config.IsVerbose())
           {
                std::println("ISA: {}", targetContext.isa);
@@ -684,7 +697,16 @@ int main(int argc, char* argv[])
 
           if (!ConfigureABI(config)) return -1;
 
-          auto& target = ecpps::abi::BackendRegistry::Get(targetContext);
+          auto backend = ecpps::abi::CreateTarget(targetContext);
+
+          if (backend == nullptr)
+          {
+               std::println(stderr, "ecpps: error: no backend is available for target (ISA: {}, platform: {}, SDK: {})",
+                            targetContext.isa, targetContext.platform, targetContext.sdk);
+               return -1;
+          }
+
+          auto& target = *backend;
 
           if (target.encoder == nullptr)
           {
