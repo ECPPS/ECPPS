@@ -39,6 +39,7 @@
 #include <utility>       // NOLINT
 #include <variant>       // NOLINT
 #include <vector>        // NOLINT
+#include "RangeCompat.h"
 
 #ifdef _WIN32
 #include <Windows.h>

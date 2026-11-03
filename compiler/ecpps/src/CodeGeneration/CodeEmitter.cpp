@@ -13,7 +13,7 @@ std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& r
      for (const auto& instruction : routine.physicalInstructions)
      {
           this->_currentInstructionBase = generated.size();
-          generated.append_range(this->EmitInstruction(instruction));
+          ecpps::detail::AppendRange(generated, this->EmitInstruction(instruction));
      }
      return generated;
 }

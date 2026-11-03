@@ -18,7 +18,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           right = IntegerOperand{*immediate};
      else
      {
-          built.append_range(this->EnsureMaterialisation(rhs));
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(rhs));
           right = RegisterOperand{this->PhysicalRegisterOf(rhs)};
      }
      built.push_back(

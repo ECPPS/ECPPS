@@ -24,7 +24,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                this->GetVRM().ClearMaterialisation(*cell.owner);
                continue;
           }
-          built.append_range(this->Evict(*cell.owner));
+          ecpps::detail::AppendRange(built, this->Evict(*cell.owner));
      }
      return built;
 }

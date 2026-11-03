@@ -42,7 +42,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           if (this->IsSpilled(source)) sourceOperand = this->EnsureStackSlot(source);
           else
           {
-               built.append_range(EnsureMaterialisation(source));
+               ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
                sourceOperand = RegisterOperand{this->PhysicalRegisterOf(source)};
           }
 
@@ -58,7 +58,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      }
 
      if (!this->ImmediateOf(source).has_value() && !this->IsSpilled(source))
-          built.append_range(EnsureMaterialisation(source));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -69,7 +69,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      if (this->IsMutable(destination) || this->IsMutable(source))
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

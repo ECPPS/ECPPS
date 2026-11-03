@@ -495,7 +495,7 @@ namespace
 
                     routines.emplace(routine.name, generatedMachineCode.size());
 
-                    generatedMachineCode.append_range(machineCode);
+                    ecpps::detail::AppendRange(generatedMachineCode, machineCode);
                }
 
                for (const auto& [procedureName, procedureOffset] : routines)

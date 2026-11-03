@@ -218,9 +218,11 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(std::size_t
      std::vector<std::byte> binary{};
      if (imm > std::numeric_limits<std::uint32_t>::max())
      {
-          binary.append_range(GenerateMovImmToMem32(
-               reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
-          binary.append_range(GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
+          ecpps::detail::AppendRange(
+               binary, GenerateMovImmToMem32(
+                            reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
+          ecpps::detail::AppendRange(binary,
+                                     GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
           return binary;
      }
      const bool isExtendedRegister = reg >= 8;

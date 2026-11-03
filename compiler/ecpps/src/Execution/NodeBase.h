@@ -200,7 +200,19 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + std::format("{}", this->_values);
+               std::string valuesText;
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 15
+               valuesText = "[";
+               for (std::size_t index = 0; index < this->_values.size(); ++index)
+               {
+                    if (index != 0) valuesText += ", ";
+                    valuesText += std::to_string(this->_values[index]);
+               }
+               valuesText += "]";
+#else
+               valuesText = std::format("{}", this->_values);
+#endif
+               return std::string(indent * ast::PrettyIndent, ' ') + valuesText;
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override;

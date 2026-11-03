@@ -171,8 +171,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          {
                               const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
-                              tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includedFiles,
-                                                        includeDirectories));
+                              ecpps::detail::AppendRange(tokens, Parse(includedSource, macros, resolvedPath.string(),
+                                                                       includedFiles, includeDirectories));
                          }
                     }
                     catch (const fs::FileNotFoundException& fileNotFound)
@@ -361,7 +361,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     for (auto& token : parsed) token.source.line += previousLine - 1;
 
                     tokens.reserve(tokens.size() + parsed.size());
-                    tokens.insert_range(tokens.end(), parsed);
+                    ecpps::detail::AppendRange(tokens, parsed);
 
                     // TODO: handle nested #if/#ifdef recursively
                }

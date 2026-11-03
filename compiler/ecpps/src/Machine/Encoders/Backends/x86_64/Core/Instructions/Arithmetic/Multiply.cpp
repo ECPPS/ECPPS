@@ -28,9 +28,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      std::vector<ir::abstract::Instruction> built{};
 
-     if (!this->ImmediateOf(right).has_value()) built.append_range(this->EnsureMaterialisation(right));
+     if (!this->ImmediateOf(right).has_value()) ecpps::detail::AppendRange(built, this->EnsureMaterialisation(right));
 
-     if (!this->ImmediateOf(left).has_value()) built.append_range(this->EnsureMaterialisation(left));
+     if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, this->EnsureMaterialisation(left));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -44,7 +44,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (this->IsMutable(left) || this->IsMutable(right) || this->IsMutable(destination))
      {
-          built.append_range(this->EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destination));
      }
 
      return built;
@@ -73,8 +73,10 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      std::vector<ir::abstract::Instruction> built{};
 
-     if (!leftImmediate.has_value() && this->IsSpilled(left)) built.append_range(this->EnsureMaterialisation(left));
-     if (!rightImmediate.has_value() && this->IsSpilled(right)) built.append_range(this->EnsureMaterialisation(right));
+     if (!leftImmediate.has_value() && this->IsSpilled(left))
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(left));
+     if (!rightImmediate.has_value() && this->IsSpilled(right))
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(right));
 
      RegisterIndex sourceRegister{};
 
@@ -122,8 +124,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           leftRegister = temporary;
      }
 
-     if (!this->IsClobberable(rax)) built.append_range(this->ClearRegister(rax, owner));
-     if (!this->IsClobberable(rdx)) built.append_range(this->ClearRegister(rdx, owner));
+     if (!this->IsClobberable(rax)) ecpps::detail::AppendRange(built, this->ClearRegister(rax, owner));
+     if (!this->IsClobberable(rdx)) ecpps::detail::AppendRange(built, this->ClearRegister(rdx, owner));
 
      if (leftImmediate.has_value())
      {

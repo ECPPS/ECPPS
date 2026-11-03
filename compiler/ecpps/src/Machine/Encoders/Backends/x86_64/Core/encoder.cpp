@@ -273,10 +273,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           const bool endsInTerminator = IsTerminator(input[last].type);
           for (std::size_t index = block.begin; index < block.end; index++)
           {
-               if (index == last && endsInTerminator) instructions.append_range(this->FlushLiveOut(block));
-               instructions.append_range(EncodeSingle(input[index]));
+               if (index == last && endsInTerminator)
+                    ecpps::detail::AppendRange(instructions, this->FlushLiveOut(block));
+               ecpps::detail::AppendRange(instructions, EncodeSingle(input[index]));
           }
-          if (!endsInTerminator) instructions.append_range(this->FlushLiveOut(block));
+          if (!endsInTerminator) ecpps::detail::AppendRange(instructions, this->FlushLiveOut(block));
      }
      runtime_assert(this->_lockedRegisters.empty(),
                     "Argument registers were locked by PassArgument but no call consumed them");
@@ -520,129 +521,152 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      switch (instruction.type)
      {
      case ecpps::ir::abstract::VirtualInstructionType::Copy:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CopyInteger:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CopyInteger>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Add:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Add>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Add>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Sub:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Sub>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Sub>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Return:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::LeftShift:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::LeftShift>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::RightShift:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::RightShift>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::BinaryOr:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryOr>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::BinaryAnd:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryAnd>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::BinaryXor:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::BinaryXor>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::BitwiseNot:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::BitwiseNot>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::SignExtension:
      case ecpps::ir::abstract::VirtualInstructionType::SignExtendAndReinterpret:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::SignExtension>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::ZeroExtension:
      case ecpps::ir::abstract::VirtualInstructionType::ZeroExtendAndReinterpret:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::ZeroExtension>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::ArithmeticNegate:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::ArithmeticNegate>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Truncate:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Reinterpret:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Copy>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Call:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Call>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Call>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CallWithResult:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithResult>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CopyParameter:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CopyParameter>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::PassArgument:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::PassArgument>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::AddressOf:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::AddressOf>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::LoadStringAddress:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::LoadStringAddress>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::UnconditionalJump:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::UnconditionalJump>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Label:
-          instructions.append_range(
-               EncoderImplementation<ir::abstract::VirtualInstructionType::Label>(instruction.operands));
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Label>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CompareAndJump:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CompareAndJump>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Multiplication:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::Multiplication>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::ZeroMemory:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::ZeroMemory>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CopyFromData:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CopyFromData>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Division:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::Division>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::Indirection:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::Indirection>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::IndirectStore:
-          instructions.append_range(
+          ecpps::detail::AppendRange(
+               instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::IndirectStore>(instruction.operands));
           break;
 
@@ -710,7 +734,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      for (const auto& cell : this->_registerAllocator.Snapshot())
           if (cell.reg == reg && cell.owner && cell.owner->index != keep.index &&
               this->_remainingUses[cell.owner->index] != 0)
-               out.append_range(this->Evict(*cell.owner));
+               ecpps::detail::AppendRange(out, this->Evict(*cell.owner));
      return out;
 }
 
@@ -1225,7 +1249,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      {
           if (!this->_evicted.contains(source.index)) continue;
           if (isCopyOfSpilled && this->IsSpilled(source)) continue;
-          reloads.append_range(this->EnsureMaterialisation(source));
+          ecpps::detail::AppendRange(reloads, this->EnsureMaterialisation(source));
      }
 
      const auto& value = this->GetVRM().GetValue(virtualRegister);
@@ -1685,7 +1709,7 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EvictOne(void)
      if (!victim.has_value()) return false;
 
      this->_evictable.erase(victim->index);
-     this->_pendingSpills.append_range(this->Evict(*victim));
+     ecpps::detail::AppendRange(this->_pendingSpills, this->Evict(*victim));
      return true;
 }
 
@@ -1922,9 +1946,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     this->_evictable.insert(cell.owner->index);
 
           auto code = this->EnsureMaterialisation(reg);
-          out.append_range(std::move(this->_pendingSpills));
+          ecpps::detail::AppendRange(out, std::move(this->_pendingSpills));
           this->_pendingSpills.clear();
-          out.append_range(std::move(code));
+          ecpps::detail::AppendRange(out, std::move(code));
 
           if (this->_evicted.contains(v) || !this->GetVRM().IsMaterialised(reg)) continue;
           out.push_back(BuildMov(MapWidth(this->GetVRM().GetWidth(reg)), this->EnsureStackSlot(reg),
