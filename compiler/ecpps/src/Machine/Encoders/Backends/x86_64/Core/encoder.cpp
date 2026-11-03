@@ -1459,8 +1459,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                             }},
           operand);
 }
-void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(ecpps::ir::abstract::VirtualRegister reg,
-                                                                           ecpps::ir::abstract::State value)
+// Keep this by-value sink to move temporary states into the register map.
+void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Redefine(
+     ecpps::ir::abstract::VirtualRegister reg,
+     ecpps::ir::abstract::State value) // NOLINT(performance-unnecessary-value-param)
 {
      this->_evicted.erase(reg.index);
      if (this->GetVRM().IsMaterialised(reg))

@@ -4,6 +4,7 @@
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Shared/Diagnostics.h"
+#include "Shared/RangeCompat.h"
 #include "TypeSystem/CompoundTypes.h"
 
 namespace ecpps::ir

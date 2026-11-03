@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "Shared/Error.h"
+#include "Shared/RangeCompat.h"
 
 static std::string ReadEscapedLiteral(std::string::const_iterator& it, const std::string::const_iterator& end,
                                       char delimiter)

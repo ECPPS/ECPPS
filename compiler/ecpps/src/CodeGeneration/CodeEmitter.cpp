@@ -1,6 +1,7 @@
 #include "CodeEmitter.h"
 #include <stdexcept>
 #include "../Shared/Diagnostics.h"
+#include "../Shared/RangeCompat.h"
 #include "Emitters/x86_64/x86_64.h"
 #include "Nodes.h"
 

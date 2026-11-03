@@ -23,6 +23,7 @@
 #include "Execution/NodeBase.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
+#include "Shared/RangeCompat.h"
 #include "TypeSystem/ArithmeticTypes.h"
 #include "TypeSystem/ClassInfo.h"
 #include "TypeSystem/ClassType.h"

@@ -5,6 +5,7 @@
 #include <limits>
 #include <ranges>
 #include <vector>
+#include "Shared/RangeCompat.h"
 
 // NOLINTBEGIN(readability-identifier-length)
 

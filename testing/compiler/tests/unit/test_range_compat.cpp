@@ -16,7 +16,7 @@ TEST_CASE("AppendRange appends lvalue and temporary ranges")
      ecpps::detail::AppendRange(values, std::vector<int>{4, 5});
 
      const std::vector<int> expected{1, 2, 3, 4, 5};
-     REQUIRE(values == expected);
+     REQUIRE((values == expected));
 }
 
 TEST_CASE("AppendRange moves elements from an rvalue view")
@@ -28,14 +28,14 @@ TEST_CASE("AppendRange moves elements from an rvalue view")
 
      ecpps::detail::AppendRange(values, sourceRvalues);
 
-     REQUIRE(values.size() == 1);
-     REQUIRE(*values.front() == 42);
-     REQUIRE(source.front() == nullptr);
+     REQUIRE((values.size() == 1));
+     REQUIRE((*values.front() == 42));
+     REQUIRE((source.front() == nullptr));
 }
 
 TEST_CASE("IntegerArrayNode formats range values")
 {
      ecpps::ir::IntegerArrayNode node{std::vector<std::uint32_t>{1, 2, 3}, nullptr, ecpps::Location{}};
 
-     REQUIRE(node.ToString(0) == "[1, 2, 3]");
+     REQUIRE((node.ToString(0) == "[1, 2, 3]"));
 }
