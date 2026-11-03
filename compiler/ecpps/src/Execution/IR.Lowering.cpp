@@ -445,6 +445,43 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           return nullptr;
      }
 
+     if (auto* const compoundAssign = dynamic_cast<high::CompoundAssignmentNode*>(valueNode))
+     {
+          const auto operator_ = compoundAssign->Operation();
+          const auto slot = lowerSlot(std::move(*compoundAssign).Left());
+          const auto* rhsReg = LowerExpressionLoaded(std::move(*compoundAssign).Right(), built);
+          if (slot.reg == nullptr || rhsReg == nullptr) return nullptr;
+
+          const auto* current = loadSlot(slot);
+          const auto emitOperation = [&]<typename TOperationNode>() -> const SingleAssignRegisterNode*
+          {
+               auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
+               auto* resultPtr = result.get();
+               built.push_back(std::unique_ptr<TOperationNode, IRDeleter>{
+                    new (allocator) TOperationNode(std::move(result), current, rhsReg, source)});
+               return resultPtr;
+          };
+
+          const SingleAssignRegisterNode* result{};
+          switch (operator_)
+          {
+          case ast::Operator::PlusAssign: result = emitOperation.template operator()<SSAAddNode>(); break;
+          case ast::Operator::MinusAssign: result = emitOperation.template operator()<SSASubNode>(); break;
+          case ast::Operator::MultiplyAssign: result = emitOperation.template operator()<SSAMulNode>(); break;
+          case ast::Operator::DivideAssign: result = emitOperation.template operator()<SSADivNode>(); break;
+          case ast::Operator::ModuloAssign: result = emitOperation.template operator()<SSAModNode>(); break;
+          case ast::Operator::XorAssign: result = emitOperation.template operator()<SSABinXorNode>(); break;
+          case ast::Operator::AndAssign: result = emitOperation.template operator()<SSABinAndNode>(); break;
+          case ast::Operator::OrAssign: result = emitOperation.template operator()<SSABinOrNode>(); break;
+          case ast::Operator::LeftShiftAssign: result = emitOperation.template operator()<SSALeftShiftNode>(); break;
+          case ast::Operator::RightShiftAssign: result = emitOperation.template operator()<SSARightShiftNode>(); break;
+          default: return nullptr;
+          }
+
+          storeSlot(slot, result);
+          return result;
+     }
+
      if (auto* const addAssign = dynamic_cast<high::AdditionAssignNode*>(valueNode))
      {
           const auto slot = lowerSlot(std::move(*addAssign).Left());

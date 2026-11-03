@@ -615,6 +615,49 @@ namespace ecpps::ir::high
           Expression _right;
      };
 
+     class CompoundAssignmentNode final : public NodeBase
+     {
+     public:
+          explicit CompoundAssignmentNode(Expression left, Expression right, const ast::Operator operator_,
+                                          Location source)
+              : NodeBase(NodeKind::Store, source), _left(std::move(left)), _right(std::move(right)),
+                _operator(operator_)
+          {
+          }
+          [[nodiscard]] const Expression& Left(void) const& noexcept
+          {
+               return this->_left;
+          }
+          [[nodiscard]] const Expression& Right(void) const& noexcept
+          {
+               return this->_right;
+          }
+          [[nodiscard]] ast::Operator Operation(void) const noexcept
+          {
+               return this->_operator;
+          }
+
+          [[nodiscard]] Expression Left(void) && noexcept
+          {
+               return std::move(this->_left);
+          }
+          [[nodiscard]] Expression Right(void) && noexcept
+          {
+               return std::move(this->_right);
+          }
+
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * ast::PrettyIndent, ' ') + this->_left->Value()->ToString(0) + " " +
+                      ast::ToString(this->_operator) + " " + this->_right->Value()->ToString(0);
+          }
+
+     private:
+          Expression _left;
+          Expression _right;
+          ast::Operator _operator;
+     };
+
      class PostIncrementNode final : public NodeBase
      {
      public:

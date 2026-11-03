@@ -150,6 +150,38 @@ TEST_CASE("Integration - Full pipeline to code generation", "[integration][full_
      }
 }
 
+TEST_CASE("Integration - Compound assignment operators", "[integration][assignment]")
+{
+     const char* source = R"(
+          int compound(int value) {
+               value += 1;
+               value -= 1;
+               value *= 2;
+               value /= 2;
+               value %= 3;
+               value ^= 1;
+               value &= 1;
+               value |= 1;
+               value <<= 1;
+               value >>= 1;
+               return value;
+          }
+     )";
+
+     auto tokens = TokeniseSource(source);
+     Diagnostics diagnostics;
+     ASTContext astContext;
+     auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+     REQUIRE((!ast.empty()));
+
+     BumpAllocator irAllocator(64uz * 1024);
+     ir::Context context{diagnostics, irAllocator};
+     auto ir = IR::Parse(context, ast);
+
+     REQUIRE((!ir.empty()));
+     REQUIRE(diagnostics.diagnosticsList.empty());
+}
+
 TEST_CASE("Integration - Preprocessor and tokeniser", "[integration][preprocessor_tokeniser]")
 {
      SECTION("Macro expansion then tokenisation")
