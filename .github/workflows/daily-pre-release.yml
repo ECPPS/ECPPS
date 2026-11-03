@@ -146,6 +146,7 @@ jobs:
           files: |
             dist/windows/ecpps-windows-x64-clang.zip
             dist/linux/ecpps-linux-x64-clang.zip
+            dist/linux/ecpps-linux-x64-clang-ubuntu24.zip
             dist/SHA256SUMS.txt
           fail_on_unmatched_files: true
 
