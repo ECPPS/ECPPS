@@ -912,16 +912,19 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
      switch (operator_)
      {
      case ast::Operator::PlusAssign:
-          return std::make_unique<LValue>(resultType,
-                                          std::unique_ptr<high::AdditionAssignNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator) high::AdditionAssignNode(
-                                                    std::move(left), std::move(right), source)},
-                                          false);
      case ast::Operator::MinusAssign:
+     case ast::Operator::MultiplyAssign:
+     case ast::Operator::DivideAssign:
+     case ast::Operator::ModuloAssign:
+     case ast::Operator::XorAssign:
+     case ast::Operator::AndAssign:
+     case ast::Operator::OrAssign:
+     case ast::Operator::LeftShiftAssign:
+     case ast::Operator::RightShiftAssign:
           return std::make_unique<LValue>(resultType,
-                                          std::unique_ptr<high::SubtractionAssignNode, IRDeleter>{
-                                               new (*this->GetContext().nodeAllocator) high::SubtractionAssignNode(
-                                                    std::move(left), std::move(right), source)},
+                                          std::unique_ptr<high::CompoundAssignmentNode, IRDeleter>{
+                                               new (*this->GetContext().nodeAllocator) high::CompoundAssignmentNode(
+                                                    std::move(left), std::move(right), operator_, source)},
                                           false);
      default:
           this->GetContext().diagnostics.get().diagnosticsList.push_back(

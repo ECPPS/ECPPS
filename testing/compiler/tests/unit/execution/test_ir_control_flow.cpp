@@ -26,6 +26,49 @@ namespace
                                           return label != nullptr && label->Name() == name;
                                      });
      }
+
+     template <typename TOperationNode> void VerifyCompoundAssignment(const ecpps::ast::Operator operator_)
+     {
+          Fixture fixture{};
+          auto assignment = MakeASTNode<ecpps::ast::BinaryOperatorNode>(
+               fixture.astAllocator, fixture.MakeIdentifier("value"), operator_, fixture.MakeIntegerLiteral(3), Source);
+          ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+          body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(assignment), Source));
+
+          std::vector<ecpps::ast::NodePointer> ast{};
+          ast.push_back(fixture.MakeFunctionDefinition(
+               fixture.MakeFunctionSignature("int", "compound", {{"int", "value"}}), std::move(body)));
+          auto nodes = fixture.Parse(std::move(ast));
+
+          const auto* procedure = FindProcedure(nodes, "compound");
+          REQUIRE((procedure != nullptr));
+          if (procedure == nullptr) return;
+
+          const auto* operation = FindNode<TOperationNode>(procedure->Body());
+          REQUIRE((operation != nullptr));
+          if (operation == nullptr) return;
+
+          const auto* load = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
+          REQUIRE((load != nullptr));
+          if (load == nullptr) return;
+          const auto* immediate = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
+          REQUIRE((immediate != nullptr));
+          if (immediate == nullptr) return;
+          REQUIRE((&operation->Left() == &load->Result()));
+          REQUIRE((&operation->Right() == &immediate->Result()));
+
+          const auto* store = FindNode<ecpps::ir::SSAStoreNode>(procedure->Body());
+          REQUIRE((store != nullptr));
+          if (store == nullptr) return;
+          REQUIRE((&store->Src() == &operation->Result()));
+
+          const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
+          REQUIRE((returnNode != nullptr));
+          if (returnNode == nullptr) return;
+          REQUIRE(returnNode->HasOperand());
+          REQUIRE((returnNode->Operand() == &operation->Result()));
+          REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+     }
 } // namespace
 
 TEST_CASE("IR - If/else lowers a signed comparison to branch targets", "[unit][ir][control-flow]")
@@ -448,6 +491,20 @@ TEST_CASE("IR - Addition assignment stores and returns the updated value", "[uni
      REQUIRE(returnNode->HasOperand());
      REQUIRE((returnNode->Operand() == &addition->Result()));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Arithmetic and bitwise compound assignments lower", "[unit][ir][assignment]")
+{
+     VerifyCompoundAssignment<ecpps::ir::SSAAddNode>(ecpps::ast::Operator::PlusAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSASubNode>(ecpps::ast::Operator::MinusAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSAMulNode>(ecpps::ast::Operator::MultiplyAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSADivNode>(ecpps::ast::Operator::DivideAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSAModNode>(ecpps::ast::Operator::ModuloAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSABinXorNode>(ecpps::ast::Operator::XorAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSABinAndNode>(ecpps::ast::Operator::AndAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSABinOrNode>(ecpps::ast::Operator::OrAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSALeftShiftNode>(ecpps::ast::Operator::LeftShiftAssign);
+     VerifyCompoundAssignment<ecpps::ir::SSARightShiftNode>(ecpps::ast::Operator::RightShiftAssign);
 }
 
 TEST_CASE("IR - Compound assignment rejects rvalue operands", "[unit][ir][assignment]")
