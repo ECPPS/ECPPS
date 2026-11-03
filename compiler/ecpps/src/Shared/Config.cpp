@@ -1100,7 +1100,7 @@ ecpps::CompilerConfig::CompilerConfig(
                continue;
           }
 
-          CommandLineError(option.index, option.original, std::format("unknown option '/{}'", option.name));
+          sourceFiles.emplace_back(argument);
      }
 
      ResolveDumpMode(*this, dumpIndex);
