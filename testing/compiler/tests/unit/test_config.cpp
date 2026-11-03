@@ -30,6 +30,6 @@ TEST_CASE("Compiler config accepts absolute input paths and recognized options",
      const auto config = MakeConfig({"ecpps", "/out:result.bin", "/tmp/input.cpp"});
 
      CHECK((config.outputImage == "result.bin"));
-     REQUIRE(confi(g.sourceFiles.size() == 1));
+     REQUIRE((config.sourceFiles.size() == 1));
      CHECK((config.sourceFiles.front() == "/tmp/input.cpp"));
 }
