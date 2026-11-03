@@ -1208,7 +1208,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      }
      parseContext.FinaliseControlFlow(optimiseJumps);
 
-     diagnostics.append_range(parseContext.diagnostics | std::views::as_rvalue);
+     ecpps::detail::AppendRange(diagnostics, parseContext.diagnostics | std::views::as_rvalue);
 
      const auto parameters = node.ParameterList() |
                              std::views::transform(
@@ -1216,7 +1216,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                                   {
                                        return parameter.type;
                                   }) |
-                             std::ranges::to<std::vector>();
+                             ecpps::detail::ToVector;
      const auto* functionScope = node.Scope();
      const auto mangledName =
           functionScope->memberClassInfo != nullptr

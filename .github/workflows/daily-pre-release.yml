@@ -111,6 +111,12 @@ jobs:
           name: compiler-package-linux
           path: dist/linux
 
+      - name: Download Ubuntu 24 Linux compiler package
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: compiler-package-linux-ubuntu24
+          path: dist/linux
+
       - name: Create checksums
         shell: bash
         run: |

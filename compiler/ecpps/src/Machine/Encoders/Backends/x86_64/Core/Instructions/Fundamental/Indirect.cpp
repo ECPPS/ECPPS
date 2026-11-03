@@ -57,7 +57,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                return SourcePointer{.reg = reg, .owned = std::move(scratch)};
           }
 
-          built.append_range(this->EnsureMaterialisation(source));
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(source));
           const RegisterIndex reg = this->PhysicalRegisterOf(source);
           if (!disposable) return SourcePointer{.reg = reg, .owned = std::nullopt};
 
@@ -121,7 +121,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto source = registerArray[1];
      if (this->IsLargeObject(source))
      {
-          built.append_range(this->EnsureMaterialisation(destinationPointer));
+          ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destinationPointer));
           auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
           const MemoryLocation destination{.base = MemoryOperand{.relativeTo = pointer.Register(), .offset = 0},
                                            .disposable = true};
@@ -132,9 +132,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           return built;
      }
 
-     built.append_range(this->EnsureMaterialisation(destinationPointer));
+     ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destinationPointer));
      auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
-     built.append_range(this->EnsureMaterialisation(source));
+     ecpps::detail::AppendRange(built, this->EnsureMaterialisation(source));
      auto value = ScratchRegister::Take(this->_registerAllocator, source);
      built.push_back(BuildMov(MapWidth(this->GetVRM().GetWidth(source)),
                               MemoryOperand{.relativeTo = pointer.Register(), .offset = 0}, value.AsOperand()));

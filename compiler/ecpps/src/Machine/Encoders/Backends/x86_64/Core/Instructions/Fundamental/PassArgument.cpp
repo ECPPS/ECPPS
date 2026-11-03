@@ -93,7 +93,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                return built;
           }
 
-          built.append_range(EnsureMaterialisation(source));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
           const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
           built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{sourceRegister}));
 
@@ -108,7 +108,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (immediate)
      {
           const Width width = MapWidth(this->GetVRM().GetWidth(source));
-          built.append_range(this->ClearRegister(abiRegister, source));
+          ecpps::detail::AppendRange(built, this->ClearRegister(abiRegister, source));
           built.push_back(BuildMov(width, RegisterOperand{abiRegister}, IntegerOperand{*immediate}));
           std::ignore = this->ConsumeUse(source);
           return built;
@@ -117,20 +117,20 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (this->IsSpilled(source))
      {
           const Width width = MapWidth(this->GetVRM().GetWidth(source));
-          built.append_range(this->ClearRegister(abiRegister, source));
+          ecpps::detail::AppendRange(built, this->ClearRegister(abiRegister, source));
           built.push_back(BuildMov(width, RegisterOperand{abiRegister}, this->EnsureStackSlot(source)));
           std::ignore = this->ConsumeUse(source);
           return built;
      }
 
-     built.append_range(EnsureMaterialisation(source));
+     ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
      const Width width = MapWidth(this->GetVRM().GetWidth(source));
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
      const auto remainingUses = this->ConsumeUse(source);
 
      if (sourceRegister == abiRegister) return built;
 
-     built.append_range(this->ClearRegister(abiRegister, source));
+     ecpps::detail::AppendRange(built, this->ClearRegister(abiRegister, source));
      if (remainingUses == 0) this->ReleaseRegister(source);
      built.push_back(BuildMov(width, RegisterOperand{abiRegister}, RegisterOperand{sourceRegister}));
      return built;

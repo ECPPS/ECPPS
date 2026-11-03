@@ -29,7 +29,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           else
           {
                this->_registerAllocator.Prefer(returnRegister);
-               built.append_range(EnsureMaterialisation(value));
+               ecpps::detail::AppendRange(built, EnsureMaterialisation(value));
                this->_registerAllocator.ClearPreference();
 
                const RegisterIndex valueRegister = this->PhysicalRegisterOf(value);

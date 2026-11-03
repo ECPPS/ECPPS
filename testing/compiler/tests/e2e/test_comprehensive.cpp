@@ -241,7 +241,7 @@ TEST_CASE("E2E - Arrays", "[e2e][arrays]")
           REQUIRE(std::filesystem::exists(source_file.path()));
      }
 
-     SECTION("Array initialization")
+     SECTION("Array initialisation")
      {
           const char* code = R"(
             int main() {

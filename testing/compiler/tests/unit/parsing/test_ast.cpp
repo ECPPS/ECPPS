@@ -272,7 +272,7 @@ TEST_CASE("AST - While retains its condition and continue statement", "[unit][pa
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("AST - Initialized variable retains its type, name, and value", "[unit][parsing][ast]")
+TEST_CASE("AST - Initialised variable retains its type, name, and value", "[unit][parsing][ast]")
 {
      Fixture fixture{};
      std::vector<ecpps::Token> tokens{Keyword("int"), Identifier("count"), Operator("="), Integer(5),

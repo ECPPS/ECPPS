@@ -29,11 +29,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     "LeftShift operands must not be spilled");
 
      if (!this->ImmediateOf(right).has_value()) this->_registerAllocator.Prefer(RegisterIndex::Rcx);
-     built.append_range(EnsureMaterialisation(right));
+     ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
      this->_registerAllocator.ClearPreference();
 
-     if (!this->ImmediateOf(left).has_value()) built.append_range(EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value()) built.append_range(EnsureMaterialisation(right));
+     if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(left));
+     if (!this->ImmediateOf(right).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -44,7 +44,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      if (this->IsMutable(left) || this->IsMutable(right) || this->IsMutable(destination))
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }
@@ -142,11 +142,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     "RightShift operands must not be spilled");
 
      if (!this->ImmediateOf(right).has_value()) this->_registerAllocator.Prefer(RegisterIndex::Rcx);
-     built.append_range(EnsureMaterialisation(right));
+     ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
      this->_registerAllocator.ClearPreference();
 
-     if (!this->ImmediateOf(left).has_value()) built.append_range(EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value()) built.append_range(EnsureMaterialisation(right));
+     if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(left));
+     if (!this->ImmediateOf(right).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -157,7 +157,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      if (this->IsMutable(left) || this->IsMutable(right) || this->IsMutable(destination))
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

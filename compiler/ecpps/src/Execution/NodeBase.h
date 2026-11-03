@@ -8,6 +8,7 @@
 #include <stack>
 #include <string>
 #include <utility>
+#include <version>
 #include "../Parsing/AST.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Error.h"
@@ -200,7 +201,19 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * ast::PrettyIndent, ' ') + std::format("{}", this->_values);
+               std::string valuesText;
+#if !defined(__cpp_lib_format_ranges) || __cpp_lib_format_ranges < 202207L
+               valuesText = "[";
+               for (std::size_t index = 0; index < this->_values.size(); ++index)
+               {
+                    if (index != 0) valuesText += ", ";
+                    valuesText += std::to_string(this->_values[index]);
+               }
+               valuesText += "]";
+#else
+               valuesText = std::format("{}", this->_values);
+#endif
+               return std::string(indent * ast::PrettyIndent, ' ') + valuesText;
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override;

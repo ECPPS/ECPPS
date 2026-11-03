@@ -5,6 +5,7 @@
 #include <limits>
 #include <ranges>
 #include <vector>
+#include "Shared/RangeCompat.h"
 
 // NOLINTBEGIN(readability-identifier-length)
 
@@ -218,9 +219,11 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(std::size_t
      std::vector<std::byte> binary{};
      if (imm > std::numeric_limits<std::uint32_t>::max())
      {
-          binary.append_range(GenerateMovImmToMem32(
-               reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
-          binary.append_range(GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
+          ecpps::detail::AppendRange(
+               binary, GenerateMovImmToMem32(
+                            reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
+          ecpps::detail::AppendRange(binary,
+                                     GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
           return binary;
      }
      const bool isExtendedRegister = reg >= 8;
@@ -2517,7 +2520,7 @@ namespace
           }
           return false;
      }
-     std::int64_t ImmNormalize(const Width size, const std::int64_t v)
+     std::int64_t ImmNormalise(const Width size, const std::int64_t v)
      {
           switch (size)
           {
@@ -2701,7 +2704,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAluImmReg(const AluOp op,
 {
      Bytes out{};
      if (!ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      const auto ext = static_cast<std::size_t>(op);
      if (IsByte(size))
      {
@@ -2738,7 +2741,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAluImmMem(const AluOp op,
 {
      Bytes out{};
      if (!ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      const auto ext = static_cast<std::size_t>(op);
      if (IsByte(size))
      {
@@ -2777,7 +2780,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateTestImmReg(const Width si
 {
      Bytes out{};
      if (!ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      if (reg == Rax)
      {
           if (size == Width::W16) Put(out, 0x66uz);
@@ -2793,7 +2796,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateTestImmMem(const Width si
 {
      Bytes out{};
      if (!ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      EmitMem(out, size, {IsByte(size) ? 0xF6u : 0xF7u}, 0, mem, false);
      PutImm(out, imm, ImmSize(size));
      return out;
@@ -2818,7 +2821,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovStoreImm(const Width s
 {
      Bytes out{};
      if (!ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      EmitMem(out, size, {IsByte(size) ? 0xC6u : 0xC7u}, 0, destination, false);
      PutImm(out, imm, ImmSize(size));
      return out;
@@ -2960,7 +2963,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateImulRegRegImm(const Width
 {
      Bytes out{};
      if (IsByte(size) || !ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      const bool small = FitsI8(imm);
      EmitReg(out, size, {small ? 0x6Bu : 0x69uz}, destination, source, false, false);
      PutImm(out, imm, small ? 1uz : ImmSize(size));
@@ -2971,7 +2974,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateImulRegMemImm(const Width
 {
      Bytes out{};
      if (IsByte(size) || !ImmFits(size, imm)) return out;
-     imm = ImmNormalize(size, imm);
+     imm = ImmNormalise(size, imm);
      const bool small = FitsI8(imm);
      EmitMem(out, size, {small ? 0x6Bu : 0x69uz}, destination, source, false);
      PutImm(out, imm, small ? 1uz : ImmSize(size));

@@ -25,8 +25,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& left = registerArray[1];
      const auto& right = registerArray[2];
 
-     if (!this->ImmediateOf(left).has_value()) built.append_range(EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value() && right != left) built.append_range(EnsureMaterialisation(right));
+     if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(left));
+     if (!this->ImmediateOf(right).has_value() && right != left)
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -37,7 +38,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      if (this->IsMutable(left) || this->IsMutable(right) || this->IsMutable(destination))
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

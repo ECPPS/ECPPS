@@ -339,7 +339,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                if (qualifiedType == nullptr || !qualifiedType->IsConst()) return;
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A const-qualified scalar object requires an initializer during default-initialization",
+                         "A const-qualified scalar object requires an initialiser during default-initialisation",
                          decl.name->Source()));
           };
 
@@ -361,7 +361,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "A reference variable requires an initializer", decl.name->Source()));
+                              "A reference variable requires an initialiser", decl.name->Source()));
                     continue;
                }
                const auto* referenceStorage = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
@@ -401,7 +401,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     else
                          this->GetContext().diagnostics.get().diagnosticsList.push_back(
                               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "An array of class objects requires a braced initializer",
+                                   "An array of class objects requires a braced initialiser",
                                    decl.initialiser->Source()));
                     continue;
                }
@@ -616,7 +616,7 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Narrowing conversion from '{}' to '{}' is not allowed in array "
-                                          "aggregate initialization",
+                                          "aggregate initialisation",
                                           initialiser->Type()->Name(), arrayType->ElementType()->Name()),
                               initialiser->Value()->Source()));
                     return nullptr;

@@ -28,6 +28,7 @@ add_compiler_test(test_include_directory             tests/unit/test_include_dir
 add_compiler_test(test_type_comparison               tests/unit/typesystem/test_type_comparison.cpp  unit)
 add_compiler_test(test_arithmetic_types              tests/unit/typesystem/test_arithmetic_types.cpp unit)
 add_compiler_test(test_x86_64_opcodes                tests/unit/test_x86_64_opcodes.cpp              unit)
+add_compiler_test(test_range_compat                  tests/unit/test_range_compat.cpp                unit)
 add_compiler_test(test_unit_preprocessing_tokens     tests/unit/parsing/test_pp_tokens.cpp           unit)
 add_compiler_test(test_unit_tokens                   tests/unit/parsing/test_tokens.cpp              unit)
 add_compiler_test(test_unit_ast                      tests/unit/parsing/test_ast.cpp                 unit)

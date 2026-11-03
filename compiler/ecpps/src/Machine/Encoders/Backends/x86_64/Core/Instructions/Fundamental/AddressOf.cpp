@@ -32,7 +32,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      addressValue.parameters = std::make_tuple(source);
      this->Redefine(destination, newState);
 
-     if (this->IsMutable(destination)) built.append_range(EnsureMaterialisation(destination));
+     if (this->IsMutable(destination)) ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

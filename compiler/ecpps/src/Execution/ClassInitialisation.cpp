@@ -66,7 +66,7 @@ Expression ecpps::ir::IR::ParseAggregateInitialisation(const ast::NodePointer& e
 {
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "Aggregate class initialization must initialize an object directly", expression->Source()));
+               "Aggregate class initialisation must initialise an object directly", expression->Source()));
      return nullptr;
 }
 
@@ -129,7 +129,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::AddressOfAllocation(co
 {
      runtime_assert(object != nullptr, "Invalid object allocation register");
      auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
-     runtime_assert(function != nullptr, "Object initialization must occur inside a function");
+     runtime_assert(function != nullptr, "Object initialisation must occur inside a function");
      if (function == nullptr || object == nullptr) return nullptr;
 
      auto& allocator = *this->GetContext().nodeAllocator;
@@ -306,7 +306,7 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
                                                  const bool aggregateElement)
 {
      const auto* referenceType = type->CastTo<typeSystem::ReferenceType>();
-     runtime_assert(referenceType != nullptr, "Reference initialization requires a reference type");
+     runtime_assert(referenceType != nullptr, "Reference initialisation requires a reference type");
      if (referenceType == nullptr || initialiser == nullptr || *initialiser == nullptr) return;
 
      const ast::NodePointer* binding = initialiser;
@@ -316,7 +316,7 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A reference member initializer must contain exactly one initializer", source));
+                         "A reference member initialiser must contain exactly one initialiser", source));
                return;
           }
           binding = &list->Initialisers().front();
@@ -331,7 +331,7 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialization",
+                    std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialisation",
                                 referent->Type()->Name(), referenceType->BaseType()->Name()),
                     (*binding)->Source()));
           return;
@@ -393,13 +393,13 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Reference member of type '{}' cannot bind to an initializer of type '{}'",
+                    std::format("Reference member of type '{}' cannot bind to an initialiser of type '{}'",
                                 referenceType->BaseType()->Name(), referent->Type()->Name()),
                     source));
           return nullptr;
      }
 
-     if (!materialize) return nullptr; // Semantic-only validation of a default member initializer.
+     if (!materialize) return nullptr; // Semantic-only validation of a default member initialiser.
 
      if (directBinding)
      {
@@ -434,7 +434,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
                                         ObjectInitialisationMode mode, const Location& source,
                                         const bool aggregateElement)
 {
-     runtime_assert(type != nullptr && address != nullptr, "Invalid initialization target");
+     runtime_assert(type != nullptr && address != nullptr, "Invalid initialisation target");
      if (type == nullptr || address == nullptr) return;
 
      if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
@@ -443,7 +443,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A reference member without a default member initializer must be explicitly initialized",
+                         "A reference member without a default member initialiser must be explicitly initialised",
                          source));
                return;
           }
@@ -469,7 +469,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
           if (qualifiedType != nullptr && qualifiedType->IsConst())
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A const-qualified scalar member requires an initializer during default-initialization",
+                         "A const-qualified scalar member requires an initialiser during default-initialisation",
                          source));
           return;
      }
@@ -492,7 +492,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               "Narrowing conversion from '" + value->Type()->Name() + "' to '" + type->Name() +
-                                   "' is not allowed in aggregate initialization",
+                                   "' is not allowed in aggregate initialisation",
                               (*initialiser)->Source()));
                     return;
                }
@@ -507,7 +507,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
           if (mode == ObjectInitialisationMode::Explicit)
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Invalid initializer for aggregate member", source));
+                         "Invalid initialiser for aggregate member", source));
           return;
      }
 
@@ -522,7 +522,7 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
                                              const Location& source)
 {
      const auto* arrayType = type->CastTo<typeSystem::ArrayType>();
-     runtime_assert(arrayType != nullptr, "Array initialization requires an array type");
+     runtime_assert(arrayType != nullptr, "Array initialisation requires an array type");
      if (arrayType == nullptr) return;
 
      const ast::InitialiserListNode* list = nullptr;
@@ -533,7 +533,7 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "An array member requires a braced initializer", source));
+                         "An array member requires a braced initialiser", source));
                return;
           }
           if (std::ranges::any_of(list->Initialisers(),
@@ -604,7 +604,7 @@ void ecpps::ir::IR::ZeroInitialiseAtAddress(typeSystem::NonowningTypePointer typ
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Union initialization is not supported yet", source));
+                         "Union initialisation is not supported yet", source));
                return;
           }
           for (const auto& field : classType->Info().fields)
@@ -641,7 +641,7 @@ void ecpps::ir::IR::InitialiseDefaultMember(typeSystem::NonowningTypePointer cla
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Default member initializer for '{}' is unavailable", field.name), source));
+                    std::format("Default member initialiser for '{}' is unavailable", field.name), source));
           return;
      }
 
@@ -665,7 +665,7 @@ void ecpps::ir::IR::InitialiseClassMembers(typeSystem::NonowningTypePointer type
                                            const SingleAssignRegisterNode* address, const Location& source)
 {
      const auto* classType = type->CastTo<typeSystem::ClassType>();
-     runtime_assert(classType != nullptr, "Class member initialization requires a class type");
+     runtime_assert(classType != nullptr, "Class member initialisation requires a class type");
      if (classType == nullptr) return;
 
      for (std::size_t index = 0; index < classType->Info().fields.size(); index++)
@@ -681,7 +681,7 @@ void ecpps::ir::IR::InitialiseClassMembers(typeSystem::NonowningTypePointer type
           {
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Reference member '{}' has no initializer", field.name), field.source));
+                         std::format("Reference member '{}' has no initialiser", field.name), field.source));
                continue;
           }
           this->InitialiseAtAddress(field.type, fieldAddress, nullptr, ast::InitialisationType::Default,
@@ -696,13 +696,13 @@ void ecpps::ir::IR::InitialiseClassAtAddress(typeSystem::NonowningTypePointer ty
                                              const Location& source)
 {
      const auto* classType = type->CastTo<typeSystem::ClassType>();
-     runtime_assert(classType != nullptr, "Class initialization requires a class type");
+     runtime_assert(classType != nullptr, "Class initialisation requires a class type");
      if (classType == nullptr) return;
      if (classType->Info().kind == typeSystem::ClassKind::Union)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Union initialization is not supported yet", source));
+                    "Union initialisation is not supported yet", source));
           return;
      }
 
@@ -893,7 +893,7 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
                if (!IsNarrowingConversion(selection->arguments[index], parameterType)) continue;
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialization",
+                         std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialisation",
                                      selection->arguments[index]->Type()->Name(), parameterType->Name()),
                          selection->arguments[index]->Value()->Source()));
                return;
@@ -902,7 +902,7 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Copy initialization cannot select an explicit constructor", source));
+                    "Copy initialisation cannot select an explicit constructor", source));
           return;
      }
      if (!this->CanAccess(info.id, selection->constructor->access))
@@ -1158,7 +1158,7 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Class '{}' cannot be initialized from this expression yet", info.DisplayName()),
+                    std::format("Class '{}' cannot be initialised from this expression yet", info.DisplayName()),
                     source));
           return;
      }
@@ -1218,7 +1218,7 @@ void ecpps::ir::IR::InitialiseEmptyClassList(typeSystem::NonowningTypePointer ty
           else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Reference member '{}' has no initializer", field.name), source));
+                         std::format("Reference member '{}' has no initialiser", field.name), source));
           else
                InitialiseAtAddress(field.type, fieldAddress, nullptr, ast::InitialisationType::EqualInitialiser,
                                    ObjectInitialisationMode::EmptyList, source);
@@ -1264,7 +1264,7 @@ void ecpps::ir::IR::InitialisePositionalAggregate(const SingleAssignRegisterNode
                else if (subobjectType->CastTo<typeSystem::ReferenceType>() != nullptr)
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "A reference member is omitted from the aggregate initializer",
+                              "A reference member is omitted from the aggregate initialiser",
                               owningField != nullptr ? owningField->source : source));
                else
                     InitialiseAtAddress(subobjectType, subobjectAddress, nullptr,
@@ -1356,7 +1356,7 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
                {
                     this->GetContext().diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("Member '{}' is initialized more than once", designated->Member()),
+                              std::format("Member '{}' is initialised more than once", designated->Member()),
                               designated->Source()));
                     return;
                }
@@ -1418,7 +1418,7 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
           else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
                this->GetContext().diagnostics.get().diagnosticsList.push_back(
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Reference member '{}' is omitted from the aggregate initializer", field.name),
+                         std::format("Reference member '{}' is omitted from the aggregate initialiser", field.name),
                          source));
           else
                this->InitialiseAtAddress(field.type, fieldAddress, nullptr, ast::InitialisationType::EqualInitialiser,

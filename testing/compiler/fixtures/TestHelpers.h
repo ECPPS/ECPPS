@@ -124,7 +124,7 @@ namespace TestHelpers
           return static_cast<std::byte>(value);
      }
 
-     /// Helper to create a vector of bytes from initializer list
+     /// Helper to create a vector of bytes from initialiser list
      inline std::vector<std::byte> MakeBytes(std::initializer_list<unsigned char> bytes)
      {
           std::vector<std::byte> result;

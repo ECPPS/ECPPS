@@ -66,7 +66,7 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                                             {
                                                  return parameter.type;
                                             }) |
-                                       std::ranges::to<std::vector>();
+                                       ecpps::detail::ToVector;
                const auto mangled =
                     function->memberClassInfo != nullptr
                          ? ecpps::abi::ABI::MangleMemberName(

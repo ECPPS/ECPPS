@@ -551,7 +551,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           AlignUp(sectionHeadersOffset + static_cast<std::uint32_t>(this->sections.size() * sizeof(SectionHeader)),
                   this->ntHeaders.optionalHeader.fileAlignment);
 
-     this->ntHeaders.optionalHeader.sizeOfInitializedData = static_cast<std::uint32_t>(idataBuffer.size());
+     this->ntHeaders.optionalHeader.sizeOfInitialisedData = static_cast<std::uint32_t>(idataBuffer.size());
      this->ntHeaders.fileHeader.numberOfSections = static_cast<std::uint16_t>(this->sections.size());
 
      uint32_t currentVirtualAddress = AlignUp(headersSize, this->ntHeaders.optionalHeader.sectionAlignment);

@@ -48,7 +48,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           parameterValue.parameters = std::make_tuple(displacement, true);
 
           this->Redefine(destination, newState);
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
           return built;
      }
      const auto abiRegister = static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
@@ -65,7 +65,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      this->Unlock(abiRegister);
-     built.append_range(EnsureMaterialisation(destination));
+     ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

@@ -27,7 +27,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      runtime_assert(!this->IsSpilled(operand) && !this->IsSpilled(destination),
                     "Binary complement operands must not be spilled");
 
-     if (!this->ImmediateOf(operand).has_value()) built.append_range(EnsureMaterialisation(operand));
+     if (!this->ImmediateOf(operand).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(operand));
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -38,7 +38,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->Redefine(destination, newState);
 
      if (this->IsMutable(operand) || this->IsMutable(destination))
-          built.append_range(EnsureMaterialisation(destination));
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
 
      return built;
 }

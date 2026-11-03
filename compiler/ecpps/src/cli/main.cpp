@@ -495,7 +495,7 @@ namespace
 
                     routines.emplace(routine.name, generatedMachineCode.size());
 
-                    generatedMachineCode.append_range(machineCode);
+                    ecpps::detail::AppendRange(generatedMachineCode, machineCode);
                }
 
                for (const auto& [procedureName, procedureOffset] : routines)
@@ -787,7 +787,7 @@ int main(int argc, char* argv[])
                                         {
                                              return static_cast<std::byte>(character);
                                         }) |
-                                   std::ranges::to<std::vector>();
+                                   ecpps::detail::ToVector;
 
           const auto imageBytes = ecpps::linker::Linker::SelectAndLink(
                config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,

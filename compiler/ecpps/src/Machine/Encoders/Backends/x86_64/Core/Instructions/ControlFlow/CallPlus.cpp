@@ -43,7 +43,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           return built;
      }
 
-     built.append_range(EnsureMaterialisation(destination));
+     ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
      return built;
 }
 

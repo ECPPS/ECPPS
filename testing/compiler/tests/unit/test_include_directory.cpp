@@ -54,7 +54,7 @@ namespace
      }
 } // namespace
 
-// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
+// NOLINTNEXTLINE(bugprone-throwing-static-initialisation)
 TEST_CASE("Include directory resolves ../include from the executable", "[unit][filesystem]")
 {
      TemporaryDirectory temporary;
@@ -77,7 +77,7 @@ TEST_CASE("Include directory resolves ../include from the executable", "[unit][f
 }
 
 #ifndef _WIN32
-// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
+// NOLINTNEXTLINE(bugprone-throwing-static-initialisation)
 TEST_CASE("Include directory resolves executable symlinks", "[unit][filesystem]")
 {
      TemporaryDirectory temporary;
@@ -97,7 +97,7 @@ TEST_CASE("Include directory resolves executable symlinks", "[unit][filesystem]"
 }
 #endif
 
-// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
+// NOLINTNEXTLINE(bugprone-throwing-static-initialisation)
 TEST_CASE("Include directory reports lookup, invalid path, and missing directory errors", "[unit][filesystem]")
 {
      const TestPathProvider lookupFailure{{.error = "test lookup failure"}};
@@ -117,7 +117,7 @@ TEST_CASE("Include directory reports lookup, invalid path, and missing directory
      CHECK(!ecpps::fs::ValidateDirectory(executable).empty());
 }
 
-// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
+// NOLINTNEXTLINE(bugprone-throwing-static-initialisation)
 TEST_CASE("Native executable path provider returns an absolute path", "[unit][filesystem]")
 {
      const ecpps::fs::NativeExecutablePathProvider provider{};

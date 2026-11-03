@@ -1,6 +1,7 @@
 #include "CodeEmitter.h"
 #include <stdexcept>
 #include "../Shared/Diagnostics.h"
+#include "../Shared/RangeCompat.h"
 #include "Emitters/x86_64/x86_64.h"
 #include "Nodes.h"
 
@@ -13,7 +14,7 @@ std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& r
      for (const auto& instruction : routine.physicalInstructions)
      {
           this->_currentInstructionBase = generated.size();
-          generated.append_range(this->EmitInstruction(instruction));
+          ecpps::detail::AppendRange(generated, this->EmitInstruction(instruction));
      }
      return generated;
 }

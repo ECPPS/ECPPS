@@ -2614,7 +2614,7 @@ NodePointer ecpps::ast::AST::ParseExpression(ASTContext& context)
 }
 NodePointer ecpps::ast::AST::ParseCondition(ASTContext& context)
 {
-     // TODO: decl-specifier-seq declarator brace-or-equal-initializer
+     // TODO: decl-specifier-seq declarator brace-or-equal-initialiser
      return ParseExpression(context);
 }
 

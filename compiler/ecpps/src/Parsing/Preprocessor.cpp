@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "Shared/Error.h"
+#include "Shared/RangeCompat.h"
 
 static std::string ReadEscapedLiteral(std::string::const_iterator& it, const std::string::const_iterator& end,
                                       char delimiter)
@@ -171,8 +172,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          {
                               const auto& includedSource = ecpps::fs::GetSourceScanner().GetFileContents(resolvedPath);
 
-                              tokens.append_range(Parse(includedSource, macros, resolvedPath.string(), includedFiles,
-                                                        includeDirectories));
+                              ecpps::detail::AppendRange(tokens, Parse(includedSource, macros, resolvedPath.string(),
+                                                                       includedFiles, includeDirectories));
                          }
                     }
                     catch (const fs::FileNotFoundException& fileNotFound)
@@ -361,7 +362,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     for (auto& token : parsed) token.source.line += previousLine - 1;
 
                     tokens.reserve(tokens.size() + parsed.size());
-                    tokens.insert_range(tokens.end(), parsed);
+                    ecpps::detail::AppendRange(tokens, parsed);
 
                     // TODO: handle nested #if/#ifdef recursively
                }
