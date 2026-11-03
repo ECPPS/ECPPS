@@ -83,34 +83,44 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      NodeBase* valueNode = expression->Value().get();
      const Location source = valueNode->Source();
 
+     const auto accessTypeOf = [&](typeSystem::NonowningTypePointer type) -> typeSystem::NonowningTypePointer
+     {
+          if (const auto* reference = type->CastTo<typeSystem::ReferenceType>())
+               return this->PointerTo(reference->BaseType());
+          return type;
+     };
+
      struct StorageSlot
      {
           const SingleAssignRegisterNode* reg{};
           bool indirect{};
+          typeSystem::NonowningTypePointer type{};
      };
 
      const auto lowerSlot = [&](Expression lvalue) -> StorageSlot
      {
           if (lvalue == nullptr) return {};
+          const auto* const lvalueType = lvalue->Type(); // capture before the operand is moved out
           if (auto* const dereference = dynamic_cast<high::DereferenceNode*>(lvalue->Value().get()))
           {
                const auto* pointerReg = LowerExpressionLoaded(std::move(*dereference).Operand(), built);
-               return StorageSlot{.reg = pointerReg, .indirect = true};
+               return StorageSlot{.reg = pointerReg, .indirect = true, .type = lvalueType};
           }
           const auto* objectReg = LowerExpression(std::move(lvalue), built);
-          return StorageSlot{.reg = objectReg, .indirect = false};
+          return StorageSlot{.reg = objectReg, .indirect = false, .type = lvalueType};
      };
 
      const auto loadSlot = [&](const StorageSlot& slot) -> const SingleAssignRegisterNode*
      {
-          auto loaded = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
+          const auto* const type = accessTypeOf(slot.type);
+          auto loaded = makeReg(source, type->Width(), type->Alignment());
           auto* loadedPtr = loaded.get();
           if (slot.indirect)
                built.push_back(std::unique_ptr<SSADerefNode, IRDeleter>{
-                    new (allocator) SSADerefNode(std::move(loaded), slot.reg, source)});
+                    new (allocator) SSADerefNode(std::move(loaded), slot.reg, AccessFor(type), source)});
           else
                built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
-                    new (allocator) SSALoadNode(std::move(loaded), slot.reg, AccessFor(expression->Type()), source)});
+                    new (allocator) SSALoadNode(std::move(loaded), slot.reg, AccessFor(type), source)});
           return loadedPtr;
      };
 
@@ -118,7 +128,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
      {
           if (slot.indirect)
                built.push_back(std::unique_ptr<SSAIndirectStoreNode, IRDeleter>{
-                    new (allocator) SSAIndirectStoreNode(slot.reg, value, source)});
+                    new (allocator) SSAIndirectStoreNode(slot.reg, value, AccessFor(accessTypeOf(slot.type)), source)});
           else
                built.push_back(
                     std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(slot.reg, value, source)});
@@ -411,10 +421,11 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* ptrReg = LowerExpressionLoaded(std::move(*derefNode).Operand(), built);
           if (ptrReg == nullptr) return nullptr;
 
-          auto result = makeReg(source, expression->Type()->Width(), expression->Type()->Alignment());
+          const auto* const type = accessTypeOf(expression->Type());
+          auto result = makeReg(source, type->Width(), type->Alignment());
           auto* resultPtr = result.get();
           built.push_back(std::unique_ptr<SSADerefNode, IRDeleter>{
-               new (allocator) SSADerefNode(std::move(result), ptrReg, source)});
+               new (allocator) SSADerefNode(std::move(result), ptrReg, AccessFor(type), source)});
           return resultPtr;
      }
 

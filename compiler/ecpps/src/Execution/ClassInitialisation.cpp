@@ -13,6 +13,7 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/IR.Internal.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "IR.h"
@@ -292,11 +293,15 @@ Expression ecpps::ir::IR::BuildMemberAccess(Expression objectPointer, const type
 void ecpps::ir::IR::StoreAtAddress(const SingleAssignRegisterNode* address, const SingleAssignRegisterNode* value,
                                    typeSystem::NonowningTypePointer type, const Location& source)
 {
-     if (address == nullptr || value == nullptr) return;
+     if (address == nullptr || value == nullptr || type == nullptr) return;
      auto& allocator = *this->GetContext().nodeAllocator;
+
+     const auto* accessType = type;
+     if (const auto* reference = type->CastTo<typeSystem::ReferenceType>())
+          accessType = this->PointerTo(reference->BaseType());
+
      this->_built.push_back(std::unique_ptr<SSAIndirectStoreNode, IRDeleter>{
-          new (allocator) SSAIndirectStoreNode(address, value, source)});
-     (void)type;
+          new (allocator) SSAIndirectStoreNode(address, value, detail::AccessFor(accessType), source)});
 }
 
 void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointer type,
