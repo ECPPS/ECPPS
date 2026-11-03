@@ -1105,8 +1105,8 @@ void ecpps::ir::IR::InlineConstructor(typeSystem::NonowningTypePointer type, con
                inlineIr.StoreAtAddress(parameterAddress, argumentRegisters[index], parameter.type, source);
                continue;
           }
-          inlineIr._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
-               new (allocator) SSAStoreNode(allocationRegister, argumentRegisters[index], source)});
+          inlineIr._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(
+               allocationRegister, argumentRegisters[index], detail::AccessForStorage(parameter.type), source)});
      }
 
      inlineIr._objectInitialisationStack.push_back({.type = type, .address = address, .allowLocalLookup = true});

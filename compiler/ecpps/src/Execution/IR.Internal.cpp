@@ -443,3 +443,15 @@ namespace ecpps::ir::detail
      }
 
 } // namespace ecpps::ir::detail
+
+ecpps::ir::MemoryAccess ecpps::ir::detail::AccessForStorage(const typeSystem::NonowningTypePointer type)
+{
+     if (const auto* reference = type->CastTo<typeSystem::ReferenceType>())
+     {
+          TypeRequest request{};
+          request.kind = TypeKind::Compound;
+          request.data = PointerRequest{.elementType = reference->BaseType()};
+          return AccessFor(GetTypeContext().Get(request));
+     }
+     return AccessFor(type);
+}

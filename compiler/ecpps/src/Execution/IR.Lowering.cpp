@@ -130,8 +130,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
                built.push_back(std::unique_ptr<SSAIndirectStoreNode, IRDeleter>{
                     new (allocator) SSAIndirectStoreNode(slot.reg, value, AccessFor(accessTypeOf(slot.type)), source)});
           else
-               built.push_back(
-                    std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(slot.reg, value, source)});
+               built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{
+                    new (allocator) SSAStoreNode(slot.reg, value, detail::AccessForStorage(slot.type), source)});
      };
 
      if (auto* const integralNode = dynamic_cast<IntegralNode*>(valueNode))

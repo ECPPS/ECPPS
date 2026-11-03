@@ -19,6 +19,7 @@ namespace ecpps::ir::detail
      void InitialiseBuiltinTypes(Context& context);
      [[nodiscard]] std::string FormatTypeName(typeSystem::NonowningTypePointer type);
      [[nodiscard, maybe_unused]] MemoryAccess AccessFor(typeSystem::NonowningTypePointer type);
+     [[nodiscard]] MemoryAccess AccessForStorage(typeSystem::NonowningTypePointer type);
      [[nodiscard]] std::size_t ConversionCost(typeSystem::ConversionSequence::ConversionKind kind) noexcept;
      [[nodiscard]] std::string FormatFunctionSignature(const std::shared_ptr<FunctionScope>& func);
      [[nodiscard]] bool IsIndirectLValue(const Expression& expression);
