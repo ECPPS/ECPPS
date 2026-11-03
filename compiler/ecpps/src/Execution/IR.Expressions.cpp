@@ -49,7 +49,6 @@ using ecpps::ir::detail::CollectSimilarNames;
 using ecpps::ir::detail::CompareByPriority;
 using ecpps::ir::detail::ConvertConstant;
 using ecpps::ir::detail::FormatFunctionSignature;
-using ecpps::ir::detail::IndirectStoreUnsupported;
 using ecpps::ir::detail::IsIndirectLValue;
 using ecpps::ir::detail::LevenshteinDistance;
 
@@ -596,15 +595,11 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
 Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
-     if (IsIndirectLValue(operand))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(operand);
+     const auto* pointerType = isIndirect ? operand->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto& operandType = operand->Type();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : operand->Type();
+
      if (IsScalar(operandType))
      {
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
@@ -636,15 +631,10 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
 Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
-     if (IsIndirectLValue(operand))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(operand);
+     const auto* pointerType = isIndirect ? operand->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto& operandType = operand->Type();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : operand->Type();
      if (IsScalar(operandType))
      {
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
@@ -670,15 +660,10 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
 Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
-     if (IsIndirectLValue(operand))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(operand);
+     const auto* pointerType = isIndirect ? operand->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto& operandType = operand->Type();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : operand->Type();
      if (IsScalar(operandType))
      {
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
@@ -710,15 +695,10 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
 Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
-     if (IsIndirectLValue(operand))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(operand);
+     const auto* pointerType = isIndirect ? operand->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto& operandType = operand->Type();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : operand->Type();
      if (IsScalar(operandType))
      {
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
@@ -813,15 +793,11 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
 {
      if (RejectClassByValue(left->Type(), source, "an assignment operand")) return nullptr;
 
-     if (IsIndirectLValue(left))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(left);
+     const auto* pointerType = isIndirect ? left->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto* leftIntegral = left->Type()->CastTo<typeSystem::QualifiedType>();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : left->Type();
+     const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
 
      if (leftIntegral == nullptr)
      {
@@ -870,15 +846,11 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
 {
      if (RejectClassByValue(left->Type(), source, "a compound assignment operand")) return nullptr;
 
-     if (IsIndirectLValue(left))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::string{IndirectStoreUnsupported},
-                                                                               source));
-          return nullptr;
-     }
+     bool isIndirect = IsIndirectLValue(left);
+     const auto* pointerType = isIndirect ? left->Type()->CastTo<typeSystem::PointerType>() : nullptr;
 
-     const auto* leftIntegral = left->Type()->CastTo<typeSystem::IntegralType>();
+     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : left->Type();
+     const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
      if (leftIntegral == nullptr)
      {
           this->GetContext().diagnostics.get().diagnosticsList.push_back(

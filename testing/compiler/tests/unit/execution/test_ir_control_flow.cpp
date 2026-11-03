@@ -557,8 +557,10 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Assignment expressions require modifiable lvalues"));
 }
 
-TEST_CASE("IR - Compound assignment diagnoses unsupported indirect targets", "[unit][ir][assignment]")
+TEST_CASE("IR - Compound assignment supports indirect targets", "[unit][ir][assignment]")
 {
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+
      Fixture fixture{};
      auto dereference = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, ecpps::ast::Operator::Asterisk,
                                                                    fixture.MakeIdentifier("value"),
@@ -580,9 +582,34 @@ TEST_CASE("IR - Compound assignment diagnoses unsupported indirect targets", "[u
 
      const auto* procedure = FindProcedure(nodes, "update");
      REQUIRE((procedure != nullptr));
-     REQUIRE((CountNodes<ecpps::ir::SSAStoreNode>(procedure->Body()) == 0));
-     REQUIRE((CountNodes<ecpps::ir::SSAAddNode>(procedure->Body()) == 0));
-     REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Modifying an object through a pointer is not supported yet"));
+
+     const auto* parameter = FindNode<ecpps::ir::ParameterNode>(procedure->Body());
+     REQUIRE((parameter != nullptr));
+     if (parameter == nullptr) return;
+
+     REQUIRE((CountNodes<ecpps::ir::SSALoadNode>(procedure->Body()) == 1));
+     const auto* pointerLoad = FindNode<ecpps::ir::SSALoadNode>(procedure->Body());
+     REQUIRE((pointerLoad != nullptr));
+     if (pointerLoad == nullptr) return;
+
+     REQUIRE((&pointerLoad->Address() == parameter->Result()));
+     const auto* addition = FindNode<ecpps::ir::SSAAddNode>(procedure->Body());
+     REQUIRE((addition != nullptr));
+     if (addition == nullptr) return;
+
+     const auto* immediate = FindNode<ecpps::ir::SSAImmNode>(procedure->Body());
+     REQUIRE((immediate != nullptr));
+     if (immediate == nullptr) return;
+
+     REQUIRE((&addition->Right() == &immediate->Result()));
+
+     const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
+
+     REQUIRE((returnNode != nullptr));
+     if (returnNode == nullptr) return;
+     REQUIRE(returnNode->HasOperand());
+     REQUIRE((returnNode->Operand() == &addition->Result()));
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
 TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][ir][control-flow]")

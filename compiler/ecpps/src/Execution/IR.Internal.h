@@ -19,11 +19,10 @@ namespace ecpps::ir::detail
      void InitialiseBuiltinTypes(Context& context);
      [[nodiscard]] std::string FormatTypeName(typeSystem::NonowningTypePointer type);
      [[nodiscard, maybe_unused]] MemoryAccess AccessFor(typeSystem::NonowningTypePointer type);
+     [[nodiscard]] MemoryAccess AccessForStorage(typeSystem::NonowningTypePointer type);
      [[nodiscard]] std::size_t ConversionCost(typeSystem::ConversionSequence::ConversionKind kind) noexcept;
      [[nodiscard]] std::string FormatFunctionSignature(const std::shared_ptr<FunctionScope>& func);
      [[nodiscard]] bool IsIndirectLValue(const Expression& expression);
-     inline constexpr std::string_view IndirectStoreUnsupported =
-          "Modifying an object through a pointer is not supported yet (the IR has no indirect store)";
      [[nodiscard]] std::size_t LevenshteinDistance(const std::string& string1, const std::string& string2);
      [[nodiscard]] std::uint64_t ConvertConstant(std::uint64_t value, const typeSystem::IntegralType* from,
                                                  const typeSystem::IntegralType* to);

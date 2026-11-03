@@ -18,6 +18,7 @@
 #include "Constexpr.h"
 #include "Context.h"
 #include "Execution/Entities.h"
+#include "Execution/IR.Internal.h"
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Operations.h"
@@ -438,8 +439,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                const auto* initReg = LowerExpressionLoaded(std::move(initExpr), this->_built);
                if (initReg != nullptr)
                {
-                    this->_built.push_back(std::unique_ptr<ir::SSAStoreNode, IRDeleter>{
-                         new (allocator) ir::SSAStoreNode(ssaNode, initReg, decl.initialiser->Source())});
+                    this->_built.push_back(
+                         std::unique_ptr<ir::SSAStoreNode, IRDeleter>{new (allocator) ir::SSAStoreNode(
+                              ssaNode, initReg, detail::AccessForStorage(variableType), decl.initialiser->Source())});
                }
           }
      }

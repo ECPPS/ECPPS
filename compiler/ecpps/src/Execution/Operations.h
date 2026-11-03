@@ -893,14 +893,20 @@ namespace ecpps::ir
      {
      public:
           explicit SSAStoreNode(const SingleAssignRegisterNode* target, const SingleAssignRegisterNode* src,
-                                Location source)
-              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+                                MemoryAccess access, Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src), _access(access)
           {
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
                runtime_assert(this->_src != nullptr, "Invalid SSA source");
 
                if (this->_target != nullptr) this->_target->Use();
                if (this->_src != nullptr) this->_src->Use();
+               this->_access.Verify();
+          }
+
+          [[nodiscard]] const MemoryAccess& Access(void) const noexcept
+          {
+               return this->_access;
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -914,26 +920,32 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{: <{}}store {} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
-                                  this->_src->ToString(0));
+               return std::format("{: <{}}store {} {} = {}", ' ', indent * ast::PrettyIndent, this->_access.ToString(),
+                                  this->_target->ToString(0), this->_src->ToString(0));
           }
 
      private:
           const SingleAssignRegisterNode* _target;
           const SingleAssignRegisterNode* _src;
+          MemoryAccess _access;
      };
      class SSAIndirectStoreNode final : public NodeBase
      {
      public:
           explicit SSAIndirectStoreNode(const SingleAssignRegisterNode* target, const SingleAssignRegisterNode* src,
-                                        Location source)
-              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+                                        MemoryAccess access, Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src), _access(access)
           {
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
                runtime_assert(this->_src != nullptr, "Invalid SSA source");
 
                if (this->_target != nullptr) this->_target->Use();
                if (this->_src != nullptr) this->_src->Use();
+               this->_access.Verify();
+          }
+          [[nodiscard]] const MemoryAccess& Access() const noexcept
+          {
+               return this->_access;
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target() const noexcept
@@ -947,13 +959,14 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{: <{}}store *{} = {}", ' ', indent * ast::PrettyIndent, this->_target->ToString(0),
-                                  this->_src->ToString(0));
+               return std::format("{: <{}}store {} *{} = {}", ' ', indent * ast::PrettyIndent, this->_access.ToString(),
+                                  this->_target->ToString(0), this->_src->ToString(0));
           }
 
      private:
           const SingleAssignRegisterNode* _target;
           const SingleAssignRegisterNode* _src;
+          MemoryAccess _access;
      };
      class SSAStoreIntegerNode final : public NodeBase
      {
@@ -1053,15 +1066,21 @@ namespace ecpps::ir
      class SSADerefNode final : public NodeBase
      {
      public:
-          explicit SSADerefNode(SSAPointer result, const SingleAssignRegisterNode* ptr, Location source)
-              : NodeBase(NodeKind::Dereference, source), _result(std::move(result)), _ptr(ptr)
+          explicit SSADerefNode(SSAPointer result, const SingleAssignRegisterNode* ptr, MemoryAccess access,
+                                Location source)
+              : NodeBase(NodeKind::Dereference, source), _result(std::move(result)), _ptr(ptr), _access(access)
           {
                runtime_assert(this->_result != nullptr, "Invalid SSA result");
                runtime_assert(this->_ptr != nullptr, "Invalid SSA pointer operand");
 
                if (this->_ptr != nullptr) this->_ptr->Use();
+               this->_access.Verify();
           }
 
+          [[nodiscard]] const MemoryAccess& Access() const noexcept
+          {
+               return this->_access;
+          }
           [[nodiscard]] const SingleAssignRegisterNode& Result() const noexcept
           {
                return *this->_result;
@@ -1073,13 +1092,14 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
           {
-               return std::format("{: <{}}{} = __deref({})", ' ', indent * ast::PrettyIndent,
-                                  this->_result->ToString(0), this->_ptr->ToString(0));
+               return std::format("{: <{}}{} = {} __deref({})", ' ', indent * ast::PrettyIndent,
+                                  this->_result->ToString(0), this->_access.ToString(), this->_ptr->ToString(0));
           }
 
      private:
           SSAPointer _result;
           const SingleAssignRegisterNode* _ptr;
+          MemoryAccess _access;
      };
 
      class SSACallNode final : public NodeBase
