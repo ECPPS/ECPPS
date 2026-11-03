@@ -559,6 +559,8 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
 
 TEST_CASE("IR - Compound assignment diagnoses unsupported indirect targets", "[unit][ir][assignment]")
 {
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+
      Fixture fixture{};
      auto dereference = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, ecpps::ast::Operator::Asterisk,
                                                                    fixture.MakeIdentifier("value"),
