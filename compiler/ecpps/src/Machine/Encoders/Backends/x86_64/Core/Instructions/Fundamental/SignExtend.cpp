@@ -10,6 +10,15 @@
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
 
+constexpr std::int64_t SignExtendImmediate(const std::uint64_t value, const unsigned sourceBits) noexcept
+{
+     if (sourceBits >= 64) return static_cast<std::int64_t>(value);
+     const std::uint64_t mask = (std::uint64_t{1} << sourceBits) - 1;
+     const std::uint64_t signBit = std::uint64_t{1} << (sourceBits - 1);
+     const std::uint64_t truncated = value & mask;
+     return static_cast<std::int64_t>((truncated ^ signBit) - signBit);
+}
+
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::SignExtension>(
@@ -31,8 +40,13 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
+               using ImmediateType = std::remove_cvref_t<decltype(*immediate)>;
+               const auto extended = static_cast<ImmediateType>(
+                    SignExtendImmediate(static_cast<std::uint64_t>(*immediate),
+                                        static_cast<unsigned>(std::to_underlying(sourceWidth)) * 8U));
+
                built.push_back(
-                    BuildMov(destinationWidth, this->EnsureStackSlot(destination), IntegerOperand{*immediate}));
+                    BuildMov(destinationWidth, this->EnsureStackSlot(destination), IntegerOperand{extended}));
 
                this->DereferenceAndMaybeFree(source);
                return built;
@@ -85,6 +99,20 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      const Width sourceWidth = MapWidth(this->GetVRM().GetWidth(virtualSource));
      const Width destinationWidth = MapWidth(this->GetVRM().GetWidth(owner));
+
+     if (const auto immediate = this->ImmediateOf(virtualSource); immediate.has_value())
+     {
+          using ImmediateType = std::remove_cvref_t<decltype(*immediate)>;
+          const auto extended = static_cast<ImmediateType>(SignExtendImmediate(
+               static_cast<std::uint64_t>(*immediate), static_cast<unsigned>(std::to_underlying(sourceWidth)) * 8U));
+
+          const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
+          this->DereferenceAndMaybeFree(virtualSource);
+
+          return {.instructions = {BuildMov(destinationWidth, RegisterOperand{destinationRegister},
+                                            IntegerOperand{extended})},
+                  .assignedRegister = destinationRegister};
+     }
 
      if (this->IsSpilled(virtualSource))
      {
