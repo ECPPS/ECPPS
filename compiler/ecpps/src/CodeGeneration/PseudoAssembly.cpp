@@ -1216,7 +1216,7 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
                                   {
                                        return parameter.type;
                                   }) |
-                             std::ranges::to<std::vector>();
+                             ecpps::detail::ToVector;
      const auto* functionScope = node.Scope();
      const auto mangledName =
           functionScope->memberClassInfo != nullptr

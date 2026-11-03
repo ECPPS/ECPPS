@@ -87,7 +87,7 @@ TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("IR - Aggregate initialization stores the provided field value", "[unit][ir][classes]")
+TEST_CASE("IR - Aggregate initialisation stores the provided field value", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -146,7 +146,7 @@ TEST_CASE("IR - Aggregate initialization stores the provided field value", "[uni
      REQUIRE((returnNode->Operand() == &fieldLoad->Result()));
 }
 
-TEST_CASE("IR - Positional aggregate initialization assigns each field in order", "[unit][ir][classes]")
+TEST_CASE("IR - Positional aggregate initialisation assigns each field in order", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -179,7 +179,7 @@ TEST_CASE("IR - Positional aggregate initialization assigns each field in order"
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("IR - Omitted aggregate fields receive zero initialization", "[unit][ir][classes]")
+TEST_CASE("IR - Omitted aggregate fields receive zero initialisation", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -210,7 +210,7 @@ TEST_CASE("IR - Omitted aggregate fields receive zero initialization", "[unit][i
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("IR - Designated aggregate initialization targets the named field", "[unit][ir][classes]")
+TEST_CASE("IR - Designated aggregate initialisation targets the named field", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -317,7 +317,7 @@ TEST_CASE("IR - Duplicate designated aggregate members are diagnosed", "[unit][i
 
      (void)fixture.Parse(std::move(ast));
 
-     REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Member 'first' is initialized more than once"));
+     REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Member 'first' is initialised more than once"));
 }
 
 TEST_CASE("IR - Positional and designated aggregate initializers cannot be mixed", "[unit][ir][classes]")

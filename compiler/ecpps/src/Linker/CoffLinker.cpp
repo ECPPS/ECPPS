@@ -28,8 +28,8 @@ namespace
           std::uint8_t majorLinkerVersion;
           std::uint8_t minorLinkerVersion;
           std::uint32_t sizeOfCode;
-          std::uint32_t sizeOfInitializedData;
-          std::uint32_t sizeOfUninitializedData;
+          std::uint32_t sizeOfInitialisedData;
+          std::uint32_t sizeOfUninitialisedData;
           std::uint32_t addressOfEntryPoint;
           std::uint32_t baseOfCode;
      };

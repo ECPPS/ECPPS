@@ -673,7 +673,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
                                                                         {
                                                                              return parameter.type;
                                                                         }) |
-                                                                   std::ranges::to<std::vector>());
+                                                                   ecpps::detail::ToVector);
      functionContext->thisType = thisType;
 
      struct RestoreContextSequence
@@ -749,7 +749,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      const auto classRecord = _ir.GetContext().classTable->classes.find(classType->Info().id);
      if (classRecord == _ir.GetContext().classTable->classes.end() || classRecord->second.constructors.empty())
      {
-          Report(std::format("No constructor of '{}' matches this initializer", classType->Info().DisplayName()), at);
+          Report(std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()), at);
           return false;
      }
 
@@ -840,14 +840,14 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      if (selected == nullptr || ambiguous)
      {
           Report(ambiguous
-                      ? "Constructor initializer is ambiguous"
-                      : std::format("No constructor of '{}' matches this initializer", classType->Info().DisplayName()),
+                      ? "Constructor initialiser is ambiguous"
+                      : std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()),
                  at);
           return false;
      }
      if (copyList && selected->isExplicit)
      {
-          Report("Copy-list initialization cannot select an explicit constructor", at);
+          Report("Copy-list initialisation cannot select an explicit constructor", at);
           return false;
      }
      if (isListInitialisation)
@@ -858,7 +858,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
                     parameterType = reference->BaseType();
                if (!_ir.IsNarrowingConversion(arguments[index], parameterType)) continue;
                Report(std::format("Narrowing conversion from '{}' to '{}' is not allowed in list "
-                                  "initialization",
+                                  "initialisation",
                                   arguments[index]->Type()->Name(), parameterType->Name()),
                       (*argumentNodes[index])->Source());
                return false;
@@ -885,7 +885,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateEmpty(typeSystem:
 {
      if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
      {
-          Report("An omitted reference member has no initializer", _source);
+          Report("An omitted reference member has no initialiser", _source);
           return false;
      }
      if (const auto* array = type->CastTo<typeSystem::ArrayType>()) return ValidateEmpty(array->ElementType());
@@ -893,7 +893,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateEmpty(typeSystem:
      {
           if (classType->Info().kind == typeSystem::ClassKind::Union)
           {
-               Report("Union initialization is not supported yet", _source);
+               Report("Union initialisation is not supported yet", _source);
                return false;
           }
           if (!_ir.IsAggregateClass(type) && classType->Info().hasUserDeclaredConstructors)
@@ -914,7 +914,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateClassList(const t
 {
      if (classType->Info().kind == typeSystem::ClassKind::Union)
      {
-          Report("Union initialization is not supported yet", list.Source());
+          Report("Union initialisation is not supported yet", list.Source());
           return false;
      }
      if (!_ir.IsAggregateClass(classType) && classType->Info().hasUserDeclaredConstructors)
@@ -969,7 +969,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateClassList(const t
                }
                if (explicitInitialisers[*fieldIndex] != nullptr)
                {
-                    Report(std::format("Member '{}' is initialized more than once", designated->Member()),
+                    Report(std::format("Member '{}' is initialised more than once", designated->Member()),
                            designated->Source());
                     return false;
                }
@@ -1073,7 +1073,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
           const auto* list = dynamic_cast<const ast::InitialiserListNode*>(value.get());
           if (list == nullptr)
           {
-               Report("An array default member initializer must use a braced initializer", value->Source());
+               Report("An array default member initialiser must use a braced initialiser", value->Source());
                return false;
           }
           if (list->Initialisers().size() > array->ElementCount())
@@ -1103,7 +1103,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
                     return ValidateConstructor(classType, {&value},
                                                initialisationType == ast::InitialisationType::EqualInitialiser, false,
                                                value->Source());
-               Report(std::format("Class '{}' needs constructor or copy initialization support",
+               Report(std::format("Class '{}' needs constructor or copy initialisation support",
                                   classType->Info().DisplayName()),
                       value->Source());
                return false;
@@ -1117,7 +1117,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
           if (list->Initialisers().empty()) return true;
           if (list->Initialisers().size() != 1)
           {
-               Report("A scalar initializer list must contain exactly one initializer", value->Source());
+               Report("A scalar initialiser list must contain exactly one initialiser", value->Source());
                return false;
           }
           scalarValue = &list->Initialisers().front();
@@ -1128,7 +1128,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
      if (aggregateElement && _ir.IsNarrowingConversion(expression, type))
      {
           Report(std::format("Narrowing conversion from '{}' to '{}' is not allowed in aggregate "
-                             "initialization",
+                             "initialisation",
                              expression->Type()->Name(), type->Name()),
                  (*scalarValue)->Source());
           return false;

@@ -48,7 +48,7 @@ namespace ecpps::ir
                                              throw ecpps::TracedException("Invalid int array sequence");
                                         return static_cast<std::uint32_t>(std::get<std::uint64_t>(element));
                                    }) |
-                              std::ranges::to<std::vector>();
+                              ecpps::detail::ToVector;
 
                          return std::make_unique<PRValue>(
                               type,

@@ -8,6 +8,7 @@
 #include <stack>
 #include <string>
 #include <utility>
+#include <version>
 #include "../Parsing/AST.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Error.h"
@@ -201,7 +202,7 @@ namespace ecpps::ir
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string valuesText;
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 15
+#if !defined(__cpp_lib_format_ranges) || __cpp_lib_format_ranges < 202207L
                valuesText = "[";
                for (std::size_t index = 0; index < this->_values.size(); ++index)
                {

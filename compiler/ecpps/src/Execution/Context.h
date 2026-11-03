@@ -326,7 +326,7 @@ namespace ecpps::ir
                            {
                                 return NonownedNode{.typePointer = node.typePointer.get(), .hitCount = node.hitCount};
                            }) |
-                      std::ranges::to<std::vector>();
+                      ecpps::detail::ToVector;
           }
 
           typeSystem::ClassId DeclareClass(typeSystem::ClassDeclaration declaration)

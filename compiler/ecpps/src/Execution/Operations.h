@@ -1202,7 +1202,7 @@ namespace ecpps::ir
                                                                                return ConstantEvaluatedVariant{
                                                                                     static_cast<std::uint64_t>(value)};
                                                                           }) |
-                                                                     std::ranges::to<std::vector>()},
+                                                                     ecpps::detail::ToVector},
                                               this->Source()};
           }
 

@@ -328,7 +328,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                                       {
                                                            return parameter.type;
                                                       }) |
-                                                 std::ranges::to<std::vector>());
+                                                 ecpps::detail::ToVector);
 
      ir.GetContext() = this->GetContext();
      auto* vFunctionScope = functionScope.get();

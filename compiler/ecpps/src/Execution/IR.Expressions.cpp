@@ -1127,7 +1127,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                                               {
                                                    return this->ParseExpression(argument);
                                               }) |
-                                         std::ranges::to<std::vector>();
+                                         ecpps::detail::ToVector;
      if (std::ranges::any_of(arguments,
                              [](const Expression& argument)
                              {
@@ -1531,7 +1531,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                                                    {
                                                         return this->ParseExpression(argument);
                                                    }) |
-                                              std::ranges::to<std::vector>();
+                                              ecpps::detail::ToVector;
 
           for (const auto& candidate : scope->functions)
           {
@@ -1703,7 +1703,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                                                          {
                                                               return this->ParseExpression(argument);
                                                          }) |
-                                                    std::ranges::to<std::vector>();
+                                                    ecpps::detail::ToVector;
 
      auto exactMatches = CollectExactMatches(name, this->GetContext().contextSequence);
      if (!exactMatches.empty())
@@ -1944,7 +1944,7 @@ Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
 
      this->GetContext().diagnostics.get().diagnosticsList.push_back(
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "'this' is only available in a non-static member function or member initializer", source));
+               "'this' is only available in a non-static member function or member initialiser", source));
      return nullptr;
 }
 

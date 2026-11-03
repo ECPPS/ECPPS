@@ -67,8 +67,8 @@ namespace ecpps::linker::win
           std::uint8_t majorLinkerVersion{};           // Linker version
           std::uint8_t minorLinkerVersion{};           // Linker version
           std::uint32_t sizeOfCode{};                  // Size of code section
-          std::uint32_t sizeOfInitializedData{};       // Size of initialized data section
-          std::uint32_t sizeOfUninitializedData{};     // Size of uninitialized data section
+          std::uint32_t sizeOfInitialisedData{};       // Size of initialised data section
+          std::uint32_t sizeOfUninitialisedData{};     // Size of uninitialised data section
           std::uint32_t addressOfEntryPoint{};         // Entry point address
           std::uint32_t baseOfCode{};                  // Base address of code section
           std::uint64_t imageBase{};                   // Preferred base address
