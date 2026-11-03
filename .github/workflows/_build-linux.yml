@@ -25,25 +25,28 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-26.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: true
       matrix:
         include:
           - compiler: Clang
             name: clang20
+            runner: ubuntu-26.04
             build_type: Debug
             preset_configure: Linux-Clang
             preset_build: Linux-Clang-Debug
             needs_llvm: true
           - compiler: Clang
             name: clang20
+            runner: ubuntu-26.04
             build_type: Release
             preset_configure: Linux-Clang
             preset_build: Linux-Clang-Release
             needs_llvm: true
           - compiler: GCC
             name: gcc14
+            runner: ubuntu-26.04
             build_type: Debug
             preset_configure: Linux-GCC
             preset_build: Linux-GCC-Debug
@@ -51,12 +54,28 @@ jobs:
 
           - compiler: GCC
             name: gcc14
+            runner: ubuntu-26.04
             build_type: Release
             preset_configure: Linux-GCC
             preset_build: Linux-GCC-Release
             needs_llvm: false
 
-    name: ${{ matrix.compiler }} / ${{ matrix.build_type }}
+          - compiler: Clang
+            name: clang20
+            runner: ubuntu-24.04
+            build_type: Debug
+            preset_configure: Linux-Clang
+            preset_build: Linux-Clang-Debug
+            needs_llvm: true
+          - compiler: Clang
+            name: clang20
+            runner: ubuntu-24.04
+            build_type: Release
+            preset_configure: Linux-Clang
+            preset_build: Linux-Clang-Release
+            needs_llvm: true
+
+    name: ${{ matrix.compiler }} / ${{ matrix.build_type }}${{ matrix.runner == 'ubuntu-24.04' && ' (ubuntu-24.04)' || '' }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,6 +86,15 @@ jobs:
           sudo apt-get install -y ccache
 
       - name: Install LLVM
+        if: matrix.needs_llvm && matrix.runner == 'ubuntu-24.04'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          llvm_major="${{ inputs.llvm-version }}"
+          llvm_major="${llvm_major%%.*}"
+          sudo ./llvm.sh "$llvm_major"
+
+      - name: Verify LLVM
         if: matrix.needs_llvm
         run: |
           llvm_major="${{ inputs.llvm-version }}"
@@ -91,8 +119,12 @@ jobs:
             fi
           done
           version="$(g++-14 -dumpfullversion -dumpversion)"
-          if [[ "$version" != "14.3.0" ]]; then
-            echo "Expected GCC 14.3.0 but found $version." >&2
+          expected_version="14.3.0"
+          if [[ "${{ matrix.runner }}" == "ubuntu-24.04" ]]; then
+            expected_version="14.2.0"
+          fi
+          if [[ "$version" != "$expected_version" ]]; then
+            echo "Expected GCC $expected_version but found $version." >&2
             exit 1
           fi
           echo "CC=gcc-14" >> "$GITHUB_ENV"
@@ -169,7 +201,7 @@ jobs:
         if: inputs.upload-artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: build-linux-${{ matrix.name }}-${{ matrix.build_type }}
+          name: build-linux-${{ matrix.name }}-${{ matrix.build_type }}${{ matrix.runner == 'ubuntu-24.04' && '-ubuntu24' || '' }}
           path: |
             out/build/${{ matrix.preset_configure }}
             out/install/${{ matrix.preset_configure }}

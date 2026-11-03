@@ -149,8 +149,14 @@ jobs:
           retention-days: 1
 
   linux:
-    name: "Linux x64 / Clang Release"
-    runs-on: ubuntu-26.04
+    name: "Linux x64 / Clang Release (${{ matrix.runner }})"
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+          - runner: ubuntu-26.04
 
     steps:
       - name: Validate package source commit
@@ -168,7 +174,15 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Install LLVM 20
+      - name: Install LLVM 20 on Ubuntu 24
+        if: matrix.runner == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 20
+
+      - name: Verify LLVM 20
         shell: bash
         run: |
           llvm_bin="/usr/lib/llvm-20/bin"
@@ -184,18 +198,27 @@ jobs:
           echo "$llvm_bin" >> "$GITHUB_PATH"
           echo "LD_LIBRARY_PATH=$llvm_bin/../lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
 
-      - name: Install GCC 15 C++ runtime
+      - name: Verify C++ runtime
         shell: bash
         run: |
-          for compiler in gcc-15 g++-15; do
+          if [[ "${{ matrix.runner }}" == "ubuntu-24.04" ]]; then
+            compilers=(gcc-14 g++-14)
+            expected_version="14.2.0"
+            version_compiler="g++-14"
+          else
+            compilers=(gcc-15 g++-15)
+            expected_version="15.2.0"
+            version_compiler="g++-15"
+          fi
+          for compiler in "${compilers[@]}"; do
             if ! command -v "$compiler" >/dev/null; then
               echo "$compiler is missing from the pinned Ubuntu runner image." >&2
               exit 1
             fi
           done
-          version="$(g++-15 -dumpfullversion -dumpversion)"
-          if [[ "$version" != "15.2.0" ]]; then
-            echo "Expected GCC 15.2.0 but found $version." >&2
+          version="$("$version_compiler" -dumpfullversion -dumpversion)"
+          if [[ "$version" != "$expected_version" ]]; then
+            echo "Expected GCC $expected_version but found $version." >&2
             exit 1
           fi
 
@@ -219,7 +242,7 @@ jobs:
         run: |
           set -euo pipefail
           stage="$RUNNER_TEMP/ecpps-stage"
-          archive="$RUNNER_TEMP/ecpps-linux-x64-clang.zip"
+          archive="$RUNNER_TEMP/ecpps-linux-x64-clang${{ matrix.runner == 'ubuntu-24.04' && '-ubuntu24' || '' }}.zip"
           cmake --install out/build/Linux-Clang --config Release --component compiler --prefix "$stage"
           cp LICENSE.MD "$stage/LICENSE.MD"
 
@@ -284,7 +307,7 @@ jobs:
         if: inputs.smoke-test-package
         shell: bash
         env:
-          ARCHIVE: ${{ runner.temp }}/ecpps-linux-x64-clang.zip
+          ARCHIVE: ${{ runner.temp }}/ecpps-linux-x64-clang${{ matrix.runner == 'ubuntu-24.04' && '-ubuntu24' || '' }}.zip
         run: |
           set -euo pipefail
           smoke="$RUNNER_TEMP/ecpps-package-smoke"
@@ -297,7 +320,7 @@ jobs:
       - name: Upload Linux compiler package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: compiler-package-linux
-          path: ${{ runner.temp }}/ecpps-linux-x64-clang.zip
+          name: compiler-package-linux${{ matrix.runner == 'ubuntu-24.04' && '-ubuntu24' || '' }}
+          path: ${{ runner.temp }}/ecpps-linux-x64-clang${{ matrix.runner == 'ubuntu-24.04' && '-ubuntu24' || '' }}.zip
           if-no-files-found: error
           retention-days: 1
