@@ -309,7 +309,7 @@ namespace ecpps::ir
           [[nodiscard]] const SingleAssignRegisterNode* BindReferenceExpression(typeSystem::NonowningTypePointer type,
                                                                                 Expression referent,
                                                                                 const Location& source,
-                                                                                bool materialize = true);
+                                                                                bool materialise = true);
           void StoreAtAddress(const SingleAssignRegisterNode* address, const SingleAssignRegisterNode* value,
                               typeSystem::NonowningTypePointer type, const Location& source);
           [[nodiscard]] Expression BuildMemberAccess(Expression objectPointer, const typeSystem::ClassInfo& info,

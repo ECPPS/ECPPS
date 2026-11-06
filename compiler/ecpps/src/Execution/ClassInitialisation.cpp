@@ -349,7 +349,7 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpression(typeSystem::NonowningTypePointer type,
                                                                                   Expression referent,
                                                                                   const Location& source,
-                                                                                  const bool materialize)
+                                                                                  const bool materialise)
 {
      const auto* referenceType = type != nullptr ? type->CastTo<typeSystem::ReferenceType>() : nullptr;
      runtime_assert(referenceType != nullptr, "Reference binding requires a reference type");
@@ -404,7 +404,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
           return nullptr;
      }
 
-     if (!materialize) return nullptr; // Semantic-only validation of a default member initialiser.
+     if (!materialise) return nullptr; // Semantic-only validation of a default member initialiser.
 
      if (directBinding)
      {
@@ -567,13 +567,13 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
           const auto* elementAddress = AddByteOffset(address, index * arrayType->ElementType()->Size(), source);
           if (mode == ObjectInitialisationMode::Explicit && index < list->Initialisers().size())
           {
-               const auto& elementInitializer = list->Initialisers()[index];
+               const auto& elementInitialiser = list->Initialisers()[index];
                const auto elementInitType =
-                    dynamic_cast<const ast::InitialiserListNode*>(elementInitializer.get()) != nullptr
+                    dynamic_cast<const ast::InitialiserListNode*>(elementInitialiser.get()) != nullptr
                          ? ast::InitialisationType::BracedInitialiser
                          : ast::InitialisationType::Default;
-               this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, &elementInitializer, elementInitType,
-                                         ObjectInitialisationMode::Explicit, elementInitializer->Source(), true);
+               this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, &elementInitialiser, elementInitType,
+                                         ObjectInitialisationMode::Explicit, elementInitialiser->Source(), true);
           }
           else if (mode == ObjectInitialisationMode::Default)
                this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, nullptr,

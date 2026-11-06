@@ -243,7 +243,7 @@ TEST_CASE("IR - Designated aggregate initialisation targets the named field", "[
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("IR - Designated aggregate initializers must follow member order", "[unit][ir][classes]")
+TEST_CASE("IR - Designated aggregate initialisers must follow member order", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -320,11 +320,11 @@ TEST_CASE("IR - Duplicate designated aggregate members are diagnosed", "[unit][i
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Member 'first' is initialised more than once"));
 }
 
-TEST_CASE("IR - Positional and designated aggregate initializers cannot be mixed", "[unit][ir][classes]")
+TEST_CASE("IR - Positional and designated aggregate initialisers cannot be mixed", "[unit][ir][classes]")
 {
      Fixture fixture{};
      std::vector<ecpps::ast::NodePointer> ast{};
-     ast.push_back(fixture.MakeStructDefinition("PairWithMixedInitializers", {{"int", "first"}, {"int", "second"}}));
+     ast.push_back(fixture.MakeStructDefinition("PairWithMixedInitialisers", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(5));
@@ -334,8 +334,8 @@ TEST_CASE("IR - Positional and designated aggregate initializers cannot be mixed
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
-     body.Push(fixture.MakeVariableDeclaration("PairWithMixedInitializers", "pair", std::move(initialiser)));
-     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "mixedInitializers", {}),
+     body.Push(fixture.MakeVariableDeclaration("PairWithMixedInitialisers", "pair", std::move(initialiser)));
+     ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "mixedInitialisers", {}),
                                                   std::move(body)));
 
      (void)fixture.Parse(std::move(ast));

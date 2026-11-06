@@ -227,7 +227,7 @@ namespace ecpps::ast
           std::vector<std::unique_ptr<AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
           Location location;
      };
-     enum class RefQualifier : std::uint8_t
+     enum struct RefQualifier : std::uint8_t
      {
           None,
           LValue,

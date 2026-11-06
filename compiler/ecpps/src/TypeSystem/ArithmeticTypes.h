@@ -142,7 +142,7 @@ namespace ecpps::typeSystem
      class ReferenceType final : public TypeBase
      {
      public:
-          enum class Kind : std::uint_fast8_t
+          enum struct Kind : std::uint_fast8_t
           {
                LValue,
                RValue
