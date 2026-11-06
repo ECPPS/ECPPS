@@ -84,7 +84,7 @@ TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[code
                const auto* immediate =
                     std::get_if<ecpps::abi::encoders::x8664::IntegerOperand>(&shiftInstruction.source);
                REQUIRE((immediate != nullptr));
-               CHECK(immediate->value == 13);
+               CHECK((immediate->value == 13));
           }
      }
 }
