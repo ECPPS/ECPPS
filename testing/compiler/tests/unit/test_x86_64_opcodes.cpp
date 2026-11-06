@@ -67,23 +67,23 @@ TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[code
                };
 
                const auto encoded = encoder.Encode(input);
-               CHECK(std::none_of(encoded.begin(), encoded.end(),
-                                  [](const auto& instruction)
-                                  {
-                                       return instruction.opcode == X8664InstructionName::Xchg;
-                                  }));
+               CHECK(std::ranges::none_of(encoded,
+                                          [](const auto& instruction)
+                                          {
+                                               return instruction.opcode == X8664InstructionName::Xchg;
+                                          }));
 
-               const auto shift = std::find_if(encoded.begin(), encoded.end(),
-                                               [expectedShiftOpcode](const auto& instruction)
-                                               {
-                                                    return instruction.opcode == expectedShiftOpcode;
-                                               });
-               REQUIRE(shift != encoded.end());
+               const auto shift = std::ranges::find_if(encoded,
+                                                       [expectedShiftOpcode](const auto& instruction)
+                                                       {
+                                                            return instruction.opcode == expectedShiftOpcode;
+                                                       });
+               REQUIRE((shift != encoded.end()));
                const auto& shiftInstruction = *std::launder(
                     reinterpret_cast<const ecpps::abi::encoders::x8664::ShiftInstruction*>(shift->description.data()));
                const auto* immediate =
                     std::get_if<ecpps::abi::encoders::x8664::IntegerOperand>(&shiftInstruction.source);
-               REQUIRE(immediate != nullptr);
+               REQUIRE((immediate != nullptr));
                CHECK(immediate->value == 13);
           }
      }
