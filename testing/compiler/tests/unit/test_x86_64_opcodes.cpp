@@ -1,8 +1,13 @@
 #define CATCH_CONFIG_MAIN
 #include <CodeGeneration/Emitters/x86_64/Opcodes.h>
+#include <Machine/Encoders/API/Target.h>
+#include <Machine/Encoders/Backends/x86_64/Core/encoder.h>
+#include <Machine/Encoders/Backends/x86_64/Platforms/Linux/Linux.h>
 #include <TestHelpers.h>
 #include <catch_amalgamated.hpp>
+#include <algorithm>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 using namespace TestHelpers;
@@ -24,6 +29,63 @@ TEST_CASE("x86-64 Opcodes - Signed multiplication", "[codegen][x86_64][opcodes]"
 
           REQUIRE(AreEqual(result, expected));
           INFO("IMUL instruction encoding verified");
+     }
+}
+
+TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[codegen][x86_64][regalloc]")
+{
+     using ecpps::abi::api::Target;
+     using ecpps::abi::encoders::x8664::LinuxPlatform;
+     using ecpps::abi::encoders::x8664::X8664InstructionName;
+     using ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+
+     for (const auto shiftType : {VirtualInstructionType::LeftShift, VirtualInstructionType::RightShift})
+     {
+          DYNAMIC_SECTION(ecpps::ir::abstract::ToString(shiftType))
+          {
+               Target target{};
+               target.EnsureVRM();
+               target.platform = std::make_unique<LinuxPlatform>(nullptr);
+               X8664VirtualInstructionEncoder encoder{target};
+
+               for (const VirtualRegister reg : {VirtualRegister{0}, VirtualRegister{1}, VirtualRegister{2}})
+                    target.registerMap->Describe(reg, 32, ecpps::ir::abstract::AllocationClass::Temporary);
+
+               const std::size_t expectedShiftOpcode = shiftType == VirtualInstructionType::LeftShift
+                                                            ? X8664InstructionName::LeftShift
+                                                            : X8664InstructionName::RightShift;
+               const std::vector<VirtualInstruction> input{
+                    {.type = VirtualInstructionType::CopyInteger,
+                     .operands = {VirtualRegister{0}, VirtualRegister{42}}},
+                    {.type = VirtualInstructionType::CopyInteger,
+                     .operands = {VirtualRegister{1}, VirtualRegister{13}}},
+                    {.type = shiftType, .operands = {VirtualRegister{2}, VirtualRegister{0}, VirtualRegister{1}}},
+                    {.type = VirtualInstructionType::Return, .operands = {VirtualRegister{2}}},
+               };
+
+               const auto encoded = encoder.Encode(input);
+               CHECK(std::none_of(encoded.begin(), encoded.end(),
+                                  [](const auto& instruction)
+                                  {
+                                       return instruction.opcode == X8664InstructionName::Xchg;
+                                  }));
+
+               const auto shift = std::find_if(encoded.begin(), encoded.end(),
+                                               [expectedShiftOpcode](const auto& instruction)
+                                               {
+                                                    return instruction.opcode == expectedShiftOpcode;
+                                               });
+               REQUIRE(shift != encoded.end());
+               const auto& shiftInstruction = *std::launder(
+                    reinterpret_cast<const ecpps::abi::encoders::x8664::ShiftInstruction*>(shift->description.data()));
+               const auto* immediate =
+                    std::get_if<ecpps::abi::encoders::x8664::IntegerOperand>(&shiftInstruction.source);
+               REQUIRE(immediate != nullptr);
+               CHECK(immediate->value == 13);
+          }
      }
 }
 
