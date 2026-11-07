@@ -234,11 +234,19 @@ static NativeStackTrace WalkContext(CONTEXT context)
 
 static void IssueDiagnostics(void)
 {
+     std::string lastSourceName;
+     bool hasPrinted = false;
      for (const auto& [sourceName, lpDiagnostics] : ecpps::g_diagnosticsReferences)
      {
           const auto& diagnostics = *lpDiagnostics;
 
+          if (diagnostics.diagnosticsList.empty()) continue;
+          if (hasPrinted && lastSourceName != sourceName) std::println(stderr, "");
+
           for (const auto& diag : diagnostics.diagnosticsList) ecpps::diagnostics::PrintDiagnostic(sourceName, diag);
+
+          lastSourceName = sourceName;
+          hasPrinted = true;
      }
 }
 

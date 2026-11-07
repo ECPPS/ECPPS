@@ -351,3 +351,63 @@ TEST_CASE("AST - Function declaration retains its signature", "[unit][parsing][a
      REQUIRE((rhsName->Value() == "rhs"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
+
+TEST_CASE("AST - Out-of-class constructor definitions preserve their qualified name", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::Token> tokens{Keyword("struct"),
+                                      Identifier("Widget"),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Identifier("Widget"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Identifier("Widget"),
+                                      Operator("::"),
+                                      Identifier("Widget"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("return"),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace)};
+
+     const auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == 2));
+     const auto* classDefinition = dynamic_cast<const ecpps::ast::ClassDefNode*>(nodes.front().get());
+     REQUIRE((classDefinition != nullptr));
+     const auto* function = dynamic_cast<const ecpps::ast::FunctionDefinitionNode*>(nodes.back().get());
+     REQUIRE((function != nullptr));
+     if (function == nullptr) return;
+     const auto* name = dynamic_cast<const ecpps::ast::QualifiedIdNode*>(function->Signature().name.get());
+     REQUIRE((name != nullptr));
+     if (name == nullptr) return;
+     REQUIRE((name->Path().size() == 2));
+     CHECK((name->ToString(0) == "Widget::Widget"));
+     CHECK((function->Body().Size() == 1));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Out-of-class defaulted constructors preserve their body kind", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::Token> tokens{Identifier("Widget"),
+                                      Operator("::"),
+                                      Identifier("Widget"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Operator("="),
+                                      Keyword("default"),
+                                      Punctuation(ecpps::TokenType::SemiColon)};
+
+     const auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == 1));
+     const auto* function = dynamic_cast<const ecpps::ast::FunctionDefinitionNode*>(nodes.front().get());
+     REQUIRE((function != nullptr));
+     CHECK((function->BodyKind() == ecpps::ast::FunctionBodyKind::Defaulted));
+     CHECK((function->Body().Size() == 0));
+     CHECK(function->ToString(0).ends_with("= default;"));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}

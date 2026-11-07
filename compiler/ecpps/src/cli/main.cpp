@@ -48,14 +48,20 @@
 #ifdef _WIN32
 static void EnableVirtualProcessing(void)
 {
-     auto* const handle = GetStdHandle(STD_OUTPUT_HANDLE);
-     if (handle == INVALID_HANDLE_VALUE) return;
+     const auto enable = [](const DWORD standardHandle)
+     {
+          auto* const handle = GetStdHandle(standardHandle);
+          if (handle == INVALID_HANDLE_VALUE) return;
 
-     DWORD mode{};
-     if (!GetConsoleMode(handle, &mode)) return;
+          DWORD mode{};
+          if (!GetConsoleMode(handle, &mode)) return;
 
-     mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-     SetConsoleMode(handle, mode);
+          mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+          SetConsoleMode(handle, mode);
+     };
+
+     enable(STD_OUTPUT_HANDLE);
+     enable(STD_ERROR_HANDLE);
 }
 #endif
 
@@ -67,6 +73,12 @@ namespace
      {
           Success = true,
           Failure = false
+     };
+
+     struct DiagnosticOutputState
+     {
+          std::string lastFileName{};
+          bool hasPrinted{};
      };
 
      [[nodiscard]] int FdDup(int fd)
@@ -164,15 +176,21 @@ namespace
                                      });
      }
 
-     void PrintDiagnostics(SourceFile& source)
+     void PrintDiagnostics(SourceFile& source, DiagnosticOutputState& outputState)
      {
           for (const auto& diagnostic : source.diagnostics.diagnosticsList)
+          {
+               if (outputState.hasPrinted && outputState.lastFileName != source.name) std::println(stderr, "");
                diagnostics::PrintDiagnostic(source.name, diagnostic);
+               outputState.lastFileName = source.name;
+               outputState.hasPrinted = true;
+          }
      }
 
-     [[nodiscard]] FileIterationStatus FinishDump(SourceFile& source, const CompilerConfig& config)
+     [[nodiscard]] FileIterationStatus FinishDump(SourceFile& source, const CompilerConfig& config,
+                                                  DiagnosticOutputState& outputState)
      {
-          PrintDiagnostics(source);
+          PrintDiagnostics(source, outputState);
 
           return HasFatalDiagnostics(source, config) ? FileIterationStatus::Failure : FileIterationStatus::Success;
      }
@@ -349,7 +367,7 @@ namespace
                                                        std::vector<std::byte>& generatedMachineCode,
                                                        std::vector<std::pair<std::string, std::size_t>>& functions,
                                                        codegen::CodeEmitter& emitter, std::size_t& mainOffset,
-                                                       abi::api::Target& target)
+                                                       abi::api::Target& target, DiagnosticOutputState& outputState)
      {
           g_diagnosticsReferences.emplace(source.name, &source.diagnostics);
 
@@ -396,7 +414,7 @@ namespace
                     ecpps::Preprocessor::Print(ppTokens);
                }
 
-               if (config.StopsAfter(VerboseFeature::Preprocessor)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::Preprocessor)) return FinishDump(source, config, outputState);
 
                const auto tokens = Tokeniser::Tokenise(ppTokens);
 
@@ -406,7 +424,7 @@ namespace
                     Tokeniser::Print(tokens);
                }
 
-               if (config.StopsAfter(VerboseFeature::Tokens)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::Tokens)) return FinishDump(source, config, outputState);
 
                ast::ASTContext astContext;
                ast::AST astParser{tokens, source.diagnostics};
@@ -419,7 +437,7 @@ namespace
                     for (const auto& node : ast) std::println("{}", node->ToString(0));
                }
 
-               if (config.StopsAfter(VerboseFeature::AST)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::AST)) return FinishDump(source, config, outputState);
 
                BumpAllocator irAllocator;
                ir::Context context{source.diagnostics, irAllocator};
@@ -433,7 +451,7 @@ namespace
                     for (const auto& node : ir) std::println("{}", node->ToString(0));
                }
 
-               if (config.StopsAfter(VerboseFeature::IR)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::IR)) return FinishDump(source, config, outputState);
 
                ast.clear();
                astContext.Release();
@@ -447,7 +465,7 @@ namespace
                     PrintVirtualInstructions(source);
                }
 
-               if (config.StopsAfter(VerboseFeature::VInst)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::VInst)) return FinishDump(source, config, outputState);
 
                for (auto& routine : source.compiledRoutines)
                {
@@ -471,7 +489,7 @@ namespace
                     target.encoder->Finalise(routine.physicalInstructions);
                }
 
-               if (config.StopsAfter(VerboseFeature::IInst)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::IInst)) return FinishDump(source, config, outputState);
 
                if (config.IsVerbose(VerboseFeature::PInst))
                {
@@ -479,7 +497,7 @@ namespace
                     PrintPhysicalInstructions(source, target);
                }
 
-               if (config.StopsAfter(VerboseFeature::PInst)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::PInst)) return FinishDump(source, config, outputState);
 
                std::unordered_map<std::string, std::size_t> routines;
                routines.reserve(source.compiledRoutines.size());
@@ -511,9 +529,9 @@ namespace
                     PrintEmittedRoutines(generatedMachineCode, functions);
                }
 
-               if (config.StopsAfter(VerboseFeature::Emit)) return FinishDump(source, config);
+               if (config.StopsAfter(VerboseFeature::Emit)) return FinishDump(source, config, outputState);
 
-               PrintDiagnostics(source);
+               PrintDiagnostics(source, outputState);
 
                if (HasFatalDiagnostics(source, config)) return FileIterationStatus::Failure;
           }
@@ -521,7 +539,7 @@ namespace
           {
                try
                {
-                    PrintDiagnostics(source);
+                    PrintDiagnostics(source, outputState);
                }
                catch (const TracedException& nested)
                {
@@ -538,7 +556,7 @@ namespace
           {
                try
                {
-                    PrintDiagnostics(source);
+                    PrintDiagnostics(source, outputState);
                }
                catch (const TracedException& nested)
                {
@@ -555,7 +573,7 @@ namespace
           {
                try
                {
-                    PrintDiagnostics(source);
+                    PrintDiagnostics(source, outputState);
                }
                catch (const TracedException& nested)
                {
@@ -745,11 +763,12 @@ int main(int argc, char* argv[])
           ecpps::g_diagnosticsReferences.reserve(sources.files.size());
 
           bool hadErrors = false;
+          DiagnosticOutputState diagnosticOutputState{};
 
           for (auto& source : sources.files)
           {
-               const auto result =
-                    DoFileIteration(source, config, generatedMachineCode, functions, *emitter, mainOffset, target);
+               const auto result = DoFileIteration(source, config, generatedMachineCode, functions, *emitter,
+                                                   mainOffset, target, diagnosticOutputState);
 
                hadErrors |= result == FileIterationStatus::Failure;
           }

@@ -28,8 +28,6 @@ namespace ecpps::ir::detail
                                                  const typeSystem::IntegralType* to);
      [[nodiscard]] std::vector<std::shared_ptr<FunctionScope>> CollectExactMatches(const std::string&,
                                                                                    std::deque<ContextPointer>&);
-     [[nodiscard]] std::vector<std::pair<std::string, std::size_t>> CollectSimilarNames(const std::string&, std::size_t,
-                                                                                        std::deque<ContextPointer>&);
      [[nodiscard]] std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
           const std::string&, std::deque<ContextPointer>&);
      struct CandidateFailureInfo

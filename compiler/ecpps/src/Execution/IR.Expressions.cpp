@@ -6,10 +6,10 @@
 #include <cstdint>
 #include <deque>
 #include <format>
-#include <functional>
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <ranges>
 #include <stdexcept>
@@ -25,10 +25,12 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
 #include "Procedural.h"
 #include "Shared/BumpAllocator.h"
@@ -45,12 +47,15 @@ using ecpps::Expression;
 using ecpps::ir::detail::AnalyseCandidateFailure;
 using ecpps::ir::detail::CollectExactMatches;
 using ecpps::ir::detail::CollectSimilarIdentifierNames;
-using ecpps::ir::detail::CollectSimilarNames;
 using ecpps::ir::detail::CompareByPriority;
 using ecpps::ir::detail::ConvertConstant;
 using ecpps::ir::detail::FormatFunctionSignature;
 using ecpps::ir::detail::IsIndirectLValue;
 using ecpps::ir::detail::LevenshteinDistance;
+using OverloadCandidateDiagnostic = ecpps::ir::overloadDiagnostics::Candidate;
+using OverloadCandidateDetail = ecpps::ir::overloadDiagnostics::CandidateDetail;
+using OverloadSimilarName = ecpps::ir::overloadDiagnostics::SimilarName;
+using SimilarNamesKind = ecpps::ir::overloadDiagnostics::SimilarNamesKind;
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                   const Location& source) const
@@ -70,7 +75,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           {
                if (!isPlus)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Cannot subtract a pointer of type `{}` from an integer of type `{}`",
                                           rightPointer->RawName(), leftIntegral->RawName()),
@@ -86,7 +92,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           const auto* pointee = leftPointer->BaseType();
           if (!pointee->IsComplete() || pointee->Size() == 0)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Cannot perform pointer arithmetic on a pointer to a void or incomplete type", source));
                return nullptr;
@@ -95,7 +102,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
 
           if (elementSize == 0)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Cannot perform pointer arithmetic on a pointer to a void or incomplete type", source));
                return nullptr;
@@ -171,27 +179,28 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      {
           if (operator_ != ast::Operator::Minus)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
                return nullptr;
           }
 
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot subtract pointers to different types (" + left->Type()->Name() + " and " +
-                              right->Type()->Name() + ")",
-                         source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot subtract pointers to different types (" + left->Type()->Name() +
+                                                " and " + right->Type()->Name() + ")",
+                                           source));
                return nullptr;
           }
 
           const auto elementSize = leftPointer->BaseType()->Size();
           if (elementSize == 0)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot subtract pointers to a void or incomplete type", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot subtract pointers to a void or incomplete type", source));
                return nullptr;
           }
 
@@ -223,10 +232,10 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -276,10 +285,10 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -289,11 +298,10 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      const auto* commonType = leftIntegral->CommonWith(rightIntegral);
      if (commonType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
-                         left->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -359,7 +367,8 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
      if (pointerType == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Cannot perform this unary operation on " + operand->Type()->Name(), operand->Value()->Source()));
 
@@ -379,9 +388,9 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
 
      if (!operand->IsGLValue())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "A glvalue is required for the address-of operator", operand->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "A glvalue is required for the address-of operator", operand->Value()->Source()));
 
           return nullptr;
      }
@@ -412,10 +421,10 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
      if (((leftPointer == nullptr && !leftIsArray) || rightIntegral == nullptr) &&
          ((rightPointer == nullptr && !rightIsArray) || leftIntegral == nullptr))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Cannot subscript types `{}` and `{}`", left->Type()->Name(), right->Type()->Name()),
-                    source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          std::format("Cannot subscript types `{}` and `{}`",
+                                                                      left->Type()->Name(), right->Type()->Name()),
+                                                          source));
           return nullptr;
      }
 
@@ -480,10 +489,10 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -493,11 +502,10 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
      const auto* commonType = leftIntegral->CommonWith(rightIntegral);
      if (commonType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
-                         left->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -540,10 +548,10 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -553,11 +561,10 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
      const auto* commonType = leftIntegral->CommonWith(rightIntegral);
      if (commonType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
-                         left->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -605,10 +612,10 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for the builtin pre-increment operator",
-                         operand->Value()->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin pre-increment operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -640,10 +647,10 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for the builtin post-increment operator",
-                         operand->Value()->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin post-increment operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -669,10 +676,10 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for the builtin pre-decrement operator",
-                         operand->Value()->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin pre-decrement operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -704,10 +711,10 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
           const auto* qualifiedType = operandType->CastTo<typeSystem::QualifiedType>();
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "A modifiable lvalue is required for the builtin post-decrement operator",
-                         operand->Value()->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin post-decrement operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -802,23 +809,24 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
      if (leftIntegral == nullptr)
      {
           // TODO: Classes, floating point etc
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
      if (!left->IsLValue())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
           return nullptr;
      }
      if (leftIntegral->IsConst())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Assignment expressions require modifiable lvalues. Cannot perform this binary operation on " +
                          left->Type()->Name() + " and " + right->Type()->Name(),
@@ -853,7 +861,8 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
      const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
      if (leftIntegral == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Cannot perform compound assignment on " + left->Type()->Name(), left->Value()->Source()));
           return nullptr;
@@ -861,16 +870,16 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
 
      if (!left->IsLValue())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "A modifiable lvalue is required for compound assignment", left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "A modifiable lvalue is required for compound assignment",
+                                                          left->Value()->Source()));
           return nullptr;
      }
      if (leftIntegral->IsConst())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Assignment expressions require modifiable lvalues", left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Assignment expressions require modifiable lvalues", left->Value()->Source()));
           return nullptr;
      }
 
@@ -899,7 +908,8 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
                                                     std::move(left), std::move(right), operator_, source)},
                                           false);
      default:
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Compound assignment operator '" + ast::ToString(operator_) + "' is not supported yet", source));
           return nullptr;
@@ -942,7 +952,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(node.Right().get());
           if (memberName == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Expected a data member name after the member access operator", node.Source()));
                return nullptr;
@@ -955,9 +966,9 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                const auto* pointerType = objectType->CastTo<typeSystem::PointerType>();
                if (pointerType == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "The '->' operator requires a pointer to a class type", node.Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "The '->' operator requires a pointer to a class type", node.Source()));
                     return nullptr;
                }
                objectType = pointerType->BaseType();
@@ -967,9 +978,9 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           {
                if (!typeSystem::IsClass(objectType) || !left->IsLValue())
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "The '.' operator requires a class lvalue", node.Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "The '.' operator requires a class lvalue", node.Source()));
                     return nullptr;
                }
                objectPointer = ParseAddressOfExpression(std::move(left), node.Source());
@@ -978,20 +989,20 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           const auto* classType = objectType->CastTo<typeSystem::ClassType>();
           if (classType == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Member access requires a class type", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Member access requires a class type", node.Source()));
                return nullptr;
           }
           for (const auto& field : classType->Info().fields)
                if (!field.name.empty() && field.name == memberName->Value())
                     return this->BuildMemberAccess(std::move(objectPointer), classType->Info(), field, node.Source());
 
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Class '{}' has no data member named '{}'", classType->Info().DisplayName(),
-                                memberName->Value()),
-                    memberName->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Class '{}' has no data member named '{}'",
+                                                  classType->Info().DisplayName(), memberName->Value()),
+                                      memberName->Source()));
           return nullptr;
      }
 
@@ -1048,8 +1059,8 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(memberAccess.Right().get());
      const auto report = [&](std::string message, const Location& source) -> Expression
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          std::move(message), source));
           return nullptr;
      };
      if (memberName == nullptr)
@@ -1140,21 +1151,25 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           return std::string{"inaccessible"};
      };
 
-     const auto makeCandidateNote = [&](const std::shared_ptr<FunctionScope>& function,
-                                        const bool includeArgumentFailures, const bool includeReceiverFailures)
+     const auto makeCandidateDiagnostic = [&](const std::shared_ptr<FunctionScope>& function,
+                                              const bool includeArgumentFailures, const bool includeReceiverFailures,
+                                              const ecpps::ir::detail::CandidateFailureInfo* failureInfo)
      {
-          auto candidateNote = std::make_unique<diagnostics::Information>(
-               "candidate", "Candidate: " + FormatFunctionSignature(function), function->source);
+          OverloadCandidateDiagnostic candidate{.signature = FormatFunctionSignature(function),
+                                                .source = function->source};
           if (includeArgumentFailures)
           {
-               const auto failureInfo = AnalyseCandidateFailure(function, arguments);
-               for (const auto& [argumentIndex, failure] : failureInfo.parameterFailures)
+               const auto calculatedFailureInfo = failureInfo == nullptr ? AnalyseCandidateFailure(function, arguments)
+                                                                         : ecpps::ir::detail::CandidateFailureInfo{};
+               const auto& parameterFailures =
+                    failureInfo == nullptr ? calculatedFailureInfo.parameterFailures : failureInfo->parameterFailures;
+               for (const auto& [argumentIndex, failure] : parameterFailures)
                {
                     Location failureSource = memberName->Source();
                     if (std::cmp_not_equal(argumentIndex, -1) && argumentIndex > 0 &&
                         argumentIndex <= node.Arguments().Size())
                          failureSource = node.Arguments()[argumentIndex - 1]->Source();
-                    auto failureNote = std::make_unique<diagnostics::Information>("note", failure, failureSource);
+                    std::optional<std::string> followup{};
                     if (std::cmp_not_equal(argumentIndex, -1) && argumentIndex > 0 &&
                         argumentIndex <= arguments.size() && argumentIndex <= function->parameters.size())
                     {
@@ -1163,26 +1178,21 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                          if (argument != nullptr &&
                              (typeSystem::IsPointer(argument->Type()) || typeSystem::IsArray(argument->Type())) &&
                              !typeSystem::IsPointer(parameter.type) && !typeSystem::IsArray(parameter.type))
-                              failureNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                                   "note", "Did you mean to dereference the argument?", failureSource));
+                              followup = "Did you mean to dereference the argument?";
                     }
-                    candidateNote->SubDiagnostics().push_back(std::move(failureNote));
+                    candidate.details.push_back(OverloadCandidateDetail{
+                         .message = failure, .source = failureSource, .followup = std::move(followup)});
                }
           }
           if (includeReceiverFailures)
                for (const auto& failure : receiverFailuresFor(function))
-                    candidateNote->SubDiagnostics().push_back(
-                         std::make_unique<diagnostics::Information>("note", failure, memberAccess.Left()->Source()));
+                    candidate.details.push_back(
+                         OverloadCandidateDetail{.message = failure, .source = memberAccess.Left()->Source()});
 
           if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess))
-               candidateNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                    "note",
-                    std::format("This candidate is {} and is inaccessible here", accessName(function->memberAccess)),
-                    function->source));
-          if (function->isDeleted)
-               candidateNote->SubDiagnostics().push_back(
-                    std::make_unique<diagnostics::Information>("note", "This candidate is deleted", function->source));
-          return candidateNote;
+               candidate.access = accessName(function->memberAccess);
+          candidate.isDeleted = function->isDeleted;
+          return candidate;
      };
 
      using FunctionCandidate = CompareByPriority::Candidate;
@@ -1205,18 +1215,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                            .function = candidate});
      }
 
-     const auto addSimilarMembers = [&](diagnostics::Error& diagnostic)
+     const auto collectSimilarMembers = [&]()
      {
-          struct MemberSuggestion
-          {
-               std::string name{};
-               std::size_t score{};
-               bool acceptsArguments{};
-               bool isDataMember{};
-               std::vector<std::shared_ptr<FunctionScope>> functions{};
-               Location source{};
-          };
-          std::vector<MemberSuggestion> suggestions{};
+          std::vector<OverloadSimilarName> suggestions{};
           const std::size_t maximumDistance = std::max<std::size_t>(3, memberName->Value().length() / 3);
 
           for (const auto& function : memberFunctions)
@@ -1226,23 +1227,22 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                const auto distance = LevenshteinDistance(memberName->Value(), functionName);
                if (distance == 0 || distance > maximumDistance) continue;
 
-               auto suggestion = std::ranges::find(suggestions, functionName, &MemberSuggestion::name);
+               auto suggestion = std::ranges::find(suggestions, functionName, &OverloadSimilarName::name);
                if (suggestion == suggestions.end())
                {
-                    suggestions.push_back(MemberSuggestion{.name = functionName,
-                                                           .score = std::numeric_limits<std::size_t>::max(),
-                                                           .acceptsArguments = false,
-                                                           .isDataMember = false,
-                                                           .functions = {},
-                                                           .source = function->source});
+                    suggestions.push_back(
+                         OverloadSimilarName{.name = functionName,
+                                             .source = function->source,
+                                             .distance = distance,
+                                             .argumentFailureCount = std::numeric_limits<std::size_t>::max()});
                     suggestion = std::prev(suggestions.end());
                }
-               suggestion->functions.push_back(function);
                const auto match = MatchFunction(function, arguments);
-               const auto failures = AnalyseCandidateFailure(function, arguments).parameterFailures.size();
+               const auto failureInfo = AnalyseCandidateFailure(function, arguments);
+               const auto failures = failureInfo.parameterFailures.size();
                suggestion->acceptsArguments = suggestion->acceptsArguments || static_cast<bool>(match);
-               const std::size_t score = (distance * 4) + (failures * 2) + static_cast<std::size_t>(!match);
-               suggestion->score = std::min(suggestion->score, score);
+               suggestion->argumentFailureCount = std::min(suggestion->argumentFailureCount, failures);
+               suggestion->candidates.push_back(makeCandidateDiagnostic(function, true, true, &failureInfo));
           }
 
           for (const auto& field : classType->Info().fields)
@@ -1251,95 +1251,62 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                const auto distance = LevenshteinDistance(memberName->Value(), field.name);
                if (distance == 0 || distance > maximumDistance) continue;
 
-               auto suggestion = std::ranges::find(suggestions, field.name, &MemberSuggestion::name);
+               auto suggestion = std::ranges::find(suggestions, field.name, &OverloadSimilarName::name);
                if (suggestion == suggestions.end())
-                    suggestions.push_back(MemberSuggestion{.name = field.name,
-                                                           .score = (distance * 4) + 1,
-                                                           .acceptsArguments = false,
-                                                           .isDataMember = true,
-                                                           .functions = {},
-                                                           .source = field.source});
+                    suggestions.push_back(
+                         OverloadSimilarName{.name = field.name,
+                                             .source = field.source,
+                                             .distance = distance,
+                                             .argumentFailureCount = std::numeric_limits<std::size_t>::max(),
+                                             .isDataMember = true});
                else
                     suggestion->isDataMember = true;
           }
 
-          if (suggestions.empty()) return;
           std::ranges::sort(suggestions,
-                            [](const MemberSuggestion& left, const MemberSuggestion& right)
+                            [](const OverloadSimilarName& left, const OverloadSimilarName& right)
                             {
                                  if (left.acceptsArguments != right.acceptsArguments)
                                       return left.acceptsArguments > right.acceptsArguments;
-                                 if (left.score != right.score) return left.score < right.score;
+                                 if (left.distance != right.distance) return left.distance < right.distance;
+                                 if (left.argumentFailureCount != right.argumentFailureCount)
+                                      return left.argumentFailureCount < right.argumentFailureCount;
                                  return left.name < right.name;
                             });
-
-          auto suggestionGroup = std::make_unique<diagnostics::Information>(
-               "suggestions", "Similar members (ranked by spelling and argument fit; * marks the top five)",
-               memberName->Source());
-          for (std::size_t index = 0; index < suggestions.size(); index++)
-          {
-               const auto& suggestion = suggestions[index];
-               std::string description =
-                    std::format("{} member '{}'", index < 5 ? "* Similar" : "Similar", suggestion.name);
-               if (!suggestion.functions.empty())
-                    description += suggestion.acceptsArguments ? " has a parameter list accepting these arguments"
-                                                               : " has no overload accepting these arguments";
-               if (suggestion.isDataMember)
-                    description += suggestion.functions.empty() ? " is a data member and is not callable"
-                                                                : "; it is also a data member and is not callable";
-               auto suggestionNote =
-                    std::make_unique<diagnostics::Information>("suggestion", description, suggestion.source);
-               for (const auto& function : suggestion.functions)
-                    suggestionNote->SubDiagnostics().push_back(makeCandidateNote(function, true, true));
-               suggestionGroup->SubDiagnostics().push_back(std::move(suggestionNote));
-          }
-          diagnostic.SubDiagnostics().push_back(std::move(suggestionGroup));
+          return suggestions;
      };
 
      if (candidates.empty())
      {
-          std::string message;
+          auto similarMembers = collectSimilarMembers();
           if (sameNameCandidates.empty())
           {
                const auto dataMember =
                     std::ranges::find(classType->Info().fields, memberName->Value(), &typeSystem::ClassField::name);
-               if (dataMember != classType->Info().fields.end())
-                    message = std::format("Member '{}' of '{}' is a data member and cannot be called",
-                                          memberName->Value(), classType->Info().DisplayName());
-               else
-                    message = std::format("Class '{}' has no member function named '{}'",
-                                          classType->Info().DisplayName(), memberName->Value());
+               std::optional<Location> dataMemberSource{};
+               if (dataMember != classType->Info().fields.end()) dataMemberSource = dataMember->source;
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::MissingMember(
+                                                               classType->Info().DisplayName(), memberName->Value(),
+                                                               memberName->Source(), dataMemberSource, similarMembers));
           }
           else
-               message = std::format("No overload of member function '{}::{}' matches these arguments",
-                                     classType->Info().DisplayName(), memberName->Value());
-
-          auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), memberName->Source());
-          for (const auto& candidate : sameNameCandidates)
           {
-               auto note = makeCandidateNote(candidate, true, true);
-               diagnostic->SubDiagnostics().push_back(std::move(note));
+               std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
+               candidateDiagnostics.reserve(sameNameCandidates.size());
+               for (const auto& candidate : sameNameCandidates)
+                    candidateDiagnostics.push_back(makeCandidateDiagnostic(candidate, true, true, nullptr));
+               DiagnosticSink::Report(this->GetContext(),
+                                      ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+                                           classType->Info().DisplayName() + "::" + memberName->Value(),
+                                           memberName->Source(), candidateDiagnostics, similarMembers,
+                                           SimilarNamesKind::Members));
           }
-          if (sameNameCandidates.empty())
-               for (const auto& field : classType->Info().fields)
-                    if (field.name == memberName->Value())
-                    {
-                         diagnostic->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                              "declaration", "Data member declared here; data members are not callable", field.source));
-                         break;
-                    }
-          addSimilarMembers(*diagnostic);
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
           return nullptr;
      }
 
      auto rankedCandidates = candidates;
      const auto selectedCandidate = rankedCandidates.top();
      rankedCandidates.pop();
-     auto ambiguity =
-          std::make_unique<diagnostics::TypeError>(std::format("Call to member function '{}::{}' is ambiguous",
-                                                               classType->Info().DisplayName(), memberName->Value()),
-                                                   memberName->Source());
      std::vector<std::shared_ptr<FunctionScope>> tiedBestCandidates{selectedCandidate.function};
      while (!rankedCandidates.empty() && rankedCandidates.top().argumentScore == selectedCandidate.argumentScore &&
             rankedCandidates.top().objectQualificationPenalty == selectedCandidate.objectQualificationPenalty)
@@ -1349,9 +1316,13 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      }
      if (tiedBestCandidates.size() > 1)
      {
+          std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
+          candidateDiagnostics.reserve(tiedBestCandidates.size());
           for (const auto& tiedCandidate : tiedBestCandidates)
-               ambiguity->SubDiagnostics().push_back(makeCandidateNote(tiedCandidate, false, false));
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(ambiguity));
+               candidateDiagnostics.push_back(makeCandidateDiagnostic(tiedCandidate, false, false, nullptr));
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+                                                          classType->Info().DisplayName() + "::" + memberName->Value(),
+                                                          memberName->Source(), candidateDiagnostics));
           return nullptr;
      }
 
@@ -1359,18 +1330,10 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      const bool isAccessible = this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess);
      if (!isAccessible || candidate->isDeleted)
      {
-          std::string message;
-          if (!isAccessible && candidate->isDeleted)
-               message = std::format("Selected member function '{}' is inaccessible and deleted",
-                                     FormatFunctionSignature(candidate));
-          else if (!isAccessible)
-               message = std::format("Selected member function '{}' is inaccessible ({})",
-                                     FormatFunctionSignature(candidate), accessName(candidate->memberAccess));
-          else
-               message = std::format("Selected member function '{}' is deleted", FormatFunctionSignature(candidate));
-          auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), memberName->Source());
-          diagnostic->SubDiagnostics().push_back(makeCandidateNote(candidate, false, false));
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+          auto candidateDiagnostic = makeCandidateDiagnostic(candidate, false, false, nullptr);
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                          candidateDiagnostic.signature, memberName->Source(),
+                                                          !isAccessible, candidate->isDeleted, candidateDiagnostic));
           return nullptr;
      }
      if (!RequireComplete(candidate->returnType, node.Source(), "a member function call") ||
@@ -1424,7 +1387,8 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           }
           if (isFromGlobalNamespace && parts.size() == 1)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Expected a function name in a call expression, found global scope specifier",
                          node.Function()->Source()));
@@ -1435,11 +1399,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 
      if (!identifierFunction)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Expected a function name in a call expression, found: {}",
-                                node.Function()->ToString(0)),
-                    node.Function()->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Expected a function name in a call expression, found: {}",
+                                                  node.Function()->ToString(0)),
+                                      node.Function()->Source()));
           return nullptr;
      }
 
@@ -1572,9 +1536,12 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           if (!rankedCandidates.empty() && rankedCandidates.top().argumentScore == selectedCandidate.argumentScore &&
               rankedCandidates.top().objectQualificationPenalty == selectedCandidate.objectQualificationPenalty)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Call to function '{}' is ambiguous", name), identifierFunction->Source()));
+               const auto& selectedFunction = selectedCandidate.function;
+               const std::string displayName = selectedFunction->memberClassInfo != nullptr
+                                                    ? selectedFunction->memberClassInfo->DisplayName() + "::" + name
+                                                    : name;
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+                                                               displayName, identifierFunction->Source()));
                return nullptr;
           }
           const auto& candidate = candidates.top().function;
@@ -1582,17 +1549,17 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           if (candidate->memberClassInfo != nullptr &&
               !this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Member function '{}' is not accessible", name), identifierFunction->Source()));
+               const std::string signature = FormatFunctionSignature(candidate);
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                               signature, identifierFunction->Source(), true, false));
                return nullptr;
           }
 
           if (candidate->isDeleted)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Function '{}' is deleted", name), identifierFunction->Source()));
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                               FormatFunctionSignature(candidate),
+                                                               identifierFunction->Source(), false, true));
                return nullptr;
           }
 
@@ -1647,7 +1614,8 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                     }
                if (receiver == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               "A non-static member function requires an object", identifierFunction->Source()));
                     return nullptr;
@@ -1667,8 +1635,6 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
      }
 
-     std::string errorMessage = "Unresolved function " + name;
-
      std::vector<Expression> argumentsForAnalysis = node.Arguments() |
                                                     std::views::transform(
                                                          [this](const ast::NodePointer& argument)
@@ -1678,77 +1644,100 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                                                     ecpps::detail::ToVector;
 
      auto exactMatches = CollectExactMatches(name, this->GetContext().contextSequence);
-     if (!exactMatches.empty())
+     const auto makeCandidateDiagnostic = [&](const std::shared_ptr<FunctionScope>& function)
      {
-          auto mainError = ecpps::diagnostics::DiagnosticsBuilder<diagnostics::UnresolvedSymbolError>{}.Build(
-               name, errorMessage, identifierFunction->Source());
-
-          std::vector<const ast::Node*> argumentNodes;
-          argumentNodes.reserve(node.Arguments().Size());
-          for (const auto& argNode : node.Arguments()) argumentNodes.push_back(argNode.get());
-          for (const auto& func : exactMatches)
+          OverloadCandidateDiagnostic candidate{.signature = FormatFunctionSignature(function),
+                                                .source = function->source};
+          const auto failureInfo = AnalyseCandidateFailure(function, argumentsForAnalysis);
+          for (const auto& [parameterIndex, failure] : failureInfo.parameterFailures)
           {
-               auto candidateNote = std::make_unique<diagnostics::Information>(
-                    "candidate", "Candidate: " + FormatFunctionSignature(func), func->source);
-
-               auto failureInfo = AnalyseCandidateFailure(func, argumentsForAnalysis);
-               for (const auto& [paramIndex, failure] : failureInfo.parameterFailures)
+               const bool hasArgument = std::cmp_not_equal(parameterIndex, -1) && parameterIndex > 0 &&
+                                        parameterIndex <= node.Arguments().Size();
+               const Location argumentSource =
+                    hasArgument ? node.Arguments()[parameterIndex - 1]->Source() : identifierFunction->Source();
+               std::optional<std::string> followup{};
+               if (std::cmp_not_equal(parameterIndex, -1) && parameterIndex > 0 &&
+                   parameterIndex <= argumentsForAnalysis.size() && parameterIndex <= function->parameters.size())
                {
-                    Location argSource =
-                         (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 && paramIndex <= argumentNodes.size())
-                              ? argumentNodes[paramIndex - 1]->Source()
-                              : identifierFunction->Source();
+                    const auto& argument = argumentsForAnalysis[parameterIndex - 1];
+                    const auto& parameter = function->parameters[parameterIndex - 1];
+                    if (argument != nullptr &&
+                        (typeSystem::IsPointer(argument->Type()) || typeSystem::IsArray(argument->Type())) &&
+                        !typeSystem::IsPointer(parameter.type) && !typeSystem::IsArray(parameter.type))
+                         followup = "Did you mean to dereference the argument?";
+               }
+               candidate.details.push_back(OverloadCandidateDetail{
+                    .message = failure, .source = argumentSource, .followup = std::move(followup)});
+          }
+          return candidate;
+     };
+     const auto collectSimilarFunctions = [&]()
+     {
+          std::vector<OverloadSimilarName> similarNames{};
+          const std::size_t maximumDistance = std::max<std::size_t>(3, name.length() / 3);
+          for (const auto& context : this->GetContext().contextSequence)
+               for (const auto& function : context->GetScope().functions)
+               {
+                    if (function == nullptr || !function->Name().has_value()) continue;
+                    const auto& functionName = *function->Name();
+                    if (functionName == name) continue;
+                    const auto distance = LevenshteinDistance(name, functionName);
+                    if (distance == 0 || distance > maximumDistance) continue;
 
-                    auto failureNote = std::make_unique<diagnostics::Information>("note", failure, argSource);
-
-                    if (std::cmp_not_equal(paramIndex, -1) && paramIndex > 0 &&
-                        paramIndex <= argumentsForAnalysis.size() && paramIndex <= func->parameters.size())
+                    auto suggestion = std::ranges::find(similarNames, functionName, &OverloadSimilarName::name);
+                    if (suggestion == similarNames.end())
                     {
-                         const auto& arg = argumentsForAnalysis[paramIndex - 1];
-                         const auto& param = func->parameters[paramIndex - 1];
-
-                         if (arg != nullptr)
-                         {
-                              const auto& fromType = arg->Type();
-                              const auto& toType = param.type;
-
-                              if ((ecpps::typeSystem::IsPointer(fromType) || ecpps::typeSystem::IsArray(fromType)) &&
-                                  !ecpps::typeSystem::IsPointer(toType) && !ecpps::typeSystem::IsArray(toType))
-                                   failureNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                                        "note", "Did you mean to dereference the argument?", argSource));
-                         }
+                         similarNames.push_back(
+                              OverloadSimilarName{.name = functionName,
+                                                  .source = identifierFunction->Source(),
+                                                  .distance = distance,
+                                                  .argumentFailureCount = std::numeric_limits<std::size_t>::max()});
+                         suggestion = std::prev(similarNames.end());
                     }
-
-                    candidateNote->SubDiagnostics().push_back(std::move(failureNote));
+                    const bool acceptsArguments = static_cast<bool>(MatchFunction(function, argumentsForAnalysis));
+                    const std::size_t failureCount =
+                         AnalyseCandidateFailure(function, argumentsForAnalysis).parameterFailures.size();
+                    suggestion->acceptsArguments = suggestion->acceptsArguments || acceptsArguments;
+                    suggestion->argumentFailureCount = std::min(suggestion->argumentFailureCount, failureCount);
                }
 
-               mainError->SubDiagnostics().push_back(std::move(candidateNote));
-          }
+          std::ranges::sort(similarNames,
+                            [](const OverloadSimilarName& left, const OverloadSimilarName& right)
+                            {
+                                 if (left.acceptsArguments != right.acceptsArguments)
+                                      return left.acceptsArguments > right.acceptsArguments;
+                                 if (left.distance != right.distance) return left.distance < right.distance;
+                                 if (left.argumentFailureCount != right.argumentFailureCount)
+                                      return left.argumentFailureCount < right.argumentFailureCount;
+                                 return left.name < right.name;
+                            });
+          return similarNames;
+     };
 
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+     auto similarNames = collectSimilarFunctions();
+     if (!exactMatches.empty())
+     {
+          std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
+          candidateDiagnostics.reserve(exactMatches.size());
+          for (const auto& func : exactMatches) candidateDiagnostics.push_back(makeCandidateDiagnostic(func));
+          std::string displayName = name;
+          if (!qualifiers.empty())
+          {
+               displayName.clear();
+               for (const auto& qualifier : qualifiers) displayName += (displayName.empty() ? "" : "::") + qualifier;
+               displayName += (displayName.empty() ? "" : "::") + name;
+          }
+          else if (exactMatches.front()->memberClassInfo != nullptr)
+               displayName = exactMatches.front()->memberClassInfo->DisplayName() + "::" + name;
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+                                      displayName, identifierFunction->Source(), candidateDiagnostics, similarNames,
+                                      SimilarNamesKind::Functions));
      }
      else
      {
-          auto mainError =
-               std::make_unique<diagnostics::UnresolvedSymbolError>(name, errorMessage, identifierFunction->Source());
-
-          auto similarNames =
-               CollectSimilarNames(name, argumentsForAnalysis.size(), this->GetContext().contextSequence);
-          if (!similarNames.empty())
-          {
-               auto didYouMeanNote =
-                    std::make_unique<diagnostics::Information>("note", "Did you mean:", identifierFunction->Source());
-
-               for (const auto& [similarName, distance] : similarNames)
-               {
-                    didYouMeanNote->SubDiagnostics().push_back(std::make_unique<diagnostics::Information>(
-                         "", std::format("    {} [distance={}]", similarName, distance), identifierFunction->Source()));
-               }
-
-               mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
-          }
-
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::UnresolvedFunction(
+                                                          name, identifierFunction->Source(), similarNames));
      }
 
      return nullptr;
@@ -1787,7 +1776,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                const auto* type = GetTypeContext().Get(typeRequest);
                if (type == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Unknown type `{}` in sizeof expression", expression.Value()->ToString(0)),
                               expression.Value()->Source()));
@@ -1820,7 +1810,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
      const auto& operandType = operand->Type();
      if (operandType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Cannot determine the type of the operand in a sizeof expression", expression.Value()->Source()));
           return nullptr;
@@ -1846,7 +1837,8 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
                const auto* type = GetTypeContext().Get(typeRequest);
                if (type == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Unknown type `{}` in alignof expression", expression.Value()->ToString(0)),
                               expression.Value()->Source()));
@@ -1878,7 +1870,8 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
      const auto& operandType = operand->Type();
      if (operandType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     "Cannot determine the type of the operand in an alignof expression", expression.Value()->Source()));
           return nullptr;
@@ -1914,7 +1907,8 @@ Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
                                            false);
      }
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+     DiagnosticSink::Report(
+          this->GetContext(),
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                "'this' is only available in a non-static member function or member initialiser", source));
      return nullptr;
@@ -2035,7 +2029,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
           mainError->SubDiagnostics().push_back(std::move(didYouMeanNote));
      }
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(std::move(mainError));
+     DiagnosticSink::Report(this->GetContext(), std::move(mainError));
 
      return nullptr;
 }
@@ -2078,9 +2072,9 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
      if (auto* const alignofNode = dynamic_cast<ast::AlignOfNode*>(expression.get()); alignofNode != nullptr)
           return this->ParseAlignofExpression(*alignofNode);
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               expression->ToString(0) + " cannot appear in this context.", expression->Source()));
+     DiagnosticSink::Report(this->GetContext(),
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                 expression->ToString(0) + " cannot appear in this context.", expression->Source()));
 
      return nullptr;
 }

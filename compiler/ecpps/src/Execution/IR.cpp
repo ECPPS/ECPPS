@@ -15,6 +15,7 @@
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
 #include "IR.Internal.h"
@@ -25,7 +26,6 @@
 #include "Parsing/Tokeniser.h"
 #include "Procedural.h"
 #include "Shared/BumpAllocator.h"
-#include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
 
 using IRNodePointer = ecpps::ir::NodePointer;
@@ -113,9 +113,9 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           const auto* targetType = ParseType(aliasNode->TargetType());
           if (targetType == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Invalid target type in using declaration", aliasNode->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Invalid target type in using declaration", aliasNode->Source()));
                return;
           }
 
@@ -174,9 +174,9 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                         "Invalid language linkage specification", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                           "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -228,8 +228,153 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      this->GetContext().contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
 }
 
+bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode& node)
+{
+     const auto* qualifiedName = dynamic_cast<const ast::QualifiedIdNode*>(node.Signature().name.get());
+     if (qualifiedName == nullptr || qualifiedName->Path().size() < 2) return false;
+
+     const auto& path = qualifiedName->Path();
+     const auto* constructorName = dynamic_cast<const ast::IdentifierNode*>(path.back().get());
+     const auto* className = dynamic_cast<const ast::IdentifierNode*>(path[path.size() - 2].get());
+     if (constructorName == nullptr || className == nullptr || constructorName->Value() != className->Value())
+          return false;
+
+     std::vector<std::string> qualifiers{};
+     const bool isGlobalQualified = dynamic_cast<const ast::GlobalScopeNode*>(path.front().get()) != nullptr;
+     for (std::size_t index = static_cast<std::size_t>(isGlobalQualified); index + 1 < path.size(); index++)
+     {
+          const auto* part = dynamic_cast<const ast::IdentifierNode*>(path[index].get());
+          if (part == nullptr) return false;
+          qualifiers.push_back(part->Value());
+     }
+
+     struct ResolvedClass
+     {
+          typeSystem::ClassId id;
+          ClassScope* scope;
+     };
+     const auto resolveFrom = [&](Scope* initialScope) -> std::optional<ResolvedClass>
+     {
+          Scope* currentScope = initialScope;
+          for (std::size_t index = 0; index < qualifiers.size(); index++)
+          {
+               const auto& qualifier = qualifiers[index];
+               if (const auto classIt = currentScope->classes.find(qualifier); classIt != currentScope->classes.end())
+               {
+                    const auto classRecord = this->GetContext().classTable->classes.find(classIt->second);
+                    if (classRecord == this->GetContext().classTable->classes.end() ||
+                        classRecord->second.scope == nullptr)
+                         return std::nullopt;
+                    if (index + 1 == qualifiers.size())
+                         return ResolvedClass{.id = classIt->second, .scope = classRecord->second.scope};
+                    currentScope = classRecord->second.scope;
+                    continue;
+               }
+
+               const auto* namespaceScope = dynamic_cast<const NamespaceScope*>(currentScope);
+               if (namespaceScope == nullptr) return std::nullopt;
+               const auto namespaceIt =
+                    std::ranges::find_if(namespaceScope->subNamespaces,
+                                         [&qualifier](const std::unique_ptr<NamespaceScope>& candidate)
+                                         {
+                                              return candidate->Name() == qualifier;
+                                         });
+               if (namespaceIt == namespaceScope->subNamespaces.end()) return std::nullopt;
+               currentScope = namespaceIt->get();
+          }
+          return std::nullopt;
+     };
+
+     std::optional<ResolvedClass> resolvedClass{};
+     if (isGlobalQualified) resolvedClass = resolveFrom(this->GetContext().globalScope.get());
+     else
+          for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+          {
+               resolvedClass = resolveFrom(&context->GetScope());
+               if (resolvedClass.has_value()) break;
+          }
+     if (!resolvedClass.has_value()) return false;
+
+     Context definitionContext = this->GetContext();
+     definitionContext.contextSequence.push_back(
+          std::make_shared<ClassContext>(resolvedClass->scope, resolvedClass->id));
+     IR definitionIr{this->_context};
+     definitionIr.GetContext() = std::move(definitionContext);
+
+     std::vector<FunctionScope::Parameter> parameters{};
+     parameters.reserve(node.Signature().parameters.parameters.size());
+     for (const auto& parameter : node.Signature().parameters.parameters)
+     {
+          if (parameter.defaultInitialiser != nullptr)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Default constructor arguments are not supported yet",
+                                           parameter.defaultInitialiser->Source()));
+               return true;
+          }
+          const auto* parameterType = definitionIr.ParseType(parameter.type);
+          if (parameterType == nullptr) return true;
+          parameters.push_back({.name = parameter.name == nullptr ? "" : parameter.name->ToString(0),
+                                .type = parameterType,
+                                .isVariadic = false});
+     }
+     if (parameters.size() == 1 && *parameters.front().type == typeSystem::g_void.get()) parameters.clear();
+
+     auto classRecord = this->GetContext().classTable->classes.find(resolvedClass->id);
+     if (classRecord == this->GetContext().classTable->classes.end()) return true;
+     auto constructor = std::ranges::find_if(classRecord->second.constructors,
+                                             [&parameters](const ClassConstructor& candidate)
+                                             {
+                                                  if (candidate.parameters.size() != parameters.size()) return false;
+                                                  for (std::size_t index = 0; index < parameters.size(); index++)
+                                                       if (candidate.parameters[index].type != parameters[index].type)
+                                                            return false;
+                                                  return true;
+                                             });
+     if (constructor == classRecord->second.constructors.end())
+     {
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("No matching constructor declaration for '{}'",
+                                                  GetTypeContext().Class(resolvedClass->id).DisplayName()),
+                                      node.Source()));
+          return true;
+     }
+     if (node.BodyKind() == ast::FunctionBodyKind::Defaulted && !constructor->parameters.empty())
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Only default constructors can be defaulted", node.Source()));
+          return true;
+     }
+     if (constructor->bodyKind != ast::FunctionBodyKind::None || constructor->function->isMemberFunctionDefined)
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Constructor is defined more than once", node.Source()));
+          return true;
+     }
+
+     constructor->bodyKind = node.BodyKind();
+     constructor->function->isMemberFunctionDefined = true;
+     constructor->function->isInline = constructor->function->isInline || node.Signature().isInline;
+     constructor->function->source = constructorName->Source();
+     for (std::size_t index = 0; index < parameters.size(); index++)
+          constructor->function->parameters[index].name = std::move(parameters[index].name);
+
+     definitionIr.EmitConstructorBody(constructor->function, resolvedClass->id, node.Source(),
+                                      [&node](IR& functionIr)
+                                      {
+                                           for (const auto& statement : node.Body()) functionIr.ParseNode(statement);
+                                      });
+     this->_built.insert(this->_built.end(), std::make_move_iterator(definitionIr._built.begin()),
+                         std::make_move_iterator(definitionIr._built.end()));
+     return true;
+}
+
 void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& node)
 {
+     if (ParseConstructorDefinition(node)) return;
+
      std::vector<FunctionScope::Parameter> parameters{};
      parameters.reserve(node.Signature().parameters.parameters.size());
      for (const auto& param : node.Signature().parameters.parameters)
@@ -267,9 +412,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                         "Invalid language linkage specification", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                           "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -405,11 +550,11 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      {
           if (!typeSystem::g_void->CommonWith(function->returnType)) // NOLINT(clang-analyzer-core.NullDereference)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
-                              function->returnType->RawName() + ")",
-                         node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot convert from void to type " + function->returnType->Name() +
+                                                " (aka " + function->returnType->RawName() + ")",
+                                           node.Source()));
           }
           this->_built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});
