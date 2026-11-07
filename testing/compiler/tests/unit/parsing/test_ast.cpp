@@ -380,11 +380,13 @@ TEST_CASE("AST - Out-of-class constructor definitions preserve their qualified n
      REQUIRE((classDefinition != nullptr));
      const auto* function = dynamic_cast<const ecpps::ast::FunctionDefinitionNode*>(nodes.back().get());
      REQUIRE((function != nullptr));
+     if (function == nullptr) return;
      const auto* name = dynamic_cast<const ecpps::ast::QualifiedIdNode*>(function->Signature().name.get());
      REQUIRE((name != nullptr));
-     REQUIRE(name->Path().size() == 2);
-     CHECK(name->ToString(0) == "Widget::Widget");
-     CHECK(function->Body().Size() == 1);
+     if (name == nullptr) return;
+     REQUIRE((name->Path().size() == 2));
+     CHECK((name->ToString(0) == "Widget::Widget"));
+     CHECK((function->Body().Size() == 1));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -404,8 +406,8 @@ TEST_CASE("AST - Out-of-class defaulted constructors preserve their body kind", 
      REQUIRE((nodes.size() == 1));
      const auto* function = dynamic_cast<const ecpps::ast::FunctionDefinitionNode*>(nodes.front().get());
      REQUIRE((function != nullptr));
-     CHECK(function->BodyKind() == ecpps::ast::FunctionBodyKind::Defaulted);
-     CHECK(function->Body().Size() == 0);
+     CHECK((function->BodyKind() == ecpps::ast::FunctionBodyKind::Defaulted));
+     CHECK((function->Body().Size() == 0));
      CHECK(function->ToString(0).ends_with("= default;"));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }

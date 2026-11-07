@@ -66,9 +66,8 @@ namespace
      class StderrCapture
      {
      public:
-          StderrCapture(void)
+          StderrCapture(void) : _capture{std::tmpfile()}
           {
-               this->_capture = std::tmpfile();
                if (this->_capture == nullptr) throw std::runtime_error{"Could not create a temporary output file"};
 
                std::fflush(stderr);
@@ -170,7 +169,7 @@ namespace
      class ScopedEnvironmentVariable
      {
      public:
-          ScopedEnvironmentVariable(std::string name, std::string value) : _name(std::move(name))
+          ScopedEnvironmentVariable(std::string name, const std::string& value) : _name(std::move(name))
           {
                if (const char* existing = std::getenv(this->_name.c_str()); existing != nullptr)
                     this->_previous = existing;
@@ -259,14 +258,14 @@ TEST_CASE("Diagnostics omit carets for shared source lines", "[unit][diagnostics
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find(source.Path().string() + ":1:12 error: bad call") != std::string::npos);
-     CHECK(readable.find(source.Path().string() + ":1:12 note: Candidate: add(int)") != std::string::npos);
-     CHECK(readable.find("type-error") == std::string::npos);
-     CHECK(readable.find("candidate :") == std::string::npos);
-     CHECK(CountOccurrences(output, "1| ") == 1);
-     CHECK(CountOccurrences(output, "^") == 0);
-     CHECK(output.find("\x1b[31m" + source.Path().string() + ":1:12 error: \x1b[0m") != std::string::npos);
-     CHECK(output.find("\x1b[36m" + source.Path().string() + ":1:12 note: \x1b[0m") != std::string::npos);
+     CHECK((readable.find(source.Path().string() + ":1:12 error: bad call") != std::string::npos));
+     CHECK((readable.find(source.Path().string() + ":1:12 note: Candidate: add(int)") != std::string::npos));
+     CHECK((readable.find("type-error") == std::string::npos));
+     CHECK((readable.find("candidate :") == std::string::npos));
+     CHECK((CountOccurrences(output, "1| ") == 1));
+     CHECK((CountOccurrences(output, "^") == 0));
+     CHECK((output.find("\x1b[31m" + source.Path().string() + ":1:12 error: \x1b[0m") != std::string::npos));
+     CHECK((output.find("\x1b[36m" + source.Path().string() + ":1:12 note: \x1b[0m") != std::string::npos));
 }
 
 TEST_CASE("Diagnostics omit root call-site carets and retain candidate carets", "[unit][diagnostics]")
@@ -280,8 +279,8 @@ TEST_CASE("Diagnostics omit root call-site carets and retain candidate carets", 
 
      const auto output = StripAnsi(Render(source.Path(), ecpps::diagnostics::DiagnosticsMessage{std::move(error)}));
 
-     CHECK(output.find("┃ 2| void g() { f(1); }\n") != std::string::npos);
-     CHECK(CountOccurrences(output, "^") == 1);
+     CHECK((output.find("┃ 2| void g() { f(1); }\n") != std::string::npos));
+     CHECK((CountOccurrences(output, "^") == 1));
 }
 
 TEST_CASE("Diagnostics merge sibling branches and preserve declaration carets", "[unit][diagnostics]")
@@ -365,7 +364,7 @@ TEST_CASE("Diagnostics merge sibling branches and preserve declaration carets", 
           "     ┗━━━━┓ " +
           path + ":8:23 note: Argument 3 of type 'int' cannot convert to parameter '<unnamed>' of type 'int*'\n";
 
-     CHECK(output == expected);
+     CHECK((output == expected));
 }
 
 TEST_CASE("Diagnostics trim message lines and preserve continuation lines", "[unit][diagnostics]")
@@ -377,9 +376,9 @@ TEST_CASE("Diagnostics trim message lines and preserve continuation lines", "[un
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find("error: bad value\n") != std::string::npos);
-     CHECK(readable.find("trace frame\n") != std::string::npos);
-     CHECK(readable.find("  bad value  ") == std::string::npos);
+     CHECK((readable.find("error: bad value\n") != std::string::npos));
+     CHECK((readable.find("trace frame\n") != std::string::npos));
+     CHECK((readable.find("  bad value  ") == std::string::npos));
 }
 
 TEST_CASE("Diagnostics align visual columns for tabs and wide UTF-8 characters", "[unit][diagnostics]")
@@ -391,8 +390,8 @@ TEST_CASE("Diagnostics align visual columns for tabs and wide UTF-8 characters",
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find(source.Path().string() + ":1:11 error: wide character") != std::string::npos);
-     CHECK(readable.find("1|         界x") != std::string::npos);
+     CHECK((readable.find(source.Path().string() + ":1:11 error: wide character") != std::string::npos));
+     CHECK((readable.find("1|         界x") != std::string::npos));
 }
 
 TEST_CASE("Diagnostics clamp invalid source ranges to one caret", "[unit][diagnostics]")
@@ -404,8 +403,8 @@ TEST_CASE("Diagnostics clamp invalid source ranges to one caret", "[unit][diagno
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find(source.Path().string() + ":1:3 error: invalid range") != std::string::npos);
-     CHECK(CountOccurrences(output, "^") == 1);
+     CHECK((readable.find(source.Path().string() + ":1:3 error: invalid range") != std::string::npos));
+     CHECK((CountOccurrences(output, "^") == 1));
 }
 
 TEST_CASE("Diagnostics use ASCII rails when the locale is not UTF-8", "[unit][diagnostics]")
@@ -418,8 +417,8 @@ TEST_CASE("Diagnostics use ASCII rails when the locale is not UTF-8", "[unit][di
 
      const auto output = Render({}, diagnostic);
 
-     CHECK(output.find("| \x1b[31merror: \x1b[0mroot") != std::string::npos);
-     CHECK(output.find("+--- \x1b[36mnote: \x1b[0mchild") != std::string::npos);
+     CHECK((output.find("| \x1b[31merror: \x1b[0mroot") != std::string::npos));
+     CHECK((output.find("+--- \x1b[36mnote: \x1b[0mchild") != std::string::npos));
 }
 
 TEST_CASE("Warnings use the warning label and colour", "[unit][diagnostics]")
@@ -430,8 +429,8 @@ TEST_CASE("Warnings use the warning label and colour", "[unit][diagnostics]")
      const auto output = Render({}, diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find("warning: unused value") != std::string::npos);
-     CHECK(output.find("\x1b[33mwarning: \x1b[0m") != std::string::npos);
+     CHECK((readable.find("warning: unused value") != std::string::npos));
+     CHECK((output.find("\x1b[33mwarning: \x1b[0m") != std::string::npos));
 }
 
 TEST_CASE("Diagnostics retain a location when source text is unavailable", "[unit][diagnostics]")
@@ -445,7 +444,7 @@ TEST_CASE("Diagnostics retain a location when source text is unavailable", "[uni
      const auto output = Render(missingPath, diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK(readable.find(missingPath.string() + ":1:4 error: missing source") != std::string::npos);
-     CHECK(readable.find("1| ") == std::string::npos);
-     CHECK(output.find('^') == std::string::npos);
+     CHECK((readable.find(missingPath.string() + ":1:4 error: missing source") != std::string::npos));
+     CHECK((readable.find("1| ") == std::string::npos));
+     CHECK((output.find('^') == std::string::npos));
 }

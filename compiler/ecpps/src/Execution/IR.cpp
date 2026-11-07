@@ -266,7 +266,7 @@ bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode
                         classRecord->second.scope == nullptr)
                          return std::nullopt;
                     if (index + 1 == qualifiers.size())
-                         return ResolvedClass{classIt->second, classRecord->second.scope};
+                         return ResolvedClass{.id = classIt->second, .scope = classRecord->second.scope};
                     currentScope = classRecord->second.scope;
                     continue;
                }

@@ -433,12 +433,12 @@ TEST_CASE("IR - In-class constructors emit and call regular procedures", "[unit]
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
      REQUIRE((call != nullptr));
-     CHECK(&call->Function() == constructor->Scope());
-     CHECK(call->Arguments().size() == 2);
-     CHECK(constructor->Scope()->parameters.size() == 1);
-     CHECK(call->Function().memberClassInfo != nullptr);
-     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
-     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(caller->Body()) == nullptr);
+     CHECK((&call->Function() == constructor->Scope()));
+     CHECK((call->Arguments().size() == 2));
+     CHECK((constructor->Scope()->parameters.size() == 1));
+     CHECK((call->Function().memberClassInfo != nullptr));
+     CHECK((FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr));
+     CHECK((FindNode<ecpps::ir::SSAIndirectStoreNode>(caller->Body()) == nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -458,8 +458,8 @@ TEST_CASE("IR - Defaulted constructors emit regular procedures", "[unit][ir][cla
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
      REQUIRE((call != nullptr));
-     CHECK(&call->Function() == constructor->Scope());
-     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK((&call->Function() == constructor->Scope()));
+     CHECK((FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -477,8 +477,8 @@ TEST_CASE("IR - Declaration-only constructors emit external calls", "[unit][ir][
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
      REQUIRE((call != nullptr));
-     CHECK(call->Function().memberClassInfo != nullptr);
-     CHECK(FindProcedure(nodes, "ExternalCtorForIR") == nullptr);
+     CHECK((call->Function().memberClassInfo != nullptr));
+     CHECK((FindProcedure(nodes, "ExternalCtorForIR") == nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -515,10 +515,10 @@ TEST_CASE("IR - Out-of-class constructor definitions bind to declarations", "[un
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
      REQUIRE((call != nullptr));
-     CHECK(&call->Function() == constructor->Scope());
-     CHECK(call->Arguments().size() == 2);
-     CHECK(constructor->Scope()->parameters.size() == 1);
-     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK((&call->Function() == constructor->Scope()));
+     CHECK((call->Arguments().size() == 2));
+     CHECK((constructor->Scope()->parameters.size() == 1));
+     CHECK((FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -551,8 +551,8 @@ TEST_CASE("IR - Out-of-class defaulted constructors emit regular procedures", "[
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
      REQUIRE((call != nullptr));
-     CHECK(&call->Function() == constructor->Scope());
-     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK((&call->Function() == constructor->Scope()));
+     CHECK((FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -569,10 +569,10 @@ TEST_CASE("IR - No matching constructor diagnostics list declared candidates", "
      (void)fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Message() == "No constructor of 'NoMatchCtorForIR' matches these arguments");
+     CHECK((diagnostic.Message() == "No constructor of 'NoMatchCtorForIR' matches these arguments"));
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
-                "Candidate: NoMatchCtorForIR::NoMatchCtorForIR(int valueParam)") != std::string::npos);
+     CHECK((diagnostic.SubDiagnostics().front()->Message().find(
+                 "Candidate: NoMatchCtorForIR::NoMatchCtorForIR(int valueParam)") != std::string::npos));
 }
 
 TEST_CASE("IR - Ambiguous constructor diagnostics list tied candidates", "[unit][ir][classes][constructors]")
@@ -593,10 +593,10 @@ TEST_CASE("IR - Ambiguous constructor diagnostics list tied candidates", "[unit]
      (void)fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Message() == "Constructor call for 'AmbiguousCtorForIR' is ambiguous");
+     CHECK((diagnostic.Message() == "Constructor call for 'AmbiguousCtorForIR' is ambiguous"));
      REQUIRE((diagnostic.SubDiagnostics().size() == 2));
-     CHECK(diagnostic.SubDiagnostics()[0]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(unsigned int") !=
-           std::string::npos);
-     CHECK(diagnostic.SubDiagnostics()[1]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(long") !=
-           std::string::npos);
+     CHECK((diagnostic.SubDiagnostics()[0]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(unsigned int") !=
+            std::string::npos));
+     CHECK((diagnostic.SubDiagnostics()[1]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(long") !=
+            std::string::npos));
 }
