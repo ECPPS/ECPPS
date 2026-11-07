@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <deque>
 #include <format>
-#include <functional>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -53,10 +52,10 @@ using ecpps::ir::detail::ConvertConstant;
 using ecpps::ir::detail::FormatFunctionSignature;
 using ecpps::ir::detail::IsIndirectLValue;
 using ecpps::ir::detail::LevenshteinDistance;
-using OverloadCandidateDiagnostic = ecpps::ir::overload_diagnostics::Candidate;
-using OverloadCandidateDetail = ecpps::ir::overload_diagnostics::CandidateDetail;
-using OverloadSimilarName = ecpps::ir::overload_diagnostics::SimilarName;
-using SimilarNamesKind = ecpps::ir::overload_diagnostics::SimilarNamesKind;
+using OverloadCandidateDiagnostic = ecpps::ir::overloadDiagnostics::Candidate;
+using OverloadCandidateDetail = ecpps::ir::overloadDiagnostics::CandidateDetail;
+using OverloadSimilarName = ecpps::ir::overloadDiagnostics::SimilarName;
+using SimilarNamesKind = ecpps::ir::overloadDiagnostics::SimilarNamesKind;
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                   const Location& source) const
@@ -1286,10 +1285,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                     std::ranges::find(classType->Info().fields, memberName->Value(), &typeSystem::ClassField::name);
                std::optional<Location> dataMemberSource{};
                if (dataMember != classType->Info().fields.end()) dataMemberSource = dataMember->source;
-               DiagnosticSink::Report(this->GetContext(),
-                                      ecpps::ir::overload_diagnostics::MissingMember(
-                                           classType->Info().DisplayName(), memberName->Value(), memberName->Source(),
-                                           dataMemberSource, std::move(similarMembers)));
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::MissingMember(
+                                                               classType->Info().DisplayName(), memberName->Value(),
+                                                               memberName->Source(), dataMemberSource, similarMembers));
           }
           else
           {
@@ -1298,10 +1296,10 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                for (const auto& candidate : sameNameCandidates)
                     candidateDiagnostics.push_back(makeCandidateDiagnostic(candidate, true, true, nullptr));
                DiagnosticSink::Report(this->GetContext(),
-                                      ecpps::ir::overload_diagnostics::NoMatchingOverload(
+                                      ecpps::ir::overloadDiagnostics::NoMatchingOverload(
                                            classType->Info().DisplayName() + "::" + memberName->Value(),
-                                           memberName->Source(), std::move(candidateDiagnostics),
-                                           std::move(similarMembers), SimilarNamesKind::Members));
+                                           memberName->Source(), candidateDiagnostics, similarMembers,
+                                           SimilarNamesKind::Members));
           }
           return nullptr;
      }
@@ -1322,9 +1320,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           candidateDiagnostics.reserve(tiedBestCandidates.size());
           for (const auto& tiedCandidate : tiedBestCandidates)
                candidateDiagnostics.push_back(makeCandidateDiagnostic(tiedCandidate, false, false, nullptr));
-          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::AmbiguousOverload(
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
                                                           classType->Info().DisplayName() + "::" + memberName->Value(),
-                                                          memberName->Source(), std::move(candidateDiagnostics)));
+                                                          memberName->Source(), candidateDiagnostics));
           return nullptr;
      }
 
@@ -1333,10 +1331,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      if (!isAccessible || candidate->isDeleted)
      {
           auto candidateDiagnostic = makeCandidateDiagnostic(candidate, false, false, nullptr);
-          DiagnosticSink::Report(this->GetContext(),
-                                 ecpps::ir::overload_diagnostics::SelectedOverloadFailure(
-                                      candidateDiagnostic.signature, memberName->Source(), !isAccessible,
-                                      candidate->isDeleted, std::move(candidateDiagnostic)));
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                          candidateDiagnostic.signature, memberName->Source(),
+                                                          !isAccessible, candidate->isDeleted, candidateDiagnostic));
           return nullptr;
      }
      if (!RequireComplete(candidate->returnType, node.Source(), "a member function call") ||
@@ -1543,7 +1540,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                const std::string displayName = selectedFunction->memberClassInfo != nullptr
                                                     ? selectedFunction->memberClassInfo->DisplayName() + "::" + name
                                                     : name;
-               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::AmbiguousOverload(
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
                                                                displayName, identifierFunction->Source()));
                return nullptr;
           }
@@ -1553,14 +1550,14 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
               !this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess))
           {
                const std::string signature = FormatFunctionSignature(candidate);
-               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::SelectedOverloadFailure(
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
                                                                signature, identifierFunction->Source(), true, false));
                return nullptr;
           }
 
           if (candidate->isDeleted)
           {
-               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::SelectedOverloadFailure(
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
                                                                FormatFunctionSignature(candidate),
                                                                identifierFunction->Source(), false, true));
                return nullptr;
@@ -1732,15 +1729,15 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           }
           else if (exactMatches.front()->memberClassInfo != nullptr)
                displayName = exactMatches.front()->memberClassInfo->DisplayName() + "::" + name;
-          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::NoMatchingOverload(
-                                                          std::move(displayName), identifierFunction->Source(),
-                                                          std::move(candidateDiagnostics), std::move(similarNames),
-                                                          SimilarNamesKind::Functions));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+                                      displayName, identifierFunction->Source(), candidateDiagnostics, similarNames,
+                                      SimilarNamesKind::Functions));
      }
      else
      {
-          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overload_diagnostics::UnresolvedFunction(
-                                                          name, identifierFunction->Source(), std::move(similarNames)));
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::UnresolvedFunction(
+                                                          name, identifierFunction->Source(), similarNames));
      }
 
      return nullptr;

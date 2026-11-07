@@ -43,10 +43,10 @@ namespace
           return "inaccessible";
      }
 
-     [[nodiscard]] ecpps::ir::overload_diagnostics::Candidate ConstructorCandidateDiagnostic(
+     [[nodiscard]] ecpps::ir::overloadDiagnostics::Candidate ConstructorCandidateDiagnostic(
           const ecpps::ir::ClassConstructor& constructor, const bool accessible)
      {
-          ecpps::ir::overload_diagnostics::Candidate candidate{
+          ecpps::ir::overloadDiagnostics::Candidate candidate{
                .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
                .source = constructor.function->source,
                .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
@@ -852,7 +852,7 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
      if (classIr == this->GetContext().classTable->classes.end() || classIr->second.constructors.empty())
      {
           DiagnosticSink::Report(this->GetContext(),
-                                 ecpps::ir::overload_diagnostics::NoMatchingConstructor(info.DisplayName(), source));
+                                 ecpps::ir::overloadDiagnostics::NoMatchingConstructor(info.DisplayName(), source));
           return std::nullopt;
      }
 
@@ -892,7 +892,7 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
 
      if (selected == nullptr || ambiguous)
      {
-          std::vector<ecpps::ir::overload_diagnostics::Candidate> diagnosticCandidates{};
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> diagnosticCandidates{};
           if (ambiguous)
           {
                diagnosticCandidates.reserve(bestCandidates.size());
@@ -907,10 +907,10 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
                     diagnosticCandidates.push_back(
                          ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access)));
           }
-          auto diagnostic = ambiguous ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(
-                                             info.DisplayName(), source, std::move(diagnosticCandidates))
-                                      : ecpps::ir::overload_diagnostics::NoMatchingConstructor(
-                                             info.DisplayName(), source, std::move(diagnosticCandidates));
+          auto diagnostic = ambiguous ? ecpps::ir::overloadDiagnostics::AmbiguousConstructor(info.DisplayName(), source,
+                                                                                             diagnosticCandidates)
+                                      : ecpps::ir::overloadDiagnostics::NoMatchingConstructor(
+                                             info.DisplayName(), source, diagnosticCandidates);
           DiagnosticSink::Report(this->GetContext(), std::move(diagnostic));
           return std::nullopt;
      }
@@ -965,7 +965,7 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
      if (!this->CanAccess(info.id, selection->constructor->access))
      {
           DiagnosticSink::Report(this->GetContext(),
-                                 ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                 ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
                                       "Selected constructor is not accessible", source,
                                       ConstructorCandidateDiagnostic(*selection->constructor, false)));
           return;
@@ -974,7 +974,7 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
      if (bodyKind == ast::FunctionBodyKind::Deleted)
      {
           DiagnosticSink::Report(this->GetContext(),
-                                 ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                 ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
                                       "The selected constructor is deleted", source,
                                       ConstructorCandidateDiagnostic(*selection->constructor, true)));
           return;

@@ -3,7 +3,6 @@
 #include <TypeSystem/TypeBase.h>
 #include <deque>
 #include <format>
-#include <functional>
 #include <memory>
 #include <ranges>
 #include <string>

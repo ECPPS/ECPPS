@@ -26,6 +26,7 @@ namespace
                                                      const std::vector<std::string>& parameterTypes)
      {
           std::vector<std::pair<std::string, std::string>> parameters{};
+          parameters.reserve(parameterTypes.size());
           for (std::size_t index = 0; index < parameterTypes.size(); index++)
                parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
           auto signature = fixture.MakeFunctionSignature("int", name, parameters);
@@ -109,7 +110,7 @@ TEST_CASE("IR - No matching overload is a type error with candidate failures", "
      (void)fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Name() == "type-error");
+     CHECK((diagnostic.Name() == "type-error"));
      CHECK(ContainsMessage(diagnostic, "No matching overload for call to 'pick'"));
      CHECK(ContainsMessage(diagnostic, "Expected 1 argument, got 2"));
 }
@@ -126,12 +127,13 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      (void)fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Name() == "unresolved-symbol-error");
+     CHECK((diagnostic.Name() == "unresolved-symbol-error"));
      CHECK(ContainsMessage(diagnostic, "Did you mean:"));
      CHECK(ContainsMessage(diagnostic, "* fool [distance=2; accepts these arguments]"));
      CHECK(ContainsMessage(diagnostic, "fob [distance=1; no overload accepts these arguments]"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 2));
-     CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().find("fool") != std::string::npos);
+     CHECK(
+          (diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().find("fool") != std::string::npos));
 }
 
 TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][ir][overload-resolution]")
@@ -146,21 +148,21 @@ TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][i
      (void)fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Name() == "type-error");
+     CHECK((diagnostic.Name() == "type-error"));
      CHECK(ContainsMessage(diagnostic, "No matching overload for call to 'pick'"));
      CHECK(ContainsMessage(diagnostic, "* pack [distance=1; accepts these arguments]"));
 }
 
 TEST_CASE("IR - Constructor overload diagnostic templates are shared", "[unit][ir][overload-resolution]")
 {
-     using namespace ecpps::ir::overload_diagnostics;
+     using namespace ecpps::ir::overloadDiagnostics;
      Candidate candidate{.signature = "Widget::Widget(int)", .source = Source};
      auto noMatch = NoMatchingConstructor("Widget", Source, {candidate});
      auto ambiguous = AmbiguousConstructor("Widget", Source, {candidate});
      auto inaccessible = SelectedConstructorFailure("Selected constructor is not accessible", Source, candidate);
 
-     CHECK(noMatch->Message() == "No constructor of 'Widget' matches these arguments");
-     CHECK(ambiguous->Message() == "Constructor call for 'Widget' is ambiguous");
+     CHECK((noMatch->Message() == "No constructor of 'Widget' matches these arguments"));
+     CHECK((ambiguous->Message() == "Constructor call for 'Widget' is ambiguous"));
      CHECK(ContainsMessage(*noMatch, "Candidate: Widget::Widget(int)"));
      CHECK(ContainsMessage(*ambiguous, "Candidate: Widget::Widget(int)"));
      CHECK(ContainsMessage(*inaccessible, "Candidate: Widget::Widget(int)"));
@@ -168,7 +170,7 @@ TEST_CASE("IR - Constructor overload diagnostic templates are shared", "[unit][i
 
 TEST_CASE("IR - Member overload diagnostics retain candidate detail trees", "[unit][ir][overload-resolution]")
 {
-     using namespace ecpps::ir::overload_diagnostics;
+     using namespace ecpps::ir::overloadDiagnostics;
      Candidate candidate{.signature = "Widget::pick(int)",
                          .source = Source,
                          .details = {CandidateDetail{.message = "Expected 1 argument, got 2", .source = Source}},
@@ -183,10 +185,10 @@ TEST_CASE("IR - Member overload diagnostics retain candidate detail trees", "[un
      auto diagnostic = NoMatchingOverload("Widget::pick", Source, {candidate}, {suggestion}, SimilarNamesKind::Members);
      auto selected = SelectedOverloadFailure(candidate.signature, Source, true, true, candidate);
 
-     CHECK(diagnostic->Message() == "No matching overload for call to 'Widget::pick'");
+     CHECK((diagnostic->Message() == "No matching overload for call to 'Widget::pick'"));
      REQUIRE((diagnostic->SubDiagnostics().size() == 2));
      CHECK(ContainsMessage(*diagnostic, "Candidate: Widget::pick(int)"));
      CHECK(ContainsMessage(*diagnostic, "Similar members"));
      CHECK(ContainsMessage(*diagnostic, "* Similar member 'picks'"));
-     CHECK(selected->Message() == "Selected overload 'Widget::pick(int)' is inaccessible and deleted");
+     CHECK((selected->Message() == "Selected overload 'Widget::pick(int)' is inaccessible and deleted"));
 }

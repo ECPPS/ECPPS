@@ -5,7 +5,7 @@
 namespace
 {
      [[nodiscard]] std::unique_ptr<ecpps::diagnostics::Information> MakeCandidateNote(
-          const ecpps::ir::overload_diagnostics::Candidate& candidate)
+          const ecpps::ir::overloadDiagnostics::Candidate& candidate)
      {
           auto note = std::make_unique<ecpps::diagnostics::Information>(
                "candidate", "Candidate: " + candidate.signature, candidate.source);
@@ -30,19 +30,18 @@ namespace
 
      template <typename TDiagnostic>
      void AppendCandidates(TDiagnostic& diagnostic,
-                           const std::vector<ecpps::ir::overload_diagnostics::Candidate>& candidates)
+                           const std::vector<ecpps::ir::overloadDiagnostics::Candidate>& candidates)
      {
           for (const auto& candidate : candidates) diagnostic.SubDiagnostics().push_back(MakeCandidateNote(candidate));
      }
 
      void AppendSimilarNames(ecpps::diagnostics::Error& diagnostic,
-                             const std::vector<ecpps::ir::overload_diagnostics::SimilarName>& similarNames,
-                             const ecpps::ir::overload_diagnostics::SimilarNamesKind kind,
-                             const ecpps::Location& source)
+                             const std::vector<ecpps::ir::overloadDiagnostics::SimilarName>& similarNames,
+                             const ecpps::ir::overloadDiagnostics::SimilarNamesKind kind, const ecpps::Location& source)
      {
           if (similarNames.empty()) return;
 
-          const bool members = kind == ecpps::ir::overload_diagnostics::SimilarNamesKind::Members;
+          const bool members = kind == ecpps::ir::overloadDiagnostics::SimilarNamesKind::Members;
           auto group = std::make_unique<ecpps::diagnostics::Information>(
                members ? "suggestions" : "note", members ? "Similar members" : "Did you mean:", source);
           for (std::size_t index = 0; index < similarNames.size(); index++)
@@ -74,9 +73,9 @@ namespace
      }
 } // namespace
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::NoMatchingOverload(
-     std::string name, const Location source, std::vector<Candidate> candidates, std::vector<SimilarName> similarNames,
-     const SimilarNamesKind similarNamesKind)
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+     const std::string& name, const Location source, const std::vector<Candidate>& candidates,
+     const std::vector<SimilarName>& similarNames, const SimilarNamesKind similarNamesKind)
 {
      auto diagnostic =
           std::make_unique<diagnostics::TypeError>(std::format("No matching overload for call to '{}'", name), source);
@@ -85,17 +84,17 @@ std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::
      return diagnostic;
 }
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::AmbiguousOverload(
-     std::string name, const Location source, std::vector<Candidate> candidates)
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+     const std::string& name, const Location source, const std::vector<Candidate>& candidates)
 {
      auto diagnostic = std::make_unique<diagnostics::TypeError>(std::format("Call to '{}' is ambiguous", name), source);
      AppendCandidates(*diagnostic, candidates);
      return diagnostic;
 }
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::SelectedOverloadFailure(
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
      std::string signature, const Location source, const bool inaccessible, const bool isDeleted,
-     std::optional<Candidate> candidate)
+     const std::optional<Candidate>& candidate)
 {
      std::string message = std::format("Selected overload '{}' is ", signature);
      if (inaccessible && isDeleted) message += "inaccessible and deleted";
@@ -109,8 +108,8 @@ std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::
      return diagnostic;
 }
 
-ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overload_diagnostics::UnresolvedFunction(
-     std::string name, const Location source, std::vector<SimilarName> similarNames)
+ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overloadDiagnostics::UnresolvedFunction(
+     const std::string& name, const Location source, const std::vector<SimilarName>& similarNames)
 {
      auto diagnostic =
           std::make_unique<diagnostics::UnresolvedSymbolError>(name, "Unresolved function " + name, source);
@@ -118,9 +117,9 @@ ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overload_diagnostics::Unresolv
      return diagnostic;
 }
 
-ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overload_diagnostics::MissingMember(
+ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overloadDiagnostics::MissingMember(
      std::string className, std::string memberName, const Location source,
-     const std::optional<Location> dataMemberSource, std::vector<SimilarName> similarNames)
+     const std::optional<Location> dataMemberSource, const std::vector<SimilarName>& similarNames)
 {
      const auto qualifiedName = className + "::" + memberName;
      if (dataMemberSource.has_value())
@@ -139,8 +138,8 @@ ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overload_diagnostics::MissingM
      return diagnostic;
 }
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::NoMatchingConstructor(
-     std::string className, const Location source, std::vector<Candidate> candidates)
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::NoMatchingConstructor(
+     std::string className, const Location source, const std::vector<Candidate>& candidates)
 {
      auto diagnostic = std::make_unique<diagnostics::TypeError>(
           std::format("No constructor of '{}' matches these arguments", className), source);
@@ -148,8 +147,8 @@ std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::
      return diagnostic;
 }
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::AmbiguousConstructor(
-     std::string className, const Location source, std::vector<Candidate> candidates)
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::AmbiguousConstructor(
+     std::string className, const Location source, const std::vector<Candidate>& candidates)
 {
      auto diagnostic = std::make_unique<diagnostics::TypeError>(
           std::format("Constructor call for '{}' is ambiguous", className), source);
@@ -157,8 +156,8 @@ std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::
      return diagnostic;
 }
 
-std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
-     std::string message, const Location source, Candidate candidate)
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+     std::string message, const Location source, const Candidate& candidate)
 {
      auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), source);
      diagnostic->SubDiagnostics().push_back(MakeCandidateNote(candidate));

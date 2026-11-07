@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <deque>
 #include <format>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <stdexcept>

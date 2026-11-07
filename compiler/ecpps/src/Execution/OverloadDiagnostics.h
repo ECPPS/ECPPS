@@ -8,7 +8,7 @@
 #include <vector>
 #include "Shared/Error.h"
 
-namespace ecpps::ir::overload_diagnostics
+namespace ecpps::ir::overloadDiagnostics
 {
      struct CandidateDetail
      {
@@ -43,26 +43,25 @@ namespace ecpps::ir::overload_diagnostics
           Members
      };
 
-     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingOverload(std::string name, Location source,
-                                                                              std::vector<Candidate> candidates,
-                                                                              std::vector<SimilarName> similarNames,
-                                                                              SimilarNamesKind similarNamesKind);
-     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousOverload(std::string name, Location source,
-                                                                             std::vector<Candidate> candidates = {});
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingOverload(
+          const std::string& name, Location source, const std::vector<Candidate>& candidates,
+          const std::vector<SimilarName>& similarNames, SimilarNamesKind similarNamesKind);
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousOverload(
+          const std::string& name, Location source, const std::vector<Candidate>& candidates = {});
      [[nodiscard]] std::unique_ptr<diagnostics::TypeError> SelectedOverloadFailure(
           std::string signature, Location source, bool inaccessible, bool isDeleted,
-          std::optional<Candidate> candidate = std::nullopt);
-     [[nodiscard]] diagnostics::DiagnosticsMessage UnresolvedFunction(std::string name, Location source,
-                                                                      std::vector<SimilarName> similarNames);
+          const std::optional<Candidate>& candidate = std::nullopt);
+     [[nodiscard]] diagnostics::DiagnosticsMessage UnresolvedFunction(const std::string& name, Location source,
+                                                                      const std::vector<SimilarName>& similarNames);
      [[nodiscard]] diagnostics::DiagnosticsMessage MissingMember(std::string className, std::string memberName,
                                                                  Location source,
                                                                  std::optional<Location> dataMemberSource,
-                                                                 std::vector<SimilarName> similarNames);
+                                                                 const std::vector<SimilarName>& similarNames);
      [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingConstructor(
-          std::string className, Location source, std::vector<Candidate> candidates = {});
-     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousConstructor(std::string className, Location source,
-                                                                                std::vector<Candidate> candidates = {});
+          std::string className, Location source, const std::vector<Candidate>& candidates = {});
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousConstructor(
+          std::string className, Location source, const std::vector<Candidate>& candidates = {});
      [[nodiscard]] std::unique_ptr<diagnostics::TypeError> SelectedConstructorFailure(std::string message,
                                                                                       Location source,
-                                                                                      Candidate candidate);
-} // namespace ecpps::ir::overload_diagnostics
+                                                                                      const Candidate& candidate);
+} // namespace ecpps::ir::overloadDiagnostics

@@ -94,7 +94,7 @@ namespace
           for (std::size_t index = 1; index < byteCount; index++)
           {
                const auto continuation = static_cast<unsigned char>(text[offset + index]);
-               if ((continuation & 0xc0) != 0x80) return {0xfffd, 1};
+               if ((continuation & 0xc0) != 0x80) return {.value = 0xfffd, .byteCount = 1};
                value = (value << 6) | (continuation & 0x3f);
           }
 
@@ -355,10 +355,10 @@ namespace
 
           const auto startByte = source.position - 1;
           const auto startColumn = line.DisplayColumn(startByte);
-          if (source.endPosition < source.position) return CaretRange{startColumn, 1};
+          if (source.endPosition < source.position) return CaretRange{.startColumn = startColumn, .width = 1};
 
           const auto endColumn = line.DisplayColumn(source.endPosition);
-          return CaretRange{startColumn, std::max<std::size_t>(1, endColumn - startColumn)};
+          return CaretRange{.startColumn = startColumn, .width = std::max<std::size_t>(1, endColumn - startColumn)};
      }
 
      [[nodiscard]] std::string_view TrimHorizontalWhitespace(const std::string_view line) noexcept
