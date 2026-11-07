@@ -15,7 +15,7 @@ using namespace ecpps;
 using namespace ecpps::ast;
 using namespace ecpps::ir;
 
-static ASTContext& TestASTContext(void)
+static ecpps::ast::ASTContext& TestASTContext(void)
 {
      static ASTContext context{};
      return context;

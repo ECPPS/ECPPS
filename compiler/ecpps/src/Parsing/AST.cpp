@@ -1451,8 +1451,7 @@ NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
                const InternedString name = context.Intern("~" + std::string(Peek().AsIdentifier().View()));
                source.endPosition = Peek().location.endPosition;
                Advance();
-               return std::unique_ptr<IdentifierNode, ASTDeleter>(new (context)
-                                                                       IdentifierNode(std::move(name), source));
+               return std::unique_ptr<IdentifierNode, ASTDeleter>(new (context) IdentifierNode(name, source));
           }
      }
 

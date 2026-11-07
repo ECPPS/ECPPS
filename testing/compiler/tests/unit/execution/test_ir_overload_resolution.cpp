@@ -103,9 +103,9 @@ TEST_CASE("IR - bounded Damerau-Levenshtein distance preserves in-range results"
                                   std::string_view{"aab"}, std::string_view{"aba"}, std::string_view{"abb"},
                                   std::string_view{"bba"}};
 
-     REQUIRE(LevenshteinDistance("ab", "ba", 1) == 1);
-     REQUIRE(LevenshteinDistance("A", "a", 0) == 0);
-     REQUIRE(LevenshteinDistance("abcd", "ab", 1) == 2);
+     REQUIRE((LevenshteinDistance("ab", "ba", 1) == 1));
+     REQUIRE((LevenshteinDistance("A", "a", 0) == 0));
+     REQUIRE((LevenshteinDistance("abcd", "ab", 1) == 2));
 
      for (const auto left : identifiers)
           for (const auto right : identifiers)
@@ -114,7 +114,7 @@ TEST_CASE("IR - bounded Damerau-Levenshtein distance preserves in-range results"
                for (std::size_t maximumDistance = 0; maximumDistance <= 3; maximumDistance++)
                {
                     const auto expected = exact > maximumDistance ? maximumDistance + 1 : exact;
-                    REQUIRE(LevenshteinDistance(left, right, maximumDistance) == expected);
+                    REQUIRE((LevenshteinDistance(left, right, maximumDistance) == expected));
                }
           }
 }

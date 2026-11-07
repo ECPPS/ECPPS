@@ -10,9 +10,9 @@
 using namespace TestHelpers;
 using namespace ecpps;
 
-static ASTContext& TestASTContext(void)
+static ast::ASTContext& TestASTContext(void)
 {
-     static ASTContext context{};
+     static ast::ASTContext context{};
      return context;
 }
 

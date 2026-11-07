@@ -26,17 +26,17 @@ namespace
           }
      };
 
-     ecpps::Token Keyword(std::string value)
+     ecpps::Token Keyword(const std::string& value)
      {
           return ecpps::Token{ecpps::TokenType::Keyword, TestStringPool().Intern(value), Source};
      }
 
-     ecpps::Token Identifier(std::string value)
+     ecpps::Token Identifier(const std::string& value)
      {
           return ecpps::Token{ecpps::TokenType::Identifier, TestStringPool().Intern(value), Source};
      }
 
-     ecpps::Token Operator(std::string value)
+     ecpps::Token Operator(const std::string& value)
      {
           return ecpps::Token{ecpps::TokenType::Operator, TestStringPool().Intern(value), Source};
      }
@@ -51,10 +51,10 @@ namespace
           return ecpps::Token{ecpps::TokenType::Literal, ecpps::IntegerLiteral{value}, Source};
      }
 
-     std::vector<ecpps::Token> ZeroArgumentFunction(std::string name, std::vector<ecpps::Token> expression)
+     std::vector<ecpps::Token> ZeroArgumentFunction(const std::string& name, std::vector<ecpps::Token> expression)
      {
           std::vector<ecpps::Token> tokens{Keyword("int"),
-                                           Identifier(std::move(name)),
+                                           Identifier(name),
                                            Punctuation(ecpps::TokenType::LeftParenthesis),
                                            Punctuation(ecpps::TokenType::RightParenthesis),
                                            Punctuation(ecpps::TokenType::LeftBrace),
