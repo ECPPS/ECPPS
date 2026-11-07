@@ -8,9 +8,15 @@
 
 using SignedSize = decltype(0z);
 
+static ecpps::StringPool& TestStringPool(void)
+{
+     static ecpps::StringPool pool{};
+     return pool;
+}
+
 TEST_CASE("Preprocessor - Identifiers", "[parsing][identifiers]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
 
      SECTION("Simple identifiers")
@@ -68,7 +74,7 @@ TEST_CASE("Preprocessor - Identifiers", "[parsing][identifiers]")
 
 TEST_CASE("Preprocessor - operator-or-punctuators", "[parsing][operators-or-punctuators]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
 
      SECTION("Arithmetic operators")
@@ -148,7 +154,7 @@ TEST_CASE("Preprocessor - operator-or-punctuators", "[parsing][operators-or-punc
 
 TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
      SECTION("Integer literals")
      {
@@ -233,7 +239,7 @@ TEST_CASE("Preprocessor - Literals", "[parsing][literals]")
 
 TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
      SECTION("Object-like macros")
      {
@@ -426,7 +432,7 @@ TEST_CASE("Preprocessor - Macros", "[parsing][macros]")
 
 TEST_CASE("Preprocessor - Invalid characters", "[parsing][invalid-chars]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
 
      SECTION("Outside ASCII")
@@ -438,7 +444,7 @@ TEST_CASE("Preprocessor - Invalid characters", "[parsing][invalid-chars]")
 
 TEST_CASE("Preprocessor - Comments", "[parsing][comments]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
      SECTION("Single-line comments")
      {
@@ -481,7 +487,7 @@ TEST_CASE("Preprocessor - Comments", "[parsing][comments]")
 
 TEST_CASE("Preprocessor - preprocessing directives", "[parsing][directives]")
 {
-     ecpps::Preprocessor preprocessor{};
+     ecpps::Preprocessor preprocessor{TestStringPool()};
      std::vector<ecpps::MacroReplacement> macros{};
      macros.emplace_back("DEFINED_MACRO", std::nullopt, "1", false);
 

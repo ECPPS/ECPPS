@@ -1,11 +1,11 @@
 #pragma once
 
-#include <Shared/BumpAllocator.h>
+#include "StringPool.h"
 
 namespace ecpps::ast
 {
-     struct ASTContext : BumpAllocator
+     struct ASTContext : StringPool
      {
-          using BumpAllocator::BumpAllocator;
+          using StringPool::StringPool;
      };
 } // namespace ecpps::ast

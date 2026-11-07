@@ -464,7 +464,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          }
 
                          location.endPosition = location.position;
-                         tokens.emplace_back(PreprocessingTokenType::StringLiteral, rawContent, location);
+                         tokens.emplace_back(PreprocessingTokenType::StringLiteral,
+                                             this->_stringPool.Intern(rawContent), location);
                     }
                     else
                     {
@@ -472,7 +473,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          location.endPosition = location.position;
                          tokens.emplace_back(isChar ? PreprocessingTokenType::CharacterLiteral
                                                     : PreprocessingTokenType::StringLiteral,
-                                             literal, location);
+                                             this->_stringPool.Intern(literal), location);
                     }
                }
                else
@@ -534,21 +535,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                    for (const auto& rawArg : rawArgs)
                                    {
                                         std::vector<MacroReplacement> macrosCopy = macros;
-                                        arguments.push_back(Preprocessor::Parse(rawArg, macrosCopy, ""));
+                                        arguments.push_back(
+                                             Preprocessor{this->_stringPool}.Parse(rawArg, macrosCopy, ""));
                                    }
 
-                                   auto expandedTokens = it->ProcessFunctionLike(arguments, rawArgs, location, macros);
+                                   auto expandedTokens = it->ProcessFunctionLike(arguments, rawArgs, location, macros,
+                                                                                 this->_stringPool);
                                    tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
                               }
                          }
                          else
                          {
-                              auto expandedTokens = it->ProcessObjectLike(location, macros);
+                              auto expandedTokens = it->ProcessObjectLike(location, macros, this->_stringPool);
                               tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
                          }
                     }
                     else
-                         tokens.emplace_back(PreprocessingTokenType::Identifier, identifier, location);
+                         tokens.emplace_back(PreprocessingTokenType::Identifier, this->_stringPool.Intern(identifier),
+                                             location);
                }
                location.position += identifier.size() - 1;
           }
@@ -601,7 +605,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
 
                location.endPosition = location.position;
-               tokens.emplace_back(PreprocessingTokenType::Number, numeric, location);
+               tokens.emplace_back(PreprocessingTokenType::Number, this->_stringPool.Intern(numeric), location);
           }
           else if (character == '"' || character == '\'')
           {
@@ -614,7 +618,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
 
                tokens.emplace_back(isChar ? PreprocessingTokenType::CharacterLiteral
                                           : PreprocessingTokenType::StringLiteral,
-                                   literal, location);
+                                   this->_stringPool.Intern(literal), location);
           }
           else if (character == '/' && std::next(sourceIterator) != source.end() && *std::next(sourceIterator) == '/')
           {
@@ -690,7 +694,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
 
                location.endPosition = location.position;
-               tokens.emplace_back(PreprocessingTokenType::StringLiteral, literal, location);
+               tokens.emplace_back(PreprocessingTokenType::StringLiteral, this->_stringPool.Intern(literal), location);
           }
           else if (character == '#') // preprocessing
           {
@@ -706,7 +710,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                }
 
                location.endPosition = location.position;
-               tokens.emplace_back(PreprocessingTokenType::OperatorOrPunctuator, operatorOrPunctuator, location);
+               tokens.emplace_back(PreprocessingTokenType::OperatorOrPunctuator,
+                                   this->_stringPool.Intern(operatorOrPunctuator), location);
           }
           else
           {
@@ -773,7 +778,7 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 
           const auto spaces = position > currentColumn ? position - currentColumn : 0;
           if (spaces != 0) std::print("{}", std::string(spaces, ' '));
-          std::print("{}{}{}", colourFor(token.type), token.value, Reset);
+          std::print("{}{}{}", colourFor(token.type), token.value.View(), Reset);
 
           currentColumn = std::max(currentColumn, position + token.value.size());
      }
@@ -898,11 +903,12 @@ static std::string ExpandMacroString(const std::string& contents,
 
 static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::string& expanded,
                                                                     const ecpps::Location& location,
-                                                                    const std::vector<ecpps::MacroReplacement>& macros)
+                                                                    const std::vector<ecpps::MacroReplacement>& macros,
+                                                                    ecpps::StringPool& stringPool)
 {
      std::vector<ecpps::MacroReplacement> macrosCopy = macros;
      std::set<std::filesystem::path> includedFiles;
-     auto tokens = ecpps::Preprocessor{}.Parse(expanded, macrosCopy, "", includedFiles);
+     auto tokens = ecpps::Preprocessor{stringPool}.Parse(expanded, macrosCopy, "", includedFiles);
      for (std::size_t i = 0; i < tokens.size(); i++)
      {
           tokens[i].source.line = location.line;
@@ -913,14 +919,14 @@ static std::vector<ecpps::PreprocessingToken> TokeniseExpandedMacro(const std::s
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessObjectLike(
-     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros, StringPool& stringPool) const
 {
-     return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}), location, macros);
+     return TokeniseExpandedMacro(ExpandMacroString(contents, {}, {}), location, macros, stringPool);
 }
 
 std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionLike(
      const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-     const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const
+     const Location& location, const std::vector<ecpps::MacroReplacement>& macros, StringPool& stringPool) const
 {
      std::unordered_map<std::string, std::string> parameterMap;
      std::unordered_map<std::string, std::string> rawParameterMap;
@@ -962,13 +968,13 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                if (i < arguments.size())
                {
                     std::vector<MacroReplacement> macrosCopy = macros;
-                    auto expanded = Preprocessor{}.Parse(rawParameterMap[parameterName], macrosCopy, "");
+                    auto expanded = Preprocessor{stringPool}.Parse(rawParameterMap[parameterName], macrosCopy, "");
 
                     std::string joined;
                     for (std::size_t t = 0; t < expanded.size(); ++t)
                     {
                          if (t > 0) joined += ' ';
-                         joined += expanded[t].value;
+                         joined += expanded[t].value.View();
                     }
                     parameterMap[parameterName] = std::move(joined);
                }
@@ -989,5 +995,5 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
      }
 
      auto expandedString = ExpandMacroString(contents, parameterMap, rawParameterMap);
-     return TokeniseExpandedMacro(expandedString, location, macros);
+     return TokeniseExpandedMacro(expandedString, location, macros, stringPool);
 }

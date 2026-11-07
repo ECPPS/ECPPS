@@ -5,20 +5,20 @@ namespace ecpps::ast
      class IdentifierNode final : public Node
      {
      public:
-          explicit IdentifierNode(std::string value, Location where) : Node(where), _value(std::move(value))
+          explicit IdentifierNode(InternedString value, Location where) : Node(where), _value(std::move(value))
           {
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept
+          [[nodiscard]] InternedString Value(void) const noexcept
           {
                return this->_value;
           }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + this->_value;
+               return std::string(indent * PrettyIndent, ' ') + std::string(this->_value.View());
           }
 
      private:
-          std::string _value;
+          InternedString _value;
      };
 
      class OperatorFunctionId final : Node

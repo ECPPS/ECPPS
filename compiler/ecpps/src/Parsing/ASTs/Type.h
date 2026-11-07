@@ -86,7 +86,7 @@ namespace ecpps::ast
      class BasicType final : public Node
      {
      public:
-          explicit BasicType(std::string name, Location source, const bool isConst, const bool isVolatile)
+          explicit BasicType(InternedString name, Location source, const bool isConst, const bool isVolatile)
               : Node(source), _name(std::move(name)), _isConst(isConst), _isVolatile(isVolatile)
           {
           }
@@ -96,9 +96,9 @@ namespace ecpps::ast
                std::string cv{};
                if (this->_isConst) cv += "const ";
                if (this->_isVolatile) cv += "volatile ";
-               return std::string(indent * PrettyIndent, ' ') + cv + this->_name;
+               return std::string(indent * PrettyIndent, ' ') + cv + std::string(this->_name.View());
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept
+          [[nodiscard]] InternedString Value(void) const noexcept
           {
                return this->_name;
           }
@@ -120,7 +120,7 @@ namespace ecpps::ast
           }
 
      private:
-          std::string _name;
+          InternedString _name;
           bool _isConst;
           bool _isVolatile;
      };
@@ -140,7 +140,7 @@ namespace ecpps::ast
      class ClassType : public Node
      {
      public:
-          explicit ClassType(std::string name, ClassKey key, const bool isConst, const bool isVolatile,
+          explicit ClassType(InternedString name, ClassKey key, const bool isConst, const bool isVolatile,
                              Location source) // TODO: attributes
               : Node(source), _name(std::move(name)), _key(key), _isConst(isConst), _isVolatile(isVolatile)
           {
@@ -158,9 +158,9 @@ namespace ecpps::ast
                case ClassKey::Struct: keyStr = "struct "; break;
                case ClassKey::Union: keyStr = "union "; break;
                }
-               return std::string(indent * PrettyIndent, ' ') + cv + keyStr + this->_name;
+               return std::string(indent * PrettyIndent, ' ') + cv + keyStr + std::string(this->_name.View());
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept
+          [[nodiscard]] InternedString Value(void) const noexcept
           {
                return this->_name;
           }
@@ -186,7 +186,7 @@ namespace ecpps::ast
           }
 
      private:
-          std::string _name;
+          InternedString _name;
           ClassKey _key;
           bool _isConst;
           bool _isVolatile;
@@ -223,7 +223,7 @@ namespace ecpps::ast
      class ClassDefNode : public ClassType
      {
      public:
-          explicit ClassDefNode(std::string name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
+          explicit ClassDefNode(InternedString name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
                                 const bool isConst, const bool isVolatile,
                                 Location source) // TODO: base classes, final & attributes
               : ClassType(std::move(name), key, isConst, isVolatile, source),

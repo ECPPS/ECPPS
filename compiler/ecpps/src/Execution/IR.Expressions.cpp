@@ -1224,7 +1224,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           {
                if (function->Name() == memberName->Value() || function->memberClassInfo == nullptr) continue;
                const auto functionName = function->Name().value_or("__unknown");
-               const auto distance = LevenshteinDistance(memberName->Value(), functionName);
+               const auto distance = LevenshteinDistance(memberName->Value().View(), functionName, maximumDistance);
                if (distance == 0 || distance > maximumDistance) continue;
 
                auto suggestion = std::ranges::find(suggestions, functionName, &OverloadSimilarName::name);
@@ -1248,7 +1248,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           for (const auto& field : classType->Info().fields)
           {
                if (field.name.empty() || field.name == memberName->Value()) continue;
-               const auto distance = LevenshteinDistance(memberName->Value(), field.name);
+               const auto distance = LevenshteinDistance(memberName->Value().View(), field.name, maximumDistance);
                if (distance == 0 || distance > maximumDistance) continue;
 
                auto suggestion = std::ranges::find(suggestions, field.name, &OverloadSimilarName::name);
@@ -1281,13 +1281,14 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           auto similarMembers = collectSimilarMembers();
           if (sameNameCandidates.empty())
           {
-               const auto dataMember =
-                    std::ranges::find(classType->Info().fields, memberName->Value(), &typeSystem::ClassField::name);
+               const auto dataMember = std::ranges::find(classType->Info().fields, memberName->Value().View(),
+                                                         &typeSystem::ClassField::name);
                std::optional<Location> dataMemberSource{};
                if (dataMember != classType->Info().fields.end()) dataMemberSource = dataMember->source;
-               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::MissingMember(
-                                                               classType->Info().DisplayName(), memberName->Value(),
-                                                               memberName->Source(), dataMemberSource, similarMembers));
+               DiagnosticSink::Report(this->GetContext(),
+                                      ecpps::ir::overloadDiagnostics::MissingMember(
+                                           classType->Info().DisplayName(), memberName->Value().Copy(),
+                                           memberName->Source(), dataMemberSource, similarMembers));
           }
           else
           {
@@ -1297,7 +1298,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                     candidateDiagnostics.push_back(makeCandidateDiagnostic(candidate, true, true, nullptr));
                DiagnosticSink::Report(this->GetContext(),
                                       ecpps::ir::overloadDiagnostics::NoMatchingOverload(
-                                           classType->Info().DisplayName() + "::" + memberName->Value(),
+                                           classType->Info().DisplayName() + "::" + memberName->Value().Copy(),
                                            memberName->Source(), candidateDiagnostics, similarMembers,
                                            SimilarNamesKind::Members));
           }
@@ -1320,9 +1321,10 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           candidateDiagnostics.reserve(tiedBestCandidates.size());
           for (const auto& tiedCandidate : tiedBestCandidates)
                candidateDiagnostics.push_back(makeCandidateDiagnostic(tiedCandidate, false, false, nullptr));
-          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
-                                                          classType->Info().DisplayName() + "::" + memberName->Value(),
-                                                          memberName->Source(), candidateDiagnostics));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+                                      classType->Info().DisplayName() + "::" + memberName->Value().Copy(),
+                                      memberName->Source(), candidateDiagnostics));
           return nullptr;
      }
 
@@ -1383,7 +1385,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           {
                auto* part = dynamic_cast<ast::IdentifierNode*>(parts[i].get());
                if (!part) return nullptr;
-               qualifiers.push_back(part->Value());
+               qualifiers.emplace_back(part->Value().View());
           }
           if (isFromGlobalNamespace && parts.size() == 1)
           {
@@ -1407,7 +1409,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           return nullptr;
      }
 
-     const std::string& name = identifierFunction->Value();
+     const std::string name{identifierFunction->Value().View()};
      using FunctionCandidate = CompareByPriority::Candidate;
      std::priority_queue<FunctionCandidate, std::vector<FunctionCandidate>, CompareByPriority> candidates{};
 
@@ -1681,7 +1683,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                     if (function == nullptr || !function->Name().has_value()) continue;
                     const auto& functionName = *function->Name();
                     if (functionName == name) continue;
-                    const auto distance = LevenshteinDistance(name, functionName);
+                    const auto distance = LevenshteinDistance(name, functionName, maximumDistance);
                     if (distance == 0 || distance > maximumDistance) continue;
 
                     auto suggestion = std::ranges::find(similarNames, functionName, &OverloadSimilarName::name);
@@ -1799,7 +1801,8 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
      if (auto* basicTypeNode = dynamic_cast<ast::BasicType*>(expression.Value().get()); basicTypeNode != nullptr)
      {
           const auto& identifierName = basicTypeNode->ToString(0);
-          ast::IdentifierNode identifierNode{identifierName, basicTypeNode->Source()};
+          ast::IdentifierNode identifierNode{basicTypeNode->Value().Pool().Intern(identifierName),
+                                             basicTypeNode->Source()};
           operand = ParseIdExpression(identifierNode);
      }
      else
@@ -1859,7 +1862,8 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
      if (auto* basicTypeNode = dynamic_cast<ast::BasicType*>(expression.Value().get()); basicTypeNode != nullptr)
      {
           const auto& identifierName = basicTypeNode->ToString(0);
-          ast::IdentifierNode identifierNode{identifierName, basicTypeNode->Source()};
+          ast::IdentifierNode identifierNode{basicTypeNode->Value().Pool().Intern(identifierName),
+                                             basicTypeNode->Source()};
           operand = ParseIdExpression(identifierNode);
      }
      else
@@ -1916,7 +1920,7 @@ Expression ecpps::ir::IR::ParseThisExpression(const Location& source)
 
 Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expression)
 {
-     const std::string& name = expression.Value();
+     const std::string name{expression.Value().View()};
 
      if (name == "this") return this->ParseThisExpression(expression.Source());
 

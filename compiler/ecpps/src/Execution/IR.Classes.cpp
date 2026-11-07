@@ -99,28 +99,30 @@ void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::DeclareClassInScope(Scope& scope, const ast::ClassType& node)
 {
+     const std::string name{node.Value().View()};
      typeSystem::ClassDeclaration declaration{};
      declaration.kind = ToClassKind(node.Key());
-     declaration.name = node.Value();
+     declaration.name = name;
      declaration.enclosingPath = EnclosingPathUpTo(scope);
      declaration.isLocal = dynamic_cast<const FunctionScope*>(&scope) != nullptr;
      declaration.source = node.Source();
 
      const auto id = GetTypeContext().DeclareClass(std::move(declaration));
-     if (!node.Value().empty()) scope.classes.emplace(node.Value(), id);
+     if (!name.empty()) scope.classes.emplace(name, id);
      return id;
 }
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::ClassType& node)
 {
-     if (node.Value().empty())
+     const std::string name{node.Value().View()};
+     if (name.empty())
      {
           DiagnosticSink::Report(this->GetContext(),
                                  diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                                       "An elaborated type specifier requires a class name", node.Source()));
           return typeSystem::InvalidClassId;
      }
-     if (const auto found = LookupClassForElaboration(node.Value(), node.Source()); found.has_value())
+     if (const auto found = LookupClassForElaboration(name, node.Source()); found.has_value())
      {
           if (*found != typeSystem::InvalidClassId) CheckClassKey(GetTypeContext().Class(*found), node);
           return *found;
@@ -131,11 +133,12 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::Clas
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& node)
 {
+     const std::string name{node.Value().View()};
      auto& types = GetTypeContext();
      auto& scope = this->GetContext().contextSequence.back()->GetScope();
 
      typeSystem::ClassId id{};
-     if (const auto it = scope.classes.find(node.Value()); !node.Value().empty() && it != scope.classes.end())
+     if (const auto it = scope.classes.find(name); !name.empty() && it != scope.classes.end())
      {
           id = it->second;
           CheckClassKey(types.Class(id), node);
@@ -154,10 +157,10 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
      types.BeginDefinition(id);
 
      auto classScope = std::make_unique<ClassScope>();
-     classScope->name = node.Value();
+     classScope->name = name;
      classScope->id = id;
      classScope->parentScope = &scope;
-     if (!node.Value().empty()) classScope->classes.emplace(node.Value(), id); // injected-class-name
+     if (!name.empty()) classScope->classes.emplace(name, id); // injected-class-name
      auto* rawScope = classScope.get();
      scope.classScopes.push_back(std::move(classScope));
      this->GetContext().classTable->classes[id].scope = rawScope;
@@ -227,7 +230,8 @@ void ecpps::ir::IR::ParseClassNode(const ast::ClassType& node)
                                                           "A class declaration requires a name", node.Source()));
           return;
      }
-     if (const auto it = scope.classes.find(node.Value()); it != scope.classes.end())
+     const std::string name{node.Value().View()};
+     if (const auto it = scope.classes.find(name); it != scope.classes.end())
      {
           CheckClassKey(GetTypeContext().Class(it->second), node);
           return;
@@ -264,7 +268,7 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
      }
 
      ParseClassNode(nested);
-     classScope.memberAccess[nested.Value()] = access;
+     classScope.memberAccess[std::string(nested.Value().View())] = access;
 }
 
 void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::ClassId id,
@@ -427,7 +431,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
      }
      if (const auto* definition = dynamic_cast<const ast::ClassDefNode*>(classSpecifier);
          definition != nullptr && !definition->Value().empty())
-          classScope.memberAccess[definition->Value()] = access;
+          classScope.memberAccess[std::string(definition->Value().View())] = access;
 
      for (const auto& declarator : node.Declarators())
      {
@@ -437,7 +441,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                report("Expected an unqualified identifier in member declarator", node.Source());
                continue;
           }
-          const std::string& name = identifier->Value();
+          const std::string name{identifier->Value().View()};
 
           if (!specifiers.isTypedef && LastDerivation(declarator) == Derivation::Function)
           {

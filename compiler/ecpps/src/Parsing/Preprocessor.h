@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include "../Shared/Error.h"
+#include "StringPool.h"
 
 namespace ecpps
 {
@@ -22,10 +23,10 @@ namespace ecpps
      struct PreprocessingToken
      {
           PreprocessingTokenType type;
-          std::string value;
+          InternedString value;
           Location source;
 
-          explicit PreprocessingToken(const PreprocessingTokenType type, std::string value, const Location source)
+          explicit PreprocessingToken(const PreprocessingTokenType type, InternedString value, const Location source)
               : type(type), value(std::move(value)), source(source)
           {
           }
@@ -49,10 +50,12 @@ namespace ecpps
           }
 
           [[nodiscard]] std::vector<PreprocessingToken> ProcessObjectLike(
-               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros,
+               StringPool& stringPool) const;
           [[nodiscard]] std::vector<PreprocessingToken> ProcessFunctionLike(
                const std::vector<std::vector<PreprocessingToken>>& arguments, const std::vector<std::string>& rawArgs,
-               const Location& location, const std::vector<ecpps::MacroReplacement>& macros) const;
+               const Location& location, const std::vector<ecpps::MacroReplacement>& macros,
+               StringPool& stringPool) const;
 
           explicit MacroReplacement(std::string name, std::optional<std::vector<std::string>> parameters,
                                     std::string contents, const bool isVariadic)
@@ -65,6 +68,10 @@ namespace ecpps
      class Preprocessor
      {
      public:
+          explicit Preprocessor(StringPool& stringPool) : _stringPool(stringPool)
+          {
+          }
+
           [[nodiscard]] std::vector<PreprocessingToken> Parse(const std::string& source,
                                                               std::vector<MacroReplacement>& macros,
                                                               const std::string& fileName,
@@ -84,6 +91,8 @@ namespace ecpps
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
      private:
+          StringPool& _stringPool;
+
           static bool IsDigit(const char ch)
           {
                return std::isdigit(ch) != 0;

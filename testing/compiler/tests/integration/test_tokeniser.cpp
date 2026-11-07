@@ -7,6 +7,12 @@
 #include <string>
 #include <vector>
 
+static ecpps::StringPool& TestStringPool(void)
+{
+     static ecpps::StringPool pool{};
+     return pool;
+}
+
 TEST_CASE("Simpe programs", "[integration][tokeniser]")
 {
      std::vector<ecpps::MacroReplacement> macros;
@@ -19,7 +25,8 @@ TEST_CASE("Simpe programs", "[integration][tokeniser]")
 			 return 0;
 		  }
 	   )";
-          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{}.Parse(source, macros, ""));
+          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{TestStringPool()}.Parse(source, macros, ""),
+                                                   TestStringPool());
           REQUIRE(tokens.size() == 9);
           REQUIRE(tokens[0].AsKeyword() == "int");
           REQUIRE(tokens[1].AsIdentifier() == "main");
@@ -39,7 +46,8 @@ TEST_CASE("Simpe programs", "[integration][tokeniser]")
 			 return a + b;
 		  }
 	   )";
-          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{}.Parse(source, macros, ""));
+          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{TestStringPool()}.Parse(source, macros, ""),
+                                                   TestStringPool());
           REQUIRE(tokens.size() == 16);
           REQUIRE(tokens[0].AsKeyword() == "int");
           REQUIRE(tokens[1].AsIdentifier() == "add");
@@ -72,7 +80,8 @@ int CircleArea(float radius)
 	return PI * radius * radius;
 }
 	   )";
-          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{}.Parse(source, macros, ""));
+          auto tokens = ecpps::Tokeniser::Tokenise(ecpps::Preprocessor{TestStringPool()}.Parse(source, macros, ""),
+                                                   TestStringPool());
           REQUIRE(tokens.size() == 15);
           REQUIRE(tokens[0].AsKeyword() == "int");
           REQUIRE(tokens[1].AsIdentifier() == "CircleArea");

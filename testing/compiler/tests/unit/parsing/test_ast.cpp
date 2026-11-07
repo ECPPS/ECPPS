@@ -1,3 +1,4 @@
+// NOLINTBEGIN
 #define CATCH_CONFIG_MAIN
 #include <Parsing/AST.h>
 #include <Parsing/ASTs/General.h>
@@ -7,6 +8,12 @@
 namespace
 {
      const ecpps::Location Source{0, 0, 0};
+
+     ecpps::StringPool& TestStringPool(void)
+     {
+          static ecpps::StringPool pool{64uz * 1024};
+          return pool;
+     }
 
      class Fixture
      {
@@ -20,19 +27,19 @@ namespace
           }
      };
 
-     ecpps::Token Keyword(std::string value)
+     ecpps::Token Keyword(const std::string& value)
      {
-          return ecpps::Token{ecpps::TokenType::Keyword, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Keyword, TestStringPool().Intern(value), Source};
      }
 
-     ecpps::Token Identifier(std::string value)
+     ecpps::Token Identifier(const std::string& value)
      {
-          return ecpps::Token{ecpps::TokenType::Identifier, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Identifier, TestStringPool().Intern(value), Source};
      }
 
-     ecpps::Token Operator(std::string value)
+     ecpps::Token Operator(const std::string& value)
      {
-          return ecpps::Token{ecpps::TokenType::Operator, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Operator, TestStringPool().Intern(value), Source};
      }
 
      ecpps::Token Punctuation(const ecpps::TokenType type)
@@ -45,10 +52,10 @@ namespace
           return ecpps::Token{ecpps::TokenType::Literal, ecpps::IntegerLiteral{value}, Source};
      }
 
-     std::vector<ecpps::Token> ZeroArgumentFunction(std::string name, std::vector<ecpps::Token> expression)
+     std::vector<ecpps::Token> ZeroArgumentFunction(const std::string& name, std::vector<ecpps::Token> expression)
      {
           std::vector<ecpps::Token> tokens{Keyword("int"),
-                                           Identifier(std::move(name)),
+                                           Identifier(name),
                                            Punctuation(ecpps::TokenType::LeftParenthesis),
                                            Punctuation(ecpps::TokenType::RightParenthesis),
                                            Punctuation(ecpps::TokenType::LeftBrace),
@@ -411,3 +418,4 @@ TEST_CASE("AST - Out-of-class defaulted constructors preserve their body kind", 
      CHECK(function->ToString(0).ends_with("= default;"));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
+// NOLINTEND

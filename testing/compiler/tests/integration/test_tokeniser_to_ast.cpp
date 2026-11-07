@@ -15,12 +15,18 @@ using namespace ecpps;
 using namespace ecpps::ast;
 using namespace ecpps::ir;
 
+static ecpps::ast::ASTContext& TestASTContext(void)
+{
+     static ASTContext context{};
+     return context;
+}
+
 // Helper function to preprocess and tokenise source code
 static std::vector<Token> TokeniseSource(const std::string& source)
 {
      std::vector<MacroReplacement> macros;
-     auto ppTokens = Preprocessor{}.Parse(source, macros, "");
-     return Tokeniser::Tokenise(ppTokens);
+     auto ppTokens = Preprocessor{TestASTContext()}.Parse(source, macros, "");
+     return Tokeniser::Tokenise(ppTokens, TestASTContext());
 }
 
 TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
@@ -37,8 +43,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
 
           // Step 2: Parse to AST
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
           INFO("Parsed AST");
           REQUIRE(!ast.empty());
@@ -52,8 +57,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
           REQUIRE(!tokens.empty());
 
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
           REQUIRE((!ast.empty()));
           INFO("Successfully parsed arithmetic expression");
@@ -67,8 +71,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
      //      REQUIRE(!tokens.empty());
 
      //      Diagnostics diagnostics;
-     //      ASTContext astContext;
-     //      auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+     //      auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
      //      REQUIRE((!ast.empty()));
      //      INFO("Successfully parsed control flow");
@@ -87,8 +90,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           // Parse to AST
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
           REQUIRE((!ast.empty()));
 
           // Generate IR
@@ -106,8 +108,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
           auto tokens = TokeniseSource(std::string{source});
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
           BumpAllocator irAllocator(64uz * 1024);
 
@@ -170,8 +171,7 @@ TEST_CASE("Integration - Compound assignment operators", "[integration][assignme
 
      auto tokens = TokeniseSource(source);
      Diagnostics diagnostics;
-     ASTContext astContext;
-     auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+     auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
      REQUIRE((!ast.empty()));
 
      BumpAllocator irAllocator(64uz * 1024);
@@ -196,7 +196,7 @@ TEST_CASE("Integration - Preprocessor and tokeniser", "[integration][preprocesso
 
           // Preprocess
           std::vector<ecpps::MacroReplacement> macros{};
-          auto preprocessingTokens = Preprocessor{}.Parse(std::string{sourceWithMacro}, macros, "");
+          auto preprocessingTokens = Preprocessor{TestASTContext()}.Parse(std::string{sourceWithMacro}, macros, "");
           REQUIRE(!preprocessingTokens.empty());
 
           // Then tokenise the preprocessed output
@@ -219,8 +219,7 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
           auto tokens = TokeniseSource(invalidCode);
 
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
           // Should have generated diagnostic messages
           INFO("Error handling in pipeline");
@@ -238,8 +237,7 @@ TEST_CASE("Integration - Error propagation through pipeline", "[integration][err
 
           auto tokens = TokeniseSource(type_error_code);
           Diagnostics diagnostics;
-          ASTContext astContext;
-          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(astContext);
+          auto ast = ecpps::ast::AST{tokens, diagnostics}.Parse(TestASTContext());
 
           if (!ast.empty())
           {

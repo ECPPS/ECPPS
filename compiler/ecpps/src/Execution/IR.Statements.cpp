@@ -135,16 +135,16 @@ void ecpps::ir::IR::ParseLabelNode(const ast::LabelNode& node)
 {
      auto& allocator = *this->GetContext().nodeAllocator;
 
-     this->_built.push_back(
-          std::unique_ptr<SSALabelNode, IRDeleter>{new (allocator) SSALabelNode(node.Name(), node.Source())});
+     this->_built.push_back(std::unique_ptr<SSALabelNode, IRDeleter>{
+          new (allocator) SSALabelNode(std::string(node.Name().View()), node.Source())});
 }
 
 void ecpps::ir::IR::ParseGotoNode(const ast::GotoNode& node)
 {
      auto& allocator = *this->GetContext().nodeAllocator;
 
-     this->_built.push_back(
-          std::unique_ptr<SSAGotoNode, IRDeleter>{new (allocator) SSAGotoNode(node.Name(), node.Source())});
+     this->_built.push_back(std::unique_ptr<SSAGotoNode, IRDeleter>{
+          new (allocator) SSAGotoNode(std::string(node.Name().View()), node.Source())});
 }
 
 void ecpps::ir::IR::ParseBreakNode(const ast::BreakNode& node)

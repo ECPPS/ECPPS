@@ -105,8 +105,9 @@ namespace
           members.push_back(MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
                std::move(fieldSpecifiers), std::move(fields), Source));
-          return MakeASTNode<ecpps::ast::ClassDefNode>(fixture.astAllocator, className, ecpps::ast::ClassKey::Struct,
-                                                       std::move(members), false, false, Source);
+          return MakeASTNode<ecpps::ast::ClassDefNode>(fixture.astAllocator, fixture.astAllocator.Intern(className),
+                                                       ecpps::ast::ClassKey::Struct, std::move(members), false, false,
+                                                       Source);
      }
 
      ecpps::ast::NodePointer MakeConstructorClass(Fixture& fixture, const std::string& className,
@@ -285,8 +286,8 @@ TEST_CASE("IR - Designated aggregate initialisation targets the named field", "[
           fixture.MakeStructDefinition("PairForDesignatedInitialization", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
-                                                                               fixture.MakeIntegerLiteral(9), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("second"), fixture.MakeIntegerLiteral(9), Source));
      auto initialiser =
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
@@ -318,10 +319,10 @@ TEST_CASE("IR - Designated aggregate initialisers must follow member order", "[u
           fixture.MakeStructDefinition("PairWithOutOfOrderDesignators", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
-                                                                               fixture.MakeIntegerLiteral(9), Source));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
-                                                                               fixture.MakeIntegerLiteral(5), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("second"), fixture.MakeIntegerLiteral(9), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("first"), fixture.MakeIntegerLiteral(5), Source));
      auto initialiser =
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
@@ -348,8 +349,8 @@ TEST_CASE("IR - Unknown designated aggregate members are diagnosed", "[unit][ir]
      ast.push_back(fixture.MakeStructDefinition("PairWithUnknownDesignator", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "missing",
-                                                                               fixture.MakeIntegerLiteral(7), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("missing"), fixture.MakeIntegerLiteral(7), Source));
      auto initialiser =
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
@@ -370,10 +371,10 @@ TEST_CASE("IR - Duplicate designated aggregate members are diagnosed", "[unit][i
      ast.push_back(fixture.MakeStructDefinition("PairWithDuplicateDesignator", {{"int", "first"}, {"int", "second"}}));
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
-                                                                               fixture.MakeIntegerLiteral(5), Source));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "first",
-                                                                               fixture.MakeIntegerLiteral(9), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("first"), fixture.MakeIntegerLiteral(5), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("first"), fixture.MakeIntegerLiteral(9), Source));
      auto initialiser =
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 
@@ -395,8 +396,8 @@ TEST_CASE("IR - Positional and designated aggregate initialisers cannot be mixed
 
      std::vector<ecpps::ast::NodePointer> initialisers{};
      initialisers.push_back(fixture.MakeIntegerLiteral(5));
-     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(fixture.astAllocator, "second",
-                                                                               fixture.MakeIntegerLiteral(9), Source));
+     initialisers.push_back(MakeASTNode<ecpps::ast::DesignatedInitialiserNode>(
+          fixture.astAllocator, fixture.astAllocator.Intern("second"), fixture.MakeIntegerLiteral(9), Source));
      auto initialiser =
           MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(initialisers), Source);
 

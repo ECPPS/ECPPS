@@ -23,7 +23,9 @@ namespace ecpps::ir::detail
      [[nodiscard]] std::size_t ConversionCost(typeSystem::ConversionSequence::ConversionKind kind) noexcept;
      [[nodiscard]] std::string FormatFunctionSignature(const std::shared_ptr<FunctionScope>& func);
      [[nodiscard]] bool IsIndirectLValue(const Expression& expression);
-     [[nodiscard]] std::size_t LevenshteinDistance(const std::string& string1, const std::string& string2);
+     // Scores above the caller's cutoff return cutoff + 1.
+     [[nodiscard]] std::size_t LevenshteinDistance(std::string_view string1, std::string_view string2,
+                                                   std::size_t maximumDistance);
      [[nodiscard]] std::uint64_t ConvertConstant(std::uint64_t value, const typeSystem::IntegralType* from,
                                                  const typeSystem::IntegralType* to);
      [[nodiscard]] std::vector<std::shared_ptr<FunctionScope>> CollectExactMatches(const std::string&,
