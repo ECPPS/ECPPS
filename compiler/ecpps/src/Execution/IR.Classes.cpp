@@ -51,6 +51,31 @@ using ecpps::ir::detail::QualifiersFrom;
 using ecpps::ir::detail::ToAccess;
 using ecpps::ir::detail::ToClassKind;
 
+namespace
+{
+     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     {
+          switch (access)
+          {
+          case ecpps::typeSystem::Access::Public: return "public";
+          case ecpps::typeSystem::Access::Protected: return "protected";
+          case ecpps::typeSystem::Access::Private: return "private";
+          }
+          return "inaccessible";
+     }
+
+     [[nodiscard]] ecpps::ir::overload_diagnostics::Candidate ConstructorCandidateDiagnostic(
+          const ecpps::ir::ClassConstructor& constructor, const bool accessible)
+     {
+          ecpps::ir::overload_diagnostics::Candidate candidate{
+               .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
+               .source = constructor.function->source,
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+          if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
+          return candidate;
+     }
+} // namespace
+
 void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node)
 {
      const auto key = ToClassKind(node.Key());
@@ -311,10 +336,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     report("Invalid constructor parameter type", parameter.type->Source());
                     return;
                }
-               constructor.parameters.push_back(
-                    {.name = parameter.name != nullptr ? parameter.name->ToString(0) : "<unnamed>",
-                     .type = parameterType,
-                     .isVariadic = false});
+               constructor.parameters.push_back({.name = parameter.name != nullptr ? parameter.name->ToString(0) : "",
+                                                 .type = parameterType,
+                                                 .isVariadic = false});
           }
           if (constructor.parameters.size() == 1 && typeSystem::g_void->CommonWith(constructor.parameters.front().type))
                constructor.parameters.clear();
@@ -353,7 +377,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     .IsDllImportExport(false)
                     .NamespacePath(NamespacePathFromContext())
                     .Parameters(constructor.parameters)
-                    .Source(node.Source())
+                    .Source(identifier->Source())
                     .Build();
           function->parameters = constructor.parameters;
           function->parentScope = &classScope;
@@ -916,6 +940,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      }
 
      const ClassConstructor* selected = nullptr;
+     std::vector<const ClassConstructor*> bestCandidates{};
      std::size_t bestScore = std::numeric_limits<std::size_t>::max();
      bool ambiguous = false;
      for (const auto& candidate : classRecord->second.constructors)
@@ -981,15 +1006,37 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
                selected = &candidate;
                bestScore = score;
                ambiguous = false;
+               bestCandidates.assign(1, &candidate);
           }
           else if (score == bestScore)
+          {
                ambiguous = true;
+               bestCandidates.push_back(&candidate);
+          }
      }
      if (selected == nullptr || ambiguous)
      {
-          auto diagnostic =
-               ambiguous ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(classType->Info().DisplayName(), at)
-                         : ecpps::ir::overload_diagnostics::NoMatchingConstructor(classType->Info().DisplayName(), at);
+          std::vector<ecpps::ir::overload_diagnostics::Candidate> diagnosticCandidates{};
+          if (ambiguous)
+          {
+               diagnosticCandidates.reserve(bestCandidates.size());
+               for (const auto* candidate : bestCandidates)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(*candidate, candidate->access == typeSystem::Access::Public ||
+                                                                         classType->Info().id == _ownerId));
+          }
+          else
+          {
+               diagnosticCandidates.reserve(classRecord->second.constructors.size());
+               for (const auto& candidate : classRecord->second.constructors)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(candidate, candidate.access == typeSystem::Access::Public ||
+                                                                        classType->Info().id == _ownerId));
+          }
+          auto diagnostic = ambiguous ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(
+                                             classType->Info().DisplayName(), at, std::move(diagnosticCandidates))
+                                      : ecpps::ir::overload_diagnostics::NoMatchingConstructor(
+                                             classType->Info().DisplayName(), at, std::move(diagnosticCandidates));
           DiagnosticSink::Report(_ir.GetContext(), std::move(diagnostic));
           return false;
      }
@@ -1013,12 +1060,16 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
           }
      if (selected->access != typeSystem::Access::Public && classType->Info().id != _ownerId)
      {
-          Report("Selected constructor is not accessible", at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                                        "Selected constructor is not accessible", at,
+                                                        ConstructorCandidateDiagnostic(*selected, false)));
           return false;
      }
      if (selected->bodyKind == ast::FunctionBodyKind::Deleted)
      {
-          Report("The selected constructor is deleted or unavailable", at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                                        "The selected constructor is deleted or unavailable", at,
+                                                        ConstructorCandidateDiagnostic(*selected, true)));
           return false;
      }
      return true;

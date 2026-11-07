@@ -357,7 +357,7 @@ bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode
      constructor->bodyKind = node.BodyKind();
      constructor->function->isMemberFunctionDefined = true;
      constructor->function->isInline = constructor->function->isInline || node.Signature().isInline;
-     constructor->function->source = node.Source();
+     constructor->function->source = constructorName->Source();
      for (std::size_t index = 0; index < parameters.size(); index++)
           constructor->function->parameters[index].name = std::move(parameters[index].name);
 

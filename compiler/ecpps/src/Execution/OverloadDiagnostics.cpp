@@ -140,15 +140,27 @@ ecpps::diagnostics::DiagnosticsMessage ecpps::ir::overload_diagnostics::MissingM
 }
 
 std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::NoMatchingConstructor(
-     std::string className, const Location source)
+     std::string className, const Location source, std::vector<Candidate> candidates)
 {
-     return std::make_unique<diagnostics::TypeError>(
+     auto diagnostic = std::make_unique<diagnostics::TypeError>(
           std::format("No constructor of '{}' matches these arguments", className), source);
+     AppendCandidates(*diagnostic, candidates);
+     return diagnostic;
 }
 
 std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::AmbiguousConstructor(
-     std::string className, const Location source)
+     std::string className, const Location source, std::vector<Candidate> candidates)
 {
-     return std::make_unique<diagnostics::TypeError>(std::format("Constructor call for '{}' is ambiguous", className),
-                                                     source);
+     auto diagnostic = std::make_unique<diagnostics::TypeError>(
+          std::format("Constructor call for '{}' is ambiguous", className), source);
+     AppendCandidates(*diagnostic, candidates);
+     return diagnostic;
+}
+
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+     std::string message, const Location source, Candidate candidate)
+{
+     auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), source);
+     diagnostic->SubDiagnostics().push_back(MakeCandidateNote(candidate));
+     return diagnostic;
 }

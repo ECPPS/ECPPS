@@ -32,6 +32,28 @@ using ecpps::Expression;
 
 namespace
 {
+     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     {
+          switch (access)
+          {
+          case ecpps::typeSystem::Access::Public: return "public";
+          case ecpps::typeSystem::Access::Protected: return "protected";
+          case ecpps::typeSystem::Access::Private: return "private";
+          }
+          return "inaccessible";
+     }
+
+     [[nodiscard]] ecpps::ir::overload_diagnostics::Candidate ConstructorCandidateDiagnostic(
+          const ecpps::ir::ClassConstructor& constructor, const bool accessible)
+     {
+          ecpps::ir::overload_diagnostics::Candidate candidate{
+               .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
+               .source = constructor.function->source,
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+          if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
+          return candidate;
+     }
+
      [[nodiscard]] std::size_t ConversionCost(const ecpps::typeSystem::ConversionSequence::ConversionKind kind) noexcept
      {
           using Kind = ecpps::typeSystem::ConversionSequence::ConversionKind;
@@ -835,6 +857,7 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
      }
 
      const ClassConstructor* selected = nullptr;
+     std::vector<const ClassConstructor*> bestCandidates{};
      std::size_t bestScore = std::numeric_limits<std::size_t>::max();
      bool ambiguous = false;
      for (const auto& candidate : classIr->second.constructors)
@@ -858,16 +881,36 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
                selected = &candidate;
                bestScore = score;
                ambiguous = false;
+               bestCandidates.assign(1, &candidate);
           }
           else if (score == bestScore)
+          {
                ambiguous = true;
+               bestCandidates.push_back(&candidate);
+          }
      }
 
      if (selected == nullptr || ambiguous)
      {
-          auto diagnostic = ambiguous
-                                 ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(info.DisplayName(), source)
-                                 : ecpps::ir::overload_diagnostics::NoMatchingConstructor(info.DisplayName(), source);
+          std::vector<ecpps::ir::overload_diagnostics::Candidate> diagnosticCandidates{};
+          if (ambiguous)
+          {
+               diagnosticCandidates.reserve(bestCandidates.size());
+               for (const auto* candidate : bestCandidates)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(*candidate, this->CanAccess(info.id, candidate->access)));
+          }
+          else
+          {
+               diagnosticCandidates.reserve(classIr->second.constructors.size());
+               for (const auto& candidate : classIr->second.constructors)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access)));
+          }
+          auto diagnostic = ambiguous ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(
+                                             info.DisplayName(), source, std::move(diagnosticCandidates))
+                                      : ecpps::ir::overload_diagnostics::NoMatchingConstructor(
+                                             info.DisplayName(), source, std::move(diagnosticCandidates));
           DiagnosticSink::Report(this->GetContext(), std::move(diagnostic));
           return std::nullopt;
      }
@@ -921,15 +964,19 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
      }
      if (!this->CanAccess(info.id, selection->constructor->access))
      {
-          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                          "Selected constructor is not accessible", source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                      "Selected constructor is not accessible", source,
+                                      ConstructorCandidateDiagnostic(*selection->constructor, false)));
           return;
      }
      const auto bodyKind = selection->constructor->bodyKind;
      if (bodyKind == ast::FunctionBodyKind::Deleted)
      {
-          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                          "The selected constructor is deleted", source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overload_diagnostics::SelectedConstructorFailure(
+                                      "The selected constructor is deleted", source,
+                                      ConstructorCandidateDiagnostic(*selection->constructor, true)));
           return;
      }
      if (bodyKind == ast::FunctionBodyKind::Defaulted && !selection->arguments.empty())

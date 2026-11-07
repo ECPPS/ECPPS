@@ -91,10 +91,9 @@ namespace
      }
 
      ecpps::ast::NodePointer MakeConstructorClass(Fixture& fixture, const std::string& className,
-                                                  ecpps::ast::NodePointer constructor)
+                                                  std::vector<ecpps::ast::NodePointer> constructors)
      {
-          std::vector<ecpps::ast::NodePointer> members{};
-          members.push_back(std::move(constructor));
+          std::vector<ecpps::ast::NodePointer> members = std::move(constructors);
           ecpps::ast::DeclSpecifierSequence fieldSpecifiers{};
           fieldSpecifiers.definingTypeSpecifier = fixture.MakeBasicType("int");
           ecpps::ast::MemberDeclarator fieldDeclarator{};
@@ -108,6 +107,14 @@ namespace
                std::move(fieldSpecifiers), std::move(fields), Source));
           return MakeASTNode<ecpps::ast::ClassDefNode>(fixture.astAllocator, className, ecpps::ast::ClassKey::Struct,
                                                        std::move(members), false, false, Source);
+     }
+
+     ecpps::ast::NodePointer MakeConstructorClass(Fixture& fixture, const std::string& className,
+                                                  ecpps::ast::NodePointer constructor)
+     {
+          std::vector<ecpps::ast::NodePointer> constructors{};
+          constructors.push_back(std::move(constructor));
+          return MakeConstructorClass(fixture, className, std::move(constructors));
      }
 
      ecpps::ast::NodePointer MakeDefaultConstructionCaller(Fixture& fixture, const std::string& className,
@@ -547,4 +554,49 @@ TEST_CASE("IR - Out-of-class defaulted constructors emit regular procedures", "[
      CHECK(&call->Function() == constructor->Scope());
      CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
      CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - No matching constructor diagnostics list declared candidates", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, "NoMatchCtorForIR",
+                                        MakeConstructorDeclaration(fixture, "NoMatchCtorForIR",
+                                                                   ecpps::ast::FunctionBodyKind::None,
+                                                                   {{"int", "valueParam"}})));
+     ast.push_back(MakeDefaultConstructionCaller(fixture, "NoMatchCtorForIR", "callNoMatchCtor"));
+
+     (void)fixture.Parse(std::move(ast));
+     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
+     const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
+     CHECK(diagnostic.Message() == "No constructor of 'NoMatchCtorForIR' matches these arguments");
+     REQUIRE((diagnostic.SubDiagnostics().size() == 1));
+     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
+                "Candidate: NoMatchCtorForIR::NoMatchCtorForIR(int valueParam)") != std::string::npos);
+}
+
+TEST_CASE("IR - Ambiguous constructor diagnostics list tied candidates", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     std::vector<ecpps::ast::NodePointer> constructors{};
+     constructors.push_back(MakeConstructorDeclaration(
+          fixture, "AmbiguousCtorForIR", ecpps::ast::FunctionBodyKind::None, {{"unsigned int", "unsignedValue"}}));
+     constructors.push_back(MakeConstructorDeclaration(fixture, "AmbiguousCtorForIR",
+                                                       ecpps::ast::FunctionBodyKind::None, {{"long", "longValue"}}));
+     ast.push_back(MakeConstructorClass(fixture, "AmbiguousCtorForIR", std::move(constructors)));
+     std::vector<ecpps::ast::NodePointer> arguments{};
+     arguments.push_back(fixture.MakeIntegerLiteral(10));
+     ast.push_back(
+          MakeDefaultConstructionCaller(fixture, "AmbiguousCtorForIR", "callAmbiguousCtor", std::move(arguments)));
+
+     (void)fixture.Parse(std::move(ast));
+     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
+     const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
+     CHECK(diagnostic.Message() == "Constructor call for 'AmbiguousCtorForIR' is ambiguous");
+     REQUIRE((diagnostic.SubDiagnostics().size() == 2));
+     CHECK(diagnostic.SubDiagnostics()[0]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(unsigned int") !=
+           std::string::npos);
+     CHECK(diagnostic.SubDiagnostics()[1]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(long") !=
+           std::string::npos);
 }

@@ -251,6 +251,16 @@ namespace
                return false;
           }
 
+          void SuppressCaretLine(const std::size_t line)
+          {
+               this->_caretSuppressedLine = line;
+          }
+
+          [[nodiscard]] bool IsCaretSuppressed(const std::size_t line) const
+          {
+               return line != 0 && line == this->_caretSuppressedLine;
+          }
+
           void CountSourceLine(const std::size_t line)
           {
                if (line != 0) this->_sourceLineCounts[line]++;
@@ -267,6 +277,7 @@ namespace
           std::unordered_map<std::size_t, ExpandedSourceLine> _expandedLines{};
           std::unordered_map<std::size_t, std::size_t> _sourceLineCounts{};
           std::unordered_set<std::size_t> _printedLines{};
+          std::size_t _caretSuppressedLine{};
           bool _useUnicode{};
      };
 
@@ -395,7 +406,8 @@ namespace
                context.MarkLinePrinted(source.line);
           }
 
-          if (alreadyPrinted || context.IsRepeatedSourceLine(source.line)) return;
+          if (alreadyPrinted || context.IsRepeatedSourceLine(source.line) || context.IsCaretSuppressed(source.line))
+               return;
 
           const auto range = MakeCaretRange(line, source);
           if (!range) return;
@@ -527,6 +539,7 @@ void ecpps::diagnostics::PrintDiagnostic(const std::string& fileName, const Diag
                                          const std::size_t indent, const std::size_t lastPrintedLine)
 {
      RendererContext context{fileName};
+     if (!diagnostic->SubDiagnostics().empty()) context.SuppressCaretLine(diagnostic->Source().line);
      CountSourceLines(diagnostic, context);
      if (lastPrintedLine != 0) context.MarkLinePrinted(lastPrintedLine);
 

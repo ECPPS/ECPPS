@@ -269,6 +269,21 @@ TEST_CASE("Diagnostics omit carets for shared source lines", "[unit][diagnostics
      CHECK(output.find("\x1b[36m" + source.Path().string() + ":1:12 note: \x1b[0m") != std::string::npos);
 }
 
+TEST_CASE("Diagnostics omit root call-site carets and retain candidate carets", "[unit][diagnostics]")
+{
+     ScopedEnvironmentVariable locale{"LC_ALL", "C.UTF-8"};
+     TemporarySourceFile source{"int f();\n"
+                                "void g() { f(1); }\n"};
+     auto error = std::make_unique<ecpps::diagnostics::TypeError>("No matching overload", ecpps::Location{2, 12, 16});
+     error->SubDiagnostics().push_back(std::make_unique<ecpps::diagnostics::Information>(
+          "candidate", "Candidate: f(int)", ecpps::Location{1, 5, 5}));
+
+     const auto output = StripAnsi(Render(source.Path(), ecpps::diagnostics::DiagnosticsMessage{std::move(error)}));
+
+     CHECK(output.find("┃ 2| void g() { f(1); }\n") != std::string::npos);
+     CHECK(CountOccurrences(output, "^") == 1);
+}
+
 TEST_CASE("Diagnostics merge sibling branches and preserve declaration carets", "[unit][diagnostics]")
 {
      ScopedEnvironmentVariable locale{"LC_ALL", "C.UTF-8"};

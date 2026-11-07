@@ -58,7 +58,11 @@ namespace ecpps::ir::overload_diagnostics
                                                                  Location source,
                                                                  std::optional<Location> dataMemberSource,
                                                                  std::vector<SimilarName> similarNames);
-     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingConstructor(std::string className,
-                                                                                 Location source);
-     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousConstructor(std::string className, Location source);
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingConstructor(
+          std::string className, Location source, std::vector<Candidate> candidates = {});
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> AmbiguousConstructor(std::string className, Location source,
+                                                                                std::vector<Candidate> candidates = {});
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> SelectedConstructorFailure(std::string message,
+                                                                                      Location source,
+                                                                                      Candidate candidate);
 } // namespace ecpps::ir::overload_diagnostics

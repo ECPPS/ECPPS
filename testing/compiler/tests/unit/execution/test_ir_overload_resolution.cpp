@@ -153,11 +153,17 @@ TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][i
 
 TEST_CASE("IR - Constructor overload diagnostic templates are shared", "[unit][ir][overload-resolution]")
 {
-     auto noMatch = ecpps::ir::overload_diagnostics::NoMatchingConstructor("Widget", Source);
-     auto ambiguous = ecpps::ir::overload_diagnostics::AmbiguousConstructor("Widget", Source);
+     using namespace ecpps::ir::overload_diagnostics;
+     Candidate candidate{.signature = "Widget::Widget(int)", .source = Source};
+     auto noMatch = NoMatchingConstructor("Widget", Source, {candidate});
+     auto ambiguous = AmbiguousConstructor("Widget", Source, {candidate});
+     auto inaccessible = SelectedConstructorFailure("Selected constructor is not accessible", Source, candidate);
 
      CHECK(noMatch->Message() == "No constructor of 'Widget' matches these arguments");
      CHECK(ambiguous->Message() == "Constructor call for 'Widget' is ambiguous");
+     CHECK(ContainsMessage(*noMatch, "Candidate: Widget::Widget(int)"));
+     CHECK(ContainsMessage(*ambiguous, "Candidate: Widget::Widget(int)"));
+     CHECK(ContainsMessage(*inaccessible, "Candidate: Widget::Widget(int)"));
 }
 
 TEST_CASE("IR - Member overload diagnostics retain candidate detail trees", "[unit][ir][overload-resolution]")

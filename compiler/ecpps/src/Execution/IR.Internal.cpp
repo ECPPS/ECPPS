@@ -102,6 +102,8 @@ namespace ecpps::ir::detail
      }
      std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
      {
+          const bool isConstructor = func->memberClassInfo != nullptr && func->Name().has_value() &&
+                                     *func->Name() == func->memberClassInfo->name;
           std::string signature;
           if (func->memberClassInfo != nullptr)
           {
@@ -115,7 +117,7 @@ namespace ecpps::ir::detail
                if (!first) signature += ", ";
                first = false;
                signature += FormatTypeName(param.type);
-               if (!param.name.empty()) signature += " " + param.name;
+               if (!param.name.empty() && param.name != "<unnamed>") signature += " " + param.name;
           }
           signature += ")";
           if (func->memberClassInfo != nullptr && !func->isStatic)
@@ -129,7 +131,7 @@ namespace ecpps::ir::detail
                case ecpps::abi::MemberRefQualifier::RValue: signature += " &&"; break;
                }
           }
-          if (func->returnType)
+          if (func->returnType && !isConstructor)
           {
                signature += " -> " + FormatTypeName(func->returnType);
           }
