@@ -22,6 +22,7 @@
 #include "Operations.h"
 #include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
+#include "Procedural.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
@@ -102,10 +103,8 @@ bool ecpps::ir::IR::IsConstDefaultConstructible(typeSystem::NonowningTypePointer
           bool hasUsableDefaultConstructor = false;
           for (const auto& constructor : classRecord->second.constructors)
           {
-               if (!constructor.parameters.empty() || constructor.declaration == nullptr ||
-                   constructor.declaration->functionBody == ast::FunctionBodyKind::Deleted)
-                    continue;
-               if (constructor.declaration->functionBody != ast::FunctionBodyKind::Defaulted) return true;
+               if (!constructor.parameters.empty() || constructor.bodyKind == ast::FunctionBodyKind::Deleted) continue;
+               if (constructor.bodyKind != ast::FunctionBodyKind::Defaulted) return true;
                hasUsableDefaultConstructor = true;
                break;
           }
@@ -926,17 +925,11 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
                                                           "Selected constructor is not accessible", source));
           return;
      }
-     if (selection->constructor->declaration == nullptr)
-          throw TracedException("Constructor declaration metadata is missing");
-     const auto bodyKind = selection->constructor->declaration->functionBody;
-     if (bodyKind == ast::FunctionBodyKind::Deleted || bodyKind == ast::FunctionBodyKind::None)
+     const auto bodyKind = selection->constructor->bodyKind;
+     if (bodyKind == ast::FunctionBodyKind::Deleted)
      {
-          DiagnosticSink::Report(this->GetContext(),
-                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                      bodyKind == ast::FunctionBodyKind::Deleted
-                                           ? "The selected constructor is deleted"
-                                           : "The selected constructor is declared but has no definition",
-                                      source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "The selected constructor is deleted", source));
           return;
      }
      if (bodyKind == ast::FunctionBodyKind::Defaulted && !selection->arguments.empty())
@@ -961,16 +954,7 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
                                        const ObjectInitialisationMode mode, const ast::NodePointer* initialiser,
                                        const Location& source)
 {
-     struct RestoreObjectStack
-     {
-          std::vector<ActiveObjectInitialisation>* stack;
-          ~RestoreObjectStack(void)
-          {
-               stack->pop_back();
-          }
-     };
-
-     const auto bodyKind = selection.constructor->declaration->functionBody;
+     const auto bodyKind = selection.constructor->bodyKind;
      const auto* list = initialiser != nullptr && *initialiser != nullptr
                              ? dynamic_cast<const ast::InitialiserListNode*>(initialiser->get())
                              : nullptr;
@@ -981,152 +965,29 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
          bodyKind == ast::FunctionBodyKind::Defaulted)
           ZeroInitialiseAtAddress(type, address, source);
 
-     if (bodyKind == ast::FunctionBodyKind::Block)
+     if (selection.constructor->function == nullptr) throw TracedException("Constructor function metadata is missing");
+
+     std::vector<Expression> evaluatedArguments{};
+     evaluatedArguments.reserve(selection.arguments.size() + 1);
+     const auto* classObjectType =
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = info.id}});
+     evaluatedArguments.push_back(std::make_unique<PRValue>(
+          PointerTo(classObjectType),
+          std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                    SSARegisterReferenceNode(address, source)},
+          false));
+     for (std::size_t index = 0; index < selection.arguments.size(); index++)
      {
-          InlineConstructor(type, address, info, selection, source);
-          return;
+          auto converted =
+               ConvertTo(std::move(selection.arguments[index]), selection.constructor->parameters[index].type);
+          if (converted == nullptr) return;
+          evaluatedArguments.push_back(std::move(converted));
      }
 
-     this->_objectInitialisationStack.push_back({.type = type, .address = address, .allowLocalLookup = true});
-
-     RestoreObjectStack restoreObjectStack{};
-     restoreObjectStack.stack = &this->_objectInitialisationStack;
-     InitialiseClassMembers(type, address, source);
-}
-
-void ecpps::ir::IR::InlineConstructor(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
-                                      const typeSystem::ClassInfo& info, ConstructorSelection& selection,
-                                      const Location& source)
-{
-     struct RestoreInlineObjectStack
-     {
-          std::vector<ActiveObjectInitialisation>* stack;
-          ~RestoreInlineObjectStack(void)
-          {
-               stack->pop_back();
-          }
-     };
-
-     const auto* selected = selection.constructor;
-     const auto containsReturn = [&](const auto& self, const ast::NodePointer& statement) -> bool
-     {
-          if (dynamic_cast<const ast::ReturnNode*>(statement.get()) != nullptr) return true;
-          if (const auto* conditional = dynamic_cast<const ast::IfStatementNode*>(statement.get()))
-               return std::ranges::any_of(conditional->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          }) ||
-                      std::ranges::any_of(conditional->ElseBody(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::WhileStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::ForStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::DoWhileStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          return false;
-     };
-     if (std::ranges::any_of(selected->declaration->body,
-                             [&](const ast::NodePointer& statement)
-                             {
-                                  return containsReturn(containsReturn, statement);
-                             }))
-     {
-          DiagnosticSink::Report(this->GetContext(),
-                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                      "Return statements in constructors are not supported yet", source));
-          return;
-     }
-
-     auto* callerFunction = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
-     runtime_assert(callerFunction != nullptr, "Constructor invocation requires a function context");
-     if (callerFunction == nullptr) return;
-
-     std::vector<const SingleAssignRegisterNode*> argumentRegisters{};
-     argumentRegisters.reserve(selected->parameters.size());
-     for (std::size_t index = 0; index < selected->parameters.size(); index++)
-     {
-          const auto* parameterType = selected->parameters[index].type;
-          if (parameterType->CastTo<typeSystem::ReferenceType>() != nullptr)
-               argumentRegisters.push_back(
-                    BindReferenceExpression(parameterType, std::move(selection.arguments[index]), source));
-          else
-          {
-               auto converted = ConvertTo(std::move(selection.arguments[index]), parameterType);
-               if (converted == nullptr) return;
-               argumentRegisters.push_back(LowerExpressionLoaded(std::move(converted), this->_built));
-          }
-          if (argumentRegisters.back() == nullptr) return;
-     }
-
-     auto inlineFunctionScope = std::make_unique<FunctionScope>();
-     inlineFunctionScope->SetName(std::format("{}::__constructor", info.DisplayName()));
-     inlineFunctionScope->returnType = typeSystem::g_void.get();
-     inlineFunctionScope->parameters = selected->parameters;
-     auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
-     inlineFunctionScope->SetLocals(locals);
-     std::vector<typeSystem::NonowningTypePointer> parameterTypes{};
-     parameterTypes.reserve(selected->parameters.size());
-     for (const auto& parameter : selected->parameters) parameterTypes.push_back(parameter.type);
-     auto inlineFunctionContext =
-          std::make_shared<FunctionContext>(inlineFunctionScope.get(), abi::CallingConventionName{},
-                                            typeSystem::g_void.get(), "__inline_constructor", parameterTypes);
-     inlineFunctionContext->nextRegisterIndex = callerFunction->nextRegisterIndex;
-
-     Context inlineContext = this->GetContext();
-     inlineContext.contextSequence.push_back(inlineFunctionContext);
-     IR inlineIr{&inlineContext};
-     inlineIr._objectInitialisationStack = this->_objectInitialisationStack;
-     auto& allocator = *this->GetContext().nodeAllocator;
-     for (std::size_t index = 0; index < selected->parameters.size(); index++)
-     {
-          const auto& parameter = selected->parameters[index];
-          const std::string parameterName = parameter.name.empty() ? "<unnamed>" : parameter.name;
-          locals->push_back(
-               FunctionScope::LocalEntity{Variable{parameterName, parameter.type, StorageDuration::Automatic}});
-          RegisterPriorityInfo parameterInfo{.regClass = RegisterClass::ParameterVariable};
-          auto allocation = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
-               new (allocator) SingleAssignRegisterNode(inlineFunctionContext->GetNextRegisterIndex(), parameterInfo,
-                                                        parameter.type->Width(), parameter.type->Alignment(), source)};
-          const auto* allocationRegister = allocation.get();
-          inlineFunctionContext->RegisterAllocReg(parameterName, allocationRegister);
-          inlineIr._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
-               new (allocator) AllocationNode(std::move(allocation), source)});
-          if (parameter.type->CastTo<typeSystem::ReferenceType>() != nullptr)
-          {
-               const auto* parameterAddress = inlineIr.AddressOfAllocation(allocationRegister, parameter.type, source);
-               inlineIr.StoreAtAddress(parameterAddress, argumentRegisters[index], parameter.type, source);
-               continue;
-          }
-          inlineIr._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(
-               allocationRegister, argumentRegisters[index], detail::AccessForStorage(parameter.type), source)});
-     }
-
-     inlineIr._objectInitialisationStack.push_back({.type = type, .address = address, .allowLocalLookup = true});
-
-     RestoreInlineObjectStack restoreInlineObjectStack{};
-     restoreInlineObjectStack.stack = &inlineIr._objectInitialisationStack;
-     inlineIr.InitialiseClassMembers(type, address, source);
-     for (const auto& statement : selected->declaration->body) inlineIr.ParseNode(statement);
-     callerFunction->nextRegisterIndex = inlineFunctionContext->nextRegisterIndex;
-     this->_built.insert(this->_built.end(), std::make_move_iterator(inlineIr._built.begin()),
-                         std::make_move_iterator(inlineIr._built.end()));
+     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
+          selection.constructor->function, std::move(evaluatedArguments), source)};
+     Expression callExpression = std::make_unique<PRValue>(typeSystem::g_void.get(), std::move(call), false);
+     (void)LowerExpression(std::move(callExpression), this->_built);
 }
 
 void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningTypePointer type,

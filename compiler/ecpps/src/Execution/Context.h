@@ -19,7 +19,6 @@
 #include "../Shared/Diagnostics.h"
 #include "../TypeSystem/TypeBase.h"
 #include "Entities.h"
-#include "Execution/Expressions.h"
 #include "Execution/NodeBase.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Config.h"
@@ -981,8 +980,9 @@ namespace ecpps::ir
      struct ClassConstructor
      {
           std::vector<FunctionScope::Parameter> parameters{};
-          const ast::MemberDeclarator* declaration{};
+          std::shared_ptr<FunctionScope> function{};
           typeSystem::Access access{typeSystem::Access::Public};
+          ast::FunctionBodyKind bodyKind{ast::FunctionBodyKind::None};
           bool isExplicit{};
      };
 

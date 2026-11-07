@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -174,6 +175,7 @@ namespace ecpps::ir
           void ParseNode(const ast::NodePointer& node);
           void ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node);
           void ParseFunctionDefinition(const ast::FunctionDefinitionNode& node);
+          [[nodiscard]] bool ParseConstructorDefinition(const ast::FunctionDefinitionNode& node);
           void ParseReturn(const ast::ReturnNode& node);
           void ParseVariableDeclaration(const ast::VariableDeclarationNode& node);
           void ParseNamespace(const ast::NamespaceNode& node);
@@ -275,9 +277,6 @@ namespace ecpps::ir
                                   const typeSystem::ClassInfo& info, ConstructorSelection selection,
                                   ObjectInitialisationMode mode, const ast::NodePointer* initialiser,
                                   const Location& source);
-          void InlineConstructor(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
-                                 const typeSystem::ClassInfo& info, ConstructorSelection& selection,
-                                 const Location& source);
           void InitialiseClassWithoutConstructors(typeSystem::NonowningTypePointer type,
                                                   const SingleAssignRegisterNode* address,
                                                   const ast::NodePointer* initialiser, ObjectInitialisationMode mode,
@@ -347,7 +346,8 @@ namespace ecpps::ir
           typeSystem::ClassId DefineClass(const ast::ClassDefNode& node);
           void ParseClassMember(const ast::NodePointer& member, typeSystem::ClassId id, typeSystem::Access& access,
                                 std::vector<typeSystem::ClassField>& fields,
-                                std::vector<std::function<void()>>& deferred);
+                                std::vector<std::function<void()>>& deferred,
+                                std::vector<std::function<void()>>& deferredFunctionBodies);
           [[nodiscard]] DeclaratorTypeResult ResolveDeclaratorType(const ast::Declarator& declarator,
                                                                    typeSystem::NonowningTypePointer base,
                                                                    const std::string& name,
@@ -355,9 +355,12 @@ namespace ecpps::ir
           void CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node);
           void ParseMemberDeclaration(const ast::MemberDeclarationNode& node, typeSystem::ClassId id,
                                       typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
-                                      std::vector<std::function<void()>>& deferred);
+                                      std::vector<std::function<void()>>& deferred,
+                                      std::vector<std::function<void()>>& deferredFunctionBodies);
           void EmitMemberFunctionBody(const ast::MemberDeclarator& declarator,
                                       const std::shared_ptr<FunctionScope>& function, typeSystem::ClassId id);
+          void EmitConstructorBody(const std::shared_ptr<FunctionScope>& function, typeSystem::ClassId id,
+                                   Location source, const std::function<void(IR&)>& parseBody);
           [[nodiscard]] bool RequireComplete(typeSystem::NonowningTypePointer type, const Location& source,
                                              std::string_view what) const;
           [[nodiscard]] bool RejectClassByValue(typeSystem::NonowningTypePointer type, const Location& source,

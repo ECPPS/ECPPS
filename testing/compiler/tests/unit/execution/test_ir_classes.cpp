@@ -63,6 +63,66 @@ namespace
           REQUIRE((returnNode != nullptr));
           REQUIRE((returnNode->Operand() == &fieldLoad->Result()));
      }
+
+     ecpps::ast::NodePointer MakeConstructorDeclaration(
+          Fixture& fixture, const std::string& className, const ecpps::ast::FunctionBodyKind bodyKind,
+          const std::vector<std::pair<std::string, std::string>>& parameters = {},
+          std::vector<ecpps::ast::NodePointer> body = {})
+     {
+          ecpps::ast::ParametersAndQualifiers parameterList{};
+          for (const auto& [type, name] : parameters)
+          {
+               ecpps::ast::FunctionParameter parameter{};
+               parameter.type = fixture.MakeBasicType(type);
+               parameter.name = fixture.MakeIdentifier(name);
+               parameterList.parameters.push_back(std::move(parameter));
+          }
+
+          ecpps::ast::MemberDeclarator declarator{};
+          declarator.declaredIdExpression = fixture.MakeIdentifier(className);
+          declarator.suffixes.emplace_back(std::move(parameterList));
+          declarator.functionBody = bodyKind;
+          declarator.body = std::move(body);
+          std::vector<ecpps::ast::MemberDeclarator> declarators{};
+          declarators.push_back(std::move(declarator));
+          return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
+               fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
+               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+     }
+
+     ecpps::ast::NodePointer MakeConstructorClass(Fixture& fixture, const std::string& className,
+                                                  ecpps::ast::NodePointer constructor)
+     {
+          std::vector<ecpps::ast::NodePointer> members{};
+          members.push_back(std::move(constructor));
+          ecpps::ast::DeclSpecifierSequence fieldSpecifiers{};
+          fieldSpecifiers.definingTypeSpecifier = fixture.MakeBasicType("int");
+          ecpps::ast::MemberDeclarator fieldDeclarator{};
+          fieldDeclarator.declaredIdExpression = fixture.MakeIdentifier("value");
+          fieldDeclarator.initialisationType = ecpps::ast::InitialisationType::EqualInitialiser;
+          fieldDeclarator.initialiser = fixture.MakeIntegerLiteral(3);
+          std::vector<ecpps::ast::MemberDeclarator> fields{};
+          fields.push_back(std::move(fieldDeclarator));
+          members.push_back(MakeASTNode<ecpps::ast::MemberDeclarationNode>(
+               fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
+               std::move(fieldSpecifiers), std::move(fields), Source));
+          return MakeASTNode<ecpps::ast::ClassDefNode>(fixture.astAllocator, className, ecpps::ast::ClassKey::Struct,
+                                                       std::move(members), false, false, Source);
+     }
+
+     ecpps::ast::NodePointer MakeDefaultConstructionCaller(Fixture& fixture, const std::string& className,
+                                                           const std::string& functionName,
+                                                           std::vector<ecpps::ast::NodePointer> arguments = {})
+     {
+          ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+          auto initialiser =
+               MakeASTNode<ecpps::ast::InitialiserListNode>(fixture.astAllocator, std::move(arguments), Source);
+          ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+          body.Push(fixture.MakeVariableDeclaration(className, "value", std::move(initialiser)));
+          body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
+          return fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", functionName, {}),
+                                                std::move(body));
+     }
 } // namespace
 
 TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
@@ -341,4 +401,150 @@ TEST_CASE("IR - Positional and designated aggregate initialisers cannot be mixed
      (void)fixture.Parse(std::move(ast));
 
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Positional and designated initialisers cannot be mixed"));
+}
+
+TEST_CASE("IR - In-class constructors emit and call regular procedures", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     std::vector<ecpps::ast::NodePointer> constructorBody{};
+     constructorBody.push_back(MakeASTNode<ecpps::ast::BinaryOperatorNode>(
+          fixture.astAllocator, fixture.MakeIdentifier("value"), ecpps::ast::Operator::Assignment,
+          fixture.MakeIdentifier("valueParam"), Source));
+     ast.push_back(MakeConstructorClass(
+          fixture, "InlineCtorForIR",
+          MakeConstructorDeclaration(fixture, "InlineCtorForIR", ecpps::ast::FunctionBodyKind::Block,
+                                     {{"int", "valueParam"}}, std::move(constructorBody))));
+     std::vector<ecpps::ast::NodePointer> arguments{};
+     arguments.push_back(fixture.MakeIntegerLiteral(10));
+     ast.push_back(MakeDefaultConstructionCaller(fixture, "InlineCtorForIR", "callInlineCtor", std::move(arguments)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* constructor = FindProcedure(nodes, "InlineCtorForIR");
+     const auto* caller = FindProcedure(nodes, "callInlineCtor");
+     REQUIRE((constructor != nullptr));
+     REQUIRE((caller != nullptr));
+     const auto* call = FindCall(*caller);
+     REQUIRE((call != nullptr));
+     CHECK(&call->Function() == constructor->Scope());
+     CHECK(call->Arguments().size() == 2);
+     CHECK(constructor->Scope()->parameters.size() == 1);
+     CHECK(call->Function().memberClassInfo != nullptr);
+     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(caller->Body()) == nullptr);
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Defaulted constructors emit regular procedures", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(
+          fixture, "DefaultedCtorForIR",
+          MakeConstructorDeclaration(fixture, "DefaultedCtorForIR", ecpps::ast::FunctionBodyKind::Defaulted)));
+     ast.push_back(MakeDefaultConstructionCaller(fixture, "DefaultedCtorForIR", "callDefaultedCtor"));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* constructor = FindProcedure(nodes, "DefaultedCtorForIR");
+     const auto* caller = FindProcedure(nodes, "callDefaultedCtor");
+     REQUIRE((constructor != nullptr));
+     REQUIRE((caller != nullptr));
+     const auto* call = FindCall(*caller);
+     REQUIRE((call != nullptr));
+     CHECK(&call->Function() == constructor->Scope());
+     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Declaration-only constructors emit external calls", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(
+          fixture, "ExternalCtorForIR",
+          MakeConstructorDeclaration(fixture, "ExternalCtorForIR", ecpps::ast::FunctionBodyKind::None)));
+     ast.push_back(MakeDefaultConstructionCaller(fixture, "ExternalCtorForIR", "callExternalCtor"));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* caller = FindProcedure(nodes, "callExternalCtor");
+     REQUIRE((caller != nullptr));
+     const auto* call = FindCall(*caller);
+     REQUIRE((call != nullptr));
+     CHECK(call->Function().memberClassInfo != nullptr);
+     CHECK(FindProcedure(nodes, "ExternalCtorForIR") == nullptr);
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Out-of-class constructor definitions bind to declarations", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, "OutOfClassCtorForIR",
+                                        MakeConstructorDeclaration(fixture, "OutOfClassCtorForIR",
+                                                                   ecpps::ast::FunctionBodyKind::None,
+                                                                   {{"int", "declaredValue"}})));
+
+     std::vector<ecpps::ast::NodePointer> qualifiedPath{};
+     qualifiedPath.push_back(fixture.MakeIdentifier("OutOfClassCtorForIR"));
+     qualifiedPath.push_back(fixture.MakeIdentifier("OutOfClassCtorForIR"));
+     auto constructorName =
+          MakeASTNode<ecpps::ast::QualifiedIdNode>(fixture.astAllocator, std::move(qualifiedPath), Source);
+     auto signature = fixture.MakeFunctionSignature("void", "temporary", {{"int", "bodyValue"}});
+     signature.name = std::move(constructorName);
+     ecpps::SBOVector<ecpps::ast::NodePointer> constructorBody{};
+     constructorBody.Push(MakeASTNode<ecpps::ast::BinaryOperatorNode>(
+          fixture.astAllocator, fixture.MakeIdentifier("value"), ecpps::ast::Operator::Assignment,
+          fixture.MakeIdentifier("bodyValue"), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(constructorBody)));
+     std::vector<ecpps::ast::NodePointer> arguments{};
+     arguments.push_back(fixture.MakeIntegerLiteral(8));
+     ast.push_back(
+          MakeDefaultConstructionCaller(fixture, "OutOfClassCtorForIR", "callOutOfClassCtor", std::move(arguments)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* constructor = FindProcedure(nodes, "OutOfClassCtorForIR");
+     const auto* caller = FindProcedure(nodes, "callOutOfClassCtor");
+     REQUIRE((constructor != nullptr));
+     REQUIRE((caller != nullptr));
+     const auto* call = FindCall(*caller);
+     REQUIRE((call != nullptr));
+     CHECK(&call->Function() == constructor->Scope());
+     CHECK(call->Arguments().size() == 2);
+     CHECK(constructor->Scope()->parameters.size() == 1);
+     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Out-of-class defaulted constructors emit regular procedures", "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(
+          fixture, "OutOfClassDefaultedCtorForIR",
+          MakeConstructorDeclaration(fixture, "OutOfClassDefaultedCtorForIR", ecpps::ast::FunctionBodyKind::None)));
+
+     std::vector<ecpps::ast::NodePointer> qualifiedPath{};
+     qualifiedPath.push_back(fixture.MakeIdentifier("OutOfClassDefaultedCtorForIR"));
+     qualifiedPath.push_back(fixture.MakeIdentifier("OutOfClassDefaultedCtorForIR"));
+     auto constructorName =
+          MakeASTNode<ecpps::ast::QualifiedIdNode>(fixture.astAllocator, std::move(qualifiedPath), Source);
+     auto signature = fixture.MakeFunctionSignature("void", "temporary", {});
+     signature.name = std::move(constructorName);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
+                                                                   std::move(body), Source,
+                                                                   ecpps::ast::FunctionBodyKind::Defaulted));
+     ast.push_back(
+          MakeDefaultConstructionCaller(fixture, "OutOfClassDefaultedCtorForIR", "callOutOfClassDefaultedCtor"));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* constructor = FindProcedure(nodes, "OutOfClassDefaultedCtorForIR");
+     const auto* caller = FindProcedure(nodes, "callOutOfClassDefaultedCtor");
+     REQUIRE((constructor != nullptr));
+     REQUIRE((caller != nullptr));
+     const auto* call = FindCall(*caller);
+     REQUIRE((call != nullptr));
+     CHECK(&call->Function() == constructor->Scope());
+     CHECK(FindNode<ecpps::ir::SSAIndirectStoreNode>(constructor->Body()) != nullptr);
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
 }

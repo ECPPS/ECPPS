@@ -424,14 +424,16 @@ namespace ecpps::ast
      class FunctionDefinitionNode final : public Node
      {
      public:
-          explicit FunctionDefinitionNode(FunctionSignature signature, SBOVector<NodePointer> body, Location source)
-              : Node(source), _signature(std::move(signature)), _body(std::move(body))
+          explicit FunctionDefinitionNode(FunctionSignature signature, SBOVector<NodePointer> body, Location source,
+                                          FunctionBodyKind bodyKind = FunctionBodyKind::Block)
+              : Node(source), _signature(std::move(signature)), _body(std::move(body)), _bodyKind(bodyKind)
           {
           }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
                std::string built = std::string(indent * PrettyIndent, ' ') + this->_signature.ToString();
+               if (this->_bodyKind == FunctionBodyKind::Defaulted) return built + " = default;";
                built += "\n" + std::string(indent * PrettyIndent, ' ') + "{";
 
                for (const auto& line : this->_body)
@@ -451,10 +453,15 @@ namespace ecpps::ast
           {
                return this->_body;
           }
+          [[nodiscard]] FunctionBodyKind BodyKind(void) const noexcept
+          {
+               return this->_bodyKind;
+          }
 
      private:
           FunctionSignature _signature;
           SBOVector<NodePointer> _body;
+          FunctionBodyKind _bodyKind{FunctionBodyKind::Block};
      };
 
      // Not a template

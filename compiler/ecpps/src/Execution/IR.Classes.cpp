@@ -25,6 +25,7 @@
 #include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
+#include "HighLevel.h"
 #include "NodeBase.h"
 #include "Operations.h"
 #include "OverloadDiagnostics.h"
@@ -141,11 +142,14 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
      auto access = node.Key() == ast::ClassKey::Class ? typeSystem::Access::Private : typeSystem::Access::Public;
      std::vector<typeSystem::ClassField> fields{};
      std::vector<std::function<void()>> deferred{};
-     for (const auto& member : node.MemberSpecifiers()) ParseClassMember(member, id, access, fields, deferred);
+     std::vector<std::function<void()>> deferredFunctionBodies{};
+     for (const auto& member : node.MemberSpecifiers())
+          ParseClassMember(member, id, access, fields, deferred, deferredFunctionBodies);
 
      types.Complete(id, std::move(fields));
 
      for (const auto& task : deferred) task();
+     for (const auto& task : deferredFunctionBodies) task();
 
      this->GetContext().contextSequence.pop_back();
      return id;
@@ -153,7 +157,8 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
 
 void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeSystem::ClassId id,
                                      typeSystem::Access& access, std::vector<typeSystem::ClassField>& fields,
-                                     std::vector<std::function<void()>>& deferred)
+                                     std::vector<std::function<void()>>& deferred,
+                                     std::vector<std::function<void()>>& deferredFunctionBodies)
 {
      // auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
 
@@ -164,7 +169,7 @@ void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeS
      }
      if (const auto* declaration = dynamic_cast<const ast::MemberDeclarationNode*>(member.get()))
      {
-          ParseMemberDeclaration(*declaration, id, access, fields, deferred);
+          ParseMemberDeclaration(*declaration, id, access, fields, deferred, deferredFunctionBodies);
           return;
      }
      if (const auto* nested = dynamic_cast<const ast::ClassType*>(member.get())) // in case the parser emits it bare
@@ -239,7 +244,8 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
 
 void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::ClassId id,
                                            const typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
-                                           std::vector<std::function<void()>>& deferred)
+                                           std::vector<std::function<void()>>& deferred,
+                                           std::vector<std::function<void()>>& deferredFunctionBodies)
 {
      const auto& specifiers = node.Specifiers();
      auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
@@ -287,9 +293,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           }
 
           ClassConstructor constructor{};
-          constructor.declaration = &declarator;
           constructor.access = access;
           constructor.isExplicit = specifiers.functionSpecifier.explicitSpecifier.has_value();
+          constructor.bodyKind = declarator.functionBody;
           for (std::size_t index = 0; index < functionSuffix->parameters.size(); index++)
           {
                const auto& parameter = functionSuffix->parameters[index];
@@ -310,6 +316,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                      .type = parameterType,
                      .isVariadic = false});
           }
+          if (constructor.parameters.size() == 1 && typeSystem::g_void->CommonWith(constructor.parameters.front().type))
+               constructor.parameters.clear();
 
           auto& classInfo = GetTypeContext().Class(id);
           classInfo.hasUserDeclaredConstructors = true;
@@ -328,6 +336,48 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           {
                report("Constructor is declared more than once", node.Source());
                return;
+          }
+
+          auto function =
+               MakeFunctionScope()
+                    .Name(className)
+                    .ReturnType(typeSystem::g_void.get())
+                    .CallingConvention(abi::ABI::Current().DefaultCallingConventionName())
+                    .Linkage(abi::Linkage::External)
+                    .IsInline(specifiers.isInline || declarator.functionBody == ast::FunctionBodyKind::Block ||
+                              declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+                    .IsStatic(false)
+                    .IsFriend(false)
+                    .IsExtern(false)
+                    .ConstexprSpecifier(ConstexprType::None)
+                    .IsDllImportExport(false)
+                    .NamespacePath(NamespacePathFromContext())
+                    .Parameters(constructor.parameters)
+                    .Source(node.Source())
+                    .Build();
+          function->parameters = constructor.parameters;
+          function->parentScope = &classScope;
+          function->memberClassInfo = &GetTypeContext().Class(id);
+          function->memberAccess = access;
+          function->isDeleted = declarator.functionBody == ast::FunctionBodyKind::Deleted;
+          function->isMemberFunctionDefined = declarator.functionBody != ast::FunctionBodyKind::None;
+          constructor.function = std::shared_ptr<FunctionScope>(std::move(function));
+
+          if (declarator.functionBody == ast::FunctionBodyKind::Block ||
+              declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+          {
+               const auto* declaratorPointer = &declarator;
+               const auto constructorFunction = constructor.function;
+               deferredFunctionBodies.emplace_back(
+                    [this, declaratorPointer, constructorFunction, id]
+                    {
+                         EmitConstructorBody(constructorFunction, id, declaratorPointer->location,
+                                             [declaratorPointer](IR& functionIr)
+                                             {
+                                                  for (const auto& statement : declaratorPointer->body)
+                                                       functionIr.ParseNode(statement);
+                                             });
+                    });
           }
           constructors.push_back(std::move(constructor));
           return;
@@ -557,7 +607,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     function->isInline = true;
                     function->isMemberFunctionDefined = true;
                     const auto* declaratorPointer = &declarator;
-                    deferred.emplace_back(
+                    deferredFunctionBodies.emplace_back(
                          [this, declaratorPointer, function, id]
                          {
                               EmitMemberFunctionBody(*declaratorPointer, function, id);
@@ -648,6 +698,99 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     StoreDefaultMemberInitialiser(id, fieldIndex, *declaratorPointer, memberType, source);
                });
      }
+}
+
+void ecpps::ir::IR::EmitConstructorBody(const std::shared_ptr<FunctionScope>& function, const typeSystem::ClassId id,
+                                        const Location source, const std::function<void(IR&)>& parseBody)
+{
+     if (function == nullptr) return;
+
+     IR functionIr{this->_context};
+     functionIr.GetContext() = this->GetContext();
+
+     const auto* thisObjectType =
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = id}});
+     const auto* thisType = PointerTo(thisObjectType);
+     auto functionContext = std::make_shared<FunctionContext>(function.get(), function->callingConvention,
+                                                              function->returnType, function->Name().value_or(""),
+                                                              function->parameters |
+                                                                   std::views::transform(
+                                                                        [](const FunctionScope::Parameter& parameter)
+                                                                        {
+                                                                             return parameter.type;
+                                                                        }) |
+                                                                   ecpps::detail::ToVector);
+     functionContext->thisType = thisType;
+
+     struct RestoreContextSequence
+     {
+          Context* context{};
+          std::size_t size{};
+
+          ~RestoreContextSequence(void)
+          {
+               this->context->contextSequence.resize(this->size);
+          }
+     };
+     RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
+                                                   .size = functionIr.GetContext().contextSequence.size()};
+     functionIr.GetContext().contextSequence.push_back(functionContext);
+
+     auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+     locals->reserve(function->parameters.size() + 1);
+     locals->push_back(FunctionScope::LocalEntity{FunctionScope::LocalEntity::ThisTag{}});
+     function->SetLocals(locals);
+
+     functionIr.EmitThisPrologue(thisType, source);
+     std::uint64_t parameterIndex = 1;
+     for (const auto& parameter : function->parameters)
+     {
+          locals->emplace_back(Variable{parameter.name, parameter.type, StorageDuration::Automatic});
+
+          auto* activeFunction = dynamic_cast<FunctionContext*>(functionIr.GetContext().contextSequence.back().get());
+          runtime_assert(activeFunction != nullptr, "Expected constructor function context during parameter emission");
+          RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+          auto allocation = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    SingleAssignRegisterNode(activeFunction->GetNextRegisterIndex(), info, parameter.type->Width(),
+                                             parameter.type->Alignment(), source)};
+          auto* allocationPointer = allocation.get();
+          activeFunction->RegisterParamAllocReg(parameter.name, allocationPointer);
+          functionIr._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator) AllocationNode(std::move(allocation), source)});
+          functionIr._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    ParameterNode(function.get(), parameterIndex++, allocationPointer, source)});
+     }
+
+     Expression thisExpression =
+          std::make_unique<PRValue>(thisType,
+                                    std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                         new (*functionIr.GetContext().nodeAllocator) high::ThisExpressionNode(source)},
+                                    false);
+     const auto* objectAddress = functionIr.LowerExpressionLoaded(std::move(thisExpression), functionIr._built);
+     if (objectAddress == nullptr) return;
+
+     functionIr._objectInitialisationStack.push_back(
+          {.type = thisObjectType, .address = objectAddress, .allowLocalLookup = true});
+     struct RestoreObjectInitialisation
+     {
+          std::vector<ActiveObjectInitialisation>* stack{};
+
+          ~RestoreObjectInitialisation(void)
+          {
+               this->stack->pop_back();
+          }
+     } restoreObjectInitialisation{.stack = &functionIr._objectInitialisationStack};
+
+     functionIr.InitialiseClassMembers(thisObjectType, objectAddress, source);
+     if (parseBody) parseBody(functionIr);
+     functionIr._built.push_back(std::unique_ptr<SSAReturnNode, IRDeleter>{new (*functionIr.GetContext().nodeAllocator)
+                                                                                SSAReturnNode(nullptr, source)});
+
+     this->_built.push_back(std::unique_ptr<ProcedureNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator)
+               ProcedureNode(function.get(), std::move(locals), std::move(functionIr._built), source)});
 }
 
 void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarator,
@@ -873,14 +1016,9 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
           Report("Selected constructor is not accessible", at);
           return false;
      }
-     if (selected->declaration == nullptr || selected->declaration->functionBody == ast::FunctionBodyKind::Deleted)
+     if (selected->bodyKind == ast::FunctionBodyKind::Deleted)
      {
           Report("The selected constructor is deleted or unavailable", at);
-          return false;
-     }
-     if (selected->declaration->functionBody == ast::FunctionBodyKind::None)
-     {
-          Report("The selected constructor is declared but has no definition", at);
           return false;
      }
      return true;
