@@ -22,10 +22,13 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
+#include "HighLevel.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
 #include "Procedural.h"
 #include "Shared/BumpAllocator.h"
@@ -48,23 +51,50 @@ using ecpps::ir::detail::QualifiersFrom;
 using ecpps::ir::detail::ToAccess;
 using ecpps::ir::detail::ToClassKind;
 
+namespace
+{
+     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     {
+          switch (access)
+          {
+          case ecpps::typeSystem::Access::Public: return "public";
+          case ecpps::typeSystem::Access::Protected: return "protected";
+          case ecpps::typeSystem::Access::Private: return "private";
+          }
+          return "inaccessible";
+     }
+
+     [[nodiscard]] ecpps::ir::overloadDiagnostics::Candidate ConstructorCandidateDiagnostic(
+          const ecpps::ir::ClassConstructor& constructor, const bool accessible)
+     {
+          ecpps::ir::overloadDiagnostics::Candidate candidate{
+               .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
+               .source = constructor.function->source,
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+          if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
+          return candidate;
+     }
+} // namespace
+
 void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::ClassType& node)
 {
      const auto key = ToClassKind(node.Key());
      if (key == info.kind) return;
      const bool unionMismatch = (key == typeSystem::ClassKind::Union) != (info.kind == typeSystem::ClassKind::Union);
      if (unionMismatch)
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("'{}' was declared as a {} but is redeclared as a {}", info.DisplayName(),
-                                info.Keyword(), node.ToString(0)),
-                    node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("'{}' was declared as a {} but is redeclared as a {}",
+                                                  info.DisplayName(), info.Keyword(), node.ToString(0)),
+                                      node.Source()));
      else // TODO: Check if MS ABI, since that is ABI violating and shall reject the program
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::Warning>(
-               "warning",
-               std::format("'{}' was declared as a {} but is redeclared with a different class-key", info.DisplayName(),
-                           info.Keyword()),
-               node.Source()));
+          DiagnosticSink::Report(
+               this->GetContext(),
+               std::make_unique<diagnostics::Warning>(
+                    "warning",
+                    std::format("'{}' was declared as a {} but is redeclared with a different class-key",
+                                info.DisplayName(), info.Keyword()),
+                    node.Source()));
 }
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::DeclareClassInScope(Scope& scope, const ast::ClassType& node)
@@ -85,9 +115,9 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::Clas
 {
      if (node.Value().empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                    "An elaborated type specifier requires a class name", node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                      "An elaborated type specifier requires a class name", node.Source()));
           return typeSystem::InvalidClassId;
      }
      if (const auto found = LookupClassForElaboration(node.Value(), node.Source()); found.has_value())
@@ -111,7 +141,8 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
           CheckClassKey(types.Class(id), node);
           if (types.Class(id).state != typeSystem::ClassState::Declared)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Redefinition of '{}'", types.Class(id).DisplayName()), node.Source()));
                return id;
@@ -136,11 +167,14 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
      auto access = node.Key() == ast::ClassKey::Class ? typeSystem::Access::Private : typeSystem::Access::Public;
      std::vector<typeSystem::ClassField> fields{};
      std::vector<std::function<void()>> deferred{};
-     for (const auto& member : node.MemberSpecifiers()) ParseClassMember(member, id, access, fields, deferred);
+     std::vector<std::function<void()>> deferredFunctionBodies{};
+     for (const auto& member : node.MemberSpecifiers())
+          ParseClassMember(member, id, access, fields, deferred, deferredFunctionBodies);
 
      types.Complete(id, std::move(fields));
 
      for (const auto& task : deferred) task();
+     for (const auto& task : deferredFunctionBodies) task();
 
      this->GetContext().contextSequence.pop_back();
      return id;
@@ -148,7 +182,8 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
 
 void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeSystem::ClassId id,
                                      typeSystem::Access& access, std::vector<typeSystem::ClassField>& fields,
-                                     std::vector<std::function<void()>>& deferred)
+                                     std::vector<std::function<void()>>& deferred,
+                                     std::vector<std::function<void()>>& deferredFunctionBodies)
 {
      // auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
 
@@ -159,7 +194,7 @@ void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeS
      }
      if (const auto* declaration = dynamic_cast<const ast::MemberDeclarationNode*>(member.get()))
      {
-          ParseMemberDeclaration(*declaration, id, access, fields, deferred);
+          ParseMemberDeclaration(*declaration, id, access, fields, deferred, deferredFunctionBodies);
           return;
      }
      if (const auto* nested = dynamic_cast<const ast::ClassType*>(member.get())) // in case the parser emits it bare
@@ -188,9 +223,8 @@ void ecpps::ir::IR::ParseClassNode(const ast::ClassType& node)
      auto& scope = this->GetContext().contextSequence.back()->GetScope();
      if (node.Value().empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("A class declaration requires a name",
-                                                                                 node.Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                                          "A class declaration requires a name", node.Source()));
           return;
      }
      if (const auto it = scope.classes.find(node.Value()); it != scope.classes.end())
@@ -211,7 +245,8 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
      {
           if (definition == nullptr || nested.Key() != ast::ClassKey::Union)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A declaration must declare something; only anonymous unions may be unnamed members",
                          nested.Source()));
@@ -234,14 +269,15 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
 
 void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& node, const typeSystem::ClassId id,
                                            const typeSystem::Access access, std::vector<typeSystem::ClassField>& fields,
-                                           std::vector<std::function<void()>>& deferred)
+                                           std::vector<std::function<void()>>& deferred,
+                                           std::vector<std::function<void()>>& deferredFunctionBodies)
 {
      const auto& specifiers = node.Specifiers();
      auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
      const auto report = [&](std::string message, const Location& source)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          std::move(message), source));
      };
 
      if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
@@ -282,12 +318,11 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           }
 
           ClassConstructor constructor{};
-          constructor.declaration = &declarator;
           constructor.access = access;
           constructor.isExplicit = specifiers.functionSpecifier.explicitSpecifier.has_value();
-          for (std::size_t index = 0; index < functionSuffix->parameters.size(); index++)
+          constructor.bodyKind = declarator.functionBody;
+          for (const auto& parameter : functionSuffix->parameters)
           {
-               const auto& parameter = functionSuffix->parameters[index];
                if (parameter.defaultInitialiser != nullptr)
                {
                     report("Default constructor arguments are not supported yet",
@@ -300,11 +335,12 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     report("Invalid constructor parameter type", parameter.type->Source());
                     return;
                }
-               constructor.parameters.push_back(
-                    {.name = parameter.name != nullptr ? parameter.name->ToString(0) : std::format("__arg{}", index),
-                     .type = parameterType,
-                     .isVariadic = false});
+               constructor.parameters.push_back({.name = parameter.name != nullptr ? parameter.name->ToString(0) : "",
+                                                 .type = parameterType,
+                                                 .isVariadic = false});
           }
+          if (constructor.parameters.size() == 1 && typeSystem::g_void->CommonWith(constructor.parameters.front().type))
+               constructor.parameters.clear();
 
           auto& classInfo = GetTypeContext().Class(id);
           classInfo.hasUserDeclaredConstructors = true;
@@ -323,6 +359,48 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           {
                report("Constructor is declared more than once", node.Source());
                return;
+          }
+
+          auto function =
+               MakeFunctionScope()
+                    .Name(className)
+                    .ReturnType(typeSystem::g_void.get())
+                    .CallingConvention(abi::ABI::Current().DefaultCallingConventionName())
+                    .Linkage(abi::Linkage::External)
+                    .IsInline(specifiers.isInline || declarator.functionBody == ast::FunctionBodyKind::Block ||
+                              declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+                    .IsStatic(false)
+                    .IsFriend(false)
+                    .IsExtern(false)
+                    .ConstexprSpecifier(ConstexprType::None)
+                    .IsDllImportExport(false)
+                    .NamespacePath(NamespacePathFromContext())
+                    .Parameters(constructor.parameters)
+                    .Source(identifier->Source())
+                    .Build();
+          function->parameters = constructor.parameters;
+          function->parentScope = &classScope;
+          function->memberClassInfo = &GetTypeContext().Class(id);
+          function->memberAccess = access;
+          function->isDeleted = declarator.functionBody == ast::FunctionBodyKind::Deleted;
+          function->isMemberFunctionDefined = declarator.functionBody != ast::FunctionBodyKind::None;
+          constructor.function = std::shared_ptr<FunctionScope>(std::move(function));
+
+          if (declarator.functionBody == ast::FunctionBodyKind::Block ||
+              declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+          {
+               const auto* declaratorPointer = &declarator;
+               const auto constructorFunction = constructor.function;
+               deferredFunctionBodies.emplace_back(
+                    [this, declaratorPointer, constructorFunction, id]
+                    {
+                         EmitConstructorBody(constructorFunction, id, declaratorPointer->location,
+                                             [declaratorPointer](IR& functionIr)
+                                             {
+                                                  for (const auto& statement : declaratorPointer->body)
+                                                       functionIr.ParseNode(statement);
+                                             });
+                    });
           }
           constructors.push_back(std::move(constructor));
           return;
@@ -426,9 +504,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                std::vector<FunctionScope::Parameter> parameters{};
                parameters.reserve(functionType.parameters.size());
                bool invalidParameters = false;
-               for (std::size_t index = 0; index < functionType.parameters.size(); index++)
+               for (const auto& parameter : functionType.parameters)
                {
-                    const auto& parameter = functionType.parameters[index];
                     if (parameter.explicitThis == ast::ExplicitThisSpecifier::Yes)
                     {
                          report("Explicit object parameters are not supported", parameter.type->Source());
@@ -450,9 +527,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          invalidParameters = true;
                          break;
                     }
-                    parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0)
-                                                                      : std::format("__arg{}", index),
-                                            parameterType, false);
+                    parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0) : "", parameterType,
+                                            false);
                }
                if (invalidParameters) continue;
                if (parameters.size() == 1 && parameters.front().type == typeSystem::g_void.get()) parameters.clear();
@@ -553,7 +629,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     function->isInline = true;
                     function->isMemberFunctionDefined = true;
                     const auto* declaratorPointer = &declarator;
-                    deferred.emplace_back(
+                    deferredFunctionBodies.emplace_back(
                          [this, declaratorPointer, function, id]
                          {
                               EmitMemberFunctionBody(*declaratorPointer, function, id);
@@ -644,6 +720,99 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     StoreDefaultMemberInitialiser(id, fieldIndex, *declaratorPointer, memberType, source);
                });
      }
+}
+
+void ecpps::ir::IR::EmitConstructorBody(const std::shared_ptr<FunctionScope>& function, const typeSystem::ClassId id,
+                                        const Location source, const std::function<void(IR&)>& parseBody)
+{
+     if (function == nullptr) return;
+
+     IR functionIr{this->_context};
+     functionIr.GetContext() = this->GetContext();
+
+     const auto* thisObjectType =
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = id}});
+     const auto* thisType = PointerTo(thisObjectType);
+     auto functionContext = std::make_shared<FunctionContext>(function.get(), function->callingConvention,
+                                                              function->returnType, function->Name().value_or(""),
+                                                              function->parameters |
+                                                                   std::views::transform(
+                                                                        [](const FunctionScope::Parameter& parameter)
+                                                                        {
+                                                                             return parameter.type;
+                                                                        }) |
+                                                                   ecpps::detail::ToVector);
+     functionContext->thisType = thisType;
+
+     struct RestoreContextSequence
+     {
+          Context* context{};
+          std::size_t size{};
+
+          ~RestoreContextSequence(void)
+          {
+               this->context->contextSequence.resize(this->size);
+          }
+     };
+     RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
+                                                   .size = functionIr.GetContext().contextSequence.size()};
+     functionIr.GetContext().contextSequence.push_back(functionContext);
+
+     auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
+     locals->reserve(function->parameters.size() + 1);
+     locals->push_back(FunctionScope::LocalEntity{FunctionScope::LocalEntity::ThisTag{}});
+     function->SetLocals(locals);
+
+     functionIr.EmitThisPrologue(thisType, source);
+     std::uint64_t parameterIndex = 1;
+     for (const auto& parameter : function->parameters)
+     {
+          locals->emplace_back(Variable{parameter.name, parameter.type, StorageDuration::Automatic});
+
+          auto* activeFunction = dynamic_cast<FunctionContext*>(functionIr.GetContext().contextSequence.back().get());
+          runtime_assert(activeFunction != nullptr, "Expected constructor function context during parameter emission");
+          RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+          auto allocation = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    SingleAssignRegisterNode(activeFunction->GetNextRegisterIndex(), info, parameter.type->Width(),
+                                             parameter.type->Alignment(), source)};
+          auto* allocationPointer = allocation.get();
+          activeFunction->RegisterParamAllocReg(parameter.name, allocationPointer);
+          functionIr._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator) AllocationNode(std::move(allocation), source)});
+          functionIr._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+               new (*functionIr.GetContext().nodeAllocator)
+                    ParameterNode(function.get(), parameterIndex++, allocationPointer, source)});
+     }
+
+     Expression thisExpression =
+          std::make_unique<PRValue>(thisType,
+                                    std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                         new (*functionIr.GetContext().nodeAllocator) high::ThisExpressionNode(source)},
+                                    false);
+     const auto* objectAddress = functionIr.LowerExpressionLoaded(std::move(thisExpression), functionIr._built);
+     if (objectAddress == nullptr) return;
+
+     functionIr._objectInitialisationStack.push_back(
+          {.type = thisObjectType, .address = objectAddress, .allowLocalLookup = true});
+     struct RestoreObjectInitialisation
+     {
+          std::vector<ActiveObjectInitialisation>* stack{};
+
+          ~RestoreObjectInitialisation(void)
+          {
+               this->stack->pop_back();
+          }
+     } restoreObjectInitialisation{.stack = &functionIr._objectInitialisationStack};
+
+     functionIr.InitialiseClassMembers(thisObjectType, objectAddress, source);
+     if (parseBody) parseBody(functionIr);
+     functionIr._built.push_back(std::unique_ptr<SSAReturnNode, IRDeleter>{new (*functionIr.GetContext().nodeAllocator)
+                                                                                SSAReturnNode(nullptr, source)});
+
+     this->_built.push_back(std::unique_ptr<ProcedureNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator)
+               ProcedureNode(function.get(), std::move(locals), std::move(functionIr._built), source)});
 }
 
 void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarator,
@@ -738,8 +907,8 @@ ecpps::ir::IR::DefaultMemberInitialiserValidator::DefaultMemberInitialiserValida
 
 void ecpps::ir::IR::DefaultMemberInitialiserValidator::Report(std::string message, const Location& at)
 {
-     _ir.GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
+     DiagnosticSink::Report(_ir.GetContext(),
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
 }
 
 bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
@@ -749,7 +918,8 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      const auto classRecord = _ir.GetContext().classTable->classes.find(classType->Info().id);
      if (classRecord == _ir.GetContext().classTable->classes.end() || classRecord->second.constructors.empty())
      {
-          Report(std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()), at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overloadDiagnostics::NoMatchingConstructor(
+                                                        classType->Info().DisplayName(), at));
           return false;
      }
 
@@ -768,6 +938,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      }
 
      const ClassConstructor* selected = nullptr;
+     std::vector<const ClassConstructor*> bestCandidates{};
      std::size_t bestScore = std::numeric_limits<std::size_t>::max();
      bool ambiguous = false;
      for (const auto& candidate : classRecord->second.constructors)
@@ -833,16 +1004,38 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
                selected = &candidate;
                bestScore = score;
                ambiguous = false;
+               bestCandidates.assign(1, &candidate);
           }
           else if (score == bestScore)
+          {
                ambiguous = true;
+               bestCandidates.push_back(&candidate);
+          }
      }
      if (selected == nullptr || ambiguous)
      {
-          Report(ambiguous
-                      ? "Constructor initialiser is ambiguous"
-                      : std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()),
-                 at);
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> diagnosticCandidates{};
+          if (ambiguous)
+          {
+               diagnosticCandidates.reserve(bestCandidates.size());
+               for (const auto* candidate : bestCandidates)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(*candidate, candidate->access == typeSystem::Access::Public ||
+                                                                         classType->Info().id == _ownerId));
+          }
+          else
+          {
+               diagnosticCandidates.reserve(classRecord->second.constructors.size());
+               for (const auto& candidate : classRecord->second.constructors)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(candidate, candidate.access == typeSystem::Access::Public ||
+                                                                        classType->Info().id == _ownerId));
+          }
+          auto diagnostic = ambiguous ? ecpps::ir::overloadDiagnostics::AmbiguousConstructor(
+                                             classType->Info().DisplayName(), at, diagnosticCandidates)
+                                      : ecpps::ir::overloadDiagnostics::NoMatchingConstructor(
+                                             classType->Info().DisplayName(), at, diagnosticCandidates);
+          DiagnosticSink::Report(_ir.GetContext(), std::move(diagnostic));
           return false;
      }
      if (copyList && selected->isExplicit)
@@ -865,17 +1058,16 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
           }
      if (selected->access != typeSystem::Access::Public && classType->Info().id != _ownerId)
      {
-          Report("Selected constructor is not accessible", at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                                        "Selected constructor is not accessible", at,
+                                                        ConstructorCandidateDiagnostic(*selected, false)));
           return false;
      }
-     if (selected->declaration == nullptr || selected->declaration->functionBody == ast::FunctionBodyKind::Deleted)
+     if (selected->bodyKind == ast::FunctionBodyKind::Deleted)
      {
-          Report("The selected constructor is deleted or unavailable", at);
-          return false;
-     }
-     if (selected->declaration->functionBody == ast::FunctionBodyKind::None)
-     {
-          Report("The selected constructor is declared but has no definition", at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                                        "The selected constructor is deleted or unavailable", at,
+                                                        ConstructorCandidateDiagnostic(*selected, true)));
           return false;
      }
      return true;
@@ -1066,7 +1258,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
      {
           _ir.InitialiseReferenceAtAddress(type, nullptr, &value, initialisationType, value->Source(),
                                            aggregateElement);
-          return _ir.GetContext().diagnostics.get().diagnosticsList.size() == _diagnosticCount;
+          return DiagnosticSink::Count(_ir.GetContext()) == _diagnosticCount;
      }
      if (const auto* array = type->CastTo<typeSystem::ArrayType>())
      {
@@ -1155,7 +1347,7 @@ void ecpps::ir::IR::StoreDefaultMemberInitialiser(const typeSystem::ClassId id, 
           activeObject.type = ownerType;
           this->_objectInitialisationStack.push_back(activeObject);
           const auto builtSize = this->_built.size();
-          const auto diagnosticCount = this->GetContext().diagnostics.get().diagnosticsList.size();
+          const auto diagnosticCount = DiagnosticSink::Count(this->GetContext());
 
           struct RestoreValidationState
           {

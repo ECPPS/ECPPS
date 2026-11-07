@@ -303,7 +303,7 @@ namespace ecpps::ast
      class ReferenceType final : public Node
      {
      public:
-          enum class Kind : std::uint_fast8_t
+          enum struct Kind : std::uint_fast8_t
           {
                LValue,
                RValue

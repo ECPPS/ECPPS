@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -21,6 +20,7 @@
 #include "../TypeSystem/ClassType.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "NodeBase.h"
@@ -86,9 +86,9 @@ namespace
                return request;
 
           case TypeNameLookup::Kind::NonType:
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "'" + value + "' is not a type name", basicType->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "'" + value + "' is not a type name", basicType->Source()));
                return ErrorRequest();
 
           case TypeNameLookup::Kind::Alias:
@@ -272,7 +272,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
           }
           catch (...)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     std::make_unique<diagnostics::ConstantEvaluationWarning>(
                          "Failed to use the constant expression evaluation result", expression->Value()->Source()));
           }
@@ -282,11 +283,11 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
 
      if (!comparison.IsValid())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot convert from " + expression->Type()->Name() + " (aka " + expression->Type()->RawName() +
-                         ") to type " + toType->Name() + " (aka " + toType->RawName() + ")",
-                    expression->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot convert from " + expression->Type()->Name() +
+                                                               " (aka " + expression->Type()->RawName() + ") to type " +
+                                                               toType->Name() + " (aka " + toType->RawName() + ")",
+                                                          expression->Value()->Source()));
           return nullptr;
      }
 
@@ -351,7 +352,8 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                          const auto* const allocReg = ResolveAllocReg(variableName);
                          if (allocReg == nullptr)
                          {
-                              this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                              DiagnosticSink::Report(
+                                   this->GetContext(),
                                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                         "Cannot resolve allocation register for variable '" + variableName + "'",
                                         source));
@@ -458,10 +460,10 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
           // TODO: Classes
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot perform this binary operation on " + left->Type()->Name() + " and " + right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
           return std::nullopt;
      }
 
@@ -471,11 +473,10 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
      const auto* commonType = leftIntegral->CommonWith(rightIntegral)->CastTo<typeSystem::IntegralType>();
      if (commonType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot find a common integral type between " + left->Type()->Name() + " and " +
-                         right->Type()->Name(),
-                    left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
           return std::nullopt;
      }
 
@@ -506,11 +507,11 @@ Expression ecpps::ir::IR::ParseRelationalExpression(Expression left, const ast::
      {
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot compare pointers to different types (" + left->Type()->Name() + " and " +
-                              right->Type()->Name() + ")",
-                         source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot compare pointers to different types (" + left->Type()->Name() +
+                                                " and " + right->Type()->Name() + ")",
+                                           source));
                return nullptr;
           }
      }
@@ -557,7 +558,8 @@ std::optional<ecpps::typeSystem::ClassId> ecpps::ir::IR::LookupClassForElaborati
           if (const auto it = scope.classes.find(name); it != scope.classes.end()) return it->second;
           if (scope.typeAliases.contains(name))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("'{}' names a typedef, not a class; it cannot be used in an elaborated "
                                      "type specifier",
@@ -599,15 +601,15 @@ bool ecpps::ir::IR::RequireComplete(const typeSystem::NonowningTypePointer type,
                                     const std::string_view what) const
 {
      if (type == nullptr || type->IsComplete()) return true;
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               std::format("Invalid use of incomplete type '{}' in {}", type->Name(), what), source));
+     DiagnosticSink::Report(this->GetContext(),
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                 std::format("Invalid use of incomplete type '{}' in {}", type->Name(), what), source));
      return false;
 }
 
 std::optional<std::uint64_t> ecpps::ir::IR::EvaluateArrayBound(const ast::NodePointer& bound, const std::string& name)
 {
-     auto& list = this->GetContext().diagnostics.get().diagnosticsList;
+     auto& list = DiagnosticSink::List(this->GetContext());
 
      const auto expression = ParseExpression(bound);
      if (expression == nullptr) return std::nullopt;
@@ -647,7 +649,7 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const a
                                                                          const bool allowUnboundedOutermost)
 {
      const DeclaratorTypeResult failure{.type = nullptr, .unboundedArray = false, .failed = true};
-     auto& list = this->GetContext().diagnostics.get().diagnosticsList;
+     auto& list = DiagnosticSink::List(this->GetContext());
      const auto* idNode = DeclaratorIdentifier(declarator);
      const Location idSource = idNode != nullptr ? idNode->Source() : Location{0, 0, 0};
      const auto* current = base;
@@ -761,7 +763,8 @@ bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer ty
                                        const std::string_view what) const
 {
      if (!typeSystem::IsClass(type)) return false;
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+     DiagnosticSink::Report(
+          this->GetContext(),
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
      return true;

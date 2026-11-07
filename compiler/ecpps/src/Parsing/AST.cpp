@@ -513,6 +513,83 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      attributes.Reserve(parsedAttributes.size());
      for (auto& attribute : parsedAttributes) attributes.Push(std::move(attribute));
 
+     const bool isInlineConstructor = Peek().type == TokenType::Keyword && Peek().AsKeyword() == "inline";
+     const std::ptrdiff_t constructorNameOffset = isInlineConstructor ? 1 : 0;
+     std::ptrdiff_t constructorPathOffset = constructorNameOffset;
+     if (IsOperatorToken(Peek(constructorPathOffset), "::")) constructorPathOffset++;
+     std::vector<std::string> constructorPath{};
+     while (Peek(constructorPathOffset).type == TokenType::Identifier)
+     {
+          constructorPath.push_back(Peek(constructorPathOffset).AsIdentifier());
+          constructorPathOffset++;
+          if (!IsOperatorToken(Peek(constructorPathOffset), "::") ||
+              Peek(constructorPathOffset + 1).type != TokenType::Identifier)
+               break;
+          constructorPathOffset++;
+     }
+     const bool isQualifiedConstructorDefinition =
+          constructorPath.size() >= 2 && constructorPath.back() == constructorPath[constructorPath.size() - 2] &&
+          Peek(constructorPathOffset).type == TokenType::LeftParenthesis;
+     if (isQualifiedConstructorDefinition)
+     {
+          if (isInlineConstructor) Advance();
+          NodePointer name = ParseDeclaratorId(context);
+          auto parameters = ParseParametersAndQualifiers(context);
+          if (name == nullptr || !parameters.has_value()) return nullptr;
+          if (parameters->isConst || parameters->isVolatile || parameters->refQualifier != RefQualifier::None)
+               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                    "A constructor cannot have cv-qualifiers or a ref-qualifier", parameters->location));
+          SBOVector<NodePointer> body{};
+          auto bodyKind = FunctionBodyKind::Block;
+          if (Match(TokenType::LeftBrace))
+          {
+               std::vector<NodePointer> statements{};
+               ParseBlockBody(context, statements);
+               body.Reserve(statements.size());
+               for (auto& statement : statements) body.Push(std::move(statement));
+          }
+          else if (IsOperatorToken(Peek(), "="))
+          {
+               Advance();
+               if (Peek().type != TokenType::Keyword || Peek().AsKeyword() != "default")
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected 'default' after '=' in an out-of-class constructor definition", Peek().location));
+                    return nullptr;
+               }
+               Advance();
+               if (!Match(TokenType::SemiColon))
+               {
+                    this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                         "Expected ';' after a defaulted constructor definition", Peek().location));
+                    return nullptr;
+               }
+               bodyKind = FunctionBodyKind::Defaulted;
+          }
+          else
+          {
+               this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+                    "Expected a constructor body or '= default' after the declarator", Peek().location));
+               return nullptr;
+          }
+
+          NodePointer voidType =
+               std::unique_ptr<BasicType, ASTDeleter>(new (context) BasicType("void", source, false, false));
+          FunctionSignature signature{std::move(voidType),
+                                      false,
+                                      isInlineConstructor,
+                                      ConstantExpressionSpecifier::None,
+                                      std::move(attributes),
+                                      std::move(name),
+                                      abi::ABI::Current().DefaultCallingConventionName()};
+          signature.parameters.parameters = std::move(parameters->parameters);
+          signature.isVariadic = parameters->isVariadic;
+          signature.noexceptSpecifier = std::move(parameters->noexceptSpecifier);
+          source.endPosition = Peek(-1).location.endPosition;
+          return std::unique_ptr<FunctionDefinitionNode, ASTDeleter>(
+               new (context) FunctionDefinitionNode(std::move(signature), std::move(body), source, bodyKind));
+     }
+
      bool isExtern = false;
      std::optional<std::string> externOptional = std::nullopt;
      while (Peek().type == TokenType::Keyword)
@@ -740,7 +817,7 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
               kw != "constexpr" && kw != "consteval" && kw != "constinit" && kw != "thread_local" && kw != "mutable")
                break;
           sawSpecifier = true;
-          ++i;
+          i++;
      }
      if (sawSpecifier) return true;
      if (Peek(i).type != TokenType::Identifier) return false;
@@ -1275,7 +1352,7 @@ std::vector<ecpps::ast::PtrOperator> ecpps::ast::AST::ParsePtrOperators(ASTConte
      auto isPointerToMember = [this]
      {
           std::ptrdiff_t i = 0;
-          if (IsOperatorToken(Peek(i), "::")) ++i;
+          if (IsOperatorToken(Peek(i), "::")) i++;
           bool sawName = false;
           while (Peek(i).type == TokenType::Identifier && IsOperatorToken(Peek(i + 1), "::"))
           {

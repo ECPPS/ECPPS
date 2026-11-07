@@ -13,7 +13,7 @@ namespace TestHelpers
           std::unique_ptr<ecpps::BumpAllocator> allocator_;
 
      public:
-          enum class Size
+          enum struct Size
           {
                Small = 1024 * 4,   // 4 KB
                Medium = 1024 * 64, // 64 KB

@@ -13,13 +13,16 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/IR.Internal.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "IR.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
+#include "Procedural.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
@@ -29,6 +32,28 @@ using ecpps::Expression;
 
 namespace
 {
+     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     {
+          switch (access)
+          {
+          case ecpps::typeSystem::Access::Public: return "public";
+          case ecpps::typeSystem::Access::Protected: return "protected";
+          case ecpps::typeSystem::Access::Private: return "private";
+          }
+          return "inaccessible";
+     }
+
+     [[nodiscard]] ecpps::ir::overloadDiagnostics::Candidate ConstructorCandidateDiagnostic(
+          const ecpps::ir::ClassConstructor& constructor, const bool accessible)
+     {
+          ecpps::ir::overloadDiagnostics::Candidate candidate{
+               .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
+               .source = constructor.function->source,
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+          if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
+          return candidate;
+     }
+
      [[nodiscard]] std::size_t ConversionCost(const ecpps::typeSystem::ConversionSequence::ConversionKind kind) noexcept
      {
           using Kind = ecpps::typeSystem::ConversionSequence::ConversionKind;
@@ -65,7 +90,8 @@ namespace
 Expression ecpps::ir::IR::ParseAggregateInitialisation(const ast::NodePointer& expression,
                                                        [[maybe_unused]] typeSystem::NonowningTypePointer desiredType)
 {
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+     DiagnosticSink::Report(
+          this->GetContext(),
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                "Aggregate class initialisation must initialise an object directly", expression->Source()));
      return nullptr;
@@ -99,10 +125,8 @@ bool ecpps::ir::IR::IsConstDefaultConstructible(typeSystem::NonowningTypePointer
           bool hasUsableDefaultConstructor = false;
           for (const auto& constructor : classRecord->second.constructors)
           {
-               if (!constructor.parameters.empty() || constructor.declaration == nullptr ||
-                   constructor.declaration->functionBody == ast::FunctionBodyKind::Deleted)
-                    continue;
-               if (constructor.declaration->functionBody != ast::FunctionBodyKind::Defaulted) return true;
+               if (!constructor.parameters.empty() || constructor.bodyKind == ast::FunctionBodyKind::Deleted) continue;
+               if (constructor.bodyKind != ast::FunctionBodyKind::Defaulted) return true;
                hasUsableDefaultConstructor = true;
                break;
           }
@@ -241,9 +265,9 @@ Expression ecpps::ir::IR::BuildMemberAccess(Expression objectPointer, const type
      if (objectPointer == nullptr) return nullptr;
      if (!this->CanAccess(info.id, field.access))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Member '{}' is not accessible", field.name), source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Member '{}' is not accessible", field.name), source));
           return nullptr;
      }
 
@@ -319,7 +343,8 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
      {
           if (list->Initialisers().size() != 1)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A reference member initialiser must contain exactly one initialiser", source));
                return;
@@ -334,7 +359,8 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
           dynamic_cast<const ast::InitialiserListNode*>(initialiser->get()) != nullptr) &&
          IsNarrowingConversion(referent, referenceType->BaseType()))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialisation",
                                 referent->Type()->Name(), referenceType->BaseType()->Name()),
@@ -349,7 +375,7 @@ void ecpps::ir::IR::InitialiseReferenceAtAddress(typeSystem::NonowningTypePointe
 const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpression(typeSystem::NonowningTypePointer type,
                                                                                   Expression referent,
                                                                                   const Location& source,
-                                                                                  const bool materialize)
+                                                                                  const bool materialise)
 {
      const auto* referenceType = type != nullptr ? type->CastTo<typeSystem::ReferenceType>() : nullptr;
      runtime_assert(referenceType != nullptr, "Reference binding requires a reference type");
@@ -396,7 +422,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
 
      if (dropsConst || dropsVolatile || (!directBinding && !canBindTemporary))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Reference member of type '{}' cannot bind to an initialiser of type '{}'",
                                 referenceType->BaseType()->Name(), referent->Type()->Name()),
@@ -404,7 +431,7 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
           return nullptr;
      }
 
-     if (!materialize) return nullptr; // Semantic-only validation of a default member initialiser.
+     if (!materialise) return nullptr; // Semantic-only validation of a default member initialiser.
 
      if (directBinding)
      {
@@ -446,7 +473,8 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
      {
           if (mode != ObjectInitialisationMode::Explicit || initialiser == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A reference member without a default member initialiser must be explicitly initialised",
                          source));
@@ -472,7 +500,8 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
      {
           const auto* qualifiedType = type->CastTo<typeSystem::QualifiedType>();
           if (qualifiedType != nullptr && qualifiedType->IsConst())
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A const-qualified scalar member requires an initialiser during default-initialisation",
                          source));
@@ -494,11 +523,11 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
                if (value == nullptr) return;
                if (IsNarrowingConversion(value, type))
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "Narrowing conversion from '" + value->Type()->Name() + "' to '" + type->Name() +
-                                   "' is not allowed in aggregate initialisation",
-                              (*initialiser)->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "Narrowing conversion from '" + value->Type()->Name() + "' to '" +
+                                                     type->Name() + "' is not allowed in aggregate initialisation",
+                                                (*initialiser)->Source()));
                     return;
                }
                expression = ConvertTo(std::move(value), type);
@@ -510,9 +539,9 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
      if (expression == nullptr)
      {
           if (mode == ObjectInitialisationMode::Explicit)
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Invalid initialiser for aggregate member", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Invalid initialiser for aggregate member", source));
           return;
      }
 
@@ -536,9 +565,9 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
           list = initialiser != nullptr ? dynamic_cast<const ast::InitialiserListNode*>(initialiser->get()) : nullptr;
           if (list == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "An array member requires a braced initialiser", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "An array member requires a braced initialiser", source));
                return;
           }
           if (std::ranges::any_of(list->Initialisers(),
@@ -548,16 +577,17 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
                                               nullptr;
                                   }))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Designated initialisers are only supported for direct class members", source));
                return;
           }
           if (list->Initialisers().size() > arrayType->ElementCount())
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Too many initialisers for array member", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Too many initialisers for array member", source));
                return;
           }
      }
@@ -567,13 +597,13 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
           const auto* elementAddress = AddByteOffset(address, index * arrayType->ElementType()->Size(), source);
           if (mode == ObjectInitialisationMode::Explicit && index < list->Initialisers().size())
           {
-               const auto& elementInitializer = list->Initialisers()[index];
+               const auto& elementInitialiser = list->Initialisers()[index];
                const auto elementInitType =
-                    dynamic_cast<const ast::InitialiserListNode*>(elementInitializer.get()) != nullptr
+                    dynamic_cast<const ast::InitialiserListNode*>(elementInitialiser.get()) != nullptr
                          ? ast::InitialisationType::BracedInitialiser
                          : ast::InitialisationType::Default;
-               this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, &elementInitializer, elementInitType,
-                                         ObjectInitialisationMode::Explicit, elementInitializer->Source(), true);
+               this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, &elementInitialiser, elementInitType,
+                                         ObjectInitialisationMode::Explicit, elementInitialiser->Source(), true);
           }
           else if (mode == ObjectInitialisationMode::Default)
                this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, nullptr,
@@ -607,9 +637,9 @@ void ecpps::ir::IR::ZeroInitialiseAtAddress(typeSystem::NonowningTypePointer typ
      {
           if (classType->Info().kind == typeSystem::ClassKind::Union)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Union initialisation is not supported yet", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Union initialisation is not supported yet", source));
                return;
           }
           for (const auto& field : classType->Info().fields)
@@ -644,7 +674,8 @@ void ecpps::ir::IR::InitialiseDefaultMember(typeSystem::NonowningTypePointer cla
 
      if (defaultInitialiser == nullptr || defaultInitialiser->invalid || defaultInitialiser->initialiser == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Default member initialiser for '{}' is unavailable", field.name), source));
           return;
@@ -684,7 +715,8 @@ void ecpps::ir::IR::InitialiseClassMembers(typeSystem::NonowningTypePointer type
           }
           if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Reference member '{}' has no initialiser", field.name), field.source));
                continue;
@@ -705,9 +737,8 @@ void ecpps::ir::IR::InitialiseClassAtAddress(typeSystem::NonowningTypePointer ty
      if (classType == nullptr) return;
      if (classType->Info().kind == typeSystem::ClassKind::Union)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Union initialisation is not supported yet", source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Union initialisation is not supported yet", source));
           return;
      }
 
@@ -734,7 +765,8 @@ std::optional<std::vector<Expression>> ecpps::ir::IR::ParseConstructorArguments(
           {
                if (dynamic_cast<const ast::DesignatedInitialiserNode*>(clause.get()) != nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               "Designated initialisers require an aggregate class", clause->Source()));
                     return std::nullopt;
@@ -819,13 +851,13 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
      const auto classIr = this->GetContext().classTable->classes.find(info.id);
      if (classIr == this->GetContext().classTable->classes.end() || classIr->second.constructors.empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("No constructor of '{}' matches these arguments", info.DisplayName()), source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::NoMatchingConstructor(info.DisplayName(), source));
           return std::nullopt;
      }
 
      const ClassConstructor* selected = nullptr;
+     std::vector<const ClassConstructor*> bestCandidates{};
      std::size_t bestScore = std::numeric_limits<std::size_t>::max();
      bool ambiguous = false;
      for (const auto& candidate : classIr->second.constructors)
@@ -849,18 +881,37 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
                selected = &candidate;
                bestScore = score;
                ambiguous = false;
+               bestCandidates.assign(1, &candidate);
           }
           else if (score == bestScore)
+          {
                ambiguous = true;
+               bestCandidates.push_back(&candidate);
+          }
      }
 
      if (selected == nullptr || ambiguous)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    ambiguous ? std::format("Constructor call for '{}' is ambiguous", info.DisplayName())
-                              : std::format("No constructor of '{}' matches these arguments", info.DisplayName()),
-                    source));
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> diagnosticCandidates{};
+          if (ambiguous)
+          {
+               diagnosticCandidates.reserve(bestCandidates.size());
+               for (const auto* candidate : bestCandidates)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(*candidate, this->CanAccess(info.id, candidate->access)));
+          }
+          else
+          {
+               diagnosticCandidates.reserve(classIr->second.constructors.size());
+               for (const auto& candidate : classIr->second.constructors)
+                    diagnosticCandidates.push_back(
+                         ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access)));
+          }
+          auto diagnostic = ambiguous ? ecpps::ir::overloadDiagnostics::AmbiguousConstructor(info.DisplayName(), source,
+                                                                                             diagnosticCandidates)
+                                      : ecpps::ir::overloadDiagnostics::NoMatchingConstructor(
+                                             info.DisplayName(), source, diagnosticCandidates);
+          DiagnosticSink::Report(this->GetContext(), std::move(diagnostic));
           return std::nullopt;
      }
      ConstructorSelection selection;
@@ -896,7 +947,8 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
                if (const auto* reference = parameterType->CastTo<typeSystem::ReferenceType>())
                     parameterType = reference->BaseType();
                if (!IsNarrowingConversion(selection->arguments[index], parameterType)) continue;
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Narrowing conversion from '{}' to '{}' is not allowed in list initialisation",
                                      selection->arguments[index]->Type()->Name(), parameterType->Name()),
@@ -905,41 +957,38 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
           }
      if (copyInitialisation && selection->constructor->isExplicit)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Copy initialisation cannot select an explicit constructor", source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Copy initialisation cannot select an explicit constructor", source));
           return;
      }
      if (!this->CanAccess(info.id, selection->constructor->access))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Selected constructor is not accessible",
-                                                                               source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                      "Selected constructor is not accessible", source,
+                                      ConstructorCandidateDiagnostic(*selection->constructor, false)));
           return;
      }
-     if (selection->constructor->declaration == nullptr)
-          throw TracedException("Constructor declaration metadata is missing");
-     const auto bodyKind = selection->constructor->declaration->functionBody;
-     if (bodyKind == ast::FunctionBodyKind::Deleted || bodyKind == ast::FunctionBodyKind::None)
+     const auto bodyKind = selection->constructor->bodyKind;
+     if (bodyKind == ast::FunctionBodyKind::Deleted)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    bodyKind == ast::FunctionBodyKind::Deleted
-                         ? "The selected constructor is deleted"
-                         : "The selected constructor is declared but has no definition",
-                    source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                      "The selected constructor is deleted", source,
+                                      ConstructorCandidateDiagnostic(*selection->constructor, true)));
           return;
      }
      if (bodyKind == ast::FunctionBodyKind::Defaulted && !selection->arguments.empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Only default constructors can be defaulted", source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Only default constructors can be defaulted", source));
           return;
      }
      if (classType->IsConst() && bodyKind == ast::FunctionBodyKind::Defaulted && !IsConstDefaultConstructible(type))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Const class '{}' is not const-default-constructible", info.DisplayName()), source));
           return;
@@ -952,16 +1001,7 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
                                        const ObjectInitialisationMode mode, const ast::NodePointer* initialiser,
                                        const Location& source)
 {
-     struct RestoreObjectStack
-     {
-          std::vector<ActiveObjectInitialisation>* stack;
-          ~RestoreObjectStack(void)
-          {
-               stack->pop_back();
-          }
-     };
-
-     const auto bodyKind = selection.constructor->declaration->functionBody;
+     const auto bodyKind = selection.constructor->bodyKind;
      const auto* list = initialiser != nullptr && *initialiser != nullptr
                              ? dynamic_cast<const ast::InitialiserListNode*>(initialiser->get())
                              : nullptr;
@@ -972,152 +1012,29 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
          bodyKind == ast::FunctionBodyKind::Defaulted)
           ZeroInitialiseAtAddress(type, address, source);
 
-     if (bodyKind == ast::FunctionBodyKind::Block)
+     if (selection.constructor->function == nullptr) throw TracedException("Constructor function metadata is missing");
+
+     std::vector<Expression> evaluatedArguments{};
+     evaluatedArguments.reserve(selection.arguments.size() + 1);
+     const auto* classObjectType =
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = info.id}});
+     evaluatedArguments.push_back(std::make_unique<PRValue>(
+          PointerTo(classObjectType),
+          std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                    SSARegisterReferenceNode(address, source)},
+          false));
+     for (std::size_t index = 0; index < selection.arguments.size(); index++)
      {
-          InlineConstructor(type, address, info, selection, source);
-          return;
+          auto converted =
+               ConvertTo(std::move(selection.arguments[index]), selection.constructor->parameters[index].type);
+          if (converted == nullptr) return;
+          evaluatedArguments.push_back(std::move(converted));
      }
 
-     this->_objectInitialisationStack.push_back({.type = type, .address = address, .allowLocalLookup = true});
-
-     RestoreObjectStack restoreObjectStack{};
-     restoreObjectStack.stack = &this->_objectInitialisationStack;
-     InitialiseClassMembers(type, address, source);
-}
-
-void ecpps::ir::IR::InlineConstructor(typeSystem::NonowningTypePointer type, const SingleAssignRegisterNode* address,
-                                      const typeSystem::ClassInfo& info, ConstructorSelection& selection,
-                                      const Location& source)
-{
-     struct RestoreInlineObjectStack
-     {
-          std::vector<ActiveObjectInitialisation>* stack;
-          ~RestoreInlineObjectStack(void)
-          {
-               stack->pop_back();
-          }
-     };
-
-     const auto* selected = selection.constructor;
-     const auto containsReturn = [&](const auto& self, const ast::NodePointer& statement) -> bool
-     {
-          if (dynamic_cast<const ast::ReturnNode*>(statement.get()) != nullptr) return true;
-          if (const auto* conditional = dynamic_cast<const ast::IfStatementNode*>(statement.get()))
-               return std::ranges::any_of(conditional->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          }) ||
-                      std::ranges::any_of(conditional->ElseBody(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::WhileStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::ForStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          if (const auto* loop = dynamic_cast<const ast::DoWhileStatementNode*>(statement.get()))
-               return std::ranges::any_of(loop->Body(),
-                                          [&](const ast::NodePointer& child)
-                                          {
-                                               return self(self, child);
-                                          });
-          return false;
-     };
-     if (std::ranges::any_of(selected->declaration->body,
-                             [&](const ast::NodePointer& statement)
-                             {
-                                  return containsReturn(containsReturn, statement);
-                             }))
-     {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Return statements in constructors are not supported yet", source));
-          return;
-     }
-
-     auto* callerFunction = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
-     runtime_assert(callerFunction != nullptr, "Constructor invocation requires a function context");
-     if (callerFunction == nullptr) return;
-
-     std::vector<const SingleAssignRegisterNode*> argumentRegisters{};
-     argumentRegisters.reserve(selected->parameters.size());
-     for (std::size_t index = 0; index < selected->parameters.size(); index++)
-     {
-          const auto* parameterType = selected->parameters[index].type;
-          if (parameterType->CastTo<typeSystem::ReferenceType>() != nullptr)
-               argumentRegisters.push_back(
-                    BindReferenceExpression(parameterType, std::move(selection.arguments[index]), source));
-          else
-          {
-               auto converted = ConvertTo(std::move(selection.arguments[index]), parameterType);
-               if (converted == nullptr) return;
-               argumentRegisters.push_back(LowerExpressionLoaded(std::move(converted), this->_built));
-          }
-          if (argumentRegisters.back() == nullptr) return;
-     }
-
-     auto inlineFunctionScope = std::make_unique<FunctionScope>();
-     inlineFunctionScope->SetName(std::format("{}::__constructor", info.DisplayName()));
-     inlineFunctionScope->returnType = typeSystem::g_void.get();
-     inlineFunctionScope->parameters = selected->parameters;
-     auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
-     inlineFunctionScope->SetLocals(locals);
-     std::vector<typeSystem::NonowningTypePointer> parameterTypes{};
-     parameterTypes.reserve(selected->parameters.size());
-     for (const auto& parameter : selected->parameters) parameterTypes.push_back(parameter.type);
-     auto inlineFunctionContext =
-          std::make_shared<FunctionContext>(inlineFunctionScope.get(), abi::CallingConventionName{},
-                                            typeSystem::g_void.get(), "__inline_constructor", parameterTypes);
-     inlineFunctionContext->nextRegisterIndex = callerFunction->nextRegisterIndex;
-
-     Context inlineContext = this->GetContext();
-     inlineContext.contextSequence.push_back(inlineFunctionContext);
-     IR inlineIr{&inlineContext};
-     inlineIr._objectInitialisationStack = this->_objectInitialisationStack;
-     auto& allocator = *this->GetContext().nodeAllocator;
-     for (std::size_t index = 0; index < selected->parameters.size(); index++)
-     {
-          const auto& parameter = selected->parameters[index];
-          const std::string parameterName = parameter.name.empty() ? std::format("__arg{}", index) : parameter.name;
-          locals->push_back(
-               FunctionScope::LocalEntity{Variable{parameterName, parameter.type, StorageDuration::Automatic}});
-          RegisterPriorityInfo parameterInfo{.regClass = RegisterClass::ParameterVariable};
-          auto allocation = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
-               new (allocator) SingleAssignRegisterNode(inlineFunctionContext->GetNextRegisterIndex(), parameterInfo,
-                                                        parameter.type->Width(), parameter.type->Alignment(), source)};
-          const auto* allocationRegister = allocation.get();
-          inlineFunctionContext->RegisterAllocReg(parameterName, allocationRegister);
-          inlineIr._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
-               new (allocator) AllocationNode(std::move(allocation), source)});
-          if (parameter.type->CastTo<typeSystem::ReferenceType>() != nullptr)
-          {
-               const auto* parameterAddress = inlineIr.AddressOfAllocation(allocationRegister, parameter.type, source);
-               inlineIr.StoreAtAddress(parameterAddress, argumentRegisters[index], parameter.type, source);
-               continue;
-          }
-          inlineIr._built.push_back(std::unique_ptr<SSAStoreNode, IRDeleter>{new (allocator) SSAStoreNode(
-               allocationRegister, argumentRegisters[index], detail::AccessForStorage(parameter.type), source)});
-     }
-
-     inlineIr._objectInitialisationStack.push_back({.type = type, .address = address, .allowLocalLookup = true});
-
-     RestoreInlineObjectStack restoreInlineObjectStack{};
-     restoreInlineObjectStack.stack = &inlineIr._objectInitialisationStack;
-     inlineIr.InitialiseClassMembers(type, address, source);
-     for (const auto& statement : selected->declaration->body) inlineIr.ParseNode(statement);
-     callerFunction->nextRegisterIndex = inlineFunctionContext->nextRegisterIndex;
-     this->_built.insert(this->_built.end(), std::make_move_iterator(inlineIr._built.begin()),
-                         std::make_move_iterator(inlineIr._built.end()));
+     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
+          selection.constructor->function, std::move(evaluatedArguments), source)};
+     Expression callExpression = std::make_unique<PRValue>(typeSystem::g_void.get(), std::move(call), false);
+     (void)LowerExpression(std::move(callExpression), this->_built);
 }
 
 void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningTypePointer type,
@@ -1132,7 +1049,8 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
      {
           if (classType->IsConst() && !IsConstDefaultConstructible(type))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Const class '{}' is not const-default-constructible", info.DisplayName()),
                          source));
@@ -1161,7 +1079,8 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
           initialiser != nullptr ? dynamic_cast<const ast::InitialiserListNode*>(initialiser->get()) : nullptr;
      if (list == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Class '{}' cannot be initialised from this expression yet", info.DisplayName()),
                     source));
@@ -1175,9 +1094,9 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
                InitialiseClassMembers(type, address, source);
                return;
           }
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Class '{}' is not an aggregate", info.DisplayName()), source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Class '{}' is not an aggregate", info.DisplayName()), source));
           return;
      }
 
@@ -1208,7 +1127,8 @@ void ecpps::ir::IR::InitialiseEmptyClassList(typeSystem::NonowningTypePointer ty
                InitialiseClassMembers(type, address, source);
           }
           else
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("No default constructor of '{}' is available", info.DisplayName()), source));
           return;
@@ -1221,7 +1141,8 @@ void ecpps::ir::IR::InitialiseEmptyClassList(typeSystem::NonowningTypePointer ty
           if (field.hasDefaultInitialiser)
                InitialiseDefaultMember(type, field, index, address, fieldAddress, field.source);
           else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Reference member '{}' has no initialiser", field.name), source));
           else
@@ -1267,10 +1188,10 @@ void ecpps::ir::IR::InitialisePositionalAggregate(const SingleAssignRegisterNode
                     InitialiseDefaultMember(owningClass, *owningField, owningFieldIndex, owningObjectAddress,
                                             subobjectAddress, owningField->source);
                else if (subobjectType->CastTo<typeSystem::ReferenceType>() != nullptr)
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "A reference member is omitted from the aggregate initialiser",
-                              owningField != nullptr ? owningField->source : source));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "A reference member is omitted from the aggregate initialiser",
+                                                owningField != nullptr ? owningField->source : source));
                else
                     InitialiseAtAddress(subobjectType, subobjectAddress, nullptr,
                                         ast::InitialisationType::EqualInitialiser, ObjectInitialisationMode::EmptyList,
@@ -1319,9 +1240,9 @@ void ecpps::ir::IR::InitialisePositionalAggregate(const SingleAssignRegisterNode
 
      initialiseAggregate(classType, address);
      if (nextClause < clauses.size())
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Too many initialisers for aggregate class", clauses[nextClause]->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Too many initialisers for aggregate class", clauses[nextClause]->Source()));
 }
 
 void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePointer type,
@@ -1350,16 +1271,17 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
                     }
                if (!fieldIndex.has_value())
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("'{}' is not a direct data member of '{}'", designated->Member(),
-                                          info.DisplayName()),
-                              designated->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                std::format("'{}' is not a direct data member of '{}'",
+                                                            designated->Member(), info.DisplayName()),
+                                                designated->Source()));
                     return;
                }
                if (explicitInitialisers[*fieldIndex] != nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Member '{}' is initialised more than once", designated->Member()),
                               designated->Source()));
@@ -1367,7 +1289,8 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
                }
                if (hasLastDesignatedIndex && *fieldIndex <= lastDesignatedIndex)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               "Designated initialisers must follow member declaration order", designated->Source()));
                     return;
@@ -1381,15 +1304,16 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
                sawPositional = true;
                if (sawDesignator)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "Positional and designated initialisers cannot be mixed",
-                              clauses[clauseIndex]->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "Positional and designated initialisers cannot be mixed",
+                                                clauses[clauseIndex]->Source()));
                     return;
                }
                if (clauseIndex >= info.fields.size())
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               "Too many initialisers for aggregate class", clauses[clauseIndex]->Source()));
                     return;
@@ -1399,9 +1323,9 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
      }
      if (sawDesignator && sawPositional)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Positional and designated initialisers cannot be mixed", source));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Positional and designated initialisers cannot be mixed", source));
           return;
      }
 
@@ -1421,7 +1345,8 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
           else if (field.hasDefaultInitialiser)
                this->InitialiseDefaultMember(type, field, index, address, fieldAddress, field.source);
           else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Reference member '{}' is omitted from the aggregate initialiser", field.name),
                          source));

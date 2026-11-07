@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -14,6 +13,7 @@
 #include "CodeGeneration/AbstractNodes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "NodeBase.h"
@@ -149,7 +149,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const SingleAssignRegisterNode* allocReg = ResolveAllocReg(varName);
           if (allocReg == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Cannot resolve allocation register for variable '" + varName + "'", source));
                return nullptr;
@@ -167,7 +168,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const SingleAssignRegisterNode* allocReg = ResolveAllocReg(varName);
           if (allocReg == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "Cannot resolve allocation register for variable '" + varName + "'", source));
           }
@@ -400,9 +402,9 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           if (dynamic_cast<ReferenceNode*>(operandNode) == nullptr &&
               dynamic_cast<SSARegisterReferenceNode*>(operandNode) == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot take the address of this expression yet", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot take the address of this expression yet", source));
                return nullptr;
           }
 
@@ -635,9 +637,9 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           const auto* thisAlloc = functionCtx->GetThisRegister();
           if (thisAlloc == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "`this` used outside of a non-static member function", source));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "`this` used outside of a non-static member function", source));
                return nullptr;
           }
 
@@ -648,9 +650,8 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::LowerExpression(Expres
           return resultPtr;
      }
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "Cannot lower expression to SSA: unsupported node kind", source));
+     DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                     "Cannot lower expression to SSA: unsupported node kind", source));
      return nullptr;
 }
 

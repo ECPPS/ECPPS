@@ -3,7 +3,6 @@
 #include <TypeSystem/TypeBase.h>
 #include <deque>
 #include <format>
-#include <functional>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -11,6 +10,7 @@
 #include <vector>
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Expressions.h"
 #include "HighLevel.h"
 #include "NodeBase.h"
@@ -151,7 +151,8 @@ void ecpps::ir::IR::ParseBreakNode(const ast::BreakNode& node)
 {
      if (this->_jumpStack.empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
                     "A 'break' statement may only appear inside a loop or a switch statement", node.Source()));
           return;
@@ -170,9 +171,9 @@ void ecpps::ir::IR::ParseContinueNode(const ast::ContinueNode& node)
           return;
      }
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-               "A 'continue' statement may only appear inside a loop", node.Source()));
+     DiagnosticSink::Report(this->GetContext(),
+                            diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                 "A 'continue' statement may only appear inside a loop", node.Source()));
 }
 
 Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)
@@ -184,10 +185,10 @@ Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)
 
      if (!IsScalar(condition->Type()))
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot contextually convert " + condition->Type()->Name() + " to bool",
-                    condition->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Cannot contextually convert " + condition->Type()->Name() + " to bool",
+                                      condition->Value()->Source()));
           return nullptr;
      }
 
