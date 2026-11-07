@@ -206,50 +206,6 @@ namespace ecpps::ir::detail
           return exactMatches;
      }
 
-     std::vector<std::pair<std::string, std::size_t>> CollectSimilarNames(
-          const std::string& name, std::size_t argumentCount, std::deque<ecpps::ir::ContextPointer>& contextSequence)
-     {
-          std::vector<std::pair<std::string, std::size_t>> similar;
-          std::set<std::string> seen;
-
-          for (const auto& context : contextSequence)
-          {
-               for (const auto& func : context->GetScope().functions)
-               {
-                    runtime_assert(func != nullptr, "Function pointer cannot be null");
-                    runtime_assert(func->Name().has_value(), "Function must have a name");
-                    const auto& functionName = func->Name().value(); // NOLINT
-
-                    if (seen.contains(functionName)) continue;
-
-                    seen.insert(functionName);
-
-                    const auto nameDistance = LevenshteinDistance(name, functionName);
-                    if (nameDistance == 0) continue;
-
-                    if (nameDistance > std::max<std::size_t>(3, name.length() / 3)) continue;
-
-                    const std::size_t paramCount = func->parameters.size();
-                    const std::size_t argPenalty =
-                         (paramCount > argumentCount) ? (paramCount - argumentCount) : (argumentCount - paramCount);
-
-                    const std::size_t score = nameDistance + (argPenalty * 2);
-
-                    if (score > 5) continue;
-
-                    similar.emplace_back(functionName, score);
-               }
-          }
-
-          std::ranges::sort(similar,
-                            [](const auto& a, const auto& b)
-                            {
-                                 return a.second < b.second;
-                            });
-
-          return similar;
-     }
-
      std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
           const std::string& name, std::deque<ecpps::ir::ContextPointer>& contextSequence)
      {

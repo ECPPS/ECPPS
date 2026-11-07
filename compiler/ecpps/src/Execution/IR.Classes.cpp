@@ -27,6 +27,7 @@
 #include "Expressions.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
 #include "Procedural.h"
 #include "Shared/BumpAllocator.h"
@@ -56,17 +57,18 @@ void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::
      const bool unionMismatch = (key == typeSystem::ClassKind::Union) != (info.kind == typeSystem::ClassKind::Union);
      if (unionMismatch)
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   std::format("'{}' was declared as a {} but is redeclared as a {}",
-                                               info.DisplayName(), info.Keyword(), node.ToString(0)),
-                                   node.Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("'{}' was declared as a {} but is redeclared as a {}",
+                                                  info.DisplayName(), info.Keyword(), node.ToString(0)),
+                                      node.Source()));
      else // TODO: Check if MS ABI, since that is ABI violating and shall reject the program
-          DiagnosticSink::Report(this->GetContext(),
-                              std::make_unique<diagnostics::Warning>(
-                                   "warning",
-                                   std::format("'{}' was declared as a {} but is redeclared with a different class-key",
-                                               info.DisplayName(), info.Keyword()),
-                                   node.Source()));
+          DiagnosticSink::Report(
+               this->GetContext(),
+               std::make_unique<diagnostics::Warning>(
+                    "warning",
+                    std::format("'{}' was declared as a {} but is redeclared with a different class-key",
+                                info.DisplayName(), info.Keyword()),
+                    node.Source()));
 }
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::DeclareClassInScope(Scope& scope, const ast::ClassType& node)
@@ -88,8 +90,8 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::Clas
      if (node.Value().empty())
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                                   "An elaborated type specifier requires a class name", node.Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                      "An elaborated type specifier requires a class name", node.Source()));
           return typeSystem::InvalidClassId;
      }
      if (const auto found = LookupClassForElaboration(node.Value(), node.Source()); found.has_value())
@@ -192,7 +194,7 @@ void ecpps::ir::IR::ParseClassNode(const ast::ClassType& node)
      if (node.Value().empty())
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                                                       "A class declaration requires a name", node.Source()));
+                                                          "A class declaration requires a name", node.Source()));
           return;
      }
      if (const auto it = scope.classes.find(node.Value()); it != scope.classes.end())
@@ -244,7 +246,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
      const auto report = [&](std::string message, const Location& source)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       std::move(message), source));
+                                                          std::move(message), source));
      };
 
      if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
@@ -304,7 +306,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     return;
                }
                constructor.parameters.push_back(
-                    {.name = parameter.name != nullptr ? parameter.name->ToString(0) : std::format("__arg{}", index),
+                    {.name = parameter.name != nullptr ? parameter.name->ToString(0) : "<unnamed>",
                      .type = parameterType,
                      .isVariadic = false});
           }
@@ -453,9 +455,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          invalidParameters = true;
                          break;
                     }
-                    parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0)
-                                                                      : std::format("__arg{}", index),
-                                            parameterType, false);
+                    parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0) : "", parameterType,
+                                            false);
                }
                if (invalidParameters) continue;
                if (parameters.size() == 1 && parameters.front().type == typeSystem::g_void.get()) parameters.clear();
@@ -742,7 +743,7 @@ ecpps::ir::IR::DefaultMemberInitialiserValidator::DefaultMemberInitialiserValida
 void ecpps::ir::IR::DefaultMemberInitialiserValidator::Report(std::string message, const Location& at)
 {
      DiagnosticSink::Report(_ir.GetContext(),
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
 }
 
 bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
@@ -752,7 +753,8 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      const auto classRecord = _ir.GetContext().classTable->classes.find(classType->Info().id);
      if (classRecord == _ir.GetContext().classTable->classes.end() || classRecord->second.constructors.empty())
      {
-          Report(std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()), at);
+          DiagnosticSink::Report(_ir.GetContext(), ecpps::ir::overload_diagnostics::NoMatchingConstructor(
+                                                        classType->Info().DisplayName(), at));
           return false;
      }
 
@@ -842,10 +844,10 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      }
      if (selected == nullptr || ambiguous)
      {
-          Report(ambiguous
-                      ? "Constructor initialiser is ambiguous"
-                      : std::format("No constructor of '{}' matches this initialiser", classType->Info().DisplayName()),
-                 at);
+          auto diagnostic =
+               ambiguous ? ecpps::ir::overload_diagnostics::AmbiguousConstructor(classType->Info().DisplayName(), at)
+                         : ecpps::ir::overload_diagnostics::NoMatchingConstructor(classType->Info().DisplayName(), at);
+          DiagnosticSink::Report(_ir.GetContext(), std::move(diagnostic));
           return false;
      }
      if (copyList && selected->isExplicit)
