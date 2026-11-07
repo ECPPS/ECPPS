@@ -3,14 +3,50 @@
 #include <IRTestHelpers.h>
 #include <catch_amalgamated.hpp>
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <format>
 #include <iterator>
 #include <string_view>
+#include <vector>
+#include <Execution/IR.Internal.h>
 
 using namespace IRTestHelpers;
 
 namespace
 {
+     std::size_t ReferenceDistance(const std::string_view left, const std::string_view right)
+     {
+          std::vector<std::size_t> previous(right.size() + 1);
+          std::vector<std::size_t> current(right.size() + 1);
+          std::vector<std::size_t> previousPrevious(right.size() + 1);
+
+          for (std::size_t column = 0; column <= right.size(); column++) previous[column] = column * 2;
+
+          const auto lower = [](const char value)
+          {
+               return std::tolower(static_cast<unsigned char>(value));
+          };
+          for (std::size_t row = 0; row < left.size(); row++)
+          {
+               current[0] = (row + 1) * 2;
+               for (std::size_t column = 0; column < right.size(); column++)
+               {
+                    const auto substitutionCost = left[row] == right[column]                 ? 0uz
+                                                  : lower(left[row]) == lower(right[column]) ? 1uz
+                                                                                             : 2uz;
+                    current[column + 1] =
+                         std::min({previous[column + 1] + 2, current[column] + 2, previous[column] + substitutionCost});
+                    if (row > 0 && column > 0 && lower(left[row]) == lower(right[column - 1]) &&
+                        lower(left[row - 1]) == lower(right[column]))
+                         current[column + 1] = std::min(current[column + 1], previousPrevious[column - 1] + 2);
+               }
+               previousPrevious.swap(previous);
+               previous.swap(current);
+          }
+          return previous[right.size()] / 2;
+     }
+
      std::vector<ecpps::ast::NodePointer> MakeOverloadProgram(Fixture& fixture, const std::string& firstParameter,
                                                               const std::string& secondParameter,
                                                               const std::string& callerParameter)
@@ -58,6 +94,30 @@ namespace
                                      });
      }
 } // namespace
+
+TEST_CASE("IR - bounded Damerau-Levenshtein distance preserves in-range results", "[unit][ir][distance]")
+{
+     using ecpps::ir::detail::LevenshteinDistance;
+     const std::array identifiers{std::string_view{""},    std::string_view{"a"},   std::string_view{"A"},
+                                  std::string_view{"b"},   std::string_view{"ab"},  std::string_view{"ba"},
+                                  std::string_view{"aab"}, std::string_view{"aba"}, std::string_view{"abb"},
+                                  std::string_view{"bba"}};
+
+     REQUIRE(LevenshteinDistance("ab", "ba", 1) == 1);
+     REQUIRE(LevenshteinDistance("A", "a", 0) == 0);
+     REQUIRE(LevenshteinDistance("abcd", "ab", 1) == 2);
+
+     for (const auto left : identifiers)
+          for (const auto right : identifiers)
+          {
+               const auto exact = ReferenceDistance(left, right);
+               for (std::size_t maximumDistance = 0; maximumDistance <= 3; maximumDistance++)
+               {
+                    const auto expected = exact > maximumDistance ? maximumDistance + 1 : exact;
+                    REQUIRE(LevenshteinDistance(left, right, maximumDistance) == expected);
+               }
+          }
+}
 
 TEST_CASE("IR - Overload resolution prefers an exact match", "[unit][ir][overload-resolution]")
 {

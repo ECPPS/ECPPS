@@ -1224,7 +1224,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           {
                if (function->Name() == memberName->Value() || function->memberClassInfo == nullptr) continue;
                const auto functionName = function->Name().value_or("__unknown");
-               const auto distance = LevenshteinDistance(memberName->Value().View(), functionName);
+               const auto distance = LevenshteinDistance(memberName->Value().View(), functionName, maximumDistance);
                if (distance == 0 || distance > maximumDistance) continue;
 
                auto suggestion = std::ranges::find(suggestions, functionName, &OverloadSimilarName::name);
@@ -1248,7 +1248,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           for (const auto& field : classType->Info().fields)
           {
                if (field.name.empty() || field.name == memberName->Value()) continue;
-               const auto distance = LevenshteinDistance(memberName->Value().View(), field.name);
+               const auto distance = LevenshteinDistance(memberName->Value().View(), field.name, maximumDistance);
                if (distance == 0 || distance > maximumDistance) continue;
 
                auto suggestion = std::ranges::find(suggestions, field.name, &OverloadSimilarName::name);
@@ -1683,7 +1683,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                     if (function == nullptr || !function->Name().has_value()) continue;
                     const auto& functionName = *function->Name();
                     if (functionName == name) continue;
-                    const auto distance = LevenshteinDistance(name, functionName);
+                    const auto distance = LevenshteinDistance(name, functionName, maximumDistance);
                     if (distance == 0 || distance > maximumDistance) continue;
 
                     auto suggestion = std::ranges::find(similarNames, functionName, &OverloadSimilarName::name);

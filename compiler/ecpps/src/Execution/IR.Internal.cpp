@@ -143,43 +143,91 @@ namespace ecpps::ir::detail
                  dynamic_cast<const ecpps::ir::high::DereferenceNode*>(expression->Value().get()) != nullptr;
      }
 
-     std::size_t LevenshteinDistance(const std::string_view string1, const std::string_view string2)
+     std::size_t LevenshteinDistance(std::string_view string1, std::string_view string2,
+                                     const std::size_t maximumDistance)
      {
-          const std::size_t size1 = string1.size();
-          const std::size_t size2 = string2.size();
+          const std::size_t lengthDifference =
+               string1.size() > string2.size() ? string1.size() - string2.size() : string2.size() - string1.size();
+          if (lengthDifference > maximumDistance) return maximumDistance + 1;
 
-          std::vector<std::size_t> previous(size2 + 1);
-          std::vector<std::size_t> current(size2 + 1);
-          std::vector<std::size_t> previousPrevious(size2 + 1);
-
-          for (std::size_t j = 0; j <= size2; j++) previous[j] = j * 2;
-
-          for (std::size_t i = 0; i < size1; i++)
+          while (!string1.empty() && !string2.empty() && string1.front() == string2.front())
           {
-               current[0] = (i + 1) * 2;
-
-               for (std::size_t j = 0; j < size2; j++)
-               {
-                    std::size_t cost{};
-
-                    if (string1[i] == string2[j]) cost = 0;
-                    else if (std::tolower(string1[i]) == std::tolower(string2[j]))
-                         cost = 1;
-                    else
-                         cost = 2;
-
-                    current[j + 1] = std::min({previous[j + 1] + 2, current[j] + 2, previous[j] + cost});
-
-                    if (i > 0 && j > 0 && std::tolower(string1[i]) == std::tolower(string2[j - 1]) &&
-                        std::tolower(string1[i - 1]) == std::tolower(string2[j]))
-                         current[j + 1] = std::min(current[j + 1], previousPrevious[j - 1] + 2);
-               }
-
-               previousPrevious.swap(previous);
-               previous.swap(current);
+               string1.remove_prefix(1);
+               string2.remove_prefix(1);
           }
 
-          return previous[size2] / 2;
+          while (!string1.empty() && !string2.empty() && string1.back() == string2.back())
+          {
+               string1.remove_suffix(1);
+               string2.remove_suffix(1);
+          }
+
+          if (string1.size() < string2.size()) std::swap(string1, string2);
+
+          const std::size_t rowCount = string1.size();
+          const std::size_t columnCount = string2.size();
+          if (rowCount - columnCount > maximumDistance) return maximumDistance + 1;
+          if (rowCount == 0) return 0;
+
+          const std::size_t overLimit = maximumDistance + 1;
+          const std::size_t cap = (maximumDistance * 2) + 2;
+          const std::size_t width = columnCount + 1;
+
+          std::vector<std::size_t> rows(width * 3, cap);
+          auto* previousPrevious = rows.data();
+          auto* previous = previousPrevious + width;
+          auto* current = previous + width;
+
+          for (std::size_t column = 0; column <= columnCount && column <= maximumDistance; column++)
+               previous[column] = column * 2;
+
+          const auto addCapped = [cap](const std::size_t value, const std::size_t cost)
+          {
+               return value >= cap - cost ? cap : value + cost;
+          };
+          const auto lower = [](const char value)
+          {
+               return std::tolower(static_cast<unsigned char>(value));
+          };
+
+          for (std::size_t row = 1; row <= rowCount; row++)
+          {
+               const std::size_t firstColumn = row > maximumDistance ? row - maximumDistance : 0;
+               const std::size_t lastColumn =
+                    row >= columnCount || maximumDistance >= columnCount - row ? columnCount : row + maximumDistance;
+               if (firstColumn != 0) current[firstColumn - 1] = cap;
+
+               for (std::size_t column = firstColumn; column <= lastColumn; column++)
+               {
+                    if (column == 0)
+                    {
+                         current[column] = addCapped(previous[column], 2);
+                         continue;
+                    }
+
+                    const char left = string1[row - 1];
+                    const char right = string2[column - 1];
+                    const int foldedLeft = lower(left);
+                    const int foldedRight = lower(right);
+                    const std::size_t substitutionCost = left == right ? 0 : foldedLeft == foldedRight ? 1 : 2;
+
+                    auto distance = std::min(addCapped(previous[column], 2), addCapped(current[column - 1], 2));
+                    distance = std::min(distance, addCapped(previous[column - 1], substitutionCost));
+
+                    if (row > 1 && column > 1 && foldedLeft == lower(string2[column - 2]) &&
+                        lower(string1[row - 2]) == foldedRight)
+                         distance = std::min(distance, addCapped(previousPrevious[column - 2], 2));
+
+                    current[column] = distance;
+               }
+
+               auto* const reused = previousPrevious;
+               previousPrevious = previous;
+               previous = current;
+               current = reused;
+          }
+
+          return previous[columnCount] >= cap ? overLimit : previous[columnCount] / 2;
      }
 
      std::uint64_t ConvertConstant(std::uint64_t value, const ecpps::typeSystem::IntegralType* from,
@@ -225,9 +273,9 @@ namespace ecpps::ir::detail
                          if (seen.contains(localName)) continue;
                          seen.insert(localName);
 
-                         const auto distance = LevenshteinDistance(name, localName);
-                         if (distance > 0 && distance <= std::max<std::size_t>(3, localName.length() / 3))
-                              similar.emplace_back(localName, distance);
+                         const std::size_t maximumDistance = std::max<std::size_t>(3, localName.length() / 3);
+                         const auto distance = LevenshteinDistance(name, localName, maximumDistance);
+                         if (distance > 0 && distance <= maximumDistance) similar.emplace_back(localName, distance);
                     }
                }
 
@@ -239,9 +287,9 @@ namespace ecpps::ir::detail
                     if (seen.contains(functionName)) continue;
                     seen.insert(functionName);
 
-                    const auto distance = LevenshteinDistance(name, functionName);
-                    if (distance > 0 && distance <= std::max<std::size_t>(3, functionName.length() / 3))
-                         similar.emplace_back(functionName, distance);
+                    const std::size_t maximumDistance = std::max<std::size_t>(3, functionName.length() / 3);
+                    const auto distance = LevenshteinDistance(name, functionName, maximumDistance);
+                    if (distance > 0 && distance <= maximumDistance) similar.emplace_back(functionName, distance);
                }
           }
 
