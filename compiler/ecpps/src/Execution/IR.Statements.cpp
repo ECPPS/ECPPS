@@ -173,8 +173,8 @@ void ecpps::ir::IR::ParseContinueNode(const ast::ContinueNode& node)
      }
 
      DiagnosticSink::Report(this->GetContext(),
-                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                              "A 'continue' statement may only appear inside a loop", node.Source()));
+                            diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                 "A 'continue' statement may only appear inside a loop", node.Source()));
 }
 
 Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)
@@ -187,9 +187,9 @@ Expression ecpps::ir::IR::ParseCondition(const ast::NodePointer& conditionNode)
      if (!IsScalar(condition->Type()))
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "Cannot contextually convert " + condition->Type()->Name() + " to bool",
-                                   condition->Value()->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Cannot contextually convert " + condition->Type()->Name() + " to bool",
+                                      condition->Value()->Source()));
           return nullptr;
      }
 

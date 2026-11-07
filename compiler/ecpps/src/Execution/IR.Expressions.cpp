@@ -180,18 +180,19 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      {
           if (operator_ != ast::Operator::Minus)
           {
-               DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                            "Cannot add two pointers", source));
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Cannot add two pointers", source));
                return nullptr;
           }
 
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "Cannot subtract pointers to different types (" + left->Type()->Name() +
-                                             " and " + right->Type()->Name() + ")",
-                                        source));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot subtract pointers to different types (" + left->Type()->Name() +
+                                                " and " + right->Type()->Name() + ")",
+                                           source));
                return nullptr;
           }
 
@@ -199,8 +200,8 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
           if (elementSize == 0)
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "Cannot subtract pointers to a void or incomplete type", source));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot subtract pointers to a void or incomplete type", source));
                return nullptr;
           }
 
@@ -233,9 +234,9 @@ Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator
      {
           // TODO: Classes
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -286,9 +287,9 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      {
           // TODO: Classes
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -299,9 +300,9 @@ Expression ecpps::ir::IR::ParseShiftExpression(Expression left, ast::Operator op
      if (commonType == nullptr)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot find a common integral type between " +
-                                                            left->Type()->Name() + " and " + left->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -389,8 +390,8 @@ Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Loc
      if (!operand->IsGLValue())
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "A glvalue is required for the address-of operator", operand->Value()->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "A glvalue is required for the address-of operator", operand->Value()->Source()));
 
           return nullptr;
      }
@@ -422,9 +423,9 @@ Expression ecpps::ir::IR::ParseSubscriptExpression(Expression left, Expression r
          ((rightPointer == nullptr && !rightIsArray) || leftIntegral == nullptr))
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       std::format("Cannot subscript types `{}` and `{}`",
-                                                                   left->Type()->Name(), right->Type()->Name()),
-                                                       source));
+                                                          std::format("Cannot subscript types `{}` and `{}`",
+                                                                      left->Type()->Name(), right->Type()->Name()),
+                                                          source));
           return nullptr;
      }
 
@@ -490,9 +491,9 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
      {
           // TODO: Classes
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -503,9 +504,9 @@ Expression ecpps::ir::IR::ParseBinaryAndExpression(Expression left, Expression r
      if (commonType == nullptr)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot find a common integral type between " +
-                                                            left->Type()->Name() + " and " + left->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -549,9 +550,9 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
      {
           // TODO: Classes
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
@@ -562,9 +563,9 @@ Expression ecpps::ir::IR::ParseBinaryXorExpression(Expression left, Expression r
      if (commonType == nullptr)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot find a common integral type between " +
-                                                            left->Type()->Name() + " and " + left->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + left->Type()->Name(),
+                                                          left->Value()->Source()));
           return nullptr;
      }
 
@@ -613,9 +614,9 @@ Expression ecpps::ir::IR::ParsePreIncrementExpression(Expression operand, const 
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "A modifiable lvalue is required for the builtin pre-increment operator",
-                                        operand->Value()->Source()));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin pre-increment operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -648,9 +649,9 @@ Expression ecpps::ir::IR::ParsePostIncrementExpression(Expression operand, const
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "A modifiable lvalue is required for the builtin post-increment operator",
-                                        operand->Value()->Source()));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin post-increment operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -677,9 +678,9 @@ Expression ecpps::ir::IR::ParsePreDecrementExpression(Expression operand, const 
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "A modifiable lvalue is required for the builtin pre-decrement operator",
-                                        operand->Value()->Source()));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin pre-decrement operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -712,9 +713,9 @@ Expression ecpps::ir::IR::ParsePostDecrementExpression(Expression operand, const
           if (!operand->IsLValue() || (qualifiedType != nullptr && qualifiedType->IsConst()))
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "A modifiable lvalue is required for the builtin post-decrement operator",
-                                        operand->Value()->Source()));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A modifiable lvalue is required for the builtin post-decrement operator",
+                                           operand->Value()->Source()));
                return nullptr;
           }
 
@@ -810,17 +811,17 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
      {
           // TODO: Classes, floating point etc
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
 
           return nullptr;
      }
      if (!left->IsLValue())
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
           return nullptr;
      }
      if (leftIntegral->IsConst())
@@ -861,24 +862,25 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
      const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
      if (leftIntegral == nullptr)
      {
-          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform compound assignment on " + left->Type()->Name(),
-                                                       left->Value()->Source()));
+          DiagnosticSink::Report(
+               this->GetContext(),
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Cannot perform compound assignment on " + left->Type()->Name(), left->Value()->Source()));
           return nullptr;
      }
 
      if (!left->IsLValue())
      {
-          DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "A modifiable lvalue is required for compound assignment", left->Value()->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "A modifiable lvalue is required for compound assignment",
+                                                          left->Value()->Source()));
           return nullptr;
      }
      if (leftIntegral->IsConst())
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "Assignment expressions require modifiable lvalues", left->Value()->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Assignment expressions require modifiable lvalues", left->Value()->Source()));
           return nullptr;
      }
 
@@ -951,9 +953,10 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(node.Right().get());
           if (memberName == nullptr)
           {
-               DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "Expected a data member name after the member access operator", node.Source()));
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Expected a data member name after the member access operator", node.Source()));
                return nullptr;
           }
 
@@ -965,8 +968,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                if (pointerType == nullptr)
                {
                     DiagnosticSink::Report(this->GetContext(),
-                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                             "The '->' operator requires a pointer to a class type", node.Source()));
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "The '->' operator requires a pointer to a class type", node.Source()));
                     return nullptr;
                }
                objectType = pointerType->BaseType();
@@ -977,8 +980,8 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                if (!typeSystem::IsClass(objectType) || !left->IsLValue())
                {
                     DiagnosticSink::Report(this->GetContext(),
-                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                             "The '.' operator requires a class lvalue", node.Source()));
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "The '.' operator requires a class lvalue", node.Source()));
                     return nullptr;
                }
                objectPointer = ParseAddressOfExpression(std::move(left), node.Source());
@@ -987,8 +990,9 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
           const auto* classType = objectType->CastTo<typeSystem::ClassType>();
           if (classType == nullptr)
           {
-               DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                            "Member access requires a class type", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Member access requires a class type", node.Source()));
                return nullptr;
           }
           for (const auto& field : classType->Info().fields)
@@ -996,10 +1000,10 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                     return this->BuildMemberAccess(std::move(objectPointer), classType->Info(), field, node.Source());
 
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   std::format("Class '{}' has no data member named '{}'",
-                                               classType->Info().DisplayName(), memberName->Value()),
-                                   memberName->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Class '{}' has no data member named '{}'",
+                                                  classType->Info().DisplayName(), memberName->Value()),
+                                      memberName->Source()));
           return nullptr;
      }
 
@@ -1057,7 +1061,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      const auto report = [&](std::string message, const Location& source) -> Expression
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       std::move(message), source));
+                                                          std::move(message), source));
           return nullptr;
      };
      if (memberName == nullptr)
@@ -1386,10 +1390,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           }
           if (isFromGlobalNamespace && parts.size() == 1)
           {
-               DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "Expected a function name in a call expression, found global scope specifier",
-                                        node.Function()->Source()));
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Expected a function name in a call expression, found global scope specifier",
+                         node.Function()->Source()));
                return nullptr;
           }
           identifierFunction = dynamic_cast<ast::IdentifierNode*>(parts.back().get());
@@ -1398,10 +1403,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      if (!identifierFunction)
      {
           DiagnosticSink::Report(this->GetContext(),
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   std::format("Expected a function name in a call expression, found: {}",
-                                               node.Function()->ToString(0)),
-                                   node.Function()->Source()));
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Expected a function name in a call expression, found: {}",
+                                                  node.Function()->ToString(0)),
+                                      node.Function()->Source()));
           return nullptr;
      }
 
@@ -2071,8 +2076,8 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseAlignofExpression(*alignofNode);
 
      DiagnosticSink::Report(this->GetContext(),
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              expression->ToString(0) + " cannot appear in this context.", expression->Source()));
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                 expression->ToString(0) + " cannot appear in this context.", expression->Source()));
 
      return nullptr;
 }

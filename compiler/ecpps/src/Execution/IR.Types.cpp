@@ -87,8 +87,9 @@ namespace
                return request;
 
           case TypeNameLookup::Kind::NonType:
-               DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                            "'" + value + "' is not a type name", basicType->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "'" + value + "' is not a type name", basicType->Source()));
                return ErrorRequest();
 
           case TypeNameLookup::Kind::Alias:
@@ -272,9 +273,10 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
           }
           catch (...)
           {
-               DiagnosticSink::Report(this->GetContext(), std::make_unique<diagnostics::ConstantEvaluationWarning>(
-                                                            "Failed to use the constant expression evaluation result",
-                                                            expression->Value()->Source()));
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    std::make_unique<diagnostics::ConstantEvaluationWarning>(
+                         "Failed to use the constant expression evaluation result", expression->Value()->Source()));
           }
      }
 
@@ -283,10 +285,10 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
      if (!comparison.IsValid())
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot convert from " + expression->Type()->Name() + " (aka " +
-                                                            expression->Type()->RawName() + ") to type " +
-                                                            toType->Name() + " (aka " + toType->RawName() + ")",
-                                                       expression->Value()->Source()));
+                                                          "Cannot convert from " + expression->Type()->Name() +
+                                                               " (aka " + expression->Type()->RawName() + ") to type " +
+                                                               toType->Name() + " (aka " + toType->RawName() + ")",
+                                                          expression->Value()->Source()));
           return nullptr;
      }
 
@@ -460,9 +462,9 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
      {
           // TODO: Classes
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot perform this binary operation on " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot perform this binary operation on " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
           return std::nullopt;
      }
 
@@ -473,9 +475,9 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
      if (commonType == nullptr)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                       "Cannot find a common integral type between " +
-                                                            left->Type()->Name() + " and " + right->Type()->Name(),
-                                                       left->Value()->Source()));
+                                                          "Cannot find a common integral type between " +
+                                                               left->Type()->Name() + " and " + right->Type()->Name(),
+                                                          left->Value()->Source()));
           return std::nullopt;
      }
 
@@ -507,10 +509,10 @@ Expression ecpps::ir::IR::ParseRelationalExpression(Expression left, const ast::
           if (leftPointer->BaseType() != rightPointer->BaseType())
           {
                DiagnosticSink::Report(this->GetContext(),
-                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                        "Cannot compare pointers to different types (" + left->Type()->Name() +
-                                             " and " + right->Type()->Name() + ")",
-                                        source));
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot compare pointers to different types (" + left->Type()->Name() +
+                                                " and " + right->Type()->Name() + ")",
+                                           source));
                return nullptr;
           }
      }
@@ -601,8 +603,8 @@ bool ecpps::ir::IR::RequireComplete(const typeSystem::NonowningTypePointer type,
 {
      if (type == nullptr || type->IsComplete()) return true;
      DiagnosticSink::Report(this->GetContext(),
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("Invalid use of incomplete type '{}' in {}", type->Name(), what), source));
+                            diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                 std::format("Invalid use of incomplete type '{}' in {}", type->Name(), what), source));
      return false;
 }
 
@@ -762,8 +764,9 @@ bool ecpps::ir::IR::RejectClassByValue(const typeSystem::NonowningTypePointer ty
                                        const std::string_view what) const
 {
      if (!typeSystem::IsClass(type)) return false;
-     DiagnosticSink::Report(this->GetContext(),
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
+     DiagnosticSink::Report(
+          this->GetContext(),
+          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+               std::format("Class type '{}' is not supported as {} yet", type->Name(), what), source));
      return true;
 }
