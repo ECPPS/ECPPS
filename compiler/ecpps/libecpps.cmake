@@ -50,6 +50,7 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Linker/WindowsLinker.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Expressions.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Diagnostics.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Initialisation.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Statements.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/IR.Types.cpp"

@@ -15,6 +15,7 @@
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
 #include "IR.Internal.h"
@@ -113,9 +114,9 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
           const auto* targetType = ParseType(aliasNode->TargetType());
           if (targetType == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Invalid target type in using declaration", aliasNode->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        "Invalid target type in using declaration", aliasNode->Source()));
                return;
           }
 
@@ -174,9 +175,9 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                         "Invalid language linkage specification", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                        "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -267,9 +268,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                         "Invalid language linkage specification", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                        "Invalid language linkage specification", node.Source()));
           }
      }
      else if (node.Signature().isInline ||
@@ -405,11 +406,11 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      {
           if (!typeSystem::g_void->CommonWith(function->returnType)) // NOLINT(clang-analyzer-core.NullDereference)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
-                              function->returnType->RawName() + ")",
-                         node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        "Cannot convert from void to type " + function->returnType->Name() + " (aka " +
+                                             function->returnType->RawName() + ")",
+                                        node.Source()));
           }
           this->_built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});

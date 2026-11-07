@@ -22,6 +22,7 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
 #include "NodeBase.h"
@@ -54,17 +55,18 @@ void ecpps::ir::IR::CheckClassKey(const typeSystem::ClassInfo& info, const ast::
      if (key == info.kind) return;
      const bool unionMismatch = (key == typeSystem::ClassKind::Union) != (info.kind == typeSystem::ClassKind::Union);
      if (unionMismatch)
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("'{}' was declared as a {} but is redeclared as a {}", info.DisplayName(),
-                                info.Keyword(), node.ToString(0)),
-                    node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   std::format("'{}' was declared as a {} but is redeclared as a {}",
+                                               info.DisplayName(), info.Keyword(), node.ToString(0)),
+                                   node.Source()));
      else // TODO: Check if MS ABI, since that is ABI violating and shall reject the program
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::Warning>(
-               "warning",
-               std::format("'{}' was declared as a {} but is redeclared with a different class-key", info.DisplayName(),
-                           info.Keyword()),
-               node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              std::make_unique<diagnostics::Warning>(
+                                   "warning",
+                                   std::format("'{}' was declared as a {} but is redeclared with a different class-key",
+                                               info.DisplayName(), info.Keyword()),
+                                   node.Source()));
 }
 
 ecpps::typeSystem::ClassId ecpps::ir::IR::DeclareClassInScope(Scope& scope, const ast::ClassType& node)
@@ -85,9 +87,9 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::ResolveElaboratedClass(const ast::Clas
 {
      if (node.Value().empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                    "An elaborated type specifier requires a class name", node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                   "An elaborated type specifier requires a class name", node.Source()));
           return typeSystem::InvalidClassId;
      }
      if (const auto found = LookupClassForElaboration(node.Value(), node.Source()); found.has_value())
@@ -111,7 +113,8 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
           CheckClassKey(types.Class(id), node);
           if (types.Class(id).state != typeSystem::ClassState::Declared)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Redefinition of '{}'", types.Class(id).DisplayName()), node.Source()));
                return id;
@@ -188,9 +191,8 @@ void ecpps::ir::IR::ParseClassNode(const ast::ClassType& node)
      auto& scope = this->GetContext().contextSequence.back()->GetScope();
      if (node.Value().empty())
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build("A class declaration requires a name",
-                                                                                 node.Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                                       "A class declaration requires a name", node.Source()));
           return;
      }
      if (const auto it = scope.classes.find(node.Value()); it != scope.classes.end())
@@ -211,7 +213,8 @@ void ecpps::ir::IR::ParseNestedClass(const ast::ClassType& nested, const typeSys
      {
           if (definition == nullptr || nested.Key() != ast::ClassKey::Union)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A declaration must declare something; only anonymous unions may be unnamed members",
                          nested.Source()));
@@ -240,8 +243,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
      auto& classScope = this->GetContext().contextSequence.back()->GetScope<ClassScope>();
      const auto report = [&](std::string message, const Location& source)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), source));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                       std::move(message), source));
      };
 
      if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
@@ -738,8 +741,8 @@ ecpps::ir::IR::DefaultMemberInitialiserValidator::DefaultMemberInitialiserValida
 
 void ecpps::ir::IR::DefaultMemberInitialiserValidator::Report(std::string message, const Location& at)
 {
-     _ir.GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
+     DiagnosticSink::Report(_ir.GetContext(),
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(std::move(message), at));
 }
 
 bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
@@ -1066,7 +1069,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
      {
           _ir.InitialiseReferenceAtAddress(type, nullptr, &value, initialisationType, value->Source(),
                                            aggregateElement);
-          return _ir.GetContext().diagnostics.get().diagnosticsList.size() == _diagnosticCount;
+          return DiagnosticSink::Count(_ir.GetContext()) == _diagnosticCount;
      }
      if (const auto* array = type->CastTo<typeSystem::ArrayType>())
      {
@@ -1155,7 +1158,7 @@ void ecpps::ir::IR::StoreDefaultMemberInitialiser(const typeSystem::ClassId id, 
           activeObject.type = ownerType;
           this->_objectInitialisationStack.push_back(activeObject);
           const auto builtSize = this->_built.size();
-          const auto diagnosticCount = this->GetContext().diagnostics.get().diagnosticsList.size();
+          const auto diagnosticCount = DiagnosticSink::Count(this->GetContext());
 
           struct RestoreValidationState
           {

@@ -17,6 +17,7 @@
 #include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
+#include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Execution/IR.Internal.h"
 #include "Expressions.h"
@@ -38,9 +39,9 @@ std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePoin
 {
      if (initialiser == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    std::format("Unbounded array '{}' must have an initialiser", name), source));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   std::format("Unbounded array '{}' must have an initialiser", name), source));
           return std::nullopt;
      }
 
@@ -58,7 +59,8 @@ std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePoin
 
           if (count == 0)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Cannot deduce the bound of array '{}' from an empty initialiser list", name),
                          initialiser->Source()));
@@ -67,7 +69,8 @@ std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePoin
           return count;
      }
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+     DiagnosticSink::Report(
+          this->GetContext(),
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                std::format("Array '{}' must be initialised with initialiser-lists", name), initialiser->Source()));
      return std::nullopt;
@@ -90,7 +93,8 @@ Expression ecpps::ir::IR::ParseArrayInitialiser(const ast::NodePointer& initiali
 
           if (stringLength > arrayType->ElementCount())
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Cannot initialise an array with more elements than it can "
                                      "hold. Provided {} elements for an array of `{}` `{}`s",
@@ -113,7 +117,8 @@ Expression ecpps::ir::IR::ParseArrayInitialiser(const ast::NodePointer& initiali
      if (dynamic_cast<const ast::InitialiserListNode*>(initialiser.get()) != nullptr)
           return ParseListInitialisation(initialiser, arrayTypeBase);
 
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
+     DiagnosticSink::Report(
+          this->GetContext(),
           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                std::format("Array '{}' must be initialised with initialiser-lists", name), initialiser->Source()));
      return nullptr;
@@ -128,10 +133,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           const auto* declaredType = ParseType(node.Type());
           if (declaredType == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         std::format("Unknown type {} in typedef declaration", node.Type()->ToString(0)),
-                         node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        std::format("Unknown type {} in typedef declaration", node.Type()->ToString(0)),
+                                        node.Source()));
                return;
           }
 
@@ -142,9 +147,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                const auto* idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
                if (idExpr == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                              "Expected identifier in typedef declarator", decl.name->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                        diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                             "Expected identifier in typedef declarator", decl.name->Source()));
                     continue;
                }
 
@@ -163,7 +168,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
      const auto* declaredType = ParseType(node.Type());
      if (declaredType == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
+          DiagnosticSink::Report(
+               this->GetContext(),
                diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                     std::format("Unknown type {} in variable declaration", node.Type()->ToString(0)), node.Source()));
           return;
@@ -175,9 +181,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           const auto* const idExpr = dynamic_cast<const ast::IdentifierNode*>(idNodePtr);
           if (idExpr == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                         "Expected identifier in variable declarator", decl.name->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                        "Expected identifier in variable declarator", decl.name->Source()));
                continue;
           }
 
@@ -199,7 +205,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                {
                     if (levelIndex != 0)
                     {
-                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                         DiagnosticSink::Report(
+                              this->GetContext(),
                               std::make_unique<diagnostics::TypeError>(
                                    std::format("Declaration of '{}' introduces an array of unbounded arrays which is "
                                                "not allowed, only the top-level array might be unbounded",
@@ -223,7 +230,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     arrayLevelExpression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
                if (!constexprArraySize.has_value())
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          std::make_unique<diagnostics::TypeError>(
                               std::format("Arrays bounds must be defined by a constant expression", varName),
                               arrayLevel->Source()));
@@ -232,8 +240,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
 
                     while (!nestedDiagnostics.empty())
                     {
-                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                              std::move(nestedDiagnostics.top()));
+                         DiagnosticSink::Report(this->GetContext(), std::move(nestedDiagnostics.top()));
                          nestedDiagnostics.pop();
                     }
                     arrayBoundsFailed = true;
@@ -242,10 +249,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                const auto& arraySize = *constexprArraySize;
                if (!std::holds_alternative<std::uint64_t>(arraySize.variant))
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         std::make_unique<diagnostics::TypeError>(
-                              std::format("Arrays bounds must be defined by an integer", varName),
-                              arrayLevel->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                        std::make_unique<diagnostics::TypeError>(
+                                             std::format("Arrays bounds must be defined by an integer", varName),
+                                             arrayLevel->Source()));
                     arrayBoundsFailed = true;
                     break;
                }
@@ -299,9 +306,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           }
           if (duplicate)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Redefinition of variable '" + varName + "'", decl.name->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        "Redefinition of variable '" + varName + "'", decl.name->Source()));
                continue;
           }
           if (!RequireComplete(variableType, decl.name->Source(), "an object definition")) continue;
@@ -338,7 +345,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           {
                const auto* qualifiedType = type->CastTo<typeSystem::QualifiedType>();
                if (qualifiedType == nullptr || !qualifiedType->IsConst()) return;
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "A const-qualified scalar object requires an initialiser during default-initialisation",
                          decl.name->Source()));
@@ -360,9 +368,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           {
                if (decl.initialiser == nullptr)
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "A reference variable requires an initialiser", decl.name->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                             "A reference variable requires an initialiser", decl.name->Source()));
                     continue;
                }
                const auto* referenceStorage = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
@@ -400,10 +408,10 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          InitialiseAtAddress(variableType, objectAddress, &decl.initialiser, decl.initialiserType,
                                              ObjectInitialisationMode::Explicit, decl.initialiser->Source());
                     else
-                         this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                   "An array of class objects requires a braced initialiser",
-                                   decl.initialiser->Source()));
+                         DiagnosticSink::Report(this->GetContext(),
+                                             diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                  "An array of class objects requires a braced initialiser",
+                                                  decl.initialiser->Source()));
                     continue;
                }
                // Arrays are initialised with a single aggregate store. Elements without an initialiser are
@@ -420,9 +428,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           auto initExpr = PickInitialiser(decl.initialiser, variableType, decl.initialiserType);
           if (initExpr == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Invalid initialiser for variable '" + varName + "'", decl.initialiser->Source()));
+               DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                            "Invalid initialiser for variable '" + varName + "'",
+                                                            decl.initialiser->Source()));
                continue;
           }
 
@@ -465,9 +473,8 @@ Expression ecpps::ir::IR::PickInitialiser(const ast::NodePointer& expression,
      }
      break;
      default:
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build("Unknown initialisation type",
-                                                                               expression->Source()));
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                       "Unknown initialisation type", expression->Source()));
           break;
      }
      throw TracedException(std::logic_error("Unknown initialisation type"));
@@ -484,10 +491,10 @@ Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointe
      auto converted = ConvertTo(std::move(operand), desiredType);
      if (converted == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
-                    expression->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                                   expression->Source()));
      }
      return converted;
 }
@@ -504,10 +511,10 @@ Expression ecpps::ir::IR::ParseCopyInitialisation(const ecpps::ast::NodePointer&
      auto converted = ConvertTo(std::move(operand), desiredType);
      if (converted == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
-                    expression->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   "Cannot convert initialiser to variable type of '" + desiredType->Name() + "'",
+                                   expression->Source()));
      }
      return converted;
 }
@@ -543,9 +550,8 @@ Expression ecpps::ir::IR::ParseZeroInitialisation(typeSystem::NonowningTypePoint
                return std::make_unique<PRValue>(desiredType, std::move(arrayNode), true);
           }
      }
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "Zero initialisation is not supported for this type", source));
+     DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                  "Zero initialisation is not supported for this type", source));
      return nullptr;
 }
 
@@ -563,9 +569,9 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
      const auto* initialiserListNode = dynamic_cast<const ast::InitialiserListNode*>(expression.get());
      if (initialiserListNode == nullptr)
      {
-          this->GetContext().diagnostics.get().diagnosticsList.push_back(
-               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                    "Expected an initialiser list for list initialisation", expression->Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                              diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                   "Expected an initialiser list for list initialisation", expression->Source()));
           return nullptr;
      }
 
@@ -591,7 +597,8 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           const auto* const elementType = arrayType->ElementType()->CastTo<typeSystem::IntegralType>();
           if (elementType == nullptr)
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          "List initialisation is only supported for arrays of integral types", expression->Source()));
                return nullptr;
@@ -599,7 +606,8 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
 
           if (initialisers.size() > arrayType->ElementCount())
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
+               DiagnosticSink::Report(
+                    this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Cannot initialise an array with more elements than it can hold. Provided {} "
                                      "elements for an array of `{}` `{}`s",
@@ -615,7 +623,8 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           {
                if (IsNarrowingConversion(initialiser, arrayType->ElementType()))
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
+                    DiagnosticSink::Report(
+                         this->GetContext(),
                          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                               std::format("Narrowing conversion from '{}' to '{}' is not allowed in array "
                                           "aggregate initialisation",
@@ -626,10 +635,10 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
                const auto constant = initialiser->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
                if (!constant.has_value() || !std::holds_alternative<std::uint64_t>(constant->variant))
                {
-                    this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                              "Array elements must currently be initialised with constant integers",
-                              initialiser->Value()->Source()));
+                    DiagnosticSink::Report(this->GetContext(),
+                                        diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                             "Array elements must currently be initialised with constant integers",
+                                             initialiser->Value()->Source()));
                     return nullptr;
                }
                values.push_back(static_cast<std::uint32_t>(std::get<std::uint64_t>(constant->variant)));
@@ -647,17 +656,17 @@ Expression ecpps::ir::IR::ParseListInitialisation(const ast::NodePointer& expres
           auto initialiserExpression = std::move(initialisers.front());
           if (IsNarrowingConversion(initialiserExpression, desiredType))
           {
-               this->GetContext().diagnostics.get().diagnosticsList.push_back(
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Narrowing conversion from '" + initialiserExpression->Type()->Name() + "' to '" +
-                              desiredType->Name() + "' is not allowed in list initialisation",
-                         expression->Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                   diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                        "Narrowing conversion from '" + initialiserExpression->Type()->Name() +
+                                             "' to '" + desiredType->Name() + "' is not allowed in list initialisation",
+                                        expression->Source()));
                return nullptr;
           }
           return ConvertTo(std::move(initialiserExpression), desiredType);
      }
-     this->GetContext().diagnostics.get().diagnosticsList.push_back(
-          diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-               "List initialisation with multiple initialisers is not supported yet", expression->Source()));
+     DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                  "List initialisation with multiple initialisers is not supported yet",
+                                                  expression->Source()));
      return nullptr;
 }
