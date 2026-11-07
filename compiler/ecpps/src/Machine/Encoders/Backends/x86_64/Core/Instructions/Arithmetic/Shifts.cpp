@@ -28,12 +28,21 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      runtime_assert(!this->IsSpilled(left) && !this->IsSpilled(right) && !this->IsSpilled(destination),
                     "LeftShift operands must not be spilled");
 
-     if (!this->ImmediateOf(right).has_value()) this->_registerAllocator.Prefer(RegisterIndex::Rcx);
-     ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
-     this->_registerAllocator.ClearPreference();
+     const bool countIsImmediate = this->ImmediateOf(right).has_value();
+     if (!countIsImmediate)
+     {
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+          this->_registerAllocator.ClearPreference();
+     }
 
      if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+     if (!countIsImmediate)
+     {
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+          this->_registerAllocator.ClearPreference();
+     }
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
@@ -141,12 +150,21 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      runtime_assert(!this->IsSpilled(left) && !this->IsSpilled(right) && !this->IsSpilled(destination),
                     "RightShift operands must not be spilled");
 
-     if (!this->ImmediateOf(right).has_value()) this->_registerAllocator.Prefer(RegisterIndex::Rcx);
-     ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
-     this->_registerAllocator.ClearPreference();
+     const bool countIsImmediate = this->ImmediateOf(right).has_value();
+     if (!countIsImmediate)
+     {
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+          this->_registerAllocator.ClearPreference();
+     }
 
      if (!this->ImmediateOf(left).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(left));
-     if (!this->ImmediateOf(right).has_value()) ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+     if (!countIsImmediate)
+     {
+          this->_registerAllocator.Prefer(RegisterIndex::Rcx);
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(right));
+          this->_registerAllocator.ClearPreference();
+     }
 
      ir::abstract::State newState{};
      newState.type = ir::abstract::StateType::Allocation;
