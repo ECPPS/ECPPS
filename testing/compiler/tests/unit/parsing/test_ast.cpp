@@ -8,6 +8,12 @@ namespace
 {
      const ecpps::Location Source{0, 0, 0};
 
+     ecpps::StringPool& TestStringPool(void)
+     {
+          static ecpps::StringPool pool{64uz * 1024};
+          return pool;
+     }
+
      class Fixture
      {
      public:
@@ -22,17 +28,17 @@ namespace
 
      ecpps::Token Keyword(std::string value)
      {
-          return ecpps::Token{ecpps::TokenType::Keyword, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Keyword, TestStringPool().Intern(value), Source};
      }
 
      ecpps::Token Identifier(std::string value)
      {
-          return ecpps::Token{ecpps::TokenType::Identifier, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Identifier, TestStringPool().Intern(value), Source};
      }
 
      ecpps::Token Operator(std::string value)
      {
-          return ecpps::Token{ecpps::TokenType::Operator, std::move(value), Source};
+          return ecpps::Token{ecpps::TokenType::Operator, TestStringPool().Intern(value), Source};
      }
 
      ecpps::Token Punctuation(const ecpps::TokenType type)

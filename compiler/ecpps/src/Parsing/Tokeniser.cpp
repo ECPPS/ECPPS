@@ -4,7 +4,8 @@
 #include <unordered_set>
 #include "Preprocessor.h"
 
-std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<PreprocessingToken>& ppTokens)
+std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<PreprocessingToken>& ppTokens,
+                                                     StringPool& stringPool)
 {
      std::vector<Token> tokens{};
 
@@ -18,7 +19,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     tokens.emplace_back(TokenType::Literal, false, preprocessorToken.source);
                else if (preprocessorToken.value == "true")
                     tokens.emplace_back(TokenType::Literal, true, preprocessorToken.source);
-               else if (IsKeyword(preprocessorToken.value))
+               else if (IsKeyword(preprocessorToken.value.View()))
                     tokens.emplace_back(TokenType::Keyword, preprocessorToken.value, preprocessorToken.source);
                else
                     tokens.emplace_back(TokenType::Identifier, preprocessorToken.value, preprocessorToken.source);
@@ -26,12 +27,12 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
           break;
           case PreprocessingTokenType::CharacterLiteral:
           {
-               tokens.emplace_back(TokenType::Literal, preprocessorToken.value[0], preprocessorToken.source);
+               tokens.emplace_back(TokenType::Literal, preprocessorToken.value.View()[0], preprocessorToken.source);
           }
           break;
           case PreprocessingTokenType::StringLiteral:
           {
-               const auto& in = preprocessorToken.value;
+               const auto in = preprocessorToken.value.View();
 
                std::string out{};
                out.reserve(in.size());
@@ -150,12 +151,12 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     }
                }
 
-               tokens.emplace_back(TokenType::Literal, StringLiteral{out}, preprocessorToken.source);
+               tokens.emplace_back(TokenType::Literal, StringLiteral{stringPool.Intern(out)}, preprocessorToken.source);
           }
           break;
           case PreprocessingTokenType::Number:
           {
-               const auto& str = preprocessorToken.value;
+               const auto str = preprocessorToken.value.View();
 
                std::size_t index{};
                bool isFloat = false;
@@ -176,17 +177,18 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     if (isFloat)
                     {
                          if (auto val = ParseFloat(numericPart))
-                              tokens.emplace_back(
-                                   TokenType::Literal,
-                                   UserDefinedLiteral{.value = FloatingPointLiteral{*val}, .name = suffix},
-                                   preprocessorToken.source);
+                              tokens.emplace_back(TokenType::Literal,
+                                                  UserDefinedLiteral{.value = FloatingPointLiteral{*val},
+                                                                     .name = stringPool.Intern(suffix)},
+                                                  preprocessorToken.source);
                     }
                     else
                     {
                          if (auto val = ParseInteger(numericPart))
-                              tokens.emplace_back(TokenType::Literal,
-                                                  UserDefinedLiteral{.value = IntegerLiteral{*val}, .name = suffix},
-                                                  preprocessorToken.source);
+                              tokens.emplace_back(
+                                   TokenType::Literal,
+                                   UserDefinedLiteral{.value = IntegerLiteral{*val}, .name = stringPool.Intern(suffix)},
+                                   preprocessorToken.source);
                     }
                }
                else
@@ -260,7 +262,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                                  },
                                  [](const StringLiteral& value) -> std::string
                                  {
-                                      return "\"" + value.value + "\"";
+                                      return "\"" + std::string(value.value.View()) + "\"";
                                  },
                                  [](const IntegerLiteral& value) -> std::string
                                  {
@@ -280,7 +282,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                                                   OverloadedVisitor{
                                                        [](const StringLiteral& literal) -> std::string
                                                        {
-                                                            return "\"" + literal.value + "\"";
+                                                            return "\"" + std::string(literal.value.View()) + "\"";
                                                        },
                                                        [](const IntegerLiteral& literal) -> std::string
                                                        {
@@ -296,7 +298,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                                                        },
                                                   },
                                                   value.value) +
-                                             value.name;
+                                             std::string(value.name.View());
                                  },
                                  [](auto&&) -> std::string
                                  {
@@ -311,7 +313,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
           {
           case TokenType::Identifier:
           case TokenType::Keyword:
-          case TokenType::Operator: return std::get<std::string>(token.value);
+          case TokenType::Operator: return std::string(std::get<InternedString>(token.value).View());
           case TokenType::Literal: return formatLiteral(token.value);
           case TokenType::LeftParenthesis: return "(";
           case TokenType::RightParenthesis: return ")";
@@ -376,9 +378,9 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
      std::println();
 }
 
-bool ecpps::Tokeniser::IsKeyword(const std::string& identifier)
+bool ecpps::Tokeniser::IsKeyword(const std::string_view identifier)
 {
-     static std::unordered_set<std::string> Keywords = {
+     static std::unordered_set<std::string_view> Keywords = {
           "alignas",       "alignof",     "asm",       "auto",      "bool",         "break",
           "case",          "catch",       "char",      "char8_t",   "char16_t",     "char32_t",
           "class",         "concept",     "const",     "consteval", "constexpr",    "constinit",

@@ -32,12 +32,14 @@ namespace IRTestHelpers
 
           [[nodiscard]] ecpps::ast::NodePointer MakeBasicType(std::string name)
           {
-               return MakeASTNode<ecpps::ast::BasicType>(this->astAllocator, std::move(name), Source, false, false);
+               return MakeASTNode<ecpps::ast::BasicType>(this->astAllocator, this->astAllocator.Intern(name), Source,
+                                                         false, false);
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeIdentifier(std::string name)
           {
-               return MakeASTNode<ecpps::ast::IdentifierNode>(this->astAllocator, std::move(name), Source);
+               return MakeASTNode<ecpps::ast::IdentifierNode>(this->astAllocator, this->astAllocator.Intern(name),
+                                                              Source);
           }
 
           [[nodiscard]] ecpps::ast::FunctionSignature MakeFunctionSignature(
@@ -108,14 +110,14 @@ namespace IRTestHelpers
                members.reserve(fields.size());
                for (const auto& [type, fieldName] : fields)
                     members.push_back(this->MakeMemberDeclaration(type, fieldName));
-               return MakeASTNode<ecpps::ast::ClassDefNode>(this->astAllocator, std::move(name),
+               return MakeASTNode<ecpps::ast::ClassDefNode>(this->astAllocator, this->astAllocator.Intern(name),
                                                             ecpps::ast::ClassKey::Struct, std::move(members), false,
                                                             false, Source);
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeClassType(std::string name)
           {
-               return MakeASTNode<ecpps::ast::ClassType>(this->astAllocator, std::move(name),
+               return MakeASTNode<ecpps::ast::ClassType>(this->astAllocator, this->astAllocator.Intern(name),
                                                          ecpps::ast::ClassKey::Struct, false, false, Source);
           }
 

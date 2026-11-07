@@ -26,26 +26,22 @@ int main()
 int main() { return 0; }
 )";
      std::vector<ecpps::MacroReplacement> macros{};
-     const auto ppTokens = ecpps::Preprocessor{}.Parse(source, macros, "");
+     ecpps::StringPool stringPool{};
+     const auto ppTokens = ecpps::Preprocessor{stringPool}.Parse(source, macros, "");
+     const auto expectedToken = [&stringPool](const ecpps::PreprocessingTokenType type, const std::string_view value)
+     {
+          return ecpps::PreprocessingToken{type, stringPool.Intern(value), ecpps::Location{0, 0, 0}};
+     };
      if (!AssertTokens(ppTokens, std::vector<ecpps::PreprocessingToken>{
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::Identifier, "int",
-                                                                ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::Identifier, "main",
-                                                                ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator,
-                                                                "(", ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator,
-                                                                ")", ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator,
-                                                                "{", ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::Identifier, "return",
-                                                                ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::Number, "0",
-                                                                ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator,
-                                                                ";", ecpps::Location{0, 0, 0}},
-                                      ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::OperatorOrPunctuator,
-                                                                "}", ecpps::Location{0, 0, 0}},
+                                      expectedToken(ecpps::PreprocessingTokenType::Identifier, "int"),
+                                      expectedToken(ecpps::PreprocessingTokenType::Identifier, "main"),
+                                      expectedToken(ecpps::PreprocessingTokenType::OperatorOrPunctuator, "("),
+                                      expectedToken(ecpps::PreprocessingTokenType::OperatorOrPunctuator, ")"),
+                                      expectedToken(ecpps::PreprocessingTokenType::OperatorOrPunctuator, "{"),
+                                      expectedToken(ecpps::PreprocessingTokenType::Identifier, "return"),
+                                      expectedToken(ecpps::PreprocessingTokenType::Number, "0"),
+                                      expectedToken(ecpps::PreprocessingTokenType::OperatorOrPunctuator, ";"),
+                                      expectedToken(ecpps::PreprocessingTokenType::OperatorOrPunctuator, "}"),
                                  }))
           return -1;
 

@@ -1,4 +1,5 @@
 #define CATCH_CONFIG_MAIN
+#include <Parsing/ASTContext.h>
 #include <Parsing/Preprocessor.h>
 #include <Parsing/Tokeniser.h>
 #include <TestHelpers.h>
@@ -9,12 +10,18 @@
 using namespace TestHelpers;
 using namespace ecpps;
 
+static ASTContext& TestASTContext(void)
+{
+     static ASTContext context{};
+     return context;
+}
+
 // Helper function to preprocess and tokenise source code
 static std::vector<Token> TokeniseSource(const std::string& source)
 {
      std::vector<MacroReplacement> macros;
-     auto ppTokens = Preprocessor{}.Parse(source, macros, "");
-     return Tokeniser::Tokenise(ppTokens);
+     auto ppTokens = Preprocessor{TestASTContext()}.Parse(source, macros, "");
+     return Tokeniser::Tokenise(ppTokens, TestASTContext());
 }
 
 TEST_CASE("Tokeniser - Keywords", "[parsing][tokeniser]")

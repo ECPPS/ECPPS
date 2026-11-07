@@ -73,7 +73,7 @@ namespace
 
      if (const auto* basicType = dynamic_cast<const ast::BasicType*>(base); basicType != nullptr)
      {
-          const auto& value = basicType->Value();
+          const std::string value{basicType->Value().View()};
 
           const auto qualifiers = QualifiersFrom(basicType->IsConst(), basicType->IsVolatile());
           const auto lookup = LookupTypeName(value);

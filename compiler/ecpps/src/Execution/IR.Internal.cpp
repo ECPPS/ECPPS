@@ -143,7 +143,7 @@ namespace ecpps::ir::detail
                  dynamic_cast<const ecpps::ir::high::DereferenceNode*>(expression->Value().get()) != nullptr;
      }
 
-     std::size_t LevenshteinDistance(const std::string& string1, const std::string& string2)
+     std::size_t LevenshteinDistance(const std::string_view string1, const std::string_view string2)
      {
           const std::size_t size1 = string1.size();
           const std::size_t size2 = string2.size();

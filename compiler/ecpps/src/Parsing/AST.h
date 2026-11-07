@@ -168,21 +168,22 @@ namespace ecpps::ast
      class AttributeNode : public Node
      {
      public:
-          explicit AttributeNode(std::string name, SBOVector<Token> arguments, Location source)
+          explicit AttributeNode(InternedString name, SBOVector<Token> arguments, Location source)
               : Node(source), _name(std::move(name)), _arguments(std::move(arguments))
           {
           }
           [[nodiscard]] std::string ToString([[maybe_unused]] std::size_t indent) const override
           {
-               std::string built = "[[" + this->_name;
+               std::string built = "[[" + std::string(this->_name.View());
                if (this->_arguments.Size() != 0)
                {
                     built += "(";
 
                     for (const auto& arg : this->_arguments)
-                         built +=
-                              (std::holds_alternative<std::string>(arg.value) ? std::get<std::string>(arg.value) : "") +
-                              ", ";
+                         built += (std::holds_alternative<InternedString>(arg.value)
+                                        ? std::string(std::get<InternedString>(arg.value).View())
+                                        : "") +
+                                  ", ";
 
                     built.pop_back();
                     built.pop_back();
@@ -190,7 +191,7 @@ namespace ecpps::ast
                }
                return built + "]]";
           }
-          [[nodiscard]] const std::string& Name(void) const noexcept
+          [[nodiscard]] InternedString Name(void) const noexcept
           {
                return this->_name;
           }
@@ -200,7 +201,7 @@ namespace ecpps::ast
           }
 
      private:
-          std::string _name;
+          InternedString _name;
           SBOVector<Token> _arguments;
      };
 
@@ -348,7 +349,7 @@ namespace ecpps::ast
           StorageClassSpecifier storageClassSpecifier{};
           bool isVariadic{};
           NoexceptSpecifier noexceptSpecifier{};
-          std::optional<std::string> externOptional = std::nullopt;
+          std::optional<InternedString> externOptional = std::nullopt;
           ConstantExpressionSpecifier constexprSpecifier{};
           SBOVector<std::unique_ptr<AttributeNode, ASTDeleter>> attributes{};
           NodePointer name;
@@ -367,7 +368,8 @@ namespace ecpps::ast
                if (this->isInline) built += "inline ";
                if (this->storageClassSpecifier & StorageClassSpecifier::Static) built += "static ";
                const auto m = this->externOptional.has_value();
-               if (this->isExtern) built += "extern " + (m ? ("\""s + this->externOptional.value() + "\" ") : "");
+               if (this->isExtern)
+                    built += "extern " + (m ? ("\""s + std::string(this->externOptional->View()) + "\" ") : "");
                switch (this->constexprSpecifier)
                {
                case ConstantExpressionSpecifier::Constexpr: built += "constexpr "; break;
@@ -729,38 +731,38 @@ namespace ecpps::ast
      class LabelNode final : public Node
      {
      public:
-          explicit LabelNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          explicit LabelNode(InternedString name, Location source) : Node(source), _name(std::move(name))
           {
           }
-          [[nodiscard]] const std::string& Name(void) const noexcept
+          [[nodiscard]] InternedString Name(void) const noexcept
           {
                return this->_name;
           }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + this->_name + ":";
+               return std::string(indent * PrettyIndent, ' ') + std::string(this->_name.View()) + ":";
           }
 
      private:
-          std::string _name;
+          InternedString _name;
      };
      class GotoNode final : public Node
      {
      public:
-          explicit GotoNode(std::string name, Location source) : Node(source), _name(std::move(name))
+          explicit GotoNode(InternedString name, Location source) : Node(source), _name(std::move(name))
           {
           }
-          [[nodiscard]] const std::string& Name(void) const noexcept
+          [[nodiscard]] InternedString Name(void) const noexcept
           {
                return this->_name;
           }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + "goto " + this->_name;
+               return std::string(indent * PrettyIndent, ' ') + "goto " + std::string(this->_name.View());
           }
 
      private:
-          std::string _name;
+          InternedString _name;
      };
 
      class ReturnNode final : public Node
@@ -957,21 +959,21 @@ namespace ecpps::ast
      class StringLiteralNode final : public Node
      {
      public:
-          explicit StringLiteralNode(std::string value, Location source) : Node(source), _value(std::move(value))
+          explicit StringLiteralNode(InternedString value, Location source) : Node(source), _value(std::move(value))
           {
           }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + "\"" + this->_value + "\"";
+               return std::string(indent * PrettyIndent, ' ') + "\"" + std::string(this->_value.View()) + "\"";
           }
-          [[nodiscard]] const std::string& Value(void) const noexcept
+          [[nodiscard]] InternedString Value(void) const noexcept
           {
                return this->_value;
           }
 
      private:
-          std::string _value;
+          InternedString _value;
      };
 
      class IntegerLiteralNode final : public Node
@@ -1114,11 +1116,11 @@ namespace ecpps::ast
      class DesignatedInitialiserNode final : public Node
      {
      public:
-          explicit DesignatedInitialiserNode(std::string member, NodePointer initialiser, Location source)
+          explicit DesignatedInitialiserNode(InternedString member, NodePointer initialiser, Location source)
               : Node(source), _member(std::move(member)), _initialiser(std::move(initialiser))
           {
           }
-          [[nodiscard]] const std::string& Member(void) const noexcept
+          [[nodiscard]] InternedString Member(void) const noexcept
           {
                return this->_member;
           }
@@ -1128,12 +1130,12 @@ namespace ecpps::ast
           }
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {
-               return std::string(indent * PrettyIndent, ' ') + "." + this->_member + " = " +
+               return std::string(indent * PrettyIndent, ' ') + "." + std::string(this->_member.View()) + " = " +
                       (this->_initialiser == nullptr ? "__unknown" : this->_initialiser->ToString(0));
           }
 
      private:
-          std::string _member;
+          InternedString _member;
           NodePointer _initialiser;
      };
 

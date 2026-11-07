@@ -47,7 +47,7 @@ std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePoin
      if (const auto* const stringInitialiser = dynamic_cast<const ast::StringLiteralNode*>(initialiser.get());
          stringInitialiser != nullptr && IsEligibleForStringLiteralInitialisation(elementType))
      {
-          return static_cast<std::uint64_t>(stringInitialiser->Value().length() + 1);
+          return static_cast<std::uint64_t>(stringInitialiser->Value().View().length() + 1);
      }
 
      if (const auto* const listInitialiser = dynamic_cast<const ast::InitialiserListNode*>(initialiser.get());
@@ -85,7 +85,7 @@ Expression ecpps::ir::IR::ParseArrayInitialiser(const ast::NodePointer& initiali
          stringInitialiser != nullptr && IsEligibleForStringLiteralInitialisation(arrayType->ElementType()))
      {
           auto& allocator = *this->GetContext().nodeAllocator;
-          const auto& string = stringInitialiser->Value();
+          const auto string = stringInitialiser->Value().View();
           const auto stringLength = string.length() + 1;
           const auto* elementType = arrayType->ElementType()->CastTo<typeSystem::IntegralType>();
           runtime_assert(elementType != nullptr, "Expected a character type for string-literal initialisation");
@@ -153,7 +153,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     continue;
                }
 
-               const std::string typedefName = idExpr->Value();
+               const std::string typedefName{idExpr->Value().View()};
                currentScope.typeAliases[typedefName] = declaredType;
           }
 
@@ -187,7 +187,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                continue;
           }
 
-          const std::string varName = idExpr->Value();
+          const std::string varName{idExpr->Value().View()};
           const auto* variableType = declaredType;
           bool inferLastArrayFromInitialiser = false;
           bool arrayBoundsFailed = false;

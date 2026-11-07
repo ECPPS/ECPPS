@@ -169,8 +169,8 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
      {
-          const std::string& languageLinkage =
-               node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
+          const std::string_view languageLinkage =
+               node.Signature().externOptional->View(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
@@ -197,7 +197,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                     const auto& firstArg = *attribute->Arguments().begin();
                     if (std::holds_alternative<ecpps::StringLiteral>(firstArg.value))
                     {
-                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value;
+                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value.View();
                     }
                }
           }
@@ -245,7 +245,7 @@ bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode
      {
           const auto* part = dynamic_cast<const ast::IdentifierNode*>(path[index].get());
           if (part == nullptr) return false;
-          qualifiers.push_back(part->Value());
+          qualifiers.emplace_back(part->Value().View());
      }
 
      struct ResolvedClass
@@ -407,8 +407,8 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      if (node.Signature().externOptional.has_value())
      {
-          const std::string& languageLinkage =
-               node.Signature().externOptional.value(); // NOLINT(bugprone-unchecked-optional-access)
+          const std::string_view languageLinkage =
+               node.Signature().externOptional->View(); // NOLINT(bugprone-unchecked-optional-access)
           if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
           else
           {
@@ -435,7 +435,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                     const auto& firstArg = *attribute->Arguments().begin();
                     if (std::holds_alternative<ecpps::StringLiteral>(firstArg.value))
                     {
-                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value;
+                         dllImportName = std::get<ecpps::StringLiteral>(firstArg.value).value.View();
                     }
                }
           }

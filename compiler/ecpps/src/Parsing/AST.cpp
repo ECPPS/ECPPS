@@ -13,12 +13,14 @@
 
 ecpps::ast::Node::~Node(void) = default;
 
+using ecpps::InternedString;
+using ecpps::StringPool;
 using ecpps::ast::NodePointer;
-static std::unordered_set<std::string> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
-                                                      "bool",     "short",   "int",      "long",     "signed",
-                                                      "unsigned", "float",   "double",   "void"};
+static std::unordered_set<std::string_view> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
+                                                           "bool",     "short",   "int",      "long",     "signed",
+                                                           "unsigned", "float",   "double",   "void"};
 
-static std::string CombineTypeWords(const std::vector<std::string>& words);
+static InternedString CombineTypeWords(const std::vector<InternedString>& words, StringPool& stringPool);
 
 static bool IsOperatorToken(const ecpps::Token& token, std::string_view op)
 {
@@ -54,21 +56,21 @@ std::unique_ptr<ecpps::ast::IdentifierNode, ecpps::ast::ASTDeleter> ecpps::ast::
      if (Peek().type != TokenType::Identifier) return nullptr;
      const auto& identifier = Peek();
      Advance();
-     runtime_assert(std::holds_alternative<std::string>(identifier.value), "Identifier was not an identifier");
+     runtime_assert(std::holds_alternative<InternedString>(identifier.value), "Identifier was not an identifier");
      return std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>(
-          new (context) IdentifierNode(std::get<std::string>(identifier.value), identifier.location));
+          new (context) IdentifierNode(std::get<InternedString>(identifier.value), identifier.location));
 }
 
 NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool isConst, bool isVolatile)
 {
      auto source = Peek().location;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
      {
           source.endPosition = Peek().location.endPosition;
           Advance();
           return std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
-               new (context) BasicType(std::get<std::string>(Peek(-1).value), source, isConst, isVolatile));
+               new (context) BasicType(std::get<InternedString>(Peek(-1).value), source, isConst, isVolatile));
      }
      const auto& peek = Peek();
      this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
@@ -88,7 +90,7 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
 
           while (Peek().type == TokenType::Keyword)
           {
-               const auto& kw = std::get<std::string>(Peek().value);
+               const auto& kw = std::get<InternedString>(Peek().value);
                if (kw == "const")
                {
                     isConst = true;
@@ -110,23 +112,24 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
 
      NodePointer type = nullptr;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
      {
-          std::vector<std::string> typeWords;
-          while (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+          std::vector<InternedString> typeWords;
+          while (Peek().type == TokenType::Keyword &&
+                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
           {
-               typeWords.push_back(std::get<std::string>(Peek().value));
+               typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
           }
 
-          std::string combinedType = CombineTypeWords(typeWords);
+          InternedString combinedType = CombineTypeWords(typeWords, context);
 
           type = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
                new (context) BasicType(combinedType, source, leadConst, leadVolatile));
      }
      else if (Peek().type == TokenType::Identifier)
      {
-          const auto& typeName = std::get<std::string>(Peek().value);
+          const auto& typeName = std::get<InternedString>(Peek().value);
           const auto& peekSource = Peek().location;
           source.endPosition = peekSource.endPosition;
           Advance();
@@ -210,15 +213,16 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
      if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
      if (Peek().type == TokenType::Keyword)
      {
-          runtime_assert(std::holds_alternative<std::string>(Peek().value), "Keyword was not an identifier");
-          const auto& keyword = std::get<std::string>(Peek().value);
+          runtime_assert(std::holds_alternative<InternedString>(Peek().value), "Keyword was not an identifier");
+          const auto& keyword = std::get<InternedString>(Peek().value);
 
           if (keyword == "namespace")
           {
                Advance();
                auto name = ParseIdentifier(context);
 
-               if (name != nullptr && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "=")
+               if (name != nullptr && Peek().type == TokenType::Operator &&
+                   std::get<InternedString>(Peek().value) == "=")
                {
                     Advance();
                     SBOVector<std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>> aliased{};
@@ -227,7 +231,8 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          auto nested = ParseIdentifier(context);
                          if (nested == nullptr) return nullptr; // TODO: Error
                          aliased.Push(std::move(nested));
-                         if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != "::") break;
+                         if (Peek().type != TokenType::Operator || std::get<InternedString>(Peek().value) != "::")
+                              break;
                          Advance(); // eat ::
                     }
                     if (!Match(TokenType::SemiColon))
@@ -242,7 +247,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                std::vector<std::pair<std::unique_ptr<IdentifierNode, ecpps::ast::ASTDeleter>, bool>> nestedNames;
                nestedNames.emplace_back(std::move(name), false);
 
-               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+               while (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "::")
                {
                     Advance(); // eat ::
                     auto nestedName = ParseIdentifier(context);
@@ -305,7 +310,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     return nullptr;
                }
 
-               if (Peek().type != TokenType::Operator || std::get<std::string>(Peek().value) != "=")
+               if (Peek().type != TokenType::Operator || std::get<InternedString>(Peek().value) != "=")
                {
                     this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
                          "Expected '=' in using alias-declaration", Peek().location));
@@ -320,7 +325,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
 
                while (Peek().type == TokenType::Keyword)
                {
-                    const auto& qual = std::get<std::string>(Peek().value);
+                    const auto& qual = std::get<InternedString>(Peek().value);
                     if (qual == "const")
                     {
                          nextConst = true;
@@ -335,17 +340,18 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          break;
                }
 
-               if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(Peek().value)))
+               if (Peek().type == TokenType::Keyword &&
+                   SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
                {
-                    std::vector<std::string> typeWords;
+                    std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
                     {
-                         typeWords.push_back(std::get<std::string>(Peek().value));
+                         typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
                     }
 
-                    std::string combinedType = CombineTypeWords(typeWords);
+                    InternedString combinedType = CombineTypeWords(typeWords, context);
 
                     targetType = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(
                          new (context) BasicType(combinedType, source, nextConst, nextVolatile));
@@ -355,13 +361,13 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     while (true)
                     {
                          NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context) BasicType(
-                              std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
+                              std::get<InternedString>(Peek().value), Peek().location, nextConst, nextVolatile));
                          Advance();
                          nextConst = false;
                          nextVolatile = false;
 
                          bool isTemplate = false;
-                         if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+                         if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "<")
                          {
                               // TODO: Implement template arguments parsing
                               part = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(new (context) QualifiedType(
@@ -369,7 +375,7 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                               isTemplate = true;
                          }
 
-                         if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+                         if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "::")
                          {
                               Advance();
                               sections.EmplaceBack(std::move(part), isTemplate);
@@ -389,14 +395,14 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                     return nullptr;
                }
 
-               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+               while (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "*")
                {
                     Advance();
 
                     // TODO: cv qualifiers
                     while (Peek().type == TokenType::Keyword)
                     {
-                         const auto& qual = std::get<std::string>(Peek().value);
+                         const auto& qual = std::get<InternedString>(Peek().value);
                          if (qual == "const" || qual == "volatile")
                          {
                               Advance();
@@ -429,9 +435,9 @@ NodePointer ecpps::ast::AST::ParseNameDeclaration(ASTContext& context)
 {
      if (Match(TokenType::SemiColon)) return nullptr; // empty-declaration
 
-     if (Peek().type == TokenType::Keyword && std::holds_alternative<std::string>(Peek().value))
+     if (Peek().type == TokenType::Keyword && std::holds_alternative<InternedString>(Peek().value))
      {
-          const auto& keyword = std::get<std::string>(Peek().value);
+          const auto& keyword = std::get<InternedString>(Peek().value);
 
           if (keyword == "using" || keyword == "namespace")
           {
@@ -489,9 +495,9 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      const auto diagnosticsStart = this->_diagnostics.get().diagnosticsList.size();
      auto source = Peek().location;
 
-     if (Peek().type == TokenType::Keyword && std::holds_alternative<std::string>(Peek().value))
+     if (Peek().type == TokenType::Keyword && std::holds_alternative<InternedString>(Peek().value))
      {
-          const auto& keyword = std::get<std::string>(Peek().value);
+          const auto& keyword = std::get<InternedString>(Peek().value);
           if (keyword == "using" || keyword == "typedef" || keyword == "namespace")
           {
                if (keyword == "using" || keyword == "namespace") return ParseBlockDeclaration(context);
@@ -520,7 +526,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      std::vector<std::string> constructorPath{};
      while (Peek(constructorPathOffset).type == TokenType::Identifier)
      {
-          constructorPath.push_back(Peek(constructorPathOffset).AsIdentifier());
+          constructorPath.emplace_back(Peek(constructorPathOffset).AsIdentifier().View());
           constructorPathOffset++;
           if (!IsOperatorToken(Peek(constructorPathOffset), "::") ||
               Peek(constructorPathOffset + 1).type != TokenType::Identifier)
@@ -573,8 +579,8 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
                return nullptr;
           }
 
-          NodePointer voidType =
-               std::unique_ptr<BasicType, ASTDeleter>(new (context) BasicType("void", source, false, false));
+          NodePointer voidType = std::unique_ptr<BasicType, ASTDeleter>(
+               new (context) BasicType(context.Intern("void"), source, false, false));
           FunctionSignature signature{std::move(voidType),
                                       false,
                                       isInlineConstructor,
@@ -591,10 +597,10 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      }
 
      bool isExtern = false;
-     std::optional<std::string> externOptional = std::nullopt;
+     std::optional<InternedString> externOptional = std::nullopt;
      while (Peek().type == TokenType::Keyword)
      {
-          const auto& keyword = std::get<std::string>(Peek().value);
+          const auto& keyword = std::get<InternedString>(Peek().value);
           if (keyword != "extern") break;
 
           Advance();
@@ -610,7 +616,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
      if (specifiers.definingTypeSpecifier == nullptr) return fallBackToSimpleDeclaration();
 
      abi::CallingConventionName callingConvention = abi::ABI::Current().DefaultCallingConventionName();
-     if (Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "__mscall")
+     if (Peek().type == TokenType::Keyword && std::get<InternedString>(Peek().value) == "__mscall")
      {
           Advance();
           callingConvention = abi::CallingConventionName::Microsoftx64;
@@ -809,8 +815,8 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
      while (CurrentPosition() + static_cast<std::size_t>(i) < this->_tokens.size() &&
             Peek(i).type == TokenType::Keyword)
      {
-          const auto& kw = std::get<std::string>(Peek(i).value);
-          if (SimpleTypes.contains(kw) || kw == "struct" || kw == "class" || kw == "union" || kw == "typedef" ||
+          const auto& kw = std::get<InternedString>(Peek(i).value);
+          if (SimpleTypes.contains(kw.View()) || kw == "struct" || kw == "class" || kw == "union" || kw == "typedef" ||
               kw == "using" || kw == "namespace")
                return true;
           if (kw != "const" && kw != "volatile" && kw != "extern" && kw != "static" && kw != "inline" &&
@@ -832,15 +838,15 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
      return j > i + 1 && Peek(j).type == TokenType::Identifier; // Foo* x, Foo& x
 }
 
-std::string CombineTypeWords(const std::vector<std::string>& words)
+InternedString CombineTypeWords(const std::vector<InternedString>& words, ecpps::StringPool& stringPool)
 {
      std::string result;
      for (const auto& word : words)
      {
           if (!result.empty()) result += " ";
-          result += word;
+          result += word.View();
      }
-     return result;
+     return stringPool.Intern(result);
 }
 std::tuple<NodePointer, ecpps::ast::InitialisationType> ecpps::ast::AST::ParseInitialiser(ASTContext& context)
 {
@@ -917,7 +923,7 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
 
           if (initialiser == nullptr) return nullptr;
           initialisers.push_back(std::move(initialiser));
-          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",")
+          if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == ",")
           {
                Advance();
           }
@@ -963,7 +969,7 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
      {
           if (Peek().type == TokenType::Keyword)
           {
-               auto& keyword = std::get<std::string>(Peek().value);
+               auto& keyword = std::get<InternedString>(Peek().value);
                if (keyword == "friend")
                {
                     if (isFriend)
@@ -1117,21 +1123,21 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                else if (keyword == "enum") // elaborated-type-specifier
                {
                }
-               else if (SimpleTypes.contains(keyword)) // simple-type-specifier
+               else if (SimpleTypes.contains(keyword.View())) // simple-type-specifier
                {
-                    std::vector<std::string> typeWords;
+                    std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
                     {
-                         typeWords.push_back(std::get<std::string>(Peek().value));
+                         typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
                     }
 
-                    std::string combinedType = CombineTypeWords(typeWords);
+                    InternedString combinedType = CombineTypeWords(typeWords, context);
 
                     // Parse any pointer declarators immediately following the base type
                     std::size_t pointerLevel = 0;
-                    while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+                    while (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "*")
                     {
                          ++pointerLevel;
                          Advance();
@@ -1163,13 +1169,13 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                while (true)
                {
                     NodePointer part = std::unique_ptr<BasicType, ecpps::ast::ASTDeleter>(new (context) BasicType(
-                         std::get<std::string>(Peek().value), Peek().location, nextConst, nextVolatile));
+                         std::get<InternedString>(Peek().value), Peek().location, nextConst, nextVolatile));
                     Advance();
                     nextConst = false;
                     nextVolatile = false;
 
                     bool isTemplate = false;
-                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "<")
+                    if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "<")
                     {
                          // TODO: Implement
                          part = std::unique_ptr<QualifiedType, ecpps::ast::ASTDeleter>(new (context) QualifiedType(
@@ -1177,7 +1183,7 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                          isTemplate = true;
                     }
 
-                    if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+                    if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "::")
                     {
                          Advance();
                          sections.EmplaceBack(std::move(part), isTemplate);
@@ -1191,7 +1197,7 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                }
 
                std::size_t pointerLevel = 0;
-               while (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "*")
+               while (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "*")
                {
                     pointerLevel++;
                     Advance();
@@ -1278,12 +1284,13 @@ std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> 
                     break;
                }
 
-               std::string name = Peek().AsIdentifier();
+               std::string name{Peek().AsIdentifier().View()};
                Advance();
                while (IsOperatorToken(Peek(), "::") && Peek(1).type == TokenType::Identifier) // scoped attribute
                {
                     Advance();
-                    name += "::" + Peek().AsIdentifier();
+                    name += "::";
+                    name += Peek().AsIdentifier().View();
                     Advance();
                }
 
@@ -1307,7 +1314,7 @@ std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> 
 
                attributeSource.endPosition = Peek(-1).location.endPosition;
                attributes.emplace_back(std::unique_ptr<AttributeNode, ASTDeleter>(
-                    new (context) AttributeNode(name, arguments, attributeSource)));
+                    new (context) AttributeNode(context.Intern(name), arguments, attributeSource)));
 
                if (IsOperatorToken(Peek(), ",")) Advance();
                else
@@ -1441,7 +1448,7 @@ NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
           {
                auto source = token.location;
                Advance(); // ~
-               std::string name = "~" + Peek().AsIdentifier();
+               const InternedString name = context.Intern("~" + std::string(Peek().AsIdentifier().View()));
                source.endPosition = Peek().location.endPosition;
                Advance();
                return std::unique_ptr<IdentifierNode, ASTDeleter>(new (context)
@@ -1813,7 +1820,8 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           auto [initialiser, initialisationType] = ParseInitialiser(context);
 
           declarators.emplace_back(std::move(id), initialisationType, std::move(initialiser), std::move(arrayLevels));
-     } while ((Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == ",") && (Advance(), true));
+     } while ((Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == ",") &&
+              (Advance(), true));
 
      if (!Match(TokenType::SemiColon))
           this->_diagnostics.get().diagnosticsList.push_back(
@@ -1900,7 +1908,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
      }
      case TokenType::Keyword:
      {
-          const auto& keyword = std::get<std::string>(currentToken.value);
+          const auto& keyword = std::get<InternedString>(currentToken.value);
           if (keyword == "this")
           {
                this->Advance();
@@ -1922,7 +1930,7 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
      case TokenType::Operator:
      {
           // ::
-          if (std::get<std::string>(currentToken.value) == "::")
+          if (std::get<InternedString>(currentToken.value) == "::")
           {
                auto idExpr = ParseIdExpression(context);
                if (!idExpr)
@@ -1958,7 +1966,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
      bool sawTemplateKeyword = false;
      bool isGlobalScope = false;
 
-     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+     if (!AtEnd() && Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "::")
      {
           Advance();
           isGlobalScope = true;
@@ -1972,7 +1980,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
 
      while (true)
      {
-          if (!AtEnd() && Peek().type == TokenType::Keyword && std::get<std::string>(Peek().value) == "template")
+          if (!AtEnd() && Peek().type == TokenType::Keyword && std::get<InternedString>(Peek().value) == "template")
           {
                sawTemplateKeyword = true;
                Advance();
@@ -1985,7 +1993,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
           }
 
           const auto& currentToken = Peek();
-          const auto& identifierName = std::get<std::string>(currentToken.value);
+          const auto& identifierName = std::get<InternedString>(currentToken.value);
           Advance();
 
           if (!AtEnd() && IsOperatorToken(Peek(), "<"))
@@ -2010,7 +2018,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
                     }
                     if (IsOperatorToken(Peek(), ">>")) // split
                     {
-                         Peek().value = std::string(">");
+                         Peek().value = context.Intern(">");
                          isTemplateId = true;
                          break;
                     }
@@ -2025,7 +2033,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
                else
                {
                     this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-                         std::format("Template syntax is not yet supported: '{}<...>'", identifierName),
+                         std::format("Template syntax is not yet supported: '{}<...>'", identifierName.View()),
                          currentToken.location));
                     return nullptr;
                }
@@ -2048,7 +2056,7 @@ NodePointer ecpps::ast::AST::ParseIdExpression([[maybe_unused]] ASTContext& cont
 
           if (AtEnd()) break;
 
-          if (Peek().type == TokenType::Operator && std::get<std::string>(Peek().value) == "::")
+          if (Peek().type == TokenType::Operator && std::get<InternedString>(Peek().value) == "::")
           {
                Advance();
 
@@ -2090,18 +2098,19 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
      }
 
      NodePointer expression = nullptr;
-     if (currentToken.type == TokenType::Keyword && SimpleTypes.contains(std::get<std::string>(currentToken.value)))
+     if (currentToken.type == TokenType::Keyword &&
+         SimpleTypes.contains(std::get<InternedString>(currentToken.value).View()))
      {
-          std::vector<std::string> typeWords;
+          std::vector<InternedString> typeWords;
           while (!AtEnd() && Peek().type == TokenType::Keyword &&
-                 SimpleTypes.contains(std::get<std::string>(Peek().value)))
+                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
           {
-               typeWords.push_back(std::get<std::string>(Peek().value));
+               typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
           }
           source.endPosition = Peek(-1).location.endPosition;
           expression = std::unique_ptr<BasicType, ASTDeleter>(
-               new (context) BasicType(CombineTypeWords(typeWords), source, false, false));
+               new (context) BasicType(CombineTypeWords(typeWords, context), source, false, false));
      }
      else
           expression = ParsePrimaryExpression(context);
@@ -2112,26 +2121,26 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "++" ||
-                   std::get<std::string>(currentToken.value) == "--")
+               if (std::get<InternedString>(currentToken.value) == "++" ||
+                   std::get<InternedString>(currentToken.value) == "--")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
-                    Operator operatorId =
-                         std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
+                    Operator operatorId = std::get<InternedString>(currentToken.value) == "++" ? Operator::Increment
+                                                                                               : Operator::Decrement;
                     expression = std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(
                          new (context)
                               UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Postfix, source));
                     continue;
                }
-               if (std::get<std::string>(currentToken.value) == "." ||
-                   std::get<std::string>(currentToken.value) == "->")
+               if (std::get<InternedString>(currentToken.value) == "." ||
+                   std::get<InternedString>(currentToken.value) == "->")
                {
                     Advance();
                     // TODO: template
                     source.endPosition = currentToken.location.endPosition;
                     Operator operatorId =
-                         std::get<std::string>(currentToken.value) == "." ? Operator::FullStop : Operator::Arrow;
+                         std::get<InternedString>(currentToken.value) == "." ? Operator::FullStop : Operator::Arrow;
                     expression =
                          std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
                               std::move(expression), operatorId, ParseIdExpression(context), source));
@@ -2165,7 +2174,7 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     argumentList.Push(ParseAssignmentExpression(context));
                     if (AtEnd() || Match(TokenType::RightParenthesis)) break;
                     const auto& token = Peek();
-                    if (token.type == TokenType::Operator && std::get<std::string>(token.value) == ",") continue;
+                    if (token.type == TokenType::Operator && std::get<InternedString>(token.value) == ",") continue;
 
                     this->_diagnostics.get().diagnosticsList.push_back(
                          diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
@@ -2190,57 +2199,61 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
      const auto& currentToken = this->Peek();
      if (currentToken.type == TokenType::Operator)
      {
-          if (std::get<std::string>(currentToken.value) == "++" || std::get<std::string>(currentToken.value) == "--")
+          if (std::get<InternedString>(currentToken.value) == "++" ||
+              std::get<InternedString>(currentToken.value) == "--")
           {
                Advance();
                auto source = currentToken.location;
                auto expression = ParseCastExpression(context);
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
+                    std::get<InternedString>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
                return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
                     operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
      }
      if (currentToken.type == TokenType::Operator)
      {
-          if (std::get<std::string>(currentToken.value) == "+" || std::get<std::string>(currentToken.value) == "-")
+          if (std::get<InternedString>(currentToken.value) == "+" ||
+              std::get<InternedString>(currentToken.value) == "-")
           {
                Advance();
                auto source = currentToken.location;
                auto expression = ParseCastExpression(context);
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
+                    std::get<InternedString>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
                return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
                     operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
-          if (std::get<std::string>(currentToken.value) == "*" || std::get<std::string>(currentToken.value) == "&")
+          if (std::get<InternedString>(currentToken.value) == "*" ||
+              std::get<InternedString>(currentToken.value) == "&")
           {
                Advance();
                auto source = currentToken.location;
                auto expression = ParseCastExpression(context);
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
+                    std::get<InternedString>(currentToken.value) == "*" ? Operator::Asterisk : Operator::Ampersand;
                return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
                     operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
-          if (std::get<std::string>(currentToken.value) == "~" || std::get<std::string>(currentToken.value) == "!")
+          if (std::get<InternedString>(currentToken.value) == "~" ||
+              std::get<InternedString>(currentToken.value) == "!")
           {
                Advance();
                auto source = currentToken.location;
                auto expression = ParseCastExpression(context);
                source.endPosition = Peek().location.endPosition;
                const auto operatorId =
-                    std::get<std::string>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
+                    std::get<InternedString>(currentToken.value) == "!" ? Operator::Exclamation : Operator::Tilde;
                return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
                     operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
           }
      }
      // sizeof / alignof
-     if (currentToken.type == TokenType::Keyword && (std::get<std::string>(currentToken.value) == "sizeof" ||
-                                                     std::get<std::string>(currentToken.value) == "alignof"))
+     if (currentToken.type == TokenType::Keyword && (std::get<InternedString>(currentToken.value) == "sizeof" ||
+                                                     std::get<InternedString>(currentToken.value) == "alignof"))
      {
           NodePointer typeOrExpressionInside{};
           bool canHoldTypeId = false;
@@ -2250,7 +2263,8 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                const auto currentPosition = CurrentPosition();
                Advance();
                canHoldTypeId = true;
-               if (Peek().type == TokenType::Keyword && !SimpleTypes.contains(std::get<std::string>(Peek().value)))
+               if (Peek().type == TokenType::Keyword &&
+                   !SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
                {
                     typeOrExpressionInside = ParseUnaryExpression(context);
                     canHoldTypeId = false;
@@ -2283,7 +2297,7 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
           auto source = currentToken.location;
           source.endPosition = Peek().location.endPosition;
 
-          if (std::get<std::string>(currentToken.value) == "alignof")
+          if (std::get<InternedString>(currentToken.value) == "alignof")
                return std::unique_ptr<AlignOfNode, ecpps::ast::ASTDeleter>(
                     new (context) AlignOfNode(std::move(typeOrExpressionInside), canHoldTypeId, source));
 
@@ -2326,13 +2340,13 @@ NodePointer ecpps::ast::AST::ParsePmExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == ".*" ||
-                   std::get<std::string>(currentToken.value) == "->*")
+               if (std::get<InternedString>(currentToken.value) == ".*" ||
+                   std::get<InternedString>(currentToken.value) == "->*")
                {
                     Advance();
                     // TODO: implement PM and not.. that placeholder
                     source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = std::get<std::string>(currentToken.value) == ".*"
+                    const auto operatorId = std::get<InternedString>(currentToken.value) == ".*"
                                                  ? Operator::PointerToMemberObject
                                                  : Operator::PointerToMember;
                     expression =
@@ -2358,14 +2372,15 @@ NodePointer ecpps::ast::AST::ParseMultiplicativeExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "*" ||
-                   std::get<std::string>(currentToken.value) == "/" || std::get<std::string>(currentToken.value) == "%")
+               if (std::get<InternedString>(currentToken.value) == "*" ||
+                   std::get<InternedString>(currentToken.value) == "/" ||
+                   std::get<InternedString>(currentToken.value) == "%")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = std::get<std::string>(currentToken.value) == "*"   ? Operator::Asterisk
-                                            : std::get<std::string>(currentToken.value) == "/" ? Operator::Solidus
-                                                                                               : Operator::Percent;
+                    const auto operatorId = std::get<InternedString>(currentToken.value) == "*"   ? Operator::Asterisk
+                                            : std::get<InternedString>(currentToken.value) == "/" ? Operator::Solidus
+                                                                                                  : Operator::Percent;
 
                     expression =
                          std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
@@ -2390,12 +2405,13 @@ NodePointer ecpps::ast::AST::ParseAdditiveExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "+" || std::get<std::string>(currentToken.value) == "-")
+               if (std::get<InternedString>(currentToken.value) == "+" ||
+                   std::get<InternedString>(currentToken.value) == "-")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
                     const auto operatorId =
-                         std::get<std::string>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
+                         std::get<InternedString>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
                     expression =
                          std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
                               std::move(expression), operatorId, ParseMultiplicativeExpression(context), source));
@@ -2419,13 +2435,13 @@ NodePointer ecpps::ast::AST::ParseShiftExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == ">>" ||
-                   std::get<std::string>(currentToken.value) == "<<")
+               if (std::get<InternedString>(currentToken.value) == ">>" ||
+                   std::get<InternedString>(currentToken.value) == "<<")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId =
-                         std::get<std::string>(currentToken.value) == ">>" ? Operator::RightShift : Operator::LeftShift;
+                    const auto operatorId = std::get<InternedString>(currentToken.value) == ">>" ? Operator::RightShift
+                                                                                                 : Operator::LeftShift;
                     expression =
                          std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
                               std::move(expression), operatorId, ParseAdditiveExpression(context), source));
@@ -2449,7 +2465,7 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "<=>")
+               if (std::get<InternedString>(currentToken.value) == "<=>")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
@@ -2542,7 +2558,7 @@ NodePointer ecpps::ast::AST::ParseBinaryAndExpression(ASTContext& context)
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "&")
+               if (std::get<InternedString>(currentToken.value) == "&")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
@@ -2570,7 +2586,7 @@ NodePointer ecpps::ast::AST::ParseBinaryExclusiveOrExpression(ASTContext& contex
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "^")
+               if (std::get<InternedString>(currentToken.value) == "^")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
@@ -2598,7 +2614,7 @@ NodePointer ecpps::ast::AST::ParseBinaryInclusiveOrExpression(ASTContext& contex
           currentToken = this->Peek();
           if (currentToken.type == TokenType::Operator)
           {
-               if (std::get<std::string>(currentToken.value) == "|")
+               if (std::get<InternedString>(currentToken.value) == "|")
                {
                     Advance();
                     source.endPosition = currentToken.location.endPosition;
@@ -2666,7 +2682,7 @@ NodePointer ecpps::ast::AST::ParseAssignmentExpression(ASTContext& context)
           {"^=", Operator::XorAssign},        {"&=", Operator::AndAssign},        {"|=", Operator::OrAssign},
           {"<<=", Operator::LeftShiftAssign}, {">>=", Operator::RightShiftAssign}};
 
-     const auto found = assignmentOperators.find(std::string_view{Peek().AsOperator()});
+     const auto found = assignmentOperators.find(Peek().AsOperator().View());
      if (found == assignmentOperators.end()) return expression;
      Advance();
      auto right = ParseAssignmentExpression(context);
@@ -2704,7 +2720,7 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
      auto source = this->Peek().location;
      if (Peek().type == TokenType::Identifier && Peek(1).type == TokenType::Colon)
      {
-          const auto& name = std::get<std::string>(Peek().value);
+          const auto& name = std::get<InternedString>(Peek().value);
           Advance();
           Advance();
 
@@ -2712,10 +2728,10 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
      }
      if (Peek().type == TokenType::Keyword)
      {
-          if (std::get<std::string>(Peek().value) == "goto" && Peek(1).type == TokenType::Identifier)
+          if (std::get<InternedString>(Peek().value) == "goto" && Peek(1).type == TokenType::Identifier)
           {
                Advance();
-               const auto& name = std::get<std::string>(Peek().value);
+               const auto& name = std::get<InternedString>(Peek().value);
                Advance();
                if (!Match(TokenType::SemiColon))
                {
@@ -2725,7 +2741,7 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
 
                return std::unique_ptr<GotoNode, ecpps::ast::ASTDeleter>(new (context) GotoNode(name, source));
           }
-          if (std::get<std::string>(Peek().value) == "return")
+          if (std::get<InternedString>(Peek().value) == "return")
           {
 
                Advance();
@@ -2743,7 +2759,7 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                return std::unique_ptr<ReturnNode, ecpps::ast::ASTDeleter>(new (context)
                                                                                ReturnNode(std::move(value), source));
           }
-          if (std::get<std::string>(Peek().value) == "break")
+          if (std::get<InternedString>(Peek().value) == "break")
           {
 
                Advance();
@@ -2756,7 +2772,7 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                }
                return std::unique_ptr<BreakNode, ecpps::ast::ASTDeleter>(new (context) BreakNode(source));
           }
-          if (std::get<std::string>(Peek().value) == "continue")
+          if (std::get<InternedString>(Peek().value) == "continue")
           {
 
                Advance();
@@ -2769,25 +2785,25 @@ NodePointer ecpps::ast::AST::ParseStatement(ASTContext& context)
                }
                return std::unique_ptr<ContinueNode, ecpps::ast::ASTDeleter>(new (context) ContinueNode(source));
           }
-          if (std::get<std::string>(Peek().value) == "if")
+          if (std::get<InternedString>(Peek().value) == "if")
           {
 
                Advance();
                return ParseIfStatement(context);
           }
-          if (std::get<std::string>(Peek().value) == "while")
+          if (std::get<InternedString>(Peek().value) == "while")
           {
 
                Advance();
                return ParseWhileStatement(context);
           }
-          if (std::get<std::string>(Peek().value) == "for")
+          if (std::get<InternedString>(Peek().value) == "for")
           {
 
                Advance();
                return ParseForStatement(context);
           }
-          if (std::get<std::string>(Peek().value) == "do")
+          if (std::get<InternedString>(Peek().value) == "do")
           {
 
                Advance();

@@ -4,6 +4,7 @@
 #include <format>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -76,7 +77,7 @@ namespace ecpps
      };
      struct StringLiteral
      {
-          std::string value{};
+          InternedString value{};
      };
      struct IntegerLiteral
      {
@@ -91,12 +92,12 @@ namespace ecpps
           using Value = std::variant<StringLiteral, IntegerLiteral, FloatingPointLiteral>;
 
           Value value{};
-          std::string name{};
+          InternedString name{};
      };
 
      struct Token
      {
-          using TokenValue = std::variant<std::monostate, std::string, bool, StringLiteral, char, IntegerLiteral,
+          using TokenValue = std::variant<std::monostate, InternedString, bool, StringLiteral, char, IntegerLiteral,
                                           FloatingPointLiteral, UserDefinedLiteral>;
 
           TokenType type;
@@ -108,62 +109,62 @@ namespace ecpps
           {
           }
 
-          [[nodiscard]] const std::string& AsIdentifier(void) const
+          [[nodiscard]] InternedString AsIdentifier(void) const
           {
                runtime_assert(this->type == TokenType::Identifier, "Token is not an identifier");
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
 
-          [[nodiscard]] const std::string& AsKeyword(void) const
+          [[nodiscard]] InternedString AsKeyword(void) const
           {
                runtime_assert(this->type == TokenType::Keyword, "Token is not a keyword");
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
 
-          [[nodiscard]] const std::string& AsOperator(void) const
+          [[nodiscard]] InternedString AsOperator(void) const
           {
                runtime_assert(this->type == TokenType::Operator, "Token is not an operator");
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
           [[nodiscard]] bool IsLiteral(void) const
           {
                return this->type == TokenType::Literal;
           }
 
-          [[nodiscard]] std::optional<std::string> TryIdentifier(void) const
+          [[nodiscard]] std::optional<InternedString> TryIdentifier(void) const
           {
                if (this->type != TokenType::Identifier) return std::nullopt;
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
 
-          [[nodiscard]] std::optional<std::string> TryKeyword(void) const
+          [[nodiscard]] std::optional<InternedString> TryKeyword(void) const
           {
                if (this->type != TokenType::Keyword) return std::nullopt;
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
 
-          [[nodiscard]] std::optional<std::string> TryOperator(void) const
+          [[nodiscard]] std::optional<InternedString> TryOperator(void) const
           {
                if (this->type != TokenType::Operator) return std::nullopt;
-               return std::get<std::string>(this->value);
+               return std::get<InternedString>(this->value);
           }
 
           [[nodiscard]] std::string ToString(void) const
           {
                switch (this->type)
                {
-               case TokenType::Identifier: return std::get<std::string>(this->value);
-               case TokenType::Keyword: return std::get<std::string>(this->value);
-               case TokenType::Operator: return std::get<std::string>(this->value);
+               case TokenType::Identifier: return std::string(std::get<InternedString>(this->value).View());
+               case TokenType::Keyword: return std::string(std::get<InternedString>(this->value).View());
+               case TokenType::Operator: return std::string(std::get<InternedString>(this->value).View());
                case TokenType::Literal:
                     return std::visit(
                          OverloadedVisitor{[](const std::monostate&) -> std::string
                                            {
                                                 return std::string{};
                                            },
-                                           [](const std::string& str)
+                                           [](const InternedString str)
                                            {
-                                                return str;
+                                                return std::string(str.View());
                                            },
                                            [](const bool b) -> std::string
                                            {
@@ -171,7 +172,7 @@ namespace ecpps
                                            },
                                            [](const StringLiteral& strLit) -> std::string
                                            {
-                                                return strLit.value;
+                                                return std::string(strLit.value.View());
                                            },
                                            [](const char c)
                                            {
@@ -191,7 +192,7 @@ namespace ecpps
                                                      OverloadedVisitor{
                                                           [](const StringLiteral& strLit) -> std::string
                                                           {
-                                                               return std::format("\"{}\"", strLit.value);
+                                                               return std::format("\"{}\"", strLit.value.View());
                                                           },
                                                           [](const IntegerLiteral& intLit) -> std::string
                                                           {
@@ -228,18 +229,18 @@ namespace ecpps
      public:
           explicit Tokeniser(void) = delete;
 
-          static std::vector<Token> Tokenise(const std::vector<PreprocessingToken>& ppTokens);
+          static std::vector<Token> Tokenise(const std::vector<PreprocessingToken>& ppTokens, StringPool& stringPool);
           static void Print(const std::vector<Token>& tokens);
 
      private:
-          static bool IsKeyword(const std::string& identifier);
+          static bool IsKeyword(std::string_view identifier);
 
-          static std::optional<std::uintmax_t> ParseInteger(const std::string& str)
+          static std::optional<std::uintmax_t> ParseInteger(const std::string_view str)
           {
                std::size_t idx = 0;
                try
                {
-                    auto val = std::stoull(str, &idx, 0);
+                    auto val = std::stoull(std::string{str}, &idx, 0);
                     if (idx == str.size()) return val;
                }
                catch (...) // NOLINT(bugprone-empty-catch)
@@ -248,12 +249,12 @@ namespace ecpps
                return std::nullopt;
           }
 
-          static std::optional<long double> ParseFloat(const std::string& str)
+          static std::optional<long double> ParseFloat(const std::string_view str)
           {
                std::size_t idx = 0;
                try
                {
-                    auto val = std::stold(str, &idx);
+                    auto val = std::stold(std::string{str}, &idx);
                     if (idx == str.size()) return val;
                }
                catch (...) // NOLINT(bugprone-empty-catch)

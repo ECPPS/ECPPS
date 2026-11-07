@@ -39,6 +39,7 @@
 #include <FileSystem/SourceScanner.h>
 #include <Linker/Linker.h>
 #include <Parsing/AST.h>
+#include <Parsing/ASTContext.h>
 #include <Parsing/Preprocessor.h>
 #include <Parsing/SourceMap.h>
 #include <Parsing/Tokeniser.h>
@@ -375,6 +376,8 @@ namespace
           {
                if (config.IsVerbose()) std::println("Compiling {}...", source.name);
 
+               ast::ASTContext astContext;
+
                std::vector<MacroReplacement> macros;
                macros.reserve(16);
 
@@ -401,7 +404,7 @@ namespace
 
                std::set<std::filesystem::path> includedFiles;
 
-               Preprocessor preprocessor;
+               Preprocessor preprocessor{astContext};
 
                const auto ppTokens =
                     preprocessor.Parse(source.contents, macros, source.name, includedFiles, config.includeDirectories);
@@ -416,7 +419,7 @@ namespace
 
                if (config.StopsAfter(VerboseFeature::Preprocessor)) return FinishDump(source, config, outputState);
 
-               const auto tokens = Tokeniser::Tokenise(ppTokens);
+               const auto tokens = Tokeniser::Tokenise(ppTokens, astContext);
 
                if (config.IsVerbose(VerboseFeature::Tokens))
                {
@@ -426,7 +429,6 @@ namespace
 
                if (config.StopsAfter(VerboseFeature::Tokens)) return FinishDump(source, config, outputState);
 
-               ast::ASTContext astContext;
                ast::AST astParser{tokens, source.diagnostics};
                auto ast = astParser.Parse(astContext);
 
