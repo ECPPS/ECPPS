@@ -1,3 +1,4 @@
+// NOLINTBEGIN
 #define CATCH_CONFIG_MAIN
 #include <Parsing/AST.h>
 #include <Parsing/ASTs/General.h>
@@ -417,3 +418,4 @@ TEST_CASE("AST - Out-of-class defaulted constructors preserve their body kind", 
      CHECK(function->ToString(0).ends_with("= default;"));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
+// NOLINTEND

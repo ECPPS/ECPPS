@@ -271,7 +271,7 @@ TEST_CASE("Tokeniser - Interns repeated preprocessing and parser text", "[parsin
      std::vector<ecpps::MacroReplacement> macros{};
      macros.emplace_back("ALIAS", std::nullopt, "shared", false);
      ecpps::Preprocessor preprocessor{TestStringPool()};
-     const auto ppTokens = preprocessor.Parse("shared ALIAS \"text\" \"text\"", macros, "");
+     const auto ppTokens = preprocessor.Parse(R"(shared ALIAS "text" "text")", macros, "");
 
      REQUIRE(ppTokens.size() == 4);
      REQUIRE(ppTokens[0].value.View().data() == ppTokens[1].value.View().data());
