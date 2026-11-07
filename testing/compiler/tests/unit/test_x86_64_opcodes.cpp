@@ -244,6 +244,95 @@ TEST_CASE("x86-64 Opcodes - Arithmetic instructions", "[codegen][x86_64][opcodes
      }
 }
 
+TEST_CASE("x86-64 register allocation preserves values used after an indirect store", "[codegen][x86_64][regalloc]")
+{
+     using ecpps::abi::encoders::x8664::LinuxPlatform;
+     using ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder;
+     using ecpps::ir::abstract::AllocationClass;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+
+     const VirtualRegister innerPointer{.index = 1};
+     const VirtualRegister outerPointer{.index = 2};
+     const VirtualRegister value{.index = 3};
+     const VirtualRegister copiedValue{.index = 4};
+
+     ecpps::abi::api::Target target{};
+     target.platform = std::make_unique<LinuxPlatform>(nullptr);
+     target.EnsureVRM();
+     target.registerMap->Describe(innerPointer, 64, AllocationClass::Temporary);
+     target.registerMap->Describe(outerPointer, 64, AllocationClass::Temporary);
+     target.registerMap->Describe(value, 32, AllocationClass::Temporary);
+     target.registerMap->Describe(copiedValue, 32, AllocationClass::Temporary);
+
+     X8664VirtualInstructionEncoder encoder{target};
+     const std::vector<VirtualInstruction> input{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {innerPointer, VirtualRegister{.index = 0x1000}}},
+          {.type = VirtualInstructionType::CopyInteger, .operands = {outerPointer, VirtualRegister{.index = 0x2000}}},
+          {.type = VirtualInstructionType::CopyInteger, .operands = {value, VirtualRegister{.index = 42}}},
+          {.type = VirtualInstructionType::IndirectStore, .operands = {innerPointer, value}},
+          {.type = VirtualInstructionType::Copy, .operands = {copiedValue, value}},
+          {.type = VirtualInstructionType::IndirectStore, .operands = {outerPointer, copiedValue}},
+          {.type = VirtualInstructionType::Return, .operands = {copiedValue}},
+     };
+
+     std::vector<ecpps::ir::abstract::Instruction> encoded{};
+     REQUIRE_NOTHROW(encoded = encoder.Encode(input));
+     REQUIRE(!encoded.empty());
+}
+
+TEST_CASE("x86-64 indirect stores preserve reused and aliased operands", "[codegen][x86_64][regalloc]")
+{
+     using ecpps::abi::encoders::x8664::LinuxPlatform;
+     using ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder;
+     using ecpps::ir::abstract::AllocationClass;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+
+     SECTION("the pointer remains live for the next store")
+     {
+          const VirtualRegister pointer{.index = 1};
+          const VirtualRegister value{.index = 2};
+          ecpps::abi::api::Target target{};
+          target.platform = std::make_unique<LinuxPlatform>(nullptr);
+          target.EnsureVRM();
+          target.registerMap->Describe(pointer, 64, AllocationClass::Temporary);
+          target.registerMap->Describe(value, 32, AllocationClass::Temporary);
+
+          X8664VirtualInstructionEncoder encoder{target};
+          const std::vector<VirtualInstruction> input{
+               {.type = VirtualInstructionType::CopyInteger, .operands = {pointer, VirtualRegister{.index = 0x1000}}},
+               {.type = VirtualInstructionType::CopyInteger, .operands = {value, VirtualRegister{.index = 42}}},
+               {.type = VirtualInstructionType::IndirectStore, .operands = {pointer, value}},
+               {.type = VirtualInstructionType::IndirectStore, .operands = {pointer, value}},
+               {.type = VirtualInstructionType::Return, .operands = {value}},
+          };
+
+          REQUIRE_NOTHROW(encoder.Encode(input));
+     }
+
+     SECTION("the pointer is also the stored value")
+     {
+          const VirtualRegister pointerAndValue{.index = 1};
+          ecpps::abi::api::Target target{};
+          target.platform = std::make_unique<LinuxPlatform>(nullptr);
+          target.EnsureVRM();
+          target.registerMap->Describe(pointerAndValue, 64, AllocationClass::Temporary);
+
+          X8664VirtualInstructionEncoder encoder{target};
+          const std::vector<VirtualInstruction> input{
+               {.type = VirtualInstructionType::CopyInteger,
+                .operands = {pointerAndValue, VirtualRegister{.index = 0x1000}}},
+               {.type = VirtualInstructionType::IndirectStore, .operands = {pointerAndValue, pointerAndValue}},
+               {.type = VirtualInstructionType::Return, .operands = {pointerAndValue}},
+          };
+
+          REQUIRE_NOTHROW(encoder.Encode(input));
+     }
+}
+
 TEST_CASE("x86-64 Opcodes - REX prefix", "[codegen][x86_64][opcodes]")
 {
      SECTION("REX.W for 64-bit operands")

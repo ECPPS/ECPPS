@@ -119,10 +119,29 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      const auto destinationPointer = registerArray[0];
      const auto source = registerArray[1];
+     const auto acquireScratch =
+          [&](const ir::abstract::VirtualRegister owner, const Width width, const bool disposable)
+     {
+          const auto physical = this->PhysicalRegisterOf(owner);
+          if (disposable)
+          {
+               auto scratch = ScratchRegister::Take(this->_registerAllocator, owner);
+               this->GetVRM().ClearMaterialisation(owner);
+               return scratch;
+          }
+
+          ScratchRegister scratch{this->_registerAllocator};
+          built.push_back(BuildMov(width, scratch.AsOperand(), RegisterOperand{physical}));
+          return scratch;
+     };
+
      if (this->IsLargeObject(source))
      {
           ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destinationPointer));
-          auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
+          const bool pointerDisposable = destinationPointer != source &&
+                                         this->_remainingUses[destinationPointer.index] == 1 &&
+                                         !this->IsMutable(destinationPointer);
+          auto pointer = acquireScratch(destinationPointer, Width::W64, pointerDisposable);
           const MemoryLocation destination{.base = MemoryOperand{.relativeTo = pointer.Register(), .offset = 0},
                                            .disposable = true};
           const MemoryLocation sourceLocation{.base = this->EnsureStackSlot(source)};
@@ -133,9 +152,16 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      }
 
      ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destinationPointer));
-     auto pointer = ScratchRegister::Take(this->_registerAllocator, destinationPointer);
      ecpps::detail::AppendRange(built, this->EnsureMaterialisation(source));
-     auto value = ScratchRegister::Take(this->_registerAllocator, source);
+     const bool operandsAlias = destinationPointer == source;
+     const bool pointerDisposable =
+          !operandsAlias && this->_remainingUses[destinationPointer.index] == 1 && !this->IsMutable(destinationPointer);
+     auto pointer = acquireScratch(destinationPointer, Width::W64, pointerDisposable);
+
+     const std::size_t sourceUsesInInstruction = operandsAlias ? 2 : 1;
+     const bool sourceDisposable =
+          this->_remainingUses[source.index] == sourceUsesInInstruction && !this->IsMutable(source);
+     auto value = acquireScratch(source, MapWidth(this->GetVRM().GetWidth(source)), sourceDisposable);
      built.push_back(BuildMov(MapWidth(this->GetVRM().GetWidth(source)),
                               MemoryOperand{.relativeTo = pointer.Register(), .offset = 0}, value.AsOperand()));
      this->DereferenceAndMaybeFree(destinationPointer);
