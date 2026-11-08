@@ -1,3 +1,5 @@
+// NOLINTBEGIN
+
 #include <Linker/ELFObjectLinker.h>
 #include <catch_amalgamated.hpp>
 #include <cstring>
@@ -193,3 +195,4 @@ TEST_CASE("ELF relocatable objects encode imported calls and string addresses", 
      CHECK(foundStringRelocation);
      CHECK(textSection.size == patchedCode.size());
 }
+// NOLINTEND
