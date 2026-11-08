@@ -212,7 +212,8 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
      for (const auto& symbol : this->_symbols)
           if (symbol.sectionIndex == 1) functionOffsets.push_back(symbol.value);
      std::ranges::sort(functionOffsets);
-     functionOffsets.erase(std::unique(functionOffsets.begin(), functionOffsets.end()), functionOffsets.end());
+     auto unique = std::ranges::unique(functionOffsets);
+     functionOffsets.erase(unique.begin(), unique.end());
 
      for (const auto& symbol : this->_symbols)
      {
