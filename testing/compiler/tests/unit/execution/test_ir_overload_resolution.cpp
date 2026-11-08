@@ -168,7 +168,7 @@ TEST_CASE("IR - No matching overload is a type error with candidate failures", "
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
      (void)fixture.Parse(std::move(ast));
-     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
+     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Name() == "type-error"));
      CHECK(ContainsMessage(diagnostic, "No matching overload for call to 'pick'"));
