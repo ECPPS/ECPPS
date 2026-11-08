@@ -148,14 +148,12 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::CodeSection(
           if (call.size() != 5 || position + call.size() > this->_text.size())
                throw std::runtime_error("ELFObjectLinker: invalid call relocation range");
 
-          std::copy(call.begin(), call.end(), this->_text.begin() + static_cast<std::ptrdiff_t>(position));
+          std::ranges::copy(call, this->_text.begin() + static_cast<std::ptrdiff_t>(position));
           std::fill_n(this->_text.begin() + static_cast<std::ptrdiff_t>(position + 1), sizeof(std::int32_t),
                       std::byte{0});
 
-          this->_relocations.emplace_back(Relocation{.offset = position + 1,
-                                                     .symbolName = relocation.symbolName,
-                                                     .type = R_X86_64_PLT32,
-                                                     .addend = -4});
+          this->_relocations.emplace_back(Relocation{
+               .offset = position + 1, .symbolName = relocation.symbolName, .type = R_X86_64_PLT32, .addend = -4});
      }
 
      for (const auto offset : this->_stringRelocationOffsets)
@@ -254,10 +252,10 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
           if (symbolIndex == outputSymbolIndices.end())
                throw std::runtime_error("ELFObjectLinker: unresolved relocation symbol " + targetName);
 
-          rawRelocations.emplace_back(ELFRelocation64{.offset = relocation.offset,
-                                                      .info = (static_cast<std::uint64_t>(symbolIndex->second) << 32) |
-                                                               relocation.type,
-                                                      .addend = relocation.addend});
+          rawRelocations.emplace_back(
+               ELFRelocation64{.offset = relocation.offset,
+                               .info = (static_cast<std::uint64_t>(symbolIndex->second) << 32) | relocation.type,
+                               .addend = relocation.addend});
      }
 
      const auto symbolBytes = AsBytes(symbols);
@@ -270,11 +268,8 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .flags = SHF_ALLOC | SHF_EXECINSTR,
                                        .data = this->_text,
                                        .alignment = 16});
-     sections.emplace_back(SectionData{.name = ".rodata",
-                                       .type = SHT_PROGBITS,
-                                       .flags = SHF_ALLOC,
-                                       .data = stringData,
-                                       .alignment = 1});
+     sections.emplace_back(
+          SectionData{.name = ".rodata", .type = SHT_PROGBITS, .flags = SHF_ALLOC, .data = stringData, .alignment = 1});
      sections.emplace_back(SectionData{.name = ".rela.text",
                                        .type = SHT_RELA,
                                        .flags = SHF_INFO_LINK,

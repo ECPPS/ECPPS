@@ -55,7 +55,7 @@ namespace
      {
           if (lhs.size() != rhs.size()) return false;
 
-          for (std::size_t i = 0; i < lhs.size(); ++i)
+          for (std::size_t i = 0; i < lhs.size(); i++)
           {
                const auto a = static_cast<unsigned char>(lhs[i]);
                const auto b = static_cast<unsigned char>(rhs[i]);

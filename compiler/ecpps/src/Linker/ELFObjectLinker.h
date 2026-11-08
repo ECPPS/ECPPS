@@ -17,8 +17,8 @@ namespace ecpps::linker::elf
                _toRelocateWidth = toRelocateWidth;
           }
 
-          [[nodiscard]] std::vector<std::byte> CodeSection(
-               std::vector<std::byte> data, const codegen::LinkerRelocationMap& relocationMap) override;
+          [[nodiscard]] std::vector<std::byte> CodeSection(std::vector<std::byte> data,
+                                                           const codegen::LinkerRelocationMap& relocationMap) override;
 
           void ExportFunction(const std::string& name, std::uint32_t address) override;
           void ImportFunction(const std::string& symbolName, const std::string& importName,

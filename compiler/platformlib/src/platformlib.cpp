@@ -113,7 +113,7 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace([[maybe_unused]] Debu
      std::vector<void*> stack;
      ptrace(PTRACE_ATTACH, pid, nullptr, nullptr);
      waitpid(pid, nullptr, 0);
-     for (int i = 0; i < 64; ++i)
+     for (int i = 0; i < 64; i++)
      {
           void* addr = reinterpret_cast<void*>(ptrace(PTRACE_PEEKUSER, pid, sizeof(void*) * (16), nullptr));
           if (addr == nullptr) break;
