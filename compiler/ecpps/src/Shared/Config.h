@@ -26,7 +26,8 @@ namespace ecpps
           Windows32,
           Caosys,
           Undefined,
-          Windows64Coff
+          Windows64Coff,
+          Linux64ELF
      };
 
      constexpr LinkerUsed DefaultLinker =
@@ -34,6 +35,8 @@ namespace ecpps
           LinkerUsed::Windows64;
 #elif defined(_WIN32)
           LinkerUsed::Windows32;
+#elif defined(__linux__)
+          LinkerUsed::Linux64ELF;
 #else
           LinkerUsed::Undefined;
 #endif

@@ -4,6 +4,7 @@
 #include <utility>
 #include "../CodeGeneration/PseudoAssembly.h"
 #include "CoffLinker.h"
+#include "ELFObjectLinker.h"
 #include "WindowsLinker.h"
 #include "dllHelp.h"
 
@@ -54,6 +55,11 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
                std::make_unique<ecpps::linker::LinkerOptions<ecpps::linker::LinkerType::Coff>>(LinkerBitness::x64));
           break;
      }
+     case LinkerUsed::Linux64ELF:
+     {
+          selectedLinker = std::make_unique<ecpps::linker::elf::ELFObjectLinker>();
+          break;
+     }
      case LinkerUsed::Caosys:
      {
           selectedLinker = ecpps::linker::Linker::CreateLinker(
@@ -69,7 +75,7 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
      const auto availableExports = GetExportsFromDlls(config.importedLibraries);
      for (const auto& [decoratedName, undecoratedName] : ecpps::codegen::g_functionImports)
      {
-          if (config.linker == LinkerUsed::Windows64Coff)
+          if (config.linker == LinkerUsed::Windows64Coff || config.linker == LinkerUsed::Linux64ELF)
           {
                selectedLinker->ImportFunction(decoratedName, undecoratedName, "");
                continue;
@@ -94,6 +100,8 @@ std::vector<std::byte> ecpps::linker::Linker::SelectAndLink(
 
      if (auto* coff = dynamic_cast<win::CoffLinker*>(selectedLinker.get()))
           coff->SetStringRelocations(stringRelocations, toRelocateWidth);
+     if (auto* elf = dynamic_cast<elf::ELFObjectLinker*>(selectedLinker.get()))
+          elf->SetStringRelocations(stringRelocations, toRelocateWidth);
 
      diagnosticsCodeSection = selectedLinker->CodeSection(std::move(generatedMachineCode), relocationMap);
 
