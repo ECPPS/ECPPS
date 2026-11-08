@@ -1183,6 +1183,19 @@ namespace ecpps::ir
           const SingleAssignRegisterNode* _operand;
      };
 
+     class SSAUnreachableNode final : public NodeBase
+     {
+     public:
+          explicit SSAUnreachableNode(Location source) : NodeBase(NodeKind::Unreachable, source)
+          {
+          }
+
+          [[nodiscard]] std::string ToString(std::size_t indent) const override
+          {
+               return std::format("{: <{}}__unreachable", ' ', indent * ast::PrettyIndent);
+          }
+     };
+
      class TemporaryIntegerArrayDecayNode final : public NodeBase
      {
      public:

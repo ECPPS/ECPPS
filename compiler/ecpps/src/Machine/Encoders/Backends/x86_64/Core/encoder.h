@@ -56,6 +56,7 @@ namespace ecpps::abi::encoders::x8664
           constexpr static std::size_t Jcc = 21;
           constexpr static std::size_t Mul = 22;
           constexpr static std::size_t Div = 23;
+          constexpr static std::size_t UD2 = 24;
      };
 
      enum struct EncodingSpillage : std::uint8_t

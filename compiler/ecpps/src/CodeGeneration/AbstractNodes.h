@@ -129,7 +129,8 @@ namespace ecpps::ir::abstract
           CopyFromData,
           Division,
           Indirection,
-          IndirectStore
+          IndirectStore,
+          Unreachable
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -168,6 +169,7 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Division: return "divide";
           case VirtualInstructionType::Indirection: return "indirect";
           case VirtualInstructionType::IndirectStore: return "indirect-store";
+          case VirtualInstructionType::Unreachable: return "unreachable";
           }
           throw TracedException("control flow");
      }

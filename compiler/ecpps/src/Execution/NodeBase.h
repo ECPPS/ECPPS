@@ -55,7 +55,8 @@ namespace ecpps::ir
           IncomingThis,
           StoreThis,
           ThisExpression,
-          IncomingReturnSlot
+          IncomingReturnSlot,
+          Unreachable
      };
      enum struct ComparisonPredicate : std::uint_fast8_t
      {

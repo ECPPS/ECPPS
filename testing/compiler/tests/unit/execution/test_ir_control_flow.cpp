@@ -108,7 +108,28 @@ TEST_CASE("IR - If/else lowers a signed comparison to branch targets", "[unit][i
      REQUIRE(HasLabel(procedure->Body(), branch->TrueLabel()));
      REQUIRE(HasLabel(procedure->Body(), branch->FalseLabel()));
      REQUIRE((CountNodes<ecpps::ir::SSAReturnNode>(procedure->Body()) == 2));
+     REQUIRE((CountNodes<ecpps::ir::SSAUnreachableNode>(procedure->Body()) == 0));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Missing non-void return warns and adds an unreachable node", "[unit][ir][control-flow]")
+{
+     Fixture fixture{};
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(
+          fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "missing_return", {}), std::move(body)));
+     const auto nodes = fixture.Parse(std::move(ast));
+
+     const auto* procedure = FindProcedure(nodes, "missing_return");
+     REQUIRE((procedure != nullptr));
+     REQUIRE((CountNodes<ecpps::ir::SSAUnreachableNode>(procedure->Body()) == 1));
+     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
+     const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
+     CHECK((diagnostic.Level() == ecpps::diagnostics::DiagnosticsLevel::Warning));
+     CHECK((diagnostic.Message().find("missing_return") != std::string::npos));
+     CHECK((diagnostic.Message().find("without returning a value") != std::string::npos));
 }
 
 TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][assignment]")

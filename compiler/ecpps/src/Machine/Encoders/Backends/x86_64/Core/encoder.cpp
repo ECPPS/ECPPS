@@ -335,6 +335,7 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           runtime_assert(instruction.description.empty(), "invalid RET");
           return "RET";
      }
+     case X8664InstructionName::UD2: runtime_assert(instruction.description.empty(), "invalid UD2"); return "UD2";
      case X8664InstructionName::Pop:
      {
           runtime_assert(instruction.description.size() == sizeof(PopInstruction), "invalid POP");
@@ -471,6 +472,7 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
           return std::vector<ir::abstract::VirtualRegister>{operands[1]};
      case Type::Label:
      case Type::UnconditionalJump:
+     case Type::Unreachable:
      case Type::ZeroMemory:
      case Type::CopyFromData: return {};
      case Type::CompareAndJump: return {operands[0], operands[1]};
@@ -540,6 +542,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Return:
           ecpps::detail::AppendRange(
                instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::Return>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::Unreachable:
+          runtime_assert(instruction.operands.empty(), "invalid unreachable instruction");
+          instructions.push_back({.opcode = X8664InstructionName::UD2});
           break;
      case ecpps::ir::abstract::VirtualInstructionType::LeftShift:
           ecpps::detail::AppendRange(
@@ -1783,7 +1789,8 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsTerminator(
      const ir::abstract::VirtualInstructionType type) noexcept
 {
      using Type = ir::abstract::VirtualInstructionType;
-     return type == Type::Return || type == Type::UnconditionalJump || type == Type::CompareAndJump;
+     return type == Type::Return || type == Type::UnconditionalJump || type == Type::CompareAndJump ||
+            type == Type::Unreachable;
 }
 
 std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DestinationOf(
@@ -1798,6 +1805,7 @@ std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionE
      case Type::PassArgument:
      case Type::Label:
      case Type::UnconditionalJump:
+     case Type::Unreachable:
      case Type::CompareAndJump: return std::nullopt;
      default: return i.operands.empty() ? std::nullopt : std::optional{i.operands[0].index};
      }
@@ -1844,7 +1852,8 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildControlFl
           const bool hasNext = b + 1 < this->_blocks.size();
           switch (last.type)
           {
-          case Type::Return: break;
+          case Type::Return:
+          case Type::Unreachable: break;
           case Type::UnconditionalJump: block.successors.push_back(blockOf(last.operands[0].index)); break;
           case Type::CompareAndJump:
                block.successors.push_back(blockOf(last.operands[3].index));
