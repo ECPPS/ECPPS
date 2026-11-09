@@ -319,7 +319,7 @@ namespace
 
           std::println();
 
-          for (std::size_t i = 0; i < ordered.size(); ++i)
+          for (std::size_t i = 0; i < ordered.size(); i++)
           {
                const auto& [routineName, routineOffset] = ordered[i];
 

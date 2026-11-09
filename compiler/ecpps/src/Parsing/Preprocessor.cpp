@@ -984,7 +984,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
           if (isVariadic)
           {
                std::string vargs;
-               for (std::size_t i = parameters->size(); i < rawArgs.size(); ++i)
+               for (std::size_t i = parameters->size(); i < rawArgs.size(); i++)
                {
                     if (i > parameters->size()) vargs += ',';
                     vargs += rawArgs[i];

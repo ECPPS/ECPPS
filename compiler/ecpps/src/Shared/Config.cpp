@@ -55,7 +55,7 @@ namespace
      {
           if (lhs.size() != rhs.size()) return false;
 
-          for (std::size_t i = 0; i < lhs.size(); ++i)
+          for (std::size_t i = 0; i < lhs.size(); i++)
           {
                const auto a = static_cast<unsigned char>(lhs[i]);
                const auto b = static_cast<unsigned char>(rhs[i]);
@@ -585,7 +585,7 @@ namespace
 #elif defined(__linux__)
           result.platform = Platform::Linux;
           result.sdk = SDK::LinuxKernel7x;
-          result.linker = ecpps::LinkerUsed::Undefined;
+          result.linker = ecpps::LinkerUsed::Linux64ELF;
 #else
           result.platform = Platform::None;
           result.sdk = SDK::Unknown;
@@ -719,7 +719,7 @@ namespace
 
           if (preset == "linux-x64" || preset == "linux-amd64")
           {
-               config.linker = ecpps::LinkerUsed::Undefined;
+               config.linker = ecpps::LinkerUsed::Linux64ELF;
 
                config.target.isa = ISA::x86_64;
                config.target.platform = Platform::Linux;
@@ -755,6 +755,10 @@ namespace
 
                config.importedLibraries.emplace_back("KERNEL32.dll");
                config.importedLibraries.emplace_back("USER32.dll");
+               break;
+
+          case ecpps::LinkerUsed::Linux64ELF:
+               if (config.outputImage.empty()) config.outputImage = "out.o";
                break;
 
           case ecpps::LinkerUsed::Caosys:
