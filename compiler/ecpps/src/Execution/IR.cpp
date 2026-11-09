@@ -8,6 +8,7 @@
 #include <memory>
 #include <ranges>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -31,6 +32,47 @@
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
 using ecpps::Expression;
+
+[[nodiscard]] static bool CanReachFunctionEnd(const std::vector<IRNodePointer>& body)
+{
+     std::unordered_map<std::string, std::size_t> labels{};
+     for (std::size_t index = 0; index < body.size(); index++)
+          if (const auto* label = dynamic_cast<const ecpps::ir::SSALabelNode*>(body[index].get()))
+               labels[label->Name()] = index;
+
+     std::vector<bool> visited(body.size() + 1, false);
+     std::vector<std::size_t> pending{0};
+     while (!pending.empty())
+     {
+          const auto index = pending.back();
+          pending.pop_back();
+          if (index == body.size()) return true;
+          if (visited[index]) continue;
+          visited[index] = true;
+
+          const auto& node = body[index];
+          if (node->Kind() == ecpps::ir::NodeKind::Return || node->Kind() == ecpps::ir::NodeKind::Unreachable) continue;
+
+          const auto addLabelTarget = [&pending, &labels](const std::string& name)
+          {
+               const auto label = labels.find(name);
+               if (label != labels.end()) pending.push_back(label->second);
+          };
+          if (const auto* jump = dynamic_cast<const ecpps::ir::SSAGotoNode*>(node.get()))
+          {
+               addLabelTarget(jump->Name());
+               continue;
+          }
+          if (const auto* branch = dynamic_cast<const ecpps::ir::SSABranchNode*>(node.get()))
+          {
+               addLabelTarget(branch->TrueLabel());
+               addLabelTarget(branch->FalseLabel());
+               continue;
+          }
+          pending.push_back(index + 1);
+     }
+     return false;
+}
 
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
 {
@@ -514,11 +556,11 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
-     if (returnType != nullptr && typeSystem::g_void->CommonWith(returnType))
+     const bool canReachEnd = CanReachFunctionEnd(ir._built);
+     if (typeSystem::g_void->CommonWith(returnType))
           ir._built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});
-
-     if (name == "main" && (ir._built.empty() || ir._built.back()->Kind() != NodeKind::Return))
+     else if (name == "main" && canReachEnd)
      {
           auto zeroReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
                dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get())->GetNextRegisterIndex(),
@@ -529,6 +571,18 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                new (allocator) SSAImmNode(std::move(zeroReg), 0, node.Source())});
           ir._built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(zeroPtr, node.Source())});
+     }
+     else if (canReachEnd)
+     {
+          DiagnosticSink::Report(
+               this->GetContext(),
+               std::make_unique<diagnostics::Warning>("warning",
+                                                      std::format("control may reach the end of non-void function '{}' "
+                                                                  "without returning a value",
+                                                                  name),
+                                                      node.Source()));
+          ir._built.push_back(
+               std::unique_ptr<SSAUnreachableNode, IRDeleter>{new (allocator) SSAUnreachableNode(node.Source())});
      }
 
      this->_built.push_back(std::unique_ptr<ecpps::ir::ProcedureNode, IRDeleter>{

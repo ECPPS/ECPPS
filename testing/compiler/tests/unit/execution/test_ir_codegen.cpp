@@ -1,6 +1,12 @@
 #define CATCH_CONFIG_MAIN
+#include <CodeGeneration/Emitters/x86_64/x86_64.h>
+#include <CodeGeneration/PseudoAssembly.h>
 #include <IRTestHelpers.h>
+#include <Machine/Encoders/Backends/x86_64/Core/encoder.h>
+#include <Machine/Encoders/Backends/x86_64/Platforms/Linux/Linux.h>
 #include <catch_amalgamated.hpp>
+#include <cstddef>
+#include <memory>
 
 using namespace IRTestHelpers;
 
@@ -52,4 +58,29 @@ TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][code
      const auto* returnNode = FindNode<ecpps::ir::SSAReturnNode>(procedure->Body());
      REQUIRE((returnNode != nullptr));
      REQUIRE((returnNode->Operand() == &additionNode->Result()));
+}
+
+TEST_CASE("IR - Unreachable node emits x86-64 UD2", "[unit][ir][codegen]")
+{
+     ecpps::ir::SSAUnreachableNode unreachable{Source};
+     ecpps::codegen::ParsingContext context{ecpps::abi::ABI::Current()};
+     context.ParseNode(&unreachable);
+
+     REQUIRE((context.instructions.size() == 1));
+     CHECK((context.instructions.front().type == ecpps::ir::abstract::VirtualInstructionType::Unreachable));
+
+     ecpps::abi::api::Target target{};
+     target.EnsureVRM();
+     target.platform = std::make_unique<ecpps::abi::encoders::x8664::LinuxPlatform>(nullptr);
+     ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder encoder{target};
+     const auto encoded = encoder.Encode(context.instructions);
+
+     REQUIRE((encoded.size() == 1));
+     CHECK((encoded.front().opcode == ecpps::abi::encoders::x8664::X8664InstructionName::UD2));
+
+     ecpps::codegen::emitters::X8664Emitter emitter{};
+     const auto bytes = emitter.EmitInstruction(encoded.front());
+     REQUIRE((bytes.size() == 2));
+     CHECK((bytes[0] == std::byte{0x0f}));
+     CHECK((bytes[1] == std::byte{0x0b}));
 }

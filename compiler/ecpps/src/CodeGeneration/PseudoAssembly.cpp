@@ -283,6 +283,9 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
                this->ParseBranchNode(*branchNode);
           }
           break;
+          case ecpps::ir::NodeKind::Unreachable:
+               this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::Unreachable});
+               break;
           case ecpps::ir::NodeKind::Dereference:
           {
                const auto* indirect = dynamic_cast<const ecpps::ir::SSADerefNode*>(node);
@@ -1145,7 +1148,9 @@ void ecpps::codegen::ParsingContext::FinaliseControlFlow(bool optimiseDeadJumps)
                }
                if (unreachable) dead[i] = true;
                if (dead[i]) continue;
-               if (code[i].type == Type::Return || code[i].type == Type::UnconditionalJump) unreachable = true;
+               if (code[i].type == Type::Return || code[i].type == Type::UnconditionalJump ||
+                   code[i].type == Type::Unreachable)
+                    unreachable = true;
           }
 
           std::size_t write = 0;
