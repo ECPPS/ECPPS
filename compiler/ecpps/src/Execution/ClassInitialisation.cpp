@@ -29,6 +29,7 @@
 #include "TypeSystem/ClassInfo.h"
 
 using ecpps::Expression;
+using ClassProperty = ecpps::typeSystem::ClassInfo::Property;
 
 namespace
 {
@@ -102,7 +103,7 @@ bool ecpps::ir::IR::IsAggregateClass(typeSystem::NonowningTypePointer type) cons
      const auto* classType = type != nullptr ? type->CastTo<typeSystem::ClassType>() : nullptr;
      if (classType == nullptr || !classType->IsComplete() || classType->Info().kind == typeSystem::ClassKind::Union)
           return false;
-     if (classType->Info().hasUserDeclaredConstructors) return false;
+     if (classType->Info().Has(ClassProperty::UserDeclaredConstructors)) return false;
      return std::ranges::all_of(classType->Info().fields,
                                 [](const typeSystem::ClassField& field)
                                 {
@@ -118,7 +119,7 @@ bool ecpps::ir::IR::IsConstDefaultConstructible(typeSystem::NonowningTypePointer
      const auto* classType = type->CastTo<typeSystem::ClassType>();
      if (classType == nullptr || classType->Info().kind == typeSystem::ClassKind::Union) return false;
 
-     if (classType->Info().hasUserDeclaredConstructors)
+     if (classType->Info().Has(ClassProperty::UserDeclaredConstructors))
      {
           const auto classRecord = this->GetContext().classTable->classes.find(classType->Info().id);
           if (classRecord == this->GetContext().classTable->classes.end()) return false;
@@ -1088,7 +1089,7 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
      }
      if (!IsAggregateClass(type))
      {
-          if (!info.hasUserDeclaredConstructors && list->Initialisers().empty())
+          if (!info.Has(ClassProperty::UserDeclaredConstructors) && list->Initialisers().empty())
           {
                ZeroInitialiseAtAddress(type, address, source);
                InitialiseClassMembers(type, address, source);
@@ -1121,7 +1122,7 @@ void ecpps::ir::IR::InitialiseEmptyClassList(typeSystem::NonowningTypePointer ty
      const auto& info = classType->Info();
      if (!IsAggregateClass(type))
      {
-          if (!info.hasUserDeclaredConstructors)
+          if (!info.Has(ClassProperty::UserDeclaredConstructors))
           {
                ZeroInitialiseAtAddress(type, address, source);
                InitialiseClassMembers(type, address, source);

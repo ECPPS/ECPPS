@@ -1,4 +1,5 @@
 #pragma once
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -56,6 +57,22 @@ namespace ecpps::typeSystem
      };
      struct ClassInfo
      {
+          enum struct Property : std::uint32_t // NOLINT
+          {
+               UserDeclaredConstructors,
+               UserDeclaredCopyConstructor,
+               UserDeclaredMoveConstructor,
+               NontrivialCopyOrMoveConstructor,
+               UserDeclaredCopyAssignment,
+               UserDeclaredMoveAssignment,
+               NontrivialCopyOrMoveAssignment,
+               UserDeclaredDestructor,
+               NontrivialDestructor,
+               Count
+          };
+
+          static constexpr std::size_t PropertyCount = static_cast<std::size_t>(Property::Count);
+
           ClassId id{InvalidClassId};
           ClassKind kind{ClassKind::Struct};
           std::string name{}; // empty == unnamed
@@ -66,7 +83,7 @@ namespace ecpps::typeSystem
           std::size_t size{};       // valid once ::Complete
           std::size_t alignment{};  // valid once ::Complete
           bool triviallyCopyable{}; // valid once ::Complete; computed from the member types
-          bool hasUserDeclaredConstructors{};
+          std::bitset<PropertyCount> properties{};
           std::vector<ClassField> fields{};
 
           std::optional<std::string> instantiationKey{};
@@ -74,6 +91,14 @@ namespace ecpps::typeSystem
           [[nodiscard]] bool IsComplete(void) const noexcept
           {
                return this->state == ClassState::Complete;
+          }
+          [[nodiscard]] bool Has(Property property) const
+          {
+               return this->properties.test(static_cast<std::size_t>(property));
+          }
+          void Set(Property property, const bool value = true)
+          {
+               this->properties.set(static_cast<std::size_t>(property), value);
           }
           [[nodiscard]] std::vector<ScopeSegment> QualifiedScope(void) const
           {

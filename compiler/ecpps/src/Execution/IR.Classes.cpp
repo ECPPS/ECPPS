@@ -42,6 +42,7 @@
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
 using ecpps::Expression;
+using ClassProperty = ecpps::typeSystem::ClassInfo::Property;
 
 using ecpps::ir::detail::ConversionCost;
 using ecpps::ir::detail::DeclaratorIdentifier;
@@ -347,7 +348,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                constructor.parameters.clear();
 
           auto& classInfo = GetTypeContext().Class(id);
-          classInfo.hasUserDeclaredConstructors = true;
+          classInfo.Set(ClassProperty::UserDeclaredConstructors);
           auto& constructors = this->GetContext().classTable->classes[id].constructors;
           const bool duplicate =
                std::ranges::any_of(constructors,
@@ -1092,7 +1093,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateEmpty(typeSystem:
                Report("Union initialisation is not supported yet", _source);
                return false;
           }
-          if (!_ir.IsAggregateClass(type) && classType->Info().hasUserDeclaredConstructors)
+          if (!_ir.IsAggregateClass(type) && classType->Info().Has(ClassProperty::UserDeclaredConstructors))
           {
                return ValidateConstructor(classType, {}, true, true, _source);
           }
@@ -1113,7 +1114,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateClassList(const t
           Report("Union initialisation is not supported yet", list.Source());
           return false;
      }
-     if (!_ir.IsAggregateClass(classType) && classType->Info().hasUserDeclaredConstructors)
+     if (!_ir.IsAggregateClass(classType) && classType->Info().Has(ClassProperty::UserDeclaredConstructors))
      {
           std::vector<const ast::NodePointer*> arguments{};
           for (const auto& clause : list.Initialisers()) arguments.push_back(&clause);
@@ -1295,7 +1296,7 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::Validate(typeSystem::Nono
           const auto* list = dynamic_cast<const ast::InitialiserListNode*>(value.get());
           if (list == nullptr)
           {
-               if (classType->Info().hasUserDeclaredConstructors)
+               if (classType->Info().Has(ClassProperty::UserDeclaredConstructors))
                     return ValidateConstructor(classType, {&value},
                                                initialisationType == ast::InitialisationType::EqualInitialiser, false,
                                                value->Source());
