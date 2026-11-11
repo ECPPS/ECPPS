@@ -70,7 +70,8 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::PassArgument>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
-     X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate>(
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ZeroMemory>(
@@ -473,8 +474,9 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
      case Type::CopyParameter: return {};
      case Type::IndirectStore: return operands;
      case Type::Return: return operands;
-     case Type::ReturnAggregate: return operands.empty() ? std::vector<ir::abstract::VirtualRegister>{}
-                                                         : std::vector<ir::abstract::VirtualRegister>{operands[0]};
+     case Type::ReturnAggregate:
+          return operands.empty() ? std::vector<ir::abstract::VirtualRegister>{}
+                                  : std::vector<ir::abstract::VirtualRegister>{operands[0]};
      case Type::CallWithAggregateResult:
      case Type::PassArgument:
           if (operands.size() < 2) return {};
@@ -629,9 +631,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CallWithAggregateResult:
           ecpps::detail::AppendRange(
-               instructions,
-               EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithAggregateResult>(
-                    instruction.operands));
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithAggregateResult>(
+                                  instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CopyParameter:
           ecpps::detail::AppendRange(
@@ -1511,9 +1512,8 @@ ecpps::abi::encoders::x8664::Operand ecpps::abi::encoders::x8664::X8664VirtualIn
      if (stack->isIncomingParameter)
      {
           const auto incomingBaseOffset =
-               this->OmitsFramePointer()
-                    ? this->_stackFrameSize + this->SavedRegistersSize() + sizeof(std::uint64_t)
-                    : 2 * sizeof(std::uint64_t);
+               this->OmitsFramePointer() ? this->_stackFrameSize + this->SavedRegistersSize() + sizeof(std::uint64_t)
+                                         : 2 * sizeof(std::uint64_t);
           const auto offset = incomingBaseOffset + stack->offset;
           const auto base = this->OmitsFramePointer() ? RegisterIndex::Rsp : RegisterIndex::Rbp;
           return MemoryOperand{.relativeTo = base, .offset = static_cast<std::int32_t>(offset)};

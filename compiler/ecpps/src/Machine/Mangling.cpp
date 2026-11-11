@@ -129,9 +129,9 @@ std::string MangleTypeImpl(const ecpps::typeSystem::NonowningTypePointer type, c
           return result + std::format("{}{}_", ArrayPrefix, array->ElementCount()) +
                  MangleTypeImpl(array->ElementType(), false);
      if (const auto* reference = type->CastTo<typeSystem::ReferenceType>())
-          return result + std::string{reference->GetKind() == typeSystem::ReferenceType::Kind::LValue
-                                          ? LValueReferencePrefix
-                                          : RValueReferencePrefix} +
+          return result +
+                 std::string{reference->GetKind() == typeSystem::ReferenceType::Kind::LValue ? LValueReferencePrefix
+                                                                                             : RValueReferencePrefix} +
                  MangleTypeImpl(reference->BaseType(), false);
      if (typeSystem::IsBoolean(type)) return result + std::string{BooleanType};
      if (typeSystem::IsArithmetic(type)) return result + MangleArithmetic(type);

@@ -52,9 +52,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
 {
-     runtime_assert(registerArray.size() == 2,
-                    std::format("Invalid register array! Specified: {}, expected: [result buffer, width]",
-                                registerArray.size()));
+     runtime_assert(
+          registerArray.size() == 2,
+          std::format("Invalid register array! Specified: {}, expected: [result buffer, width]", registerArray.size()));
 
      const auto& resultBuffer = registerArray[0];
      const auto width = MapWidth(registerArray[1].index);
@@ -68,8 +68,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           ecpps::detail::AppendRange(built, this->ClearRegister(scratch, resultBuffer));
           this->Lock(scratch);
           built.push_back(BuildMov(Width::W64, RegisterOperand{scratch}, resultBufferSlot));
-          built.push_back(BuildMov(width, RegisterOperand{returnRegister},
-                                   MemoryOperand{.relativeTo = scratch, .offset = 0}));
+          built.push_back(
+               BuildMov(width, RegisterOperand{returnRegister}, MemoryOperand{.relativeTo = scratch, .offset = 0}));
           this->Unlock(scratch);
      }
      else

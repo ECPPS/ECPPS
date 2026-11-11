@@ -76,13 +76,13 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      if (this->IsSpilled(resultBuffer))
      {
           const auto resultBufferSlot = this->EnsureStackSlot(resultBuffer);
-          const RegisterIndex scratch = returnValueScratch == RegisterIndex::R10 ? RegisterIndex::R11
-                                                                                  : RegisterIndex::R10;
+          const RegisterIndex scratch =
+               returnValueScratch == RegisterIndex::R10 ? RegisterIndex::R11 : RegisterIndex::R10;
           ecpps::detail::AppendRange(built, this->ClearRegister(scratch, resultBuffer));
           this->Lock(scratch);
           built.push_back(BuildMov(Width::W64, RegisterOperand{scratch}, resultBufferSlot));
-          built.push_back(BuildMov(width, MemoryOperand{.relativeTo = scratch, .offset = 0},
-                                   RegisterOperand{returnValueScratch}));
+          built.push_back(
+               BuildMov(width, MemoryOperand{.relativeTo = scratch, .offset = 0}, RegisterOperand{returnValueScratch}));
           this->Unlock(scratch);
      }
      else

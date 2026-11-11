@@ -51,10 +51,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& platform = *this->_target->platform;
      const bool hasResultBuffer = scope->returnsByPointer && typeSystem::IsClass(scope->returnType);
      const bool directAggregateReturn =
-          hasResultBuffer && api::IsSingleIntegerRegister(api::ClassReturnPassing(platform, scope->returnType),
-                                                          scope->returnType->Size());
-     const auto numberOfParameters = scope->CallingConventionParameterCount() -
-                                     static_cast<std::size_t>(directAggregateReturn);
+          hasResultBuffer &&
+          api::IsSingleIntegerRegister(api::ClassReturnPassing(platform, scope->returnType), scope->returnType->Size());
+     const auto numberOfParameters =
+          scope->CallingConventionParameterCount() - static_cast<std::size_t>(directAggregateReturn);
 
      runtime_assert(parameterIndex < numberOfParameters,
                     std::format("Parameter index {} out of range ({} parameters)", parameterIndex, numberOfParameters));
@@ -83,8 +83,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                          const auto rspOffset = platform.InitialStackReserve() + (slotSize * stackSlot);
                          this->_outgoingReserve = std::max(this->_outgoingReserve, rspOffset + slotSize);
 
-                         const RegisterIndex scratch = sourceRegister == RegisterIndex::R10 ? RegisterIndex::R11
-                                                                                            : RegisterIndex::R10;
+                         const RegisterIndex scratch =
+                              sourceRegister == RegisterIndex::R10 ? RegisterIndex::R11 : RegisterIndex::R10;
                          ecpps::detail::AppendRange(built, this->ClearRegister(scratch, source));
                          this->Lock(scratch);
                          built.push_back(BuildMov(width, RegisterOperand{scratch},
@@ -106,8 +106,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                     const auto remainingUses = this->ConsumeUse(source);
                     const bool passedInSourceRegister =
                          parameterIndex < platform.IntegerParameterRegisterCount() &&
-                         sourceRegister == static_cast<RegisterIndex>(
-                                                platform.IntegerParameterRegisterIndex(parameterIndex));
+                         sourceRegister ==
+                              static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
                     if (remainingUses == 0 && !passedInSourceRegister) this->ReleaseRegister(source);
                     return built;
                }

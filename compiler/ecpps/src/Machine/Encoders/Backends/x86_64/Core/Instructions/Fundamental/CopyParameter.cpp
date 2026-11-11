@@ -30,16 +30,15 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& destination = registerArray[1];
      const auto parameterIndex = static_cast<std::size_t>(registerArray[2].index);
      const bool aggregateStorage = registerArray.size() == 4;
-     runtime_assert(!aggregateStorage || registerArray[3].index == 1,
-                    "Aggregate parameter storage flag must be one");
+     runtime_assert(!aggregateStorage || registerArray[3].index == 1, "Aggregate parameter storage flag must be one");
      const ir::FunctionScope* scope = this->Scopes()[scopeIndex];
      const auto& platform = *this->_target->platform;
      const bool hasResultBuffer = scope->returnsByPointer && typeSystem::IsClass(scope->returnType);
      const bool directAggregateReturn =
-          hasResultBuffer && api::IsSingleIntegerRegister(api::ClassReturnPassing(platform, scope->returnType),
-                                                          scope->returnType->Size());
-     const auto numberOfParameters = scope->CallingConventionParameterCount() -
-                                     static_cast<std::size_t>(directAggregateReturn);
+          hasResultBuffer &&
+          api::IsSingleIntegerRegister(api::ClassReturnPassing(platform, scope->returnType), scope->returnType->Size());
+     const auto numberOfParameters =
+          scope->CallingConventionParameterCount() - static_cast<std::size_t>(directAggregateReturn);
 
      if (aggregateStorage)
      {
@@ -55,9 +54,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                const RegisterIndex scratch = RegisterIndex::R10;
                ecpps::detail::AppendRange(built, this->ClearRegister(scratch, destination));
                this->Lock(scratch);
-               built.push_back(BuildMov(width, RegisterOperand{scratch},
-                                        StackOperand{.offset = static_cast<std::uint32_t>(displacement),
-                                                     .isIncomingParameter = true}));
+               built.push_back(BuildMov(
+                    width, RegisterOperand{scratch},
+                    StackOperand{.offset = static_cast<std::uint32_t>(displacement), .isIncomingParameter = true}));
                built.push_back(BuildMov(width, destinationSlot, RegisterOperand{scratch}));
                this->Unlock(scratch);
                return built;
@@ -126,9 +125,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const auto displacement = static_cast<std::uint32_t>(rawValue);
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-          return {.instructions = {BuildMov(
-                       width, RegisterOperand{destinationRegister},
-                       StackOperand{.offset = displacement, .isIncomingParameter = true})},
+          return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister},
+                                            StackOperand{.offset = displacement, .isIncomingParameter = true})},
                   .assignedRegister = destinationRegister};
      }
      const RegisterIndex abiRegister = static_cast<RegisterIndex>(rawValue);
