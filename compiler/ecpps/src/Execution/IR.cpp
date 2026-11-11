@@ -1,13 +1,15 @@
 #include "IR.h"
 #include <RuntimeAssert.h>
+#include <TypeSystem/ClassType.h>
 #include <TypeSystem/TypeBase.h>
 #include <algorithm>
 #include <cstdint>
 #include <deque>
-#include <functional>
 #include <memory>
 #include <ranges>
+#include <span>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -19,6 +21,7 @@
 #include "Execution/Diagnostics.h"
 #include "Execution/Entities.h"
 #include "Expressions.h"
+#include "HighLevel.h"
 #include "IR.Internal.h"
 #include "Machine/Mangling.h"
 #include "NodeBase.h"
@@ -73,6 +76,34 @@ using ecpps::Expression;
      }
      return false;
 }
+
+namespace
+{
+     bool FunctionParameterTypesMatch(ecpps::typeSystem::NonowningTypePointer left,
+                                      ecpps::typeSystem::NonowningTypePointer right)
+     {
+          if (left == right) return true;
+          const auto* leftClass = left != nullptr ? left->CastTo<ecpps::typeSystem::ClassType>() : nullptr;
+          const auto* rightClass = right != nullptr ? right->CastTo<ecpps::typeSystem::ClassType>() : nullptr;
+          return leftClass != nullptr && rightClass != nullptr && leftClass->Info().id == rightClass->Info().id;
+     }
+
+     struct FunctionSignatureMatcher
+     {
+          std::string_view name;
+          std::span<const ecpps::ir::FunctionScope::Parameter> parameters;
+
+          [[nodiscard]] bool operator()(const std::shared_ptr<ecpps::ir::FunctionScope>& candidate) const
+          {
+               if (candidate->memberClassInfo != nullptr || candidate->Name() != this->name ||
+                   candidate->parameters.size() != this->parameters.size())
+                    return false;
+               return std::ranges::equal(candidate->parameters, this->parameters, FunctionParameterTypesMatch,
+                                         &ecpps::ir::FunctionScope::Parameter::type,
+                                         &ecpps::ir::FunctionScope::Parameter::type);
+          }
+     };
+} // namespace
 
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
 {
@@ -187,7 +218,14 @@ void ecpps::ir::IR::ParseNode(const ast::NodePointer& node)
      auto expression = ParseExpression(node);
      if (expression == nullptr) return;
 
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     const auto temporaryDepth = function == nullptr ? 0 : function->temporaryObjects.size();
      LowerExpression(std::move(expression), this->_built); // TODO: warn on nodiscard
+     if (function != nullptr)
+     {
+          EmitTemporaryDestructorsFrom(temporaryDepth);
+          function->temporaryObjects.resize(temporaryDepth);
+     }
 }
 
 void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode& node)
@@ -247,7 +285,7 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      const auto namespacePath = NamespacePathFromContext();
 
      const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
-     auto functionScope =
+     std::shared_ptr<FunctionScope> functionScope{
           MakeFunctionScope()
                .Name(name)
                .ReturnType(returnType)
@@ -265,9 +303,18 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                .Parameters(parameters)
                .Source(node.Source())
                .NamespacePath(namespacePath)
-               .Build();
+               .Build()};
      functionScope->parameters = parameters;
-     this->GetContext().contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
+     functionScope->returnsByPointer = typeSystem::IsClass(returnType);
+     auto& functions = this->GetContext().contextSequence.back()->GetScope().functions;
+     const auto existing =
+          std::ranges::find_if(functions, FunctionSignatureMatcher{.name = name, .parameters = parameters});
+     if (existing == functions.end()) functions.push_back(std::move(functionScope));
+     else if ((*existing)->returnType != returnType)
+          DiagnosticSink::Report(
+               this->GetContext(),
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Function declaration has a different return type from its previous declaration", node.Source()));
 }
 
 bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode& node)
@@ -404,10 +451,7 @@ bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode
           constructor->function->parameters[index].name = std::move(parameters[index].name);
 
      definitionIr.EmitConstructorBody(constructor->function, resolvedClass->id, node.Source(),
-                                      [&node](IR& functionIr)
-                                      {
-                                           for (const auto& statement : node.Body()) functionIr.ParseNode(statement);
-                                      });
+                                      std::span<const ast::NodePointer>{node.Body().begin(), node.Body().end()});
      this->_built.insert(this->_built.end(), std::make_move_iterator(definitionIr._built.begin()),
                          std::make_move_iterator(definitionIr._built.end()));
      return true;
@@ -428,7 +472,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      for (const auto& param : parameters)
      {
           if (!RequireComplete(param.type, node.Source(), "a function parameter")) return;
-          if (RejectClassByValue(param.type, node.Source(), "a by-value parameter")) return;
      }
 
      IR ir{this->_context};
@@ -444,7 +487,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      if (returnType != nullptr && !typeSystem::g_void->CommonWith(returnType))
      {
           if (!RequireComplete(returnType, node.Source(), "a function return type")) return;
-          if (RejectClassByValue(returnType, node.Source(), "a return type")) return;
      }
 
      if (node.Signature().externOptional.has_value())
@@ -486,7 +528,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      const auto namespacePath = NamespacePathFromContext();
 
      const std::string name = node.Signature().name == nullptr ? "__unknown_func" : node.Signature().name->ToString(0);
-     auto functionScope =
+     std::shared_ptr<FunctionScope> functionScope{
           MakeFunctionScope()
                .Name(name)
                .ReturnType(returnType)
@@ -504,9 +546,46 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                .Parameters(parameters)
                .Source(node.Source())
                .NamespacePath(namespacePath)
-               .Build();
+               .Build()};
      functionScope->parameters = parameters;
+     functionScope->returnsByPointer = typeSystem::IsClass(returnType);
      functionScope->linkage = linkage;
+     functionScope->isMemberFunctionDefined = true;
+     auto& functions = this->GetContext().contextSequence.back()->GetScope().functions;
+     const auto matchingDeclaration =
+          std::ranges::find_if(functions, FunctionSignatureMatcher{.name = name, .parameters = parameters});
+     if (matchingDeclaration != functions.end())
+     {
+          if ((*matchingDeclaration)->returnType != returnType)
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Function definition has a different return type from its declaration", node.Source()));
+               return;
+          }
+          if ((*matchingDeclaration)->isMemberFunctionDefined)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Function is defined more than once", node.Source()));
+               return;
+          }
+          functionScope = *matchingDeclaration;
+          functionScope->parameters = parameters;
+          functionScope->source = node.Source();
+          functionScope->returnsByPointer = typeSystem::IsClass(returnType);
+          functionScope->callingConvention = node.Signature().callingConvention;
+          functionScope->linkage = linkage;
+          functionScope->isMemberFunctionDefined = true;
+          functionScope->isInline = node.Signature().isInline;
+          functionScope->isExtern = node.Signature().isExtern;
+          functionScope->isFriend = node.Signature().isFriend;
+          functionScope->isDllImportExport = isDllImportExport;
+          functionScope->dllImportName = dllImportName;
+     }
+     else
+          functions.push_back(functionScope);
      auto functionContext =
           std::make_shared<FunctionContext>(functionScope.get(), node.Signature().callingConvention, returnType, name,
                                             parameters |
@@ -519,7 +598,6 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      ir.GetContext() = this->GetContext();
      auto* vFunctionScope = functionScope.get();
-     this->GetContext().contextSequence.back()->GetScope().functions.push_back(std::move(functionScope));
 
      ir.GetContext().contextSequence.push_back(std::move(functionContext));
      std::uint64_t paramIndex{};
@@ -529,6 +607,22 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      vFunctionScope->SetLocals(locals);
 
      auto& allocator = *this->GetContext().nodeAllocator;
+
+     if (vFunctionScope->returnsByPointer)
+     {
+          auto* funcCtx = dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get());
+          runtime_assert(funcCtx != nullptr, "Expected function context during return buffer emission");
+          RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+          auto buffer = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
+               funcCtx->GetNextRegisterIndex(), info, abi::ABI::Current().PointerSize() * typeSystem::CharWidth,
+               abi::ABI::Current().PointerSize(), node.Source())};
+          auto* bufferPointer = buffer.get();
+          funcCtx->returnBuffer = bufferPointer;
+          ir._built.push_back(std::unique_ptr<AllocationNode, IRDeleter>{
+               new (allocator) AllocationNode(std::move(buffer), node.Source())});
+          ir._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
+               new (allocator) ParameterNode(vFunctionScope, paramIndex++, bufferPointer, node.Source())});
+     }
 
      for (const auto& param : parameters)
      {
@@ -540,9 +634,12 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           auto* funcCtx = dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get());
           runtime_assert(funcCtx != nullptr, "Expected function context during parameter emission");
 
-          const auto width = param.type->Width();
+          const auto* classType = param.type->CastTo<typeSystem::ClassType>();
+          const auto width =
+               classType != nullptr ? abi::ABI::Current().PointerSize() * typeSystem::CharWidth : param.type->Width();
+          const auto alignment = classType != nullptr ? abi::ABI::Current().PointerSize() : param.type->Alignment();
           auto allocReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
-               funcCtx->GetNextRegisterIndex(), paramInfo, width, param.type->Alignment(), node.Source())};
+               funcCtx->GetNextRegisterIndex(), paramInfo, width, alignment, node.Source())};
           auto* allocRegPtr = allocReg.get();
 
           funcCtx->RegisterParamAllocReg(param.name, allocRegPtr);
@@ -552,16 +649,26 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
           ir._built.push_back(std::unique_ptr<ParameterNode, IRDeleter>{
                new (allocator) ParameterNode(vFunctionScope, paramIndex++, allocRegPtr, node.Source())});
+          ir.RegisterByValueParameterForDestruction(param.type, allocRegPtr, node.Source());
      }
 
      for (const auto& line : node.Body()) ir.ParseNode(line);
 
      const bool canReachEnd = CanReachFunctionEnd(ir._built);
-     if (typeSystem::g_void->CommonWith(returnType))
+     const bool endsWithReturn = !ir._built.empty() && ir._built.back()->Kind() == NodeKind::Return;
+     const bool isVoidReturnType = returnType != nullptr && typeSystem::g_void->CommonWith(returnType);
+     if (canReachEnd && isVoidReturnType && !endsWithReturn)
+     {
+          ir.EmitTemporaryDestructorsFrom(0);
+          ir.EmitDestructorsFrom(0);
           ir._built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});
-     else if (name == "main" && canReachEnd)
+     }
+
+     if (canReachEnd && name == "main" && !isVoidReturnType && !endsWithReturn)
      {
+          ir.EmitTemporaryDestructorsFrom(0);
+          ir.EmitDestructorsFrom(0);
           auto zeroReg = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
                dynamic_cast<FunctionContext*>(ir.GetContext().contextSequence.back().get())->GetNextRegisterIndex(),
                RegisterPriorityInfo{.regClass = RegisterClass::Temporary}, returnType->Width(), returnType->Alignment(),
@@ -572,7 +679,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           ir._built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(zeroPtr, node.Source())});
      }
-     else if (canReachEnd)
+     else if (canReachEnd && !isVoidReturnType)
      {
           DiagnosticSink::Report(
                this->GetContext(),
@@ -592,6 +699,24 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      this->GetContext().contextSequence.pop_back();
 }
 
+void ecpps::ir::IR::EmitFunctionScopeDestruction(FunctionContext& function, const Location& source)
+{
+     EmitTemporaryDestructorsFrom(0);
+     EmitDestructorsFrom(0);
+     const auto& functionScope = function.GetScope<FunctionScope>();
+     if (!functionScope.Name().has_value() || !functionScope.Name()->starts_with("~") ||
+         functionScope.memberClassInfo == nullptr || function.thisType == nullptr)
+          return;
+
+     Expression thisExpression =
+          std::make_unique<PRValue>(function.thisType,
+                                    std::unique_ptr<high::ThisExpressionNode, IRDeleter>{
+                                         new (*this->GetContext().nodeAllocator) high::ThisExpressionNode(source)},
+                                    false);
+     const auto* objectAddress = LowerExpressionLoaded(std::move(thisExpression), this->_built);
+     if (objectAddress != nullptr) DestroyClassMembersAtAddress(*functionScope.memberClassInfo, objectAddress);
+}
+
 void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
 {
      auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
@@ -599,7 +724,6 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      runtime_assert(function != nullptr, "Function was null when parsing the function");
 
      auto& allocator = *this->GetContext().nodeAllocator;
-
      if (node.Value() == nullptr)
      {
           if (!typeSystem::g_void->CommonWith(function->returnType)) // NOLINT(clang-analyzer-core.NullDereference)
@@ -610,6 +734,7 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
                                                 " (aka " + function->returnType->RawName() + ")",
                                            node.Source()));
           }
+          EmitFunctionScopeDestruction(*function, node.Source());
           this->_built.push_back(
                std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});
           return;
@@ -626,10 +751,84 @@ void ecpps::ir::IR::ParseReturn(const ast::ReturnNode& node)
      }
      if (function == nullptr) return;
 
+     if (function->returnType->CastTo<typeSystem::ReferenceType>() != nullptr)
+     {
+          if (!ConstructorArgumentCost(function->returnType, returnExpression).has_value())
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           std::format("Cannot return '{}' as '{}'", returnExpression->Type()->Name(),
+                                                       function->returnType->Name()),
+                                           node.Source()));
+               return;
+          }
+          const auto* resultReg =
+               BindReferenceExpression(function->returnType, std::move(returnExpression), node.Source(), true);
+          EmitFunctionScopeDestruction(*function, node.Source());
+          this->_built.push_back(
+               std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(resultReg, node.Source())});
+          return;
+     }
+
+     if (typeSystem::IsClass(function->returnType))
+     {
+          if (function->returnBuffer == nullptr)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Class return requires a caller-provided result buffer", node.Source()));
+               return;
+          }
+
+          if (const auto* identifier = dynamic_cast<const ast::IdentifierNode*>(node.Value().get());
+              identifier != nullptr)
+          {
+               bool moveEligible = false;
+               const auto identifierName = identifier->Value().View();
+               for (const auto& local : function->GetScope<FunctionScope>().Locals() | std::views::reverse)
+               {
+                    const auto* variable = std::get_if<Variable>(&local.local);
+                    if (variable == nullptr || variable->Name().value_or("") != identifierName) continue;
+                    const auto* reference = variable->type->CastTo<typeSystem::ReferenceType>();
+                    const bool isClassObject = reference == nullptr
+                                                    ? typeSystem::IsClass(variable->type)
+                                                    : reference->GetKind() == typeSystem::ReferenceType::Kind::RValue &&
+                                                           typeSystem::IsClass(reference->BaseType());
+                    moveEligible = variable->storageDuration == StorageDuration::Automatic && isClassObject;
+                    break;
+               }
+
+               if (moveEligible)
+               {
+                    const auto* expressionType = returnExpression->Type();
+                    const bool isConstantExpression = returnExpression->IsConstantExpression();
+                    auto value = std::move(*returnExpression).Value();
+                    returnExpression = std::make_unique<XValue>(expressionType, std::move(value), isConstantExpression);
+               }
+          }
+
+          RegisterPriorityInfo info{.regClass = RegisterClass::AddressTemporary};
+          auto resultAddress =
+               std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
+                    function->GetNextRegisterIndex(), info, abi::ABI::Current().PointerSize() * typeSystem::CharWidth,
+                    abi::ABI::Current().PointerSize(), node.Source())};
+          auto* resultAddressPointer = resultAddress.get();
+          this->_built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{
+               new (allocator) SSALoadNode(std::move(resultAddress), function->returnBuffer,
+                                           detail::AccessFor(PointerTo(function->returnType)), node.Source())});
+          InitialiseClassFromExpression(function->returnType, resultAddressPointer, std::move(returnExpression),
+                                        node.Source(), false);
+          EmitFunctionScopeDestruction(*function, node.Source());
+          this->_built.push_back(
+               std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(nullptr, node.Source())});
+          return;
+     }
+
      auto converted = ConvertTo(std::move(returnExpression), function->returnType);
      if (converted == nullptr) return;
 
      const auto* resultReg = LowerExpressionLoaded(std::move(converted), this->_built);
+     EmitFunctionScopeDestruction(*function, node.Source());
      this->_built.push_back(
           std::unique_ptr<SSAReturnNode, IRDeleter>{new (allocator) SSAReturnNode(resultReg, node.Source())});
 }

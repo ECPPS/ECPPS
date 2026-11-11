@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <bit>
 #include <format>
-#include <functional>
 #include <limits>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <utility>
 #include <variant>
@@ -85,6 +85,98 @@ namespace
           using ecpps::typeSystem::Qualifiers;
           if (isConst && isVolatile) return Qualifiers::ConstVolatile;
           return isConst ? Qualifiers::Const : isVolatile ? Qualifiers::Volatile : Qualifiers::None;
+     }
+
+     [[nodiscard]] bool IsSameUnqualifiedType(ecpps::typeSystem::NonowningTypePointer left,
+                                              ecpps::typeSystem::NonowningTypePointer right)
+     {
+          if (left == right) return true;
+
+          const auto* leftIntegral = left->CastTo<ecpps::typeSystem::IntegralType>();
+          const auto* rightIntegral = right->CastTo<ecpps::typeSystem::IntegralType>();
+
+          if (leftIntegral != nullptr || rightIntegral != nullptr)
+               return leftIntegral != nullptr && rightIntegral != nullptr &&
+                      leftIntegral->Sign() == rightIntegral->Sign() && leftIntegral->Kind() == rightIntegral->Kind() &&
+                      ecpps::typeSystem::IsBoolean(left) == ecpps::typeSystem::IsBoolean(right);
+
+          const auto* leftClass = left->CastTo<ecpps::typeSystem::ClassType>();
+          const auto* rightClass = right->CastTo<ecpps::typeSystem::ClassType>();
+
+          if (leftClass != nullptr || rightClass != nullptr)
+               return leftClass != nullptr && rightClass != nullptr && leftClass->Info().id == rightClass->Info().id;
+
+          const auto* leftPointer = left->CastTo<ecpps::typeSystem::PointerType>();
+          const auto* rightPointer = right->CastTo<ecpps::typeSystem::PointerType>();
+
+          if (leftPointer != nullptr || rightPointer != nullptr)
+               return leftPointer != nullptr && rightPointer != nullptr &&
+                      leftPointer->BaseType() == rightPointer->BaseType();
+
+          return false;
+     }
+
+     struct ClassAssignmentRequirements
+     {
+          bool hasDeletedSubobject{};
+          bool requiresMemberwiseAssignment{};
+     };
+
+     [[nodiscard]] ClassAssignmentRequirements AnalyseAssignmentSubobject(
+          ecpps::typeSystem::NonowningTypePointer subobjectType)
+     {
+          if (subobjectType->CastTo<ecpps::typeSystem::ReferenceType>() != nullptr)
+               return {.hasDeletedSubobject = true, .requiresMemberwiseAssignment = true};
+
+          if (const auto* qualified = subobjectType->CastTo<ecpps::typeSystem::QualifiedType>();
+              qualified != nullptr && qualified->IsConst())
+               return {.hasDeletedSubobject = true, .requiresMemberwiseAssignment = true};
+
+          if (const auto* arrayType = subobjectType->CastTo<ecpps::typeSystem::ArrayType>())
+               return AnalyseAssignmentSubobject(arrayType->ElementType());
+
+          const auto* subobjectClass = subobjectType->CastTo<ecpps::typeSystem::ClassType>();
+
+          if (subobjectClass == nullptr) return {};
+
+          if (subobjectClass->Info().Has(ClassProperty::UserDeclaredCopyAssignment) ||
+              subobjectClass->Info().Has(ClassProperty::UserDeclaredMoveAssignment))
+               return {.requiresMemberwiseAssignment = true};
+
+          ClassAssignmentRequirements requirements{};
+          for (const auto& field : subobjectClass->Info().fields)
+          {
+               const auto fieldRequirements = AnalyseAssignmentSubobject(field.type);
+               requirements.hasDeletedSubobject =
+                    requirements.hasDeletedSubobject || fieldRequirements.hasDeletedSubobject;
+               requirements.requiresMemberwiseAssignment =
+                    requirements.requiresMemberwiseAssignment || fieldRequirements.requiresMemberwiseAssignment;
+          }
+          return requirements;
+     }
+
+     [[nodiscard]] ClassAssignmentRequirements AnalyseClassAssignment(const ecpps::typeSystem::ClassInfo& info)
+     {
+          ClassAssignmentRequirements requirements{};
+          for (const auto& field : info.fields)
+          {
+               const auto fieldRequirements = AnalyseAssignmentSubobject(field.type);
+               requirements.hasDeletedSubobject =
+                    requirements.hasDeletedSubobject || fieldRequirements.hasDeletedSubobject;
+               requirements.requiresMemberwiseAssignment =
+                    requirements.requiresMemberwiseAssignment || fieldRequirements.requiresMemberwiseAssignment;
+          }
+          return requirements;
+     }
+
+     [[nodiscard]] bool IsDesignatedInitialiserNode(const ecpps::ast::NodePointer& node)
+     {
+          return dynamic_cast<const ecpps::ast::DesignatedInitialiserNode*>(node.get()) != nullptr;
+     }
+
+     [[nodiscard]] bool IsFunctionContext(const ecpps::ir::ContextPointer& context)
+     {
+          return dynamic_cast<ecpps::ir::FunctionContext*>(context.get()) != nullptr;
      }
 } // namespace
 
@@ -174,8 +266,16 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::AddByteOffset(const Si
 {
      runtime_assert(address != nullptr, "Invalid object address register");
      auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     if (function == nullptr)
+          for (auto& context : std::ranges::reverse_view(this->GetContext().contextSequence))
+          {
+               function = dynamic_cast<FunctionContext*>(context.get());
+               if (function != nullptr) break;
+          }
+
      runtime_assert(function != nullptr, "Member addressing must occur inside a function");
      if (function == nullptr || address == nullptr) return nullptr;
+     if (offset == 0) return address;
 
      TypeRequest sizeRequest{};
      sizeRequest.kind = TypeKind::Fundamental;
@@ -196,6 +296,758 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::AddByteOffset(const Si
      this->_built.push_back(std::unique_ptr<SSAAddNode, IRDeleter>{
           new (allocator) SSAAddNode(std::move(result), address, offsetRegister, source)});
      return resultRegister;
+}
+
+void ecpps::ir::IR::CopyClassAtAddress(typeSystem::NonowningTypePointer type,
+                                       const SingleAssignRegisterNode* destination,
+                                       const SingleAssignRegisterNode* source, const Location& location,
+                                       const bool moveFromSource, const typeSystem::Qualifiers sourceQualifiers)
+{
+     if (type == nullptr || destination == nullptr || source == nullptr) return;
+     auto& allocator = *this->GetContext().nodeAllocator;
+
+     if (const auto* classType = type->CastTo<typeSystem::ClassType>())
+     {
+          const auto& info = classType->Info();
+          if (info.triviallyCopyable)
+          {
+               CopyAggregateAtAddress(type, destination, source, location);
+               return;
+          }
+          if (info.kind == typeSystem::ClassKind::Union)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Copying a non-trivially-copyable union is not supported yet", location));
+               return;
+          }
+          for (const auto& field : info.fields)
+          {
+               const auto* destinationField = AddByteOffset(destination, field.offset, field.source);
+               const auto* sourceField = AddByteOffset(source, field.offset, field.source);
+               const bool sourceIsConst =
+                    (std::to_underlying(sourceQualifiers) & std::to_underlying(typeSystem::Qualifiers::Const)) != 0;
+               const bool sourceIsVolatile =
+                    (std::to_underlying(sourceQualifiers) & std::to_underlying(typeSystem::Qualifiers::Volatile)) != 0;
+               const auto fieldSourceQualifiers = QualifiersFrom(sourceIsConst && !field.isMutable, sourceIsVolatile);
+               const auto* fieldSourceType = AddQualifiers(field.type, fieldSourceQualifiers);
+               if (typeSystem::IsClass(field.type))
+               {
+                    Expression fieldSource =
+                         moveFromSource
+                              ? Expression{std::make_unique<XValue>(
+                                     fieldSourceType,
+                                     std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                          new (allocator) SSARegisterReferenceNode(sourceField, field.source)},
+                                     false)}
+                              : Expression{std::make_unique<LValue>(
+                                     fieldSourceType,
+                                     std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                          new (allocator) SSARegisterReferenceNode(sourceField, field.source)},
+                                     false)};
+                    InitialiseClassFromExpression(field.type, destinationField, std::move(fieldSource), field.source);
+               }
+               else
+                    CopyClassAtAddress(field.type, destinationField, sourceField, field.source, false,
+                                       fieldSourceQualifiers);
+          }
+          return;
+     }
+
+     if (const auto* arrayType = type->CastTo<typeSystem::ArrayType>())
+     {
+          for (std::size_t index = 0; index < arrayType->ElementCount(); index++)
+          {
+               const auto offset = index * arrayType->ElementType()->Size();
+               if (typeSystem::IsClass(arrayType->ElementType()))
+               {
+                    const auto* destinationElement = AddByteOffset(destination, offset, location);
+                    const auto* sourceElement = AddByteOffset(source, offset, location);
+                    const auto* elementSourceType = AddQualifiers(arrayType->ElementType(), sourceQualifiers);
+                    Expression elementSource =
+                         moveFromSource ? Expression{std::make_unique<XValue>(
+                                               elementSourceType,
+                                               std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                    new (allocator) SSARegisterReferenceNode(sourceElement, location)},
+                                               false)}
+                                        : Expression{std::make_unique<LValue>(
+                                               elementSourceType,
+                                               std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                    new (allocator) SSARegisterReferenceNode(sourceElement, location)},
+                                               false)};
+                    InitialiseClassFromExpression(arrayType->ElementType(), destinationElement,
+                                                  std::move(elementSource), location);
+               }
+               else
+                    CopyClassAtAddress(arrayType->ElementType(), AddByteOffset(destination, offset, location),
+                                       AddByteOffset(source, offset, location), location, moveFromSource,
+                                       sourceQualifiers);
+          }
+          return;
+     }
+
+     CopyAggregateAtAddress(type, destination, source, location);
+}
+
+void ecpps::ir::IR::CopyAggregateAtAddress(typeSystem::NonowningTypePointer type,
+                                           const SingleAssignRegisterNode* destination,
+                                           const SingleAssignRegisterNode* source, const Location& location)
+{
+     if (type == nullptr || destination == nullptr || source == nullptr) return;
+     auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Class copying must occur inside a function");
+     if (function == nullptr) return;
+
+     RegisterPriorityInfo info{.regClass = RegisterClass::Temporary};
+     auto value = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator) SingleAssignRegisterNode(function->GetNextRegisterIndex(), info,
+                                                                           type->Width(), type->Alignment(), location)};
+     auto* const valuePointer = value.get();
+     this->_built.push_back(std::unique_ptr<SSADerefNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator)
+               SSADerefNode(std::move(value), source, detail::AccessFor(type), location)});
+     this->_built.push_back(std::unique_ptr<SSAIndirectStoreNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator)
+               SSAIndirectStoreNode(destination, valuePointer, detail::AccessFor(type), location)});
+}
+
+void ecpps::ir::IR::InitialiseClassFromExpression(typeSystem::NonowningTypePointer type,
+                                                  const SingleAssignRegisterNode* address, Expression initialiser,
+                                                  const Location& source, const bool allowExplicit)
+{
+     const bool sourceIsRValue = initialiser != nullptr && initialiser->IsRValue();
+     const auto* targetClass = type != nullptr ? type->CastTo<typeSystem::ClassType>() : nullptr;
+     const auto* sourceClass = initialiser != nullptr ? initialiser->Type()->CastTo<typeSystem::ClassType>() : nullptr;
+     if (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id)
+     {
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Class copy initialisation requires a source of the same class type", source));
+          return;
+     }
+
+     if (initialiser->IsPRValue())
+          if (auto* call = dynamic_cast<FunctionCallNode*>(initialiser->Value().get());
+              call != nullptr && call->Function()->returnsByPointer)
+          {
+               LowerClassFunctionCallInto(*call, address, source, this->_built);
+               return;
+          }
+
+     const auto& info = targetClass->Info();
+     const auto classIr = this->GetContext().classTable->classes.find(info.id);
+     const ClassConstructor* selected{};
+     std::vector<const ClassConstructor*> bestCandidates{};
+     std::size_t bestScore = std::numeric_limits<std::size_t>::max();
+     bool ambiguous = false;
+     if (classIr != this->GetContext().classTable->classes.end())
+          for (const auto& candidate : classIr->second.constructors)
+          {
+               if (!candidate.isCopyConstructor && !(initialiser->IsRValue() && candidate.isMoveConstructor)) continue;
+               if (candidate.isExplicit && !allowExplicit) continue;
+               if (candidate.parameters.size() != 1) continue;
+               const auto cost = ConstructorArgumentCost(candidate.parameters.front().type, initialiser);
+               if (!cost.has_value()) continue;
+               if (*cost < bestScore)
+               {
+                    selected = &candidate;
+                    bestScore = *cost;
+                    ambiguous = false;
+                    bestCandidates.assign(1, &candidate);
+               }
+               else if (*cost == bestScore)
+               {
+                    ambiguous = true;
+                    bestCandidates.push_back(&candidate);
+               }
+          }
+
+     if (ambiguous)
+     {
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> candidates{};
+          candidates.reserve(bestCandidates.size());
+          for (const auto* candidate : bestCandidates)
+               candidates.push_back(
+                    ConstructorCandidateDiagnostic(*candidate, this->CanAccess(info.id, candidate->access)));
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousConstructor(
+                                                          info.DisplayName(), source, candidates));
+          return;
+     }
+
+     if (selected != nullptr)
+     {
+          const auto diagnosticCandidate =
+               ConstructorCandidateDiagnostic(*selected, this->CanAccess(info.id, selected->access));
+          if (!this->CanAccess(info.id, selected->access) || selected->bodyKind == ast::FunctionBodyKind::Deleted)
+          {
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                                               selected->bodyKind == ast::FunctionBodyKind::Deleted
+                                                                    ? "The selected constructor is deleted"
+                                                                    : "Selected constructor is not accessible",
+                                                               source, diagnosticCandidate));
+               return;
+          }
+          if (selected->bodyKind == ast::FunctionBodyKind::Defaulted)
+          {
+               if (sourceClass->IsVolatile())
+               {
+                    DiagnosticSink::Report(
+                         this->GetContext(),
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "Defaulted copy or move construction from a volatile class is not supported yet",
+                              source));
+                    return;
+               }
+               auto sourceObject = initialiser->IsGLValue() ? ParseAddressOfExpression(std::move(initialiser), source)
+                                                            : std::move(initialiser);
+               const auto* sourceAddress = LowerExpressionLoaded(std::move(sourceObject), this->_built);
+               CopyClassAtAddress(type, address, sourceAddress, source, selected->isMoveConstructor,
+                                  sourceClass->qualifiers());
+               return;
+          }
+
+          if (selected->function == nullptr)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "The selected copy or move constructor has no definition", source));
+               return;
+          }
+          auto sourceArgument =
+               PrepareByValueArgument(std::move(initialiser), selected->parameters.front().type, source);
+          if (sourceArgument == nullptr) return;
+          const auto* unqualifiedClass =
+               GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = info.id}});
+          std::vector<Expression> arguments{};
+          arguments.push_back(std::make_unique<PRValue>(
+               PointerTo(unqualifiedClass),
+               std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                         SSARegisterReferenceNode(address, source)},
+               false));
+          arguments.push_back(std::move(sourceArgument));
+          auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (
+               *this->GetContext().nodeAllocator) FunctionCallNode(selected->function, std::move(arguments), source)};
+          [[maybe_unused]] const auto* copyConstructorCallResult = LowerExpression(
+               std::make_unique<PRValue>(typeSystem::g_void.get(), std::move(call), false), this->_built);
+          return;
+     }
+
+     if (info.Has(ClassProperty::UserDeclaredCopyConstructor) || info.Has(ClassProperty::UserDeclaredMoveConstructor) ||
+         sourceClass->IsVolatile())
+     {
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> candidates{};
+          if (classIr != this->GetContext().classTable->classes.end())
+               for (const auto& candidate : classIr->second.constructors)
+               {
+                    if (!candidate.isCopyConstructor && !candidate.isMoveConstructor) continue;
+                    auto diagnosticCandidate =
+                         ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access));
+                    if (!allowExplicit && candidate.isExplicit)
+                         diagnosticCandidate.details.push_back(
+                              {.message = "This explicit constructor is not considered by copy-initialisation",
+                               .source = candidate.function->source});
+                    candidates.push_back(std::move(diagnosticCandidate));
+               }
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::NoViableCopyOrMoveConstructor(
+                                                          info.DisplayName(), source, candidates));
+          return;
+     }
+     auto sourceObject =
+          initialiser->IsGLValue() ? ParseAddressOfExpression(std::move(initialiser), source) : std::move(initialiser);
+     const auto* sourceAddress = LowerExpressionLoaded(std::move(sourceObject), this->_built);
+     const bool implicitMove = sourceClass != nullptr && sourceIsRValue && !sourceClass->IsConst() &&
+                               !sourceClass->IsVolatile() &&
+                               !targetClass->Info().Has(ClassProperty::UserDeclaredCopyConstructor) &&
+                               !targetClass->Info().Has(ClassProperty::UserDeclaredMoveConstructor) &&
+                               !targetClass->Info().Has(ClassProperty::UserDeclaredCopyAssignment) &&
+                               !targetClass->Info().Has(ClassProperty::UserDeclaredMoveAssignment) &&
+                               !targetClass->Info().Has(ClassProperty::UserDeclaredDestructor);
+     CopyClassAtAddress(type, address, sourceAddress, source, implicitMove, sourceClass->qualifiers());
+}
+
+ecpps::Expression ecpps::ir::IR::PrepareByValueArgument(Expression argument,
+                                                        typeSystem::NonowningTypePointer parameterType,
+                                                        const Location& source)
+{
+     if (parameterType != nullptr && parameterType->CastTo<typeSystem::ReferenceType>() != nullptr)
+     {
+          if (!ConstructorArgumentCost(parameterType, argument).has_value())
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         argument == nullptr
+                              ? "Cannot bind an invalid argument to a reference parameter"
+                              : std::format("Cannot bind argument of type '{}' to reference parameter '{}'",
+                                            argument->Type()->Name(), parameterType->Name()),
+                         source));
+               return nullptr;
+          }
+          const auto* referenceAddress = BindReferenceExpression(parameterType, std::move(argument), source, true);
+          if (referenceAddress == nullptr) return nullptr;
+          return std::make_unique<PRValue>(parameterType,
+                                           std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                new (*this->GetContext().nodeAllocator)
+                                                     SSARegisterReferenceNode(referenceAddress, source)},
+                                           false);
+     }
+     if (!typeSystem::IsClass(parameterType)) return ConvertTo(std::move(argument), parameterType);
+     if (argument == nullptr)
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "A class by-value argument has an invalid source", source));
+          return nullptr;
+     }
+
+     const auto* parameterClass = parameterType->CastTo<typeSystem::ClassType>();
+     const auto* argumentClass = argument->Type()->CastTo<typeSystem::ClassType>();
+     if (parameterClass == nullptr)
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "Invalid class by-value parameter type", source));
+          return nullptr;
+     }
+
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "A class argument temporary requires a function context");
+     if (function == nullptr) return nullptr;
+     auto& allocator = *this->GetContext().nodeAllocator;
+     RegisterPriorityInfo info{.regClass = RegisterClass::LocalVariable};
+     auto storage = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
+          function->GetNextRegisterIndex(), info, parameterType->Width(), parameterType->Alignment(), source)};
+     auto* storagePointer = storage.get();
+     this->_built.push_back(
+          std::unique_ptr<AllocationNode, IRDeleter>{new (allocator) AllocationNode(std::move(storage), source)});
+     const auto* address = AddressOfAllocation(storagePointer, parameterType, source);
+     if (argumentClass != nullptr && parameterClass->Info().id == argumentClass->Info().id)
+          InitialiseClassFromExpression(parameterType, address, std::move(argument), source, false);
+     else
+     {
+          std::vector<Expression> constructorArguments{};
+          constructorArguments.push_back(std::move(argument));
+          auto selection = SelectConstructor(parameterClass->Info(), std::move(constructorArguments), source, false);
+          if (!selection.has_value()) return nullptr;
+          const bool accessible = this->CanAccess(parameterClass->Info().id, selection->constructor->access);
+          if (!accessible || selection->constructor->bodyKind == ast::FunctionBodyKind::Deleted)
+          {
+               const auto diagnosticCandidate = ConstructorCandidateDiagnostic(*selection->constructor, accessible);
+               DiagnosticSink::Report(this->GetContext(),
+                                      ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                           selection->constructor->bodyKind == ast::FunctionBodyKind::Deleted
+                                                ? "The selected constructor is deleted"
+                                                : "Selected constructor is not accessible",
+                                           source, diagnosticCandidate));
+               return nullptr;
+          }
+          ExecuteConstructor(parameterType, address, parameterClass->Info(), std::move(*selection),
+                             ObjectInitialisationMode::Explicit, nullptr, source);
+     }
+     return std::make_unique<PRValue>(parameterType,
+                                      std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                           new (allocator) SSARegisterReferenceNode(address, source)},
+                                      false);
+}
+
+void ecpps::ir::IR::AssignClassAtAddress(typeSystem::NonowningTypePointer type,
+                                         const SingleAssignRegisterNode* destination, Expression sourceExpression,
+                                         const Location& location)
+{
+     const bool sourceIsRValue = sourceExpression != nullptr && sourceExpression->IsRValue();
+     const auto* classType = type != nullptr ? type->CastTo<typeSystem::ClassType>() : nullptr;
+     const auto* sourceType =
+          sourceExpression != nullptr ? sourceExpression->Type()->CastTo<typeSystem::ClassType>() : nullptr;
+     if (classType == nullptr || sourceType == nullptr || classType->Info().id != sourceType->Info().id)
+     {
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "Class assignment requires a source of the same class type", location));
+          return;
+     }
+
+     const auto& classInfo = classType->Info();
+     const auto classIr = this->GetContext().classTable->classes.find(classInfo.id);
+     std::shared_ptr<FunctionScope> selected{};
+     bool memberwiseMove = false;
+     std::size_t bestScore = std::numeric_limits<std::size_t>::max();
+     std::size_t bestObjectQualificationPenalty = std::numeric_limits<std::size_t>::max();
+     bool ambiguous = false;
+     std::vector<std::shared_ptr<FunctionScope>> tiedCandidates{};
+     if (classIr != this->GetContext().classTable->classes.end() && classIr->second.scope != nullptr)
+          for (const auto& candidate : classIr->second.scope->functions)
+          {
+               if (candidate->Name() != "operator=" || candidate->isStatic || candidate->parameters.size() != 1)
+                    continue;
+               if (classType->IsConst() && !candidate->memberFunctionInfo.isConst) continue;
+               if (classType->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) continue;
+               const auto cost = ConstructorArgumentCost(candidate->parameters.front().type, sourceExpression);
+               if (!cost.has_value()) continue;
+               const auto objectQualificationPenalty =
+                    static_cast<std::size_t>(!classType->IsConst() && candidate->memberFunctionInfo.isConst) +
+                    static_cast<std::size_t>(!classType->IsVolatile() && candidate->memberFunctionInfo.isVolatile);
+               if (*cost < bestScore ||
+                   (*cost == bestScore && objectQualificationPenalty < bestObjectQualificationPenalty))
+               {
+                    selected = candidate;
+                    bestScore = *cost;
+                    bestObjectQualificationPenalty = objectQualificationPenalty;
+                    ambiguous = false;
+                    tiedCandidates.assign(1, candidate);
+               }
+               else if (*cost == bestScore && objectQualificationPenalty == bestObjectQualificationPenalty)
+               {
+                    ambiguous = true;
+                    tiedCandidates.push_back(candidate);
+               }
+          }
+
+     if (ambiguous)
+     {
+          std::vector<ecpps::ir::overloadDiagnostics::Candidate> candidates{};
+          candidates.reserve(tiedCandidates.size());
+          for (const auto& candidate : tiedCandidates)
+          {
+               ecpps::ir::overloadDiagnostics::Candidate diagnostic{
+                    .signature = detail::FormatFunctionSignature(candidate), .source = candidate->source};
+               if (!this->CanAccess(classInfo.id, candidate->memberAccess))
+                    diagnostic.access = ConstructorAccessName(candidate->memberAccess);
+               candidates.push_back(std::move(diagnostic));
+          }
+          DiagnosticSink::Report(this->GetContext(),
+                                 ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+                                      classInfo.DisplayName() + "::operator=", location, candidates));
+          return;
+     }
+
+     if (selected != nullptr)
+     {
+          if (selected->isDefaulted)
+          {
+               if (classType->IsVolatile() || sourceType->IsVolatile())
+               {
+                    DiagnosticSink::Report(
+                         this->GetContext(),
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "Defaulted copy or move assignment for volatile class operands is not supported yet",
+                              location));
+                    return;
+               }
+               if (const auto* reference = selected->parameters.front().type->CastTo<typeSystem::ReferenceType>())
+                    memberwiseMove = reference->GetKind() == typeSystem::ReferenceType::Kind::RValue;
+          }
+          ecpps::ir::overloadDiagnostics::Candidate diagnostic{.signature = detail::FormatFunctionSignature(selected),
+                                                               .source = selected->source};
+          const bool accessible = this->CanAccess(classInfo.id, selected->memberAccess);
+          if (!accessible) diagnostic.access = ConstructorAccessName(selected->memberAccess);
+          if (!accessible || selected->isDeleted)
+          {
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                               diagnostic.signature, location, !accessible,
+                                                               selected->isDeleted, diagnostic));
+               return;
+          }
+          if (!selected->isDefaulted)
+          {
+               auto sourceArgument =
+                    PrepareByValueArgument(std::move(sourceExpression), selected->parameters.front().type, location);
+               if (sourceArgument == nullptr) return;
+               const auto* unqualifiedClass = GetTypeContext().Get(
+                    TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = classInfo.id}});
+               std::vector<Expression> arguments{};
+               arguments.push_back(std::make_unique<PRValue>(PointerTo(unqualifiedClass),
+                                                             std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                                  new (*this->GetContext().nodeAllocator)
+                                                                       SSARegisterReferenceNode(destination, location)},
+                                                             false));
+               arguments.push_back(std::move(sourceArgument));
+               auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
+                    new (*this->GetContext().nodeAllocator) FunctionCallNode(selected, std::move(arguments), location)};
+               [[maybe_unused]] const auto* assignmentCallResult = LowerExpression(
+                    std::make_unique<PRValue>(selected->returnType, std::move(call), false), this->_built);
+               return;
+          }
+     }
+     else if (classInfo.Has(ClassProperty::UserDeclaredCopyAssignment) ||
+              classInfo.Has(ClassProperty::UserDeclaredMoveAssignment))
+     {
+          DiagnosticSink::Report(
+               this->GetContext(),
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("No viable copy or move assignment operator for '{}'", classInfo.DisplayName()),
+                    location));
+          return;
+     }
+     else
+     {
+          if (classType->IsConst())
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Implicit copy or move assignment cannot assign to a const class object", location));
+               return;
+          }
+          if (classType->IsVolatile() || sourceType->IsVolatile())
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Implicit copy or move assignment cannot bind a volatile class operand", location));
+               return;
+          }
+          memberwiseMove = sourceIsRValue && !classInfo.Has(ClassProperty::UserDeclaredCopyConstructor) &&
+                           !sourceType->IsConst() && !sourceType->IsVolatile() &&
+                           !classInfo.Has(ClassProperty::UserDeclaredMoveConstructor) &&
+                           !classInfo.Has(ClassProperty::UserDeclaredCopyAssignment) &&
+                           !classInfo.Has(ClassProperty::UserDeclaredMoveAssignment) &&
+                           !classInfo.Has(ClassProperty::UserDeclaredDestructor);
+     }
+
+     auto sourceObject = sourceExpression->IsGLValue() ? ParseAddressOfExpression(std::move(sourceExpression), location)
+                                                       : std::move(sourceExpression);
+     const auto* sourceAddress = LowerExpressionLoaded(std::move(sourceObject), this->_built);
+     if (sourceAddress == nullptr) return;
+     const auto assignmentRequirements = AnalyseClassAssignment(classInfo);
+     if (assignmentRequirements.hasDeletedSubobject)
+     {
+          DiagnosticSink::Report(
+               this->GetContext(),
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    std::format("Implicit copy assignment for '{}' is deleted", classInfo.DisplayName()), location));
+          return;
+     }
+     if (classInfo.triviallyCopyable && !assignmentRequirements.requiresMemberwiseAssignment)
+     {
+          CopyClassAtAddress(type, destination, sourceAddress, location);
+          return;
+     }
+     if (classInfo.kind == typeSystem::ClassKind::Union)
+     {
+          DiagnosticSink::Report(
+               this->GetContext(),
+               diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                    "Copy assignment for a non-trivially-copyable union is not supported yet", location));
+          return;
+     }
+     for (const auto& field : classInfo.fields)
+     {
+          const auto* destinationField = AddByteOffset(destination, field.offset, field.source);
+          const auto* sourceField = AddByteOffset(sourceAddress, field.offset, field.source);
+          const auto fieldSourceQualifiers =
+               QualifiersFrom(sourceType->IsConst() && !field.isMutable, sourceType->IsVolatile());
+          AssignClassSubobjectAtAddress(field.type, destinationField, sourceField, field.source, memberwiseMove,
+                                        fieldSourceQualifiers);
+     }
+}
+
+void ecpps::ir::IR::AssignClassSubobjectAtAddress(typeSystem::NonowningTypePointer type,
+                                                  const SingleAssignRegisterNode* destination,
+                                                  const SingleAssignRegisterNode* source, const Location& location,
+                                                  const bool moveFromSource,
+                                                  const typeSystem::Qualifiers sourceQualifiers)
+{
+     if (const auto* arrayType = type->CastTo<typeSystem::ArrayType>())
+     {
+          for (std::size_t index = 0; index < arrayType->ElementCount(); index++)
+          {
+               const auto offset = index * arrayType->ElementType()->Size();
+               AssignClassSubobjectAtAddress(arrayType->ElementType(), AddByteOffset(destination, offset, location),
+                                             AddByteOffset(source, offset, location), location, moveFromSource,
+                                             sourceQualifiers);
+          }
+          return;
+     }
+     if (typeSystem::IsClass(type))
+     {
+          auto& allocator = *this->GetContext().nodeAllocator;
+          const auto* sourceType = AddQualifiers(type, sourceQualifiers);
+          auto reference = std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+               new (allocator) SSARegisterReferenceNode(source, location)};
+          Expression sourceExpression =
+               moveFromSource ? Expression{std::make_unique<XValue>(sourceType, std::move(reference), false)}
+                              : Expression{std::make_unique<LValue>(sourceType, std::move(reference), false)};
+          AssignClassAtAddress(type, destination, std::move(sourceExpression), location);
+          return;
+     }
+     CopyClassAtAddress(type, destination, source, location, false, sourceQualifiers);
+}
+
+void ecpps::ir::IR::RegisterObjectForDestruction(typeSystem::NonowningTypePointer type,
+                                                 const SingleAssignRegisterNode* address, const Location& source,
+                                                 const ABICleanupKind abiCleanupKind)
+{
+     if (type == nullptr || address == nullptr) return;
+     const auto* destructionType = type;
+     while (const auto* arrayType = destructionType->CastTo<typeSystem::ArrayType>())
+          destructionType = arrayType->ElementType();
+     const auto* classType = destructionType->CastTo<typeSystem::ClassType>();
+     if (classType == nullptr || !classType->Info().Has(ClassProperty::NontrivialDestructor)) return;
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Object destruction registration requires a function context");
+     if (function != nullptr)
+          function->automaticObjects.push_back(
+               {.type = type, .address = address, .source = source, .abiCleanupKind = abiCleanupKind});
+}
+
+void ecpps::ir::IR::RegisterByValueParameterForDestruction(typeSystem::NonowningTypePointer type,
+                                                           const SingleAssignRegisterNode* parameterStorage,
+                                                           const Location& source)
+{
+     if (!typeSystem::IsClass(type) || parameterStorage == nullptr) return;
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Parameter destruction registration requires a function context");
+     if (function == nullptr) return;
+     auto& allocator = *this->GetContext().nodeAllocator;
+     RegisterPriorityInfo info{.regClass = RegisterClass::AddressTemporary};
+     auto pointer = std::unique_ptr<SingleAssignRegisterNode, IRDeleter>{new (allocator) SingleAssignRegisterNode(
+          function->GetNextRegisterIndex(), info, abi::ABI::Current().PointerSize() * typeSystem::CharWidth,
+          abi::ABI::Current().PointerSize(), source)};
+     auto* pointerAddress = pointer.get();
+     this->_built.push_back(std::unique_ptr<SSALoadNode, IRDeleter>{new (allocator) SSALoadNode(
+          std::move(pointer), parameterStorage, detail::AccessFor(PointerTo(type)), source)});
+     RegisterObjectForDestruction(type, pointerAddress, source, ABICleanupKind::ByValueParameter);
+}
+
+void ecpps::ir::IR::RegisterTemporaryForDestruction(typeSystem::NonowningTypePointer type,
+                                                    const SingleAssignRegisterNode* address, const Location& source,
+                                                    const ABICleanupKind abiCleanupKind)
+{
+     if (type == nullptr || address == nullptr) return;
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Temporary destruction registration requires a function context");
+     if (function == nullptr) return;
+     const auto* destructionType = type;
+     while (const auto* arrayType = destructionType->CastTo<typeSystem::ArrayType>())
+          destructionType = arrayType->ElementType();
+     const auto* classType = destructionType->CastTo<typeSystem::ClassType>();
+     if (classType == nullptr || !classType->Info().Has(ClassProperty::NontrivialDestructor)) return;
+     function->temporaryObjects.push_back(
+          {.type = type, .address = address, .source = source, .abiCleanupKind = abiCleanupKind});
+}
+
+void ecpps::ir::IR::EmitDestructorsFrom(const std::size_t depth)
+{
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Object destruction requires a function context");
+     if (function == nullptr) return;
+     for (std::size_t index = function->automaticObjects.size(); index-- > depth;)
+     {
+          const auto& object = function->automaticObjects[index];
+          DestroyObjectAtAddress(object.type, object.address, object.source, object.abiCleanupKind);
+     }
+}
+
+void ecpps::ir::IR::EmitTemporaryDestructorsFrom(const std::size_t depth)
+{
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "Temporary destruction requires a function context");
+     if (function == nullptr) return;
+     for (std::size_t index = function->temporaryObjects.size(); index-- > depth;)
+     {
+          const auto& object = function->temporaryObjects[index];
+          DestroyObjectAtAddress(object.type, object.address, object.source, object.abiCleanupKind);
+     }
+}
+
+void ecpps::ir::IR::DestroyObjectAtAddress(typeSystem::NonowningTypePointer type,
+                                           const SingleAssignRegisterNode* address, const Location& source,
+                                           const ABICleanupKind abiCleanupKind)
+{
+     if (type == nullptr || address == nullptr) return;
+     auto& allocator = *this->GetContext().nodeAllocator;
+     if (const auto* arrayType = type->CastTo<typeSystem::ArrayType>())
+     {
+          for (std::size_t index = arrayType->ElementCount(); index-- > 0;)
+               DestroyObjectAtAddress(arrayType->ElementType(),
+                                      AddByteOffset(address, index * arrayType->ElementType()->Size(), source), source,
+                                      abiCleanupKind);
+          return;
+     }
+
+     const auto* classType = type->CastTo<typeSystem::ClassType>();
+     if (classType == nullptr) return;
+     const auto classIr = this->GetContext().classTable->classes.find(classType->Info().id);
+     if (classIr != this->GetContext().classTable->classes.end() && classIr->second.destructor != nullptr &&
+         classIr->second.destructorBodyKind != ast::FunctionBodyKind::Defaulted)
+     {
+          const auto& destructor = classIr->second.destructor;
+          const bool isDeleted =
+               classIr->second.destructorBodyKind == ast::FunctionBodyKind::Deleted || destructor->isDeleted;
+          const bool accessible = this->CanAccess(classType->Info().id, classIr->second.destructorAccess);
+          if (isDeleted || !accessible)
+          {
+               ecpps::ir::overloadDiagnostics::Candidate candidate{
+                    .signature = ecpps::ir::detail::FormatFunctionSignature(destructor),
+                    .source = destructor->source,
+                    .isDeleted = isDeleted};
+               if (!accessible) candidate.access = ConstructorAccessName(classIr->second.destructorAccess);
+               DiagnosticSink::Report(this->GetContext(),
+                                      ecpps::ir::overloadDiagnostics::SelectedDestructorFailure(
+                                           classType->Info().DisplayName(), source, !accessible, isDeleted, candidate));
+               return;
+          }
+          const auto* unqualifiedClass = GetTypeContext().Get(
+               TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = classType->Info().id}});
+          std::vector<Expression> arguments{};
+          arguments.push_back(std::make_unique<PRValue>(PointerTo(unqualifiedClass),
+                                                        std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                                                             new (allocator) SSARegisterReferenceNode(address, source)},
+                                                        false));
+          auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
+               new (allocator) FunctionCallNode(destructor, std::move(arguments), source, abiCleanupKind)};
+          [[maybe_unused]] const auto* destructorCallResult = LowerExpression(
+               std::make_unique<PRValue>(typeSystem::g_void.get(), std::move(call), false), this->_built);
+          return;
+     }
+     if (classType->Info().kind == typeSystem::ClassKind::Union)
+     {
+          if (classType->Info().Has(ClassProperty::NontrivialDestructor))
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Implicit destruction of a union with non-trivial members is not supported", source));
+          return;
+     }
+     DestroyClassMembersAtAddress(classType->Info(), address, abiCleanupKind);
+}
+
+void ecpps::ir::IR::DestroyClassMembersAtAddress(const typeSystem::ClassInfo& info,
+                                                 const SingleAssignRegisterNode* address,
+                                                 const ABICleanupKind abiCleanupKind)
+{
+     if (address == nullptr || info.kind == typeSystem::ClassKind::Union) return;
+     const auto classIr = this->GetContext().classTable->classes.find(info.id);
+     const bool addClassContext =
+          classIr != this->GetContext().classTable->classes.end() && classIr->second.scope != nullptr;
+     std::size_t classContextIndex = this->GetContext().contextSequence.size();
+     if (addClassContext)
+     {
+          const auto functionContext =
+               std::ranges::find_if(this->GetContext().contextSequence | std::views::reverse, IsFunctionContext);
+          if (functionContext != (this->GetContext().contextSequence | std::views::reverse).end())
+               classContextIndex = static_cast<std::size_t>(
+                    std::distance(this->GetContext().contextSequence.begin(), functionContext.base()) - 1);
+          this->GetContext().contextSequence.insert(this->GetContext().contextSequence.begin() +
+                                                         static_cast<std::ptrdiff_t>(classContextIndex),
+                                                    std::make_shared<ClassContext>(classIr->second.scope, info.id));
+     }
+     struct RestoreContext
+     {
+          Context* context{};
+          std::size_t classContextIndex{};
+          bool removeClassContext{};
+          ~RestoreContext()
+          {
+               if (this->removeClassContext)
+                    this->context->contextSequence.erase(this->context->contextSequence.begin() +
+                                                         static_cast<std::ptrdiff_t>(this->classContextIndex));
+          }
+     } restoreContext{.context = &this->GetContext(),
+                      .classContextIndex = classContextIndex,
+                      .removeClassContext = addClassContext};
+
+     for (const auto& field : info.fields | std::views::reverse)
+          DestroyObjectAtAddress(field.type, AddByteOffset(address, field.offset, field.source), field.source,
+                                 abiCleanupKind);
 }
 
 bool ecpps::ir::IR::CanAccess(const typeSystem::ClassId id, const typeSystem::Access access) const
@@ -385,34 +1237,18 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
      const auto* targetQualified = referenceType->BaseType()->CastTo<typeSystem::QualifiedType>();
      const auto* sourceQualified = referent->Type()->CastTo<typeSystem::QualifiedType>();
 
-     const auto sameUnqualifiedType = [](typeSystem::NonowningTypePointer left, typeSystem::NonowningTypePointer right)
-     {
-          const auto* leftIntegral = left->CastTo<typeSystem::IntegralType>();
-          const auto* rightIntegral = right->CastTo<typeSystem::IntegralType>();
-          if (leftIntegral != nullptr || rightIntegral != nullptr)
-               return leftIntegral != nullptr && rightIntegral != nullptr &&
-                      leftIntegral->Sign() == rightIntegral->Sign() && leftIntegral->Kind() == rightIntegral->Kind() &&
-                      IsBoolean(left) == IsBoolean(right);
-          const auto* leftClass = left->CastTo<typeSystem::ClassType>();
-          const auto* rightClass = right->CastTo<typeSystem::ClassType>();
-          if (leftClass != nullptr || rightClass != nullptr)
-               return leftClass != nullptr && rightClass != nullptr && leftClass->Info().id == rightClass->Info().id;
-          const auto* leftPointer = left->CastTo<typeSystem::PointerType>();
-          const auto* rightPointer = right->CastTo<typeSystem::PointerType>();
-          if (leftPointer != nullptr || rightPointer != nullptr)
-               return leftPointer != nullptr && rightPointer != nullptr &&
-                      leftPointer->BaseType() == rightPointer->BaseType();
-          return left == right;
-     };
-
-     const bool sameUnqualified = sameUnqualifiedType(referenceType->BaseType(), referent->Type());
+     const bool sameUnqualified = IsSameUnqualifiedType(referenceType->BaseType(), referent->Type());
      const bool dropsConst = sameUnqualified && sourceQualified != nullptr && sourceQualified->IsConst() &&
                              (targetQualified == nullptr || !targetQualified->IsConst());
      const bool dropsVolatile = sameUnqualified && sourceQualified != nullptr && sourceQualified->IsVolatile() &&
                                 (targetQualified == nullptr || !targetQualified->IsVolatile());
      const bool lvalueReference = referenceType->GetKind() == typeSystem::ReferenceType::Kind::LValue;
+     const auto classConversionCost = !sameUnqualified && typeSystem::IsClass(referenceType->BaseType())
+                                           ? ConstructorArgumentCost(referenceType->BaseType(), referent)
+                                           : std::optional<std::size_t>{};
      const bool canConvertTemporary =
-          !sameUnqualified && referenceType->BaseType()->CompareTo(referent->Type()).IsValid();
+          !sameUnqualified &&
+          (classConversionCost.has_value() || referenceType->BaseType()->CompareTo(referent->Type()).IsValid());
      const bool directCategory =
           lvalueReference ? referent->IsLValue() ||
                                  (targetQualified != nullptr && targetQualified->IsConst() && referent->IsXValue())
@@ -441,8 +1277,12 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
           return LowerExpressionLoaded(std::move(referenceAddress), this->_built);
      }
 
-     auto converted = sameUnqualified ? std::move(referent) : ConvertTo(std::move(referent), referenceType->BaseType());
-     if (converted == nullptr) return nullptr;
+     if (sameUnqualified && typeSystem::IsClass(referenceType->BaseType()) && referent->IsPRValue())
+     {
+          const auto* temporaryAddress = LowerExpressionLoaded(std::move(referent), this->_built);
+          return temporaryAddress;
+     }
+
      auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
      runtime_assert(function != nullptr, "Temporary reference binding must occur inside a function");
      if (function == nullptr) return nullptr;
@@ -456,6 +1296,40 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
      this->_built.push_back(
           std::unique_ptr<AllocationNode, IRDeleter>{new (allocator) AllocationNode(std::move(allocation), source)});
      const auto* temporaryAddress = AddressOfAllocation(allocationRegister, referenceType->BaseType(), source);
+     if (typeSystem::IsClass(referenceType->BaseType()))
+     {
+          const auto* targetClass = referenceType->BaseType()->CastTo<typeSystem::ClassType>();
+          const auto* sourceClass = referent->Type()->CastTo<typeSystem::ClassType>();
+          if (targetClass != nullptr && sourceClass != nullptr && targetClass->Info().id == sourceClass->Info().id)
+               InitialiseClassFromExpression(referenceType->BaseType(), temporaryAddress, std::move(referent), source);
+          else if (targetClass != nullptr)
+          {
+               std::vector<Expression> constructorArguments{};
+               constructorArguments.push_back(std::move(referent));
+               auto selection = SelectConstructor(targetClass->Info(), std::move(constructorArguments), source, false);
+               if (!selection.has_value()) return nullptr;
+               const bool accessible = this->CanAccess(targetClass->Info().id, selection->constructor->access);
+               if (!accessible || selection->constructor->bodyKind == ast::FunctionBodyKind::Deleted)
+               {
+                    const auto diagnosticCandidate =
+                         ConstructorCandidateDiagnostic(*selection->constructor, accessible);
+                    DiagnosticSink::Report(this->GetContext(),
+                                           ecpps::ir::overloadDiagnostics::SelectedConstructorFailure(
+                                                selection->constructor->bodyKind == ast::FunctionBodyKind::Deleted
+                                                     ? "The selected constructor is deleted"
+                                                     : "Selected constructor is not accessible",
+                                                source, diagnosticCandidate));
+                    return nullptr;
+               }
+               ExecuteConstructor(referenceType->BaseType(), temporaryAddress, targetClass->Info(),
+                                  std::move(*selection), ObjectInitialisationMode::Explicit, nullptr, source);
+          }
+          RegisterTemporaryForDestruction(referenceType->BaseType(), temporaryAddress, source);
+          return temporaryAddress;
+     }
+
+     auto converted = ConvertTo(std::move(referent), referenceType->BaseType());
+     if (converted == nullptr) return nullptr;
      const auto* temporaryValue = LowerExpressionLoaded(std::move(converted), this->_built);
      if (temporaryValue == nullptr) return nullptr;
      StoreAtAddress(temporaryAddress, temporaryValue, referenceType->BaseType(), source);
@@ -469,6 +1343,20 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
 {
      runtime_assert(type != nullptr && address != nullptr, "Invalid initialisation target");
      if (type == nullptr || address == nullptr) return;
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     const auto temporaryDepth = function == nullptr ? 0 : function->temporaryObjects.size();
+     struct TemporaryDestructionGuard
+     {
+          IR* ir{};
+          FunctionContext* function{};
+          std::size_t depth{};
+          ~TemporaryDestructionGuard()
+          {
+               if (this->function == nullptr) return;
+               this->ir->EmitTemporaryDestructorsFrom(this->depth);
+               this->function->temporaryObjects.resize(this->depth);
+          }
+     } temporaryDestructionGuard{this, function, temporaryDepth};
 
      if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
      {
@@ -487,7 +1375,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
 
      if (type->CastTo<typeSystem::ArrayType>() != nullptr)
      {
-          this->InitialiseArrayAtAddress(type, address, initialiser, initialisationType, mode, source);
+          this->InitialiseArrayAtAddress(type, address, initialiser, mode, source);
           return;
      }
 
@@ -552,8 +1440,7 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
 
 void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer type,
                                              const SingleAssignRegisterNode* address,
-                                             const ast::NodePointer* initialiser,
-                                             ast::InitialisationType initialisationType, ObjectInitialisationMode mode,
+                                             const ast::NodePointer* initialiser, ObjectInitialisationMode mode,
                                              const Location& source)
 {
      const auto* arrayType = type->CastTo<typeSystem::ArrayType>();
@@ -571,12 +1458,7 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
                                            "An array member requires a braced initialiser", source));
                return;
           }
-          if (std::ranges::any_of(list->Initialisers(),
-                                  [](const ast::NodePointer& value)
-                                  {
-                                       return dynamic_cast<const ast::DesignatedInitialiserNode*>(value.get()) !=
-                                              nullptr;
-                                  }))
+          if (std::ranges::any_of(list->Initialisers(), IsDesignatedInitialiserNode))
           {
                DiagnosticSink::Report(
                     this->GetContext(),
@@ -616,7 +1498,6 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
                                                                                  : ObjectInitialisationMode::EmptyList,
                                          source);
      }
-     (void)initialisationType;
 }
 
 void ecpps::ir::IR::ZeroInitialiseAtAddress(typeSystem::NonowningTypePointer type,
@@ -736,6 +1617,19 @@ void ecpps::ir::IR::InitialiseClassAtAddress(typeSystem::NonowningTypePointer ty
      const auto* classType = type->CastTo<typeSystem::ClassType>();
      runtime_assert(classType != nullptr, "Class initialisation requires a class type");
      if (classType == nullptr) return;
+     if (mode == ObjectInitialisationMode::Explicit && initialiser != nullptr && *initialiser != nullptr &&
+         dynamic_cast<const ast::InitialiserListNode*>(initialiser->get()) == nullptr)
+     {
+          auto expression = ParseExpression(*initialiser);
+          const auto* sourceClass =
+               expression != nullptr ? expression->Type()->CastTo<typeSystem::ClassType>() : nullptr;
+          if (sourceClass != nullptr && sourceClass->Info().id == classType->Info().id)
+          {
+               InitialiseClassFromExpression(type, address, std::move(expression), source,
+                                             initialisationType != ast::InitialisationType::EqualInitialiser);
+               return;
+          }
+     }
      if (classType->Info().kind == typeSystem::ClassKind::Union)
      {
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -789,54 +1683,73 @@ std::optional<std::vector<Expression>> ecpps::ir::IR::ParseConstructorArguments(
 std::optional<std::size_t> ecpps::ir::IR::ConstructorArgumentCost(typeSystem::NonowningTypePointer parameterType,
                                                                   const Expression& argument) const
 {
-     if (parameterType->CastTo<typeSystem::ClassType>() != nullptr ||
-         parameterType->CastTo<typeSystem::ArrayType>() != nullptr)
-          return std::nullopt;
+     if (parameterType == nullptr || argument == nullptr) return std::nullopt;
 
      if (const auto* reference = parameterType->CastTo<typeSystem::ReferenceType>())
      {
           const auto* target = reference->BaseType()->CastTo<typeSystem::QualifiedType>();
           const auto* sourceType = argument->Type()->CastTo<typeSystem::QualifiedType>();
-          const auto sameUnqualifiedType =
-               [](typeSystem::NonowningTypePointer left, typeSystem::NonowningTypePointer right)
-          {
-               const auto* leftIntegral = left->CastTo<typeSystem::IntegralType>();
-               const auto* rightIntegral = right->CastTo<typeSystem::IntegralType>();
-               if (leftIntegral != nullptr || rightIntegral != nullptr)
-                    return leftIntegral != nullptr && rightIntegral != nullptr &&
-                           leftIntegral->Sign() == rightIntegral->Sign() &&
-                           leftIntegral->Kind() == rightIntegral->Kind() && IsBoolean(left) == IsBoolean(right);
-               const auto* leftClass = left->CastTo<typeSystem::ClassType>();
-               const auto* rightClass = right->CastTo<typeSystem::ClassType>();
-               if (leftClass != nullptr || rightClass != nullptr)
-                    return leftClass != nullptr && rightClass != nullptr &&
-                           leftClass->Info().id == rightClass->Info().id;
-               const auto* leftPointer = left->CastTo<typeSystem::PointerType>();
-               const auto* rightPointer = right->CastTo<typeSystem::PointerType>();
-               if (leftPointer != nullptr || rightPointer != nullptr)
-                    return leftPointer != nullptr && rightPointer != nullptr &&
-                           leftPointer->BaseType() == rightPointer->BaseType();
-               return left == right;
-          };
-          const bool same = sameUnqualifiedType(reference->BaseType(), argument->Type());
+          const bool same = IsSameUnqualifiedType(reference->BaseType(), argument->Type());
           if (same && sourceType != nullptr &&
               ((sourceType->IsConst() && (target == nullptr || !target->IsConst())) ||
                (sourceType->IsVolatile() && (target == nullptr || !target->IsVolatile()))))
                return std::nullopt;
 
           const bool lvalueReference = reference->GetKind() == typeSystem::ReferenceType::Kind::LValue;
-          const bool directCategory =
-               lvalueReference
-                    ? argument->IsLValue() || (target != nullptr && target->IsConst() && argument->IsXValue())
-                    : argument->IsXValue();
-          const bool convertible = !same && reference->BaseType()->CompareTo(argument->Type()).IsValid();
-          const bool bindsTemporary =
-               (!lvalueReference || (target != nullptr && target->IsConst())) && (argument->IsRValue() || convertible);
-          if (!(same && directCategory) && !bindsTemporary) return std::nullopt;
-          if (bindsTemporary) return 8;
-          if (target != nullptr && sourceType != nullptr && target->qualifiers() != sourceType->qualifiers()) return 1;
-          return 0;
+          const bool directCategory = lvalueReference ? argument->IsLValue() : argument->IsRValue();
+          const auto qualifierCost = static_cast<std::size_t>(target != nullptr && target->IsConst() &&
+                                                              (sourceType == nullptr || !sourceType->IsConst())) +
+                                     static_cast<std::size_t>(target != nullptr && target->IsVolatile() &&
+                                                              (sourceType == nullptr || !sourceType->IsVolatile()));
+          std::optional<std::size_t> conversionCost{};
+          if (!same)
+          {
+               if (typeSystem::IsClass(reference->BaseType()))
+                    conversionCost = ConstructorArgumentCost(reference->BaseType(), argument);
+               else
+               {
+                    const auto conversion = reference->BaseType()->CompareTo(argument->Type());
+                    if (conversion.IsValid())
+                    {
+                         conversionCost = 0;
+                         for (const auto kind : conversion.Sequence()) *conversionCost += ConversionCost(kind);
+                    }
+               }
+          }
+          if (same && directCategory) return qualifierCost;
+          if (lvalueReference && (target == nullptr || !target->IsConst()) && !argument->IsRValue())
+               return std::nullopt;
+          if (!lvalueReference && !argument->IsRValue() && !conversionCost.has_value()) return std::nullopt;
+          if (lvalueReference && (target == nullptr || !target->IsConst())) return std::nullopt;
+          if (!same && !conversionCost.has_value()) return std::nullopt;
+          return conversionCost.value_or(0) + 2 + qualifierCost;
      }
+
+     if (const auto* parameterClass = parameterType->CastTo<typeSystem::ClassType>())
+     {
+          const auto* argumentClass = argument->Type()->CastTo<typeSystem::ClassType>();
+          if (argumentClass != nullptr && parameterClass->Info().id == argumentClass->Info().id) return 0;
+          const auto classIr = this->GetContext().classTable->classes.find(parameterClass->Info().id);
+          if (classIr == this->GetContext().classTable->classes.end()) return std::nullopt;
+          std::optional<std::size_t> bestCost{};
+          for (const auto& constructor : classIr->second.constructors)
+          {
+               if (constructor.isCopyConstructor || constructor.isMoveConstructor || constructor.isExplicit ||
+                   constructor.parameters.size() != 1)
+                    continue;
+               if (const auto* constructorParameterClass =
+                        constructor.parameters.front().type->CastTo<typeSystem::ClassType>();
+                   constructorParameterClass != nullptr &&
+                   constructorParameterClass->Info().id == parameterClass->Info().id)
+                    continue;
+               const auto conversionCost = ConstructorArgumentCost(constructor.parameters.front().type, argument);
+               if (!conversionCost.has_value()) continue;
+               const auto cost = *conversionCost + 4;
+               if (!bestCost.has_value() || cost < *bestCost) bestCost = cost;
+          }
+          return bestCost;
+     }
+     if (parameterType->CastTo<typeSystem::ArrayType>() != nullptr) return std::nullopt;
 
      const auto conversion = parameterType->CompareTo(argument->Type());
      if (!conversion.IsValid()) return std::nullopt;
@@ -847,7 +1760,8 @@ std::optional<std::size_t> ecpps::ir::IR::ConstructorArgumentCost(typeSystem::No
 
 std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstructor(const typeSystem::ClassInfo& info,
                                                                                     std::vector<Expression> arguments,
-                                                                                    const Location& source)
+                                                                                    const Location& source,
+                                                                                    const bool allowExplicit)
 {
      const auto classIr = this->GetContext().classTable->classes.find(info.id);
      if (classIr == this->GetContext().classTable->classes.end() || classIr->second.constructors.empty())
@@ -863,6 +1777,7 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
      bool ambiguous = false;
      for (const auto& candidate : classIr->second.constructors)
      {
+          if (!allowExplicit && candidate.isExplicit) continue;
           if (candidate.parameters.size() != arguments.size()) continue;
           std::size_t score = 0;
           bool viable = true;
@@ -935,10 +1850,22 @@ void ecpps::ir::IR::InitialiseClassWithConstructors(typeSystem::NonowningTypePoi
      const auto* list = initialiser != nullptr && *initialiser != nullptr
                              ? dynamic_cast<const ast::InitialiserListNode*>(initialiser->get())
                              : nullptr;
+     if (list == nullptr && arguments->size() == 1)
+     {
+          auto& argument = arguments->front();
+          const auto* sourceClass = argument->Type()->CastTo<typeSystem::ClassType>();
+          const auto* call = dynamic_cast<const FunctionCallNode*>(argument->Value().get());
+          if (argument->IsPRValue() && sourceClass != nullptr && sourceClass->Info().id == info.id && call != nullptr &&
+              call->Function()->returnsByPointer)
+          {
+               InitialiseClassFromExpression(type, address, std::move(argument), source, false);
+               return;
+          }
+     }
      const bool listInitialisation = mode == ObjectInitialisationMode::Explicit && list != nullptr;
      const bool copyInitialisation = mode == ObjectInitialisationMode::EmptyList ||
                                      initialisationType == ast::InitialisationType::EqualInitialiser;
-     auto selection = SelectConstructor(info, std::move(*arguments), source);
+     auto selection = SelectConstructor(info, std::move(*arguments), source, !copyInitialisation);
      if (!selection.has_value()) return;
 
      if (listInitialisation)
@@ -1026,8 +1953,8 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
           false));
      for (std::size_t index = 0; index < selection.arguments.size(); index++)
      {
-          auto converted =
-               ConvertTo(std::move(selection.arguments[index]), selection.constructor->parameters[index].type);
+          auto converted = PrepareByValueArgument(std::move(selection.arguments[index]),
+                                                  selection.constructor->parameters[index].type, source);
           if (converted == nullptr) return;
           evaluatedArguments.push_back(std::move(converted));
      }
@@ -1035,7 +1962,7 @@ void ecpps::ir::IR::ExecuteConstructor(typeSystem::NonowningTypePointer type, co
      auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
           selection.constructor->function, std::move(evaluatedArguments), source)};
      Expression callExpression = std::make_unique<PRValue>(typeSystem::g_void.get(), std::move(call), false);
-     (void)LowerExpression(std::move(callExpression), this->_built);
+     [[maybe_unused]] const auto* constructorCallResult = LowerExpression(std::move(callExpression), this->_built);
 }
 
 void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningTypePointer type,
@@ -1101,12 +2028,7 @@ void ecpps::ir::IR::InitialiseClassWithoutConstructors(typeSystem::NonowningType
           return;
      }
 
-     const bool hasDesignatedInitialiser =
-          std::ranges::any_of(list->Initialisers(),
-                              [](const ast::NodePointer& clause)
-                              {
-                                   return dynamic_cast<const ast::DesignatedInitialiserNode*>(clause.get()) != nullptr;
-                              });
+     const bool hasDesignatedInitialiser = std::ranges::any_of(list->Initialisers(), IsDesignatedInitialiserNode);
      if (!hasDesignatedInitialiser)
      {
           InitialisePositionalAggregate(address, *list, source, classType);
@@ -1158,92 +2080,93 @@ void ecpps::ir::IR::InitialisePositionalAggregate(const SingleAssignRegisterNode
 {
      const auto& clauses = list.Initialisers();
      std::size_t nextClause = 0;
-
-     std::function<void(typeSystem::NonowningTypePointer, const SingleAssignRegisterNode*, const typeSystem::ClassType*,
-                        const SingleAssignRegisterNode*, std::size_t)>
-          initialiseSubobject;
-     std::function<void(const typeSystem::ClassType*, const SingleAssignRegisterNode*)> initialiseAggregate;
-
-     initialiseAggregate = [&](const typeSystem::ClassType* aggregate, const SingleAssignRegisterNode* aggregateAddress)
-     {
-          for (std::size_t fieldIndex = 0; fieldIndex < aggregate->Info().fields.size(); fieldIndex++)
-          {
-               const auto& field = aggregate->Info().fields[fieldIndex];
-               const auto* fieldAddress = AddByteOffset(aggregateAddress, field.offset, field.source);
-               initialiseSubobject(field.type, fieldAddress, aggregate, aggregateAddress, fieldIndex);
-          }
-     };
-
-     initialiseSubobject = [&](typeSystem::NonowningTypePointer subobjectType,
-                               const SingleAssignRegisterNode* subobjectAddress,
-                               const typeSystem::ClassType* owningClass,
-                               const SingleAssignRegisterNode* owningObjectAddress, const std::size_t owningFieldIndex)
-     {
-          const typeSystem::ClassField* owningField =
-               owningClass != nullptr && owningFieldIndex < owningClass->Info().fields.size()
-                    ? &owningClass->Info().fields[owningFieldIndex]
-                    : nullptr;
-          if (nextClause >= clauses.size())
-          {
-               if (owningField != nullptr && owningField->hasDefaultInitialiser)
-                    InitialiseDefaultMember(owningClass, *owningField, owningFieldIndex, owningObjectAddress,
-                                            subobjectAddress, owningField->source);
-               else if (subobjectType->CastTo<typeSystem::ReferenceType>() != nullptr)
-                    DiagnosticSink::Report(this->GetContext(),
-                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                "A reference member is omitted from the aggregate initialiser",
-                                                owningField != nullptr ? owningField->source : source));
-               else
-                    InitialiseAtAddress(subobjectType, subobjectAddress, nullptr,
-                                        ast::InitialisationType::EqualInitialiser, ObjectInitialisationMode::EmptyList,
-                                        owningField != nullptr ? owningField->source : source);
-               return;
-          }
-
-          const auto& clause = clauses[nextClause];
-          if (dynamic_cast<const ast::InitialiserListNode*>(clause.get()) != nullptr)
-          {
-               nextClause++;
-               InitialiseAtAddress(subobjectType, subobjectAddress, &clause, ast::InitialisationType::BracedInitialiser,
-                                   ObjectInitialisationMode::Explicit, clause->Source(), true);
-               return;
-          }
-
-          if (const auto* arrayType = subobjectType->CastTo<typeSystem::ArrayType>())
-          {
-               for (std::size_t index = 0; index < arrayType->ElementCount(); index++)
-               {
-                    const auto* elementAddress =
-                         AddByteOffset(subobjectAddress, index * arrayType->ElementType()->Size(), clause->Source());
-                    initialiseSubobject(arrayType->ElementType(), elementAddress, nullptr, nullptr, 0);
-               }
-               return;
-          }
-
-          if (const auto* nestedClass = subobjectType->CastTo<typeSystem::ClassType>();
-              nestedClass != nullptr && IsAggregateClass(subobjectType))
-          {
-               if (nestedClass->Info().fields.empty())
-               {
-                    InitialiseAtAddress(subobjectType, subobjectAddress, nullptr,
-                                        ast::InitialisationType::EqualInitialiser, ObjectInitialisationMode::EmptyList,
-                                        clause->Source());
-                    return;
-               }
-               initialiseAggregate(nestedClass, subobjectAddress);
-               return;
-          }
-
-          nextClause++;
-          InitialiseAtAddress(subobjectType, subobjectAddress, &clause, ast::InitialisationType::EqualInitialiser,
-                              ObjectInitialisationMode::Explicit, clause->Source(), true);
-     };
-
-     initialiseAggregate(classType, address);
+     InitialisePositionalAggregateFields(clauses, nextClause, classType, address, source);
      if (nextClause < clauses.size())
           DiagnosticSink::Report(this->GetContext(),
                                  diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                       "Too many initialisers for aggregate class", clauses[nextClause]->Source()));
+}
+
+void ecpps::ir::IR::InitialisePositionalAggregateFields(const std::vector<ast::NodePointer>& clauses,
+                                                        std::size_t& nextClause, const typeSystem::ClassType* aggregate,
+                                                        const SingleAssignRegisterNode* aggregateAddress,
+                                                        const Location& source)
+{
+     for (std::size_t fieldIndex = 0; fieldIndex < aggregate->Info().fields.size(); fieldIndex++)
+     {
+          const auto& field = aggregate->Info().fields[fieldIndex];
+          const auto* fieldAddress = AddByteOffset(aggregateAddress, field.offset, field.source);
+          InitialisePositionalAggregateSubobject(clauses, nextClause, field.type, fieldAddress, aggregate,
+                                                 aggregateAddress, fieldIndex, source);
+     }
+}
+
+void ecpps::ir::IR::InitialisePositionalAggregateSubobject(const std::vector<ast::NodePointer>& clauses,
+                                                           std::size_t& nextClause,
+                                                           typeSystem::NonowningTypePointer subobjectType,
+                                                           const SingleAssignRegisterNode* subobjectAddress,
+                                                           const typeSystem::ClassType* owningClass,
+                                                           const SingleAssignRegisterNode* owningObjectAddress,
+                                                           const std::size_t owningFieldIndex, const Location& source)
+{
+     const typeSystem::ClassField* owningField =
+          owningClass != nullptr && owningFieldIndex < owningClass->Info().fields.size()
+               ? &owningClass->Info().fields[owningFieldIndex]
+               : nullptr;
+     if (nextClause >= clauses.size())
+     {
+          if (owningField != nullptr && owningField->hasDefaultInitialiser)
+               InitialiseDefaultMember(owningClass, *owningField, owningFieldIndex, owningObjectAddress,
+                                       subobjectAddress, owningField->source);
+          else if (subobjectType->CastTo<typeSystem::ReferenceType>() != nullptr)
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "A reference member is omitted from the aggregate initialiser",
+                                           owningField != nullptr ? owningField->source : source));
+          else
+               InitialiseAtAddress(subobjectType, subobjectAddress, nullptr, ast::InitialisationType::EqualInitialiser,
+                                   ObjectInitialisationMode::EmptyList,
+                                   owningField != nullptr ? owningField->source : source);
+          return;
+     }
+
+     const auto& clause = clauses[nextClause];
+     if (dynamic_cast<const ast::InitialiserListNode*>(clause.get()) != nullptr)
+     {
+          nextClause += 1;
+          InitialiseAtAddress(subobjectType, subobjectAddress, &clause, ast::InitialisationType::BracedInitialiser,
+                              ObjectInitialisationMode::Explicit, clause->Source(), true);
+          return;
+     }
+
+     if (const auto* arrayType = subobjectType->CastTo<typeSystem::ArrayType>())
+     {
+          for (std::size_t index = 0; index < arrayType->ElementCount(); index++)
+          {
+               const auto* elementAddress =
+                    AddByteOffset(subobjectAddress, index * arrayType->ElementType()->Size(), clause->Source());
+               InitialisePositionalAggregateSubobject(clauses, nextClause, arrayType->ElementType(), elementAddress,
+                                                      nullptr, nullptr, 0, source);
+          }
+          return;
+     }
+
+     if (const auto* nestedClass = subobjectType->CastTo<typeSystem::ClassType>();
+         nestedClass != nullptr && IsAggregateClass(subobjectType))
+     {
+          if (nestedClass->Info().fields.empty())
+          {
+               InitialiseAtAddress(subobjectType, subobjectAddress, nullptr, ast::InitialisationType::EqualInitialiser,
+                                   ObjectInitialisationMode::EmptyList, clause->Source());
+               return;
+          }
+          InitialisePositionalAggregateFields(clauses, nextClause, nestedClass, subobjectAddress, source);
+          return;
+     }
+
+     nextClause += 1;
+     InitialiseAtAddress(subobjectType, subobjectAddress, &clause, ast::InitialisationType::EqualInitialiser,
+                         ObjectInitialisationMode::Explicit, clause->Source(), true);
 }
 
 void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePointer type,

@@ -64,4 +64,8 @@ namespace ecpps::ir::overloadDiagnostics
      [[nodiscard]] std::unique_ptr<diagnostics::TypeError> SelectedConstructorFailure(std::string message,
                                                                                       Location source,
                                                                                       const Candidate& candidate);
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoViableCopyOrMoveConstructor(
+          std::string className, Location source, const std::vector<Candidate>& candidates);
+     [[nodiscard]] std::unique_ptr<diagnostics::TypeError> SelectedDestructorFailure(
+          std::string className, Location source, bool inaccessible, bool isDeleted, const Candidate& candidate);
 } // namespace ecpps::ir::overloadDiagnostics

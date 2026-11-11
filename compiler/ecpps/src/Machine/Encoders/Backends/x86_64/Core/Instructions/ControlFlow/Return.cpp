@@ -46,3 +46,45 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      return built;
 }
+
+template <>
+std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
+{
+     runtime_assert(registerArray.size() == 2,
+                    std::format("Invalid register array! Specified: {}, expected: [result buffer, width]",
+                                registerArray.size()));
+
+     const auto& resultBuffer = registerArray[0];
+     const auto width = MapWidth(registerArray[1].index);
+     const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
+     std::vector<ecpps::ir::abstract::Instruction> built{};
+
+     if (this->IsSpilled(resultBuffer))
+     {
+          const auto resultBufferSlot = this->EnsureStackSlot(resultBuffer);
+          const RegisterIndex scratch = returnRegister == RegisterIndex::R10 ? RegisterIndex::R11 : RegisterIndex::R10;
+          ecpps::detail::AppendRange(built, this->ClearRegister(scratch, resultBuffer));
+          this->Lock(scratch);
+          built.push_back(BuildMov(Width::W64, RegisterOperand{scratch}, resultBufferSlot));
+          built.push_back(BuildMov(width, RegisterOperand{returnRegister},
+                                   MemoryOperand{.relativeTo = scratch, .offset = 0}));
+          this->Unlock(scratch);
+     }
+     else
+     {
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(resultBuffer));
+          const RegisterIndex resultBufferRegister = this->PhysicalRegisterOf(resultBuffer);
+          built.push_back(BuildMov(width, RegisterOperand{returnRegister},
+                                   MemoryOperand{.relativeTo = resultBufferRegister, .offset = 0}));
+     }
+
+     const auto remainingUses = this->ConsumeUse(resultBuffer);
+     if (remainingUses == 0 && !this->IsSpilled(resultBuffer)) this->ReleaseRegister(resultBuffer);
+
+     ir::abstract::Instruction retInstruction{};
+     retInstruction.opcode = X8664InstructionName::Ret;
+     built.push_back(retInstruction);
+     return built;
+}

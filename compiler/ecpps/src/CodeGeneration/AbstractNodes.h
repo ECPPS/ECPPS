@@ -130,7 +130,9 @@ namespace ecpps::ir::abstract
           Division,
           Indirection,
           IndirectStore,
-          Unreachable
+          Unreachable,
+          ReturnAggregate,
+          CallWithAggregateResult
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -170,6 +172,8 @@ namespace ecpps::ir::abstract
           case VirtualInstructionType::Indirection: return "indirect";
           case VirtualInstructionType::IndirectStore: return "indirect-store";
           case VirtualInstructionType::Unreachable: return "unreachable";
+          case VirtualInstructionType::ReturnAggregate: return "return-aggregate";
+          case VirtualInstructionType::CallWithAggregateResult: return "call-aggregate";
           }
           throw TracedException("control flow");
      }

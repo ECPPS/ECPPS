@@ -114,8 +114,7 @@ namespace ecpps
                storage[text.size()] = '\0';
 
                const std::string_view stored{storage, text.size()};
-               const auto [inserted, unused] = this->_strings.emplace(stored);
-               static_cast<void>(unused);
+               const auto inserted = this->_strings.emplace(stored).first;
                return InternedString{this, *inserted};
           }
 

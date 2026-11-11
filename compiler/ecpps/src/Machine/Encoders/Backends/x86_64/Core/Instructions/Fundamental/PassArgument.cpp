@@ -11,6 +11,7 @@
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Execution/Context.h"
+#include "Machine/Encoders/API/Aggregate.h"
 #include "Machine/Encoders/API/Platform.h"
 #include "Machine/Encoders/API/Target.h"
 #include "RuntimeAssert.h"
@@ -47,11 +48,71 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto& source = registerArray[1];
      const auto parameterIndex = static_cast<std::size_t>(registerArray[2].index);
      const ir::FunctionScope* scope = this->Scopes()[scopeIndex];
-     const auto numberOfParameters = scope->CallingConventionParameterCount();
      const auto& platform = *this->_target->platform;
+     const bool hasResultBuffer = scope->returnsByPointer && typeSystem::IsClass(scope->returnType);
+     const bool directAggregateReturn =
+          hasResultBuffer && api::IsSingleIntegerRegister(api::ClassReturnPassing(platform, scope->returnType),
+                                                          scope->returnType->Size());
+     const auto numberOfParameters = scope->CallingConventionParameterCount() -
+                                     static_cast<std::size_t>(directAggregateReturn);
 
      runtime_assert(parameterIndex < numberOfParameters,
                     std::format("Parameter index {} out of range ({} parameters)", parameterIndex, numberOfParameters));
+
+     const bool hasThisPointer = scope->memberClassInfo != nullptr && !scope->isStatic;
+     if (parameterIndex >= static_cast<std::size_t>(hasThisPointer))
+     {
+          const auto explicitParameterIndex = parameterIndex - static_cast<std::size_t>(hasThisPointer);
+          if (explicitParameterIndex < scope->parameters.size())
+          {
+               const auto* parameterType = scope->parameters[explicitParameterIndex].type;
+               if (api::IsSingleIntegerRegister(api::ClassArgumentPassing(platform, parameterType),
+                                                parameterType->Size()))
+               {
+                    const auto* classType = parameterType->CastTo<typeSystem::ClassType>();
+                    runtime_assert(classType != nullptr, "Direct aggregate argument type is not a class");
+                    const auto width = MapWidth(classType->Width());
+                    ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
+                    const RegisterIndex sourceRegister = this->PhysicalRegisterOf(source);
+
+                    if (parameterIndex >= platform.IntegerParameterRegisterCount())
+                    {
+                         const auto stackSlot = this->StackParameterSlot(parameterIndex, numberOfParameters);
+                         const auto slotWidth = static_cast<Width>(platform.ParameterStackSlotWidth());
+                         const auto slotSize = WidthBytes(slotWidth);
+                         const auto rspOffset = platform.InitialStackReserve() + (slotSize * stackSlot);
+                         this->_outgoingReserve = std::max(this->_outgoingReserve, rspOffset + slotSize);
+
+                         const RegisterIndex scratch = sourceRegister == RegisterIndex::R10 ? RegisterIndex::R11
+                                                                                            : RegisterIndex::R10;
+                         ecpps::detail::AppendRange(built, this->ClearRegister(scratch, source));
+                         this->Lock(scratch);
+                         built.push_back(BuildMov(width, RegisterOperand{scratch},
+                                                  MemoryOperand{.relativeTo = sourceRegister, .offset = 0}));
+                         built.push_back(BuildMov(width, OutgoingSlot(rspOffset), RegisterOperand{scratch}));
+                         this->Unlock(scratch);
+                    }
+                    else
+                    {
+                         const auto abiRegister =
+                              static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex));
+                         this->Lock(abiRegister);
+                         if (sourceRegister != abiRegister)
+                              ecpps::detail::AppendRange(built, this->ClearRegister(abiRegister, source));
+                         built.push_back(BuildMov(width, RegisterOperand{abiRegister},
+                                                  MemoryOperand{.relativeTo = sourceRegister, .offset = 0}));
+                    }
+
+                    const auto remainingUses = this->ConsumeUse(source);
+                    const bool passedInSourceRegister =
+                         parameterIndex < platform.IntegerParameterRegisterCount() &&
+                         sourceRegister == static_cast<RegisterIndex>(
+                                                platform.IntegerParameterRegisterIndex(parameterIndex));
+                    if (remainingUses == 0 && !passedInSourceRegister) this->ReleaseRegister(source);
+                    return built;
+               }
+          }
+     }
 
      const auto immediate = ImmediateOf(source);
 

@@ -167,8 +167,9 @@ TEST_CASE("IR - No matching overload is a type error with candidate failures", "
      auto callProgram = MakeCallProgram(fixture, "pick", 2);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     (void)fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
+     CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Name() == "type-error"));
      CHECK(ContainsMessage(diagnostic, "No matching overload for call to 'pick'"));
@@ -184,8 +185,9 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      auto callProgram = MakeCallProgram(fixture, "fop", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     (void)fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
+     CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Name() == "unresolved-symbol-error"));
      CHECK(ContainsMessage(diagnostic, "Did you mean:"));
@@ -205,8 +207,9 @@ TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][i
      auto callProgram = MakeCallProgram(fixture, "pick", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     (void)fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
+     CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Name() == "type-error"));
      CHECK(ContainsMessage(diagnostic, "No matching overload for call to 'pick'"));

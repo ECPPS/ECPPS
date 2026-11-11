@@ -149,6 +149,7 @@ namespace ecpps::abi::encoders::x8664
           struct StackOperand
           {
                std::uint32_t offset{};
+               bool isIncomingParameter{};
           };
           struct StringAddressOperand
           {
@@ -627,7 +628,6 @@ namespace ecpps::abi::encoders::x8664
           PhysicalRegisterAllocator _registerAllocator{};
           std::unordered_map<std::size_t, std::uint32_t> _stackSlots{};
           std::unordered_map<std::size_t, std::size_t> _remainingUses{};
-          std::size_t _parameterReserve{};
           std::size_t _localsSize{};
           std::size_t _outgoingReserve{};
           std::size_t _stackFrameSize{};

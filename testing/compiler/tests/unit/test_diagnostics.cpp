@@ -121,7 +121,8 @@ namespace
                if (this->_savedDescriptor < 0) return;
 
                std::fflush(stderr);
-               static_cast<void>(DuplicateDescriptorTo(this->_savedDescriptor, this->_stderrDescriptor));
+               [[maybe_unused]] const auto duplicateResult =
+                    DuplicateDescriptorTo(this->_savedDescriptor, this->_stderrDescriptor);
                CloseDescriptor(this->_savedDescriptor);
                this->_savedDescriptor = -1;
           }

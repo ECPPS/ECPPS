@@ -33,6 +33,8 @@ constexpr std::string_view SignedZmmWord = "Z";
 constexpr std::string_view UnsignedZmmWord = "z";
 constexpr std::string_view BooleanType = "B";
 constexpr std::string_view PointerPrefix = "P";
+constexpr std::string_view LValueReferencePrefix = "R";
+constexpr std::string_view RValueReferencePrefix = "O";
 constexpr std::string_view ArrayPrefix = "A";
 constexpr std::string_view ClassPrefix = "C";
 constexpr std::string_view ConstQualifier = "K";
@@ -126,8 +128,11 @@ std::string MangleTypeImpl(const ecpps::typeSystem::NonowningTypePointer type, c
      if (const auto* array = type->CastTo<typeSystem::ArrayType>())
           return result + std::format("{}{}_", ArrayPrefix, array->ElementCount()) +
                  MangleTypeImpl(array->ElementType(), false);
-     if (typeSystem::IsReference(type))
-          throw TracedException("TODO(mangling): reference types need the ReferenceType referent accessor");
+     if (const auto* reference = type->CastTo<typeSystem::ReferenceType>())
+          return result + std::string{reference->GetKind() == typeSystem::ReferenceType::Kind::LValue
+                                          ? LValueReferencePrefix
+                                          : RValueReferencePrefix} +
+                 MangleTypeImpl(reference->BaseType(), false);
      if (typeSystem::IsBoolean(type)) return result + std::string{BooleanType};
      if (typeSystem::IsArithmetic(type)) return result + MangleArithmetic(type);
      if (typeSystem::IsIncomplete(type)) return result + "v"; // void
@@ -211,12 +216,7 @@ static std::string BuildName(const ecpps::abi::Linkage linkage, const std::strin
 
 std::string ecpps::abi::Mangling::MangleType(typeSystem::NonowningTypePointer type)
 {
-     if (typeSystem::IsArithmetic(type))
-     {
-     }
-     if (typeSystem::IsIncomplete(type)) return "v";
-
-     return "_"; // unknown
+     return MangleTypeImpl(type, false);
 }
 
 std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::string& name,

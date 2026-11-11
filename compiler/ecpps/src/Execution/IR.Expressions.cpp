@@ -796,17 +796,35 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
      throw TracedException("Not implemented");
 }
 
-Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source) const
+Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source)
 {
-     if (RejectClassByValue(left->Type(), source, "an assignment operand")) return nullptr;
+     if (const auto* classType = left->Type()->CastTo<typeSystem::ClassType>())
+     {
+          const auto* rightClass = right->Type()->CastTo<typeSystem::ClassType>();
+          if (!left->IsLValue() || classType->IsConst())
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Class assignment requires a modifiable lvalue", source));
+               return nullptr;
+          }
+          if (rightClass == nullptr || rightClass->Info().id != classType->Info().id)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Class assignment requires an operand of the same class type", source));
+               return nullptr;
+          }
+          return std::make_unique<LValue>(left->Type(),
+                                          std::unique_ptr<high::AssignNode, IRDeleter>{
+                                               new (*this->GetContext().nodeAllocator)
+                                                    high::AssignNode(std::move(left), std::move(right), source)},
+                                          false);
+     }
 
-     bool isIndirect = IsIndirectLValue(left);
-     const auto* pointerType = isIndirect ? left->Type()->CastTo<typeSystem::PointerType>() : nullptr;
+     const auto* leftQualifiedType = left->Type()->CastTo<typeSystem::QualifiedType>();
 
-     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : left->Type();
-     const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
-
-     if (leftIntegral == nullptr)
+     if (leftQualifiedType == nullptr)
      {
           // TODO: Classes, floating point etc
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -823,7 +841,7 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
                                       "Cannot perform this binary operation on an rvalue", left->Value()->Source()));
           return nullptr;
      }
-     if (leftIntegral->IsConst())
+     if (leftQualifiedType->IsConst())
      {
           DiagnosticSink::Report(
                this->GetContext(),
@@ -831,7 +849,6 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
                     "Assignment expressions require modifiable lvalues. Cannot perform this binary operation on " +
                          left->Type()->Name() + " and " + right->Type()->Name(),
                     left->Value()->Source()));
-          return nullptr;
      }
 
      if (right->Type() != left->Type())
@@ -854,12 +871,8 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
 {
      if (RejectClassByValue(left->Type(), source, "a compound assignment operand")) return nullptr;
 
-     bool isIndirect = IsIndirectLValue(left);
-     const auto* pointerType = isIndirect ? left->Type()->CastTo<typeSystem::PointerType>() : nullptr;
-
-     const auto* operandType = pointerType != nullptr ? pointerType->BaseType() : left->Type();
-     const auto* leftIntegral = operandType->CastTo<typeSystem::QualifiedType>();
-     if (leftIntegral == nullptr)
+     const auto* leftQualifiedType = left->Type()->CastTo<typeSystem::QualifiedType>();
+     if (leftQualifiedType == nullptr)
      {
           DiagnosticSink::Report(
                this->GetContext(),
@@ -875,7 +888,7 @@ Expression ecpps::ir::IR::ParseCompoundAssignmentExpression(Expression left, Exp
                                                           left->Value()->Source()));
           return nullptr;
      }
-     if (leftIntegral->IsConst())
+     if (leftQualifiedType->IsConst())
      {
           DiagnosticSink::Report(this->GetContext(),
                                  diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
@@ -1338,21 +1351,21 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                                                           !isAccessible, candidate->isDeleted, candidateDiagnostic));
           return nullptr;
      }
-     if (!RequireComplete(candidate->returnType, node.Source(), "a member function call") ||
-         RejectClassByValue(candidate->returnType, node.Source(), "a return value"))
-          return nullptr;
+     if (!RequireComplete(candidate->returnType, node.Source(), "a member function call")) return nullptr;
      for (const auto& parameter : candidate->parameters)
-          if (!RequireComplete(parameter.type, node.Source(), "a member function call") ||
-              RejectClassByValue(parameter.type, node.Source(), "a by-value argument"))
-               return nullptr;
+          if (!RequireComplete(parameter.type, node.Source(), "a member function call")) return nullptr;
 
      std::vector<Expression> evaluatedArguments{};
      evaluatedArguments.reserve(arguments.size() + static_cast<std::size_t>(!candidate->isStatic));
-     if (candidate->isStatic) (void)LowerExpression(std::move(receiverPointer), this->_built);
+     if (candidate->isStatic)
+     {
+          [[maybe_unused]] const auto* evaluatedReceiver = LowerExpression(std::move(receiverPointer), this->_built);
+     }
      else
           evaluatedArguments.push_back(std::move(receiverPointer));
      for (std::size_t index = 0; index < arguments.size(); index++)
-          evaluatedArguments.push_back(ConvertTo(std::move(arguments[index]), candidate->parameters[index].type));
+          evaluatedArguments.push_back(PrepareByValueArgument(
+               std::move(arguments[index]), candidate->parameters[index].type, node.Arguments()[index]->Source()));
 
      auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
           candidate, std::move(evaluatedArguments), node.Source())};
@@ -1566,16 +1579,10 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           }
 
           for (const auto& param : candidate->parameters)
-               if (!RequireComplete(param.type, node.Source(), "a function call") ||
-                   RejectClassByValue(param.type, node.Source(), "a by-value argument"))
-                    return nullptr;
+               if (!RequireComplete(param.type, node.Source(), "a function call")) return nullptr;
           if (candidate->returnType != nullptr && !typeSystem::g_void->CommonWith(candidate->returnType) &&
-              (!RequireComplete(candidate->returnType, node.Source(), "a function call") ||
-               RejectClassByValue(candidate->returnType, node.Source(), "a return value")))
+              !RequireComplete(candidate->returnType, node.Source(), "a function call"))
                return nullptr;
-
-          auto moveRange = std::ranges::subrange(std::make_move_iterator(arguments.begin()),
-                                                 std::make_move_iterator(arguments.end()));
 
           std::vector<Expression> evaluatedArguments{};
           evaluatedArguments.reserve(
@@ -1624,10 +1631,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                }
                evaluatedArguments.push_back(std::move(receiver));
           }
-          for (auto&& pair : std::views::zip(candidate->parameters, moveRange))
+          for (std::size_t index = 0; index < candidate->parameters.size(); index++)
           {
-               auto&& [parameter, argument] = pair;
-               evaluatedArguments.push_back(ConvertTo(std::move(argument), parameter.type));
+               const auto& parameter = candidate->parameters[index];
+               evaluatedArguments.push_back(PrepareByValueArgument(std::move(arguments[index]), parameter.type,
+                                                                   node.Arguments()[index]->Source()));
           }
 
           auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
@@ -2088,29 +2096,21 @@ ecpps::ir::MatchingScore ecpps::ir::IR::MatchFunction(const std::shared_ptr<Func
 {
      if (arguments.size() != function->parameters.size()) return MatchingScore::NotMatching;
 
-     MatchingScore totalScore = MatchingScore::MaxScore;
+     std::size_t totalCost{};
 
      auto parameterIterator = function->parameters.begin();
      for (const auto& argument : arguments)
      {
           const auto& parameter = *parameterIterator++;
           if (argument == nullptr) continue;
-          const auto& fromType = argument->Type();
-          const auto& toType = parameter.type;
-
-          ecpps::typeSystem::ConversionSequence seq = toType->CompareTo(fromType);
-
-          ImplicitConversion::RefBindingKind refKind = ImplicitConversion::RefBindingKind::None;
-
-          const bool valid = seq.IsValid() && refKind != ImplicitConversion::RefBindingKind::IllFormed;
-          if (!valid) return MatchingScore::NotMatching;
-
-          const ImplicitConversion conversion{std::move(seq), refKind, true};
-
-          totalScore += conversion.Rank();
+          const auto cost = ConstructorArgumentCost(parameter.type, argument);
+          if (!cost.has_value() || *cost > std::numeric_limits<std::size_t>::max() - totalCost)
+               return MatchingScore::NotMatching;
+          totalCost += *cost;
      }
 
-     return totalScore;
+     if (totalCost >= std::to_underlying(MatchingScore::MaxScore)) return MatchingScore::NotMatching;
+     return static_cast<MatchingScore>(std::to_underlying(MatchingScore::MaxScore) - totalCost);
 }
 
 ecpps::ir::MatchingScore ecpps::ir::ImplicitConversion::Rank(void) const noexcept

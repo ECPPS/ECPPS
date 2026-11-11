@@ -5,6 +5,7 @@
 #include <utility>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
+#include "Execution/Context.h"
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
@@ -44,6 +45,57 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      }
 
      ecpps::detail::AppendRange(built, EnsureMaterialisation(destination));
+     return built;
+}
+
+template <>
+std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
+     EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CallWithAggregateResult>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray)
+{
+     runtime_assert(registerArray.size() == 2,
+                    std::format("Invalid register array! Specified: {}, expected: [function, result buffer]",
+                                registerArray.size()));
+
+     const auto& function = registerArray[0];
+     const auto& resultBuffer = registerArray[1];
+     const auto* scope = this->Scopes()[function.index];
+     const auto width = MapWidth(scope->returnType->Width());
+     const auto returnRegister = static_cast<RegisterIndex>(this->_target->platform->IntegerReturnRegisterIndex());
+
+     auto built = this->PrepareForCall();
+     built.push_back(BuildCall(function.index));
+     this->ReleaseArgumentRegisters();
+
+     const RegisterIndex returnValueScratch =
+          returnRegister == RegisterIndex::R10 ? RegisterIndex::R11 : RegisterIndex::R10;
+     ecpps::detail::AppendRange(built, this->ClearRegister(returnValueScratch, resultBuffer));
+     this->Lock(returnValueScratch);
+     built.push_back(BuildMov(width, RegisterOperand{returnValueScratch}, RegisterOperand{returnRegister}));
+
+     if (this->IsSpilled(resultBuffer))
+     {
+          const auto resultBufferSlot = this->EnsureStackSlot(resultBuffer);
+          const RegisterIndex scratch = returnValueScratch == RegisterIndex::R10 ? RegisterIndex::R11
+                                                                                  : RegisterIndex::R10;
+          ecpps::detail::AppendRange(built, this->ClearRegister(scratch, resultBuffer));
+          this->Lock(scratch);
+          built.push_back(BuildMov(Width::W64, RegisterOperand{scratch}, resultBufferSlot));
+          built.push_back(BuildMov(width, MemoryOperand{.relativeTo = scratch, .offset = 0},
+                                   RegisterOperand{returnValueScratch}));
+          this->Unlock(scratch);
+     }
+     else
+     {
+          ecpps::detail::AppendRange(built, EnsureMaterialisation(resultBuffer));
+          const RegisterIndex resultBufferRegister = this->PhysicalRegisterOf(resultBuffer);
+          built.push_back(BuildMov(width, MemoryOperand{.relativeTo = resultBufferRegister, .offset = 0},
+                                   RegisterOperand{returnValueScratch}));
+     }
+     this->Unlock(returnValueScratch);
+
+     const auto remainingUses = this->ConsumeUse(resultBuffer);
+     if (remainingUses == 0 && !this->IsSpilled(resultBuffer)) this->ReleaseRegister(resultBuffer);
      return built;
 }
 

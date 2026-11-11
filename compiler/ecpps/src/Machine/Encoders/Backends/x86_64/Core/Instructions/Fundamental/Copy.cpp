@@ -7,6 +7,7 @@
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
+#include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/MemoryOperations.h"
 #include "RuntimeAssert.h"
 
 template <>
@@ -22,6 +23,15 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      const auto& destination = registerArray[0];
      const auto& source = registerArray[1];
+
+     if (this->IsMutable(destination) && this->IsMutable(source))
+     {
+          this->EmitMemoryCopy(built, MemoryLocation{.base = this->EnsureStackSlot(destination)},
+                               MemoryLocation{.base = this->EnsureStackSlot(source)},
+                               this->GetVRM().GetSize(destination));
+          this->DereferenceAndMaybeFree(source);
+          return built;
+     }
 
      if (this->IsSpilled(destination))
      {

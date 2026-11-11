@@ -21,7 +21,7 @@ namespace ecpps::ast
           InternedString _value;
      };
 
-     class OperatorFunctionId final : Node
+     class OperatorFunctionId final : public Node
      {
      public:
           explicit OperatorFunctionId(Operator op, Location where) : Node(where), _operator(op)

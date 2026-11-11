@@ -1,4 +1,15 @@
-int main()
+#include <type_traits>
+struct N
 {
-     return 0;
+     N(const N&) = delete;
+};
+struct Test
+{
+     int m;
+     N n;
+};
+
+Test t(Test a)
+{
+     return a;
 }

@@ -5,8 +5,10 @@
 #include <Machine/Encoders/Backends/x86_64/Core/encoder.h>
 #include <Machine/Encoders/Backends/x86_64/Platforms/Linux/Linux.h>
 #include <catch_amalgamated.hpp>
+#include <array>
 #include <cstddef>
 #include <memory>
+#include <string_view>
 
 using namespace IRTestHelpers;
 
@@ -83,4 +85,21 @@ TEST_CASE("IR - Unreachable node emits x86-64 UD2", "[unit][ir][codegen]")
      REQUIRE((bytes.size() == 2));
      CHECK((bytes[0] == std::byte{0x0f}));
      CHECK((bytes[1] == std::byte{0x0b}));
+}
+
+TEST_CASE("Codegen exact string pooling accepts external literal storage", "[unit][ir][codegen]")
+{
+     std::array<char, 6> executable{'e', 'c', 'p', 'p', 's', '\0'};
+     std::array<char, 11> source{'s', 'o', 'u', 'r', 'c', 'e', '.', 'c', 'p', 'p', '\0'};
+     std::array<char*, 2> arguments{executable.data(), source.data()};
+     ecpps::CompilerConfig config{2, arguments.data()};
+     ecpps::codegen::AssemblyContext assembly{config};
+     const std::array<ecpps::codegen::Byte, 5> value{u8'h', u8'e', u8'l', u8'l', u8'o'};
+
+     const auto first = assembly.AddString(value);
+     const auto duplicate = assembly.AddString(value);
+
+     CHECK((first.indexInTable == duplicate.indexInTable));
+     CHECK((first.offset == duplicate.offset));
+     CHECK((assembly.GetString(first) == std::u8string_view{value.data(), value.size()}));
 }

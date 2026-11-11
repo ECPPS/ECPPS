@@ -233,9 +233,7 @@ namespace
                const auto* sourceLine = this->_sourceLines.Get(line);
                if (sourceLine == nullptr) return nullptr;
 
-               const auto [insertedLine, inserted] =
-                    this->_expandedLines.try_emplace(line, ExpandSourceLine(*sourceLine));
-               static_cast<void>(inserted);
+               const auto insertedLine = this->_expandedLines.try_emplace(line, ExpandSourceLine(*sourceLine)).first;
                return &insertedLine->second;
           }
 

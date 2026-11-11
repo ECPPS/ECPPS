@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include "ASTs/General.h"
 #include "ASTs/Type.h"
 #include "Parsing/ASTContext.h"
 #include "Parsing/Tokeniser.h"
@@ -1437,6 +1438,22 @@ std::vector<ecpps::ast::PtrOperator> ecpps::ast::AST::ParsePtrOperators(ASTConte
 NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
 {
      const auto& token = Peek();
+
+     if (token.type == TokenType::Keyword && token.AsKeyword() == "operator")
+     {
+          auto source = token.location;
+          Advance();
+          if (IsOperatorToken(Peek(), "="))
+          {
+               source.endPosition = Peek().location.endPosition;
+               Advance();
+               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{
+                    new (context) OperatorFunctionId(Operator::Assignment, source)};
+          }
+          this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
+               "Only operator= function ids are supported yet", token.location));
+          return nullptr;
+     }
 
      if (token.type == TokenType::Identifier) return ParseIdExpression(context);
 
@@ -2943,7 +2960,7 @@ NodePointer ecpps::ast::AST::ParseDoWhileStatement(ASTContext& context)
      {
           this->_diagnostics.get().diagnosticsList.push_back(
                diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                    "ill-formed do/while; expected while(condition)", source));
+                    "ill-formed do/while, expected while(condition)", source));
           return nullptr; // TODO: Maybe some error recovery?
      }
      Advance();
