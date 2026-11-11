@@ -431,6 +431,8 @@ namespace ecpps::ir
                                 std::vector<typeSystem::ClassField>& fields,
                                 std::vector<DeferredMemberInitialiser>& deferredInitialisers,
                                 std::vector<DeferredFunctionBody>& deferredFunctionBodies);
+          void DeclareImplicitCopyMoveConstructors(typeSystem::ClassId id);
+          void MarkDefaultedCopyMoveConstructorsDeleted(typeSystem::ClassId id);
           [[nodiscard]] DeclaratorTypeResult ResolveDeclaratorType(
                const ast::Declarator& declarator, typeSystem::NonowningTypePointer base, const std::string& name,
                bool allowUnboundedOutermost, std::optional<std::size_t> ignoredFunctionSuffix = std::nullopt);

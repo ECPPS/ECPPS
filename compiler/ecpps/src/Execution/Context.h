@@ -1031,6 +1031,7 @@ namespace ecpps::ir
           bool isExplicit{};
           bool isCopyConstructor{};
           bool isMoveConstructor{};
+          bool isImplicitlyDeclared{};
      };
 
      struct ClassIrData

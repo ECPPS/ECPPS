@@ -55,6 +55,12 @@ namespace
           return candidate;
      }
 
+     [[nodiscard]] bool IsIgnoredDeletedMoveConstructor(const ecpps::ir::ClassConstructor& constructor)
+     {
+          return constructor.isMoveConstructor && constructor.function != nullptr &&
+                 constructor.function->isDefaulted && constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted;
+     }
+
      [[nodiscard]] std::size_t ConversionCost(const ecpps::typeSystem::ConversionSequence::ConversionKind kind) noexcept
      {
           using Kind = ecpps::typeSystem::ConversionSequence::ConversionKind;
@@ -444,6 +450,7 @@ void ecpps::ir::IR::InitialiseClassFromExpression(typeSystem::NonowningTypePoint
           for (const auto& candidate : classIr->second.constructors)
           {
                if (!candidate.isCopyConstructor && !(initialiser->IsRValue() && candidate.isMoveConstructor)) continue;
+               if (IsIgnoredDeletedMoveConstructor(candidate)) continue;
                if (candidate.isExplicit && !allowExplicit) continue;
                if (candidate.parameters.size() != 1) continue;
                const auto cost = ConstructorArgumentCost(candidate.parameters.front().type, initialiser);
@@ -1061,6 +1068,100 @@ bool ecpps::ir::IR::CanAccess(const typeSystem::ClassId id, const typeSystem::Ac
                                 });
 }
 
+void ecpps::ir::IR::MarkDefaultedCopyMoveConstructorsDeleted(const typeSystem::ClassId id)
+{
+     auto classRecord = this->GetContext().classTable->classes.find(id);
+     if (classRecord == this->GetContext().classTable->classes.end()) return;
+     const auto& ownerInfo = GetTypeContext().Class(id);
+     if (ownerInfo.kind == typeSystem::ClassKind::Union) return; // TODO: Implement
+
+     for (auto& constructor : classRecord->second.constructors)
+     {
+          if (constructor.bodyKind != ast::FunctionBodyKind::Defaulted ||
+              (!constructor.isCopyConstructor && !constructor.isMoveConstructor))
+               continue;
+          const auto* parameter = constructor.parameters.empty()
+                                       ? nullptr
+                                       : constructor.parameters.front().type->CastTo<typeSystem::ReferenceType>();
+          if (parameter == nullptr)
+          {
+               constructor.bodyKind = ast::FunctionBodyKind::Deleted;
+               if (constructor.function != nullptr) constructor.function->isDeleted = true;
+               continue;
+          }
+          const auto* qualifiedSource = parameter->BaseType()->CastTo<typeSystem::QualifiedType>();
+          bool isDeleted = false;
+          for (const auto& field : ownerInfo.fields)
+          {
+               if (field.isAnonymousUnion) continue;
+               if (constructor.isCopyConstructor)
+                    if (const auto* reference = field.type->CastTo<typeSystem::ReferenceType>();
+                        reference != nullptr && reference->GetKind() == typeSystem::ReferenceType::Kind::RValue)
+                    {
+                         isDeleted = true;
+                         break;
+                    }
+
+               const auto* memberType = field.type;
+               while (const auto* arrayType = memberType->CastTo<typeSystem::ArrayType>())
+                    memberType = arrayType->ElementType();
+               const auto* memberClass = memberType->CastTo<typeSystem::ClassType>();
+               if (memberClass == nullptr) continue;
+               const auto memberRecord = this->GetContext().classTable->classes.find(memberClass->Info().id);
+               if (memberRecord == this->GetContext().classTable->classes.end())
+               {
+                    isDeleted = true;
+                    break;
+               }
+
+               const auto fieldQualifiers =
+                    QualifiersFrom(qualifiedSource != nullptr && qualifiedSource->IsConst() && !field.isMutable,
+                                   qualifiedSource != nullptr && qualifiedSource->IsVolatile());
+               const auto* sourceType = AddQualifiers(memberType, fieldQualifiers);
+               Expression source = constructor.isMoveConstructor
+                                        ? Expression{std::make_unique<XValue>(sourceType, nullptr, false)}
+                                        : Expression{std::make_unique<LValue>(sourceType, nullptr, false)};
+               const ClassConstructor* selected = nullptr;
+               std::size_t bestCost = std::numeric_limits<std::size_t>::max();
+               bool ambiguous = false;
+               for (const auto& candidate : memberRecord->second.constructors)
+               {
+                    if (!candidate.isCopyConstructor && !candidate.isMoveConstructor) continue;
+                    if (IsIgnoredDeletedMoveConstructor(candidate) || candidate.parameters.size() != 1) continue;
+                    const auto cost = ConstructorArgumentCost(candidate.parameters.front().type, source);
+                    if (!cost.has_value()) continue;
+                    if (*cost < bestCost)
+                    {
+                         selected = &candidate;
+                         bestCost = *cost;
+                         ambiguous = false;
+                    }
+                    else if (*cost == bestCost)
+                         ambiguous = true;
+               }
+               if (memberRecord->second.destructor != nullptr &&
+                   (memberRecord->second.destructorBodyKind == ast::FunctionBodyKind::Deleted ||
+                    memberRecord->second.destructor->isDeleted ||
+                    !this->CanAccess(memberClass->Info().id, memberRecord->second.destructorAccess)))
+               {
+                    isDeleted = true;
+                    break;
+               }
+               if (selected == nullptr || ambiguous || selected->bodyKind == ast::FunctionBodyKind::Deleted ||
+                   !this->CanAccess(memberClass->Info().id, selected->access))
+               {
+                    isDeleted = true;
+                    break;
+               }
+          }
+          if (isDeleted)
+          {
+               constructor.bodyKind = ast::FunctionBodyKind::Deleted;
+               if (constructor.function != nullptr) constructor.function->isDeleted = true;
+          }
+     }
+}
+
 ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::AddQualifiers(const typeSystem::NonowningTypePointer type,
                                                                      const typeSystem::Qualifiers qualifiers) const
 {
@@ -1638,7 +1739,8 @@ void ecpps::ir::IR::InitialiseClassAtAddress(typeSystem::NonowningTypePointer ty
      }
 
      const auto classIr = this->GetContext().classTable->classes.find(classType->Info().id);
-     if (classIr != this->GetContext().classTable->classes.end() && !classIr->second.constructors.empty())
+     if (classType->Info().Has(ClassProperty::UserDeclaredConstructors) &&
+         classIr != this->GetContext().classTable->classes.end() && !classIr->second.constructors.empty())
      {
           InitialiseClassWithConstructors(type, address, initialiser, initialisationType, mode, source, classType);
           return;
@@ -1777,6 +1879,7 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
      bool ambiguous = false;
      for (const auto& candidate : classIr->second.constructors)
      {
+          if (IsIgnoredDeletedMoveConstructor(candidate)) continue;
           if (!allowExplicit && candidate.isExplicit) continue;
           if (candidate.parameters.size() != arguments.size()) continue;
           std::size_t score = 0;
@@ -1820,8 +1923,9 @@ std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstruc
           {
                diagnosticCandidates.reserve(classIr->second.constructors.size());
                for (const auto& candidate : classIr->second.constructors)
-                    diagnosticCandidates.push_back(
-                         ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access)));
+                    if (!candidate.isImplicitlyDeclared)
+                         diagnosticCandidates.push_back(
+                              ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access)));
           }
           auto diagnostic = ambiguous ? ecpps::ir::overloadDiagnostics::AmbiguousConstructor(info.DisplayName(), source,
                                                                                              diagnosticCandidates)

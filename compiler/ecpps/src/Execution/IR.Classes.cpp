@@ -178,6 +178,9 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
 
      types.Complete(id, std::move(fields));
 
+     DeclareImplicitCopyMoveConstructors(id);
+     MarkDefaultedCopyMoveConstructorsDeleted(id);
+
      for (const auto& initialiser : deferredInitialisers)
           StoreDefaultMemberInitialiser(initialiser.classId, initialiser.fieldIndex, *initialiser.declarator,
                                         initialiser.memberType, initialiser.source);
@@ -192,6 +195,92 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
 
      this->GetContext().contextSequence.pop_back();
      return id;
+}
+
+void ecpps::ir::IR::DeclareImplicitCopyMoveConstructors(const typeSystem::ClassId id)
+{
+     auto& info = GetTypeContext().Class(id);
+     auto& classRecord = this->GetContext().classTable->classes[id];
+
+     bool copyParameterIsConst = true;
+     for (const auto& field : info.fields)
+     {
+          if (field.isMutable) continue;
+          auto memberType = field.type;
+          while (const auto* arrayType = memberType->CastTo<typeSystem::ArrayType>())
+               memberType = arrayType->ElementType();
+          const auto* memberClass = memberType->CastTo<typeSystem::ClassType>();
+          if (memberClass == nullptr) continue;
+          const auto memberRecord = this->GetContext().classTable->classes.find(memberClass->Info().id);
+          bool hasConstCopyConstructor = false;
+          if (memberRecord != this->GetContext().classTable->classes.end())
+               for (const auto& candidate : memberRecord->second.constructors)
+               {
+                    if (!candidate.isCopyConstructor || candidate.parameters.size() != 1) continue;
+                    const auto* reference = candidate.parameters.front().type->CastTo<typeSystem::ReferenceType>();
+                    if (reference == nullptr || reference->GetKind() != typeSystem::ReferenceType::Kind::LValue)
+                         continue;
+                    const auto* qualified = reference->BaseType()->CastTo<typeSystem::QualifiedType>();
+                    if (qualified != nullptr && qualified->IsConst())
+                    {
+                         hasConstCopyConstructor = true;
+                         break;
+                    }
+               }
+          if (!hasConstCopyConstructor) copyParameterIsConst = false;
+     }
+
+     const auto* classType =
+          GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound, .data = ClassRequest{.id = id}});
+
+     for (std::size_t index = 0; index < 2; index++)
+     {
+          const bool isCopyConstructor = index == 0;
+          if (isCopyConstructor && info.Has(ClassProperty::UserDeclaredCopyConstructor)) continue;
+          if (!isCopyConstructor &&
+              (info.Has(ClassProperty::UserDeclaredCopyConstructor) ||
+               info.Has(ClassProperty::UserDeclaredMoveConstructor) ||
+               info.Has(ClassProperty::UserDeclaredCopyAssignment) ||
+               info.Has(ClassProperty::UserDeclaredMoveAssignment) || info.Has(ClassProperty::UserDeclaredDestructor)))
+               continue;
+
+          const auto* parameterBase = isCopyConstructor && copyParameterIsConst
+                                           ? AddQualifiers(classType, typeSystem::Qualifiers::Const)
+                                           : classType;
+          const auto* parameterType = GetTypeContext().Get(TypeRequest{
+               .kind = TypeKind::Compound,
+               .data = ReferenceRequest{.elementType = parameterBase,
+                                        .kind = isCopyConstructor ? typeSystem::ReferenceType::Kind::LValue
+                                                                  : typeSystem::ReferenceType::Kind::RValue}});
+
+          ClassConstructor constructor{};
+          constructor.access = typeSystem::Access::Public;
+          constructor.bodyKind = isCopyConstructor && info.Has(ClassProperty::UserDeclaredMoveConstructor)
+                                      ? ast::FunctionBodyKind::Deleted
+                                      : ast::FunctionBodyKind::Defaulted;
+          constructor.isCopyConstructor = isCopyConstructor;
+          constructor.isMoveConstructor = !isCopyConstructor;
+          constructor.isImplicitlyDeclared = true;
+          constructor.parameters.push_back({.name = "source", .type = parameterType, .isVariadic = false});
+
+          auto function = std::make_shared<FunctionScope>();
+          function->SetName(info.name);
+          function->returnType = typeSystem::g_void.get();
+          function->callingConvention = abi::ABI::Current().DefaultCallingConventionName();
+          function->linkage = abi::Linkage::External;
+          function->isInline = true;
+          function->parameters = constructor.parameters;
+          function->source = info.source;
+          function->namespacePath = NamespacePathFromContext();
+          function->parentScope = classRecord.scope;
+          function->memberClassInfo = &info;
+          function->memberAccess = constructor.access;
+          function->isDeleted = constructor.bodyKind == ast::FunctionBodyKind::Deleted;
+          function->isDefaulted = true;
+          function->isMemberFunctionDefined = true;
+          constructor.function = std::move(function);
+          classRecord.constructors.push_back(std::move(constructor));
+     }
 }
 
 void ecpps::ir::IR::ParseClassMember(const ast::NodePointer& member, const typeSystem::ClassId id,
@@ -503,6 +592,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           function->memberClassInfo = &GetTypeContext().Class(id);
           function->memberAccess = access;
           function->isDeleted = declarator.functionBody == ast::FunctionBodyKind::Deleted;
+          function->isDefaulted = declarator.functionBody == ast::FunctionBodyKind::Defaulted;
           function->isMemberFunctionDefined = declarator.functionBody != ast::FunctionBodyKind::None;
           constructor.function = std::shared_ptr<FunctionScope>(std::move(function));
 
@@ -1164,6 +1254,9 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
      bool ambiguous = false;
      for (const auto& candidate : classRecord->second.constructors)
      {
+          if (candidate.isMoveConstructor && candidate.function != nullptr && candidate.function->isDefaulted &&
+              candidate.bodyKind == ast::FunctionBodyKind::Deleted)
+               continue;
           if (candidate.parameters.size() != arguments.size()) continue;
           std::size_t score = 0;
           bool viable = true;
@@ -1248,9 +1341,10 @@ bool ecpps::ir::IR::DefaultMemberInitialiserValidator::ValidateConstructor(
           {
                diagnosticCandidates.reserve(classRecord->second.constructors.size());
                for (const auto& candidate : classRecord->second.constructors)
-                    diagnosticCandidates.push_back(
-                         ConstructorCandidateDiagnostic(candidate, candidate.access == typeSystem::Access::Public ||
-                                                                        classType->Info().id == _ownerId));
+                    if (!candidate.isImplicitlyDeclared)
+                         diagnosticCandidates.push_back(ConstructorCandidateDiagnostic(
+                              candidate,
+                              candidate.access == typeSystem::Access::Public || classType->Info().id == _ownerId));
           }
           auto diagnostic = ambiguous ? ecpps::ir::overloadDiagnostics::AmbiguousConstructor(
                                              classType->Info().DisplayName(), at, diagnosticCandidates)

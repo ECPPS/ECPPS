@@ -334,6 +334,21 @@ namespace
                                                         Source);
      }
 
+     ecpps::ast::NodePointer MakeCopyFromLValueFunction(Fixture& fixture, const std::string& className,
+                                                        const std::string& functionName)
+     {
+          auto signature = fixture.MakeFunctionSignature("void", functionName, {});
+          ecpps::ast::FunctionParameter source{};
+          source.type = MakeClassReferenceType(fixture, className, ecpps::ast::ReferenceType::Kind::LValue, false);
+          source.name = fixture.MakeIdentifier("source");
+          signature.parameters.parameters.push_back(std::move(source));
+
+          ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+          body.Push(MakeEqualInitializedVariable(fixture, className, "copy", fixture.MakeIdentifier("source")));
+          body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
+          return fixture.MakeFunctionDefinition(std::move(signature), std::move(body));
+     }
+
      ecpps::ast::NodePointer MakeCopyConstructor(Fixture& fixture, const std::string& className,
                                                  const bool isExplicit = false)
      {
@@ -1837,6 +1852,42 @@ TEST_CASE("IR - Deleted copy constructor diagnostics include the candidate", "[u
            std::string::npos);
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 1));
      CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message() == "This candidate is deleted");
+}
+
+TEST_CASE("IR - Implicit copy constructor is deleted when a member copy constructor is deleted",
+          "[unit][ir][classes][constructors]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     const std::string memberName{"MemberWithDeletedCopy"};
+     const std::string ownerName{"OwnerWithDeletedCopy"};
+     ast.push_back(MakeConstructorClass(
+          fixture, memberName,
+          MakeCopyConstructorDeclaration(fixture, memberName, ecpps::ast::FunctionBodyKind::Deleted)));
+     ecpps::ast::DeclSpecifierSequence specifiers{};
+     specifiers.definingTypeSpecifier = fixture.MakeBasicType(memberName);
+     ecpps::ast::MemberDeclarator member{};
+     member.declaredIdExpression = fixture.MakeIdentifier("member");
+     member.suffixes.emplace_back(ecpps::ast::ArrayBound{.size = fixture.MakeIntegerLiteral(2), .location = Source});
+     std::vector<ecpps::ast::MemberDeclarator> declarators{};
+     declarators.push_back(std::move(member));
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeASTNode<ecpps::ast::MemberDeclarationNode>(
+          fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
+          std::move(specifiers), std::move(declarators), Source));
+     ast.push_back(MakeASTNode<ecpps::ast::ClassDefNode>(fixture.astAllocator, fixture.astAllocator.Intern(ownerName),
+                                                         ecpps::ast::ClassKey::Struct, std::move(members), false, false,
+                                                         Source));
+     ast.push_back(MakeCopyFromLValueFunction(fixture, ownerName, "copyOwnerWithDeletedMember"));
+
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
+     const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
+     CHECK(diagnostic.Message() == "The selected constructor is deleted");
+     REQUIRE((diagnostic.SubDiagnostics().size() == 1));
+     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
+                "Candidate: OwnerWithDeletedCopy::OwnerWithDeletedCopy(const OwnerWithDeletedCopy& source)") !=
+           std::string::npos);
 }
 
 TEST_CASE("IR - Deleted destructor diagnostics include the candidate", "[unit][ir][classes][destructors]")
