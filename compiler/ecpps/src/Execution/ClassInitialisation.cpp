@@ -1451,13 +1451,13 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
           IR* ir{};
           FunctionContext* function{};
           std::size_t depth{};
-          ~TemporaryDestructionGuard()
+          ~TemporaryDestructionGuard(void)
           {
                if (this->function == nullptr) return;
                this->ir->EmitTemporaryDestructorsFrom(this->depth);
                this->function->temporaryObjects.resize(this->depth);
           }
-     } temporaryDestructionGuard{this, function, temporaryDepth};
+     } temporaryDestructionGuard{.ir = this, .function = function, .depth = temporaryDepth};
 
      if (type->CastTo<typeSystem::ReferenceType>() != nullptr)
      {

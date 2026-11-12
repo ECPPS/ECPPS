@@ -206,7 +206,7 @@ void ecpps::ir::IR::DeclareImplicitCopyMoveConstructors(const typeSystem::ClassI
      for (const auto& field : info.fields)
      {
           if (field.isMutable) continue;
-          auto memberType = field.type;
+          const auto* memberType = field.type;
           while (const auto* arrayType = memberType->CastTo<typeSystem::ArrayType>())
                memberType = arrayType->ElementType();
           const auto* memberClass = memberType->CastTo<typeSystem::ClassType>();
@@ -640,6 +640,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
      for (const auto& declarator : node.Declarators())
      {
           const auto* identifier = DeclaratorIdentifier(declarator);
+
           const ast::Declarator* declaratorId = &declarator;
           while (declaratorId->nested != nullptr) declaratorId = declaratorId->nested.get();
           const auto* operatorId =
@@ -656,7 +657,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           }
           const std::string name = identifier != nullptr ? std::string{identifier->Value().View()}
                                                          : "operator" + ast::ToString(operatorId->GetOperator());
-          const Location functionNameSource = identifier != nullptr ? identifier->Source() : declarator.location;
+          const auto& idenSource = identifier != nullptr ? identifier->Source() : declarator.location;
+          const Location functionNameSource = idenSource;
 
           if (!specifiers.isTypedef && LastDerivation(declarator) == Derivation::Function)
           {
@@ -949,7 +951,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           field.type = resolved.type;
           field.access = access;
           field.isMutable = isMutable;
-          field.source = identifier->Source();
+          field.source = idenSource;
           field.hasDefaultInitialiser = declarator.initialiser != nullptr;
           fields.push_back(std::move(field));
           const auto fieldIndex = fields.size() - 1;
