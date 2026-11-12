@@ -9,6 +9,7 @@
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "RuntimeAssert.h"
+#include "Shared/RangeCompat.h"
 
 constexpr std::int64_t SignExtendImmediate(const std::uint64_t value, const unsigned sourceBits) noexcept
 {

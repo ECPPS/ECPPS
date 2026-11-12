@@ -939,9 +939,9 @@ TEST_CASE("IR - By-value class arguments invoke the selected copy constructor", 
 
      const auto consumeCallPosition = std::ranges::find_if(copyLocal->Body(), CallNamedPredicate{"consume"});
      REQUIRE((consumeCallPosition != copyLocal->Body().end()));
-     const auto destructorAfterConsume =
-          std::ranges::find_if(std::ranges::next(consumeCallPosition), copyLocal->Body().end(),
-                               CallCleanupPredicate{"~" + className, ecpps::ir::ABICleanupKind::ByValueArgument});
+     const auto destructorAfterConsume = std::ranges::find_if(
+          std::ranges::next(consumeCallPosition), copyLocal->Body().end(),
+          CallCleanupPredicate{.name = "~" + className, .cleanupKind = ecpps::ir::ABICleanupKind::ByValueArgument});
      CHECK((destructorAfterConsume != copyLocal->Body().end()));
 }
 

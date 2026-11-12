@@ -380,7 +380,7 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareT
      const bool sourceVolatile = sourceQualified != nullptr && sourceQualified->IsVolatile();
      if ((sourceConst && !targetConst) || (sourceVolatile && !targetVolatile)) return ConversionSequence{std::nullopt};
 
-     const auto conversion = this->_baseType->CompareTo(other);
+     auto conversion = this->_baseType->CompareTo(other);
      if (!conversion.IsValid()) return conversion;
      if ((!sourceConst && targetConst) || (!sourceVolatile && targetVolatile))
           return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::QualifierConversion}};
