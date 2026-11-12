@@ -798,6 +798,8 @@ Expression ecpps::ir::IR::ParseArithmeticNegationExpression(Expression operand, 
 
 Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression right, const Location& source)
 {
+     if (left == nullptr || right == nullptr) return nullptr;
+
      if (const auto* classType = left->Type()->CastTo<typeSystem::ClassType>())
      {
           const auto* rightClass = right->Type()->CastTo<typeSystem::ClassType>();
@@ -815,7 +817,8 @@ Expression ecpps::ir::IR::ParseAssignmentExpression(Expression left, Expression 
                                            "Class assignment requires an operand of the same class type", source));
                return nullptr;
           }
-          return std::make_unique<LValue>(left->Type(),
+          const auto* type = left->Type();
+          return std::make_unique<LValue>(type,
                                           std::unique_ptr<high::AssignNode, IRDeleter>{
                                                new (*this->GetContext().nodeAllocator)
                                                     high::AssignNode(std::move(left), std::move(right), source)},

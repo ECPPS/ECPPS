@@ -4,7 +4,6 @@
 #include <optional>
 #include <span>
 #include <tuple>
-#include <utility>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"

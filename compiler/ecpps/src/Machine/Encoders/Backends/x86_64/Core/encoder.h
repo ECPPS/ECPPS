@@ -18,7 +18,7 @@
 #include "Machine/Encoders/API/VirtualInstructionEncoder.h"
 #include "Machine/Machine.h"
 #include "RuntimeAssert.h"
-#include "Shared/RangeCompat.h"
+
 namespace ecpps::abi::encoders::x8664
 {
      enum struct OperandType : std::uint8_t
