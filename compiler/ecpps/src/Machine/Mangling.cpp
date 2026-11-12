@@ -111,6 +111,7 @@ static std::string MangleArithmetic(const ecpps::typeSystem::NonowningTypePointe
 std::string MangleTypeImpl(const ecpps::typeSystem::NonowningTypePointer type, const bool stripTopLevelCv)
 {
      runtime_assert(type != nullptr, "Cannot mangle a null type");
+     if (type == nullptr) return "__";
      using namespace ecpps;
 
      std::string result;

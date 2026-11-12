@@ -968,7 +968,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                           .fieldIndex = fieldIndex,
                                           .declarator = &declarator,
                                           .memberType = resolved.type,
-                                          .source = identifier->Source()});
+                                          .source = idenSource});
      }
 }
 
