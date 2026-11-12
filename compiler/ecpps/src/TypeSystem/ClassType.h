@@ -59,7 +59,9 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] ConversionSequence CompareTo(const TypeBase* other) const override
           {
-               if (other == this) return ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}};
+               const auto* otherClass = other != nullptr ? other->CastTo<ClassType>() : nullptr;
+               if (otherClass != nullptr && otherClass->_info == this->_info)
+                    return ConversionSequence{SBOVector<ConversionSequence::ConversionKind>{}};
                throw TracedException("TODO: conversions involving class types are not implemented");
           }
 

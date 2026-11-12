@@ -1,13 +1,19 @@
 #define CATCH_CONFIG_MAIN
 #include <CodeGeneration/Emitters/x86_64/Opcodes.h>
+#include <Execution/Context.h>
+#include <Machine/Encoders/API/Aggregate.h>
 #include <Machine/Encoders/API/Target.h>
 #include <Machine/Encoders/Backends/x86_64/Core/encoder.h>
 #include <Machine/Encoders/Backends/x86_64/Platforms/Linux/Linux.h>
+#include <Machine/Encoders/Backends/x86_64/Platforms/Windows/Windows.h>
 #include <TestHelpers.h>
+#include <TypeSystem/ArithmeticTypes.h>
+#include <TypeSystem/ClassType.h>
 #include <catch_amalgamated.hpp>
 #include <algorithm>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <vector>
 
 using namespace TestHelpers;
@@ -30,6 +36,95 @@ TEST_CASE("x86-64 Opcodes - Signed multiplication", "[codegen][x86_64][opcodes]"
           REQUIRE(AreEqual(result, expected));
           INFO("IMUL instruction encoding verified");
      }
+}
+
+TEST_CASE("x86-64 passes and returns a small integer aggregate in registers", "[codegen][x86_64][abi]")
+{
+     using ecpps::abi::encoders::x8664::LinuxPlatform;
+     using ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder;
+     using ecpps::ir::abstract::AllocationClass;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+     using ecpps::typeSystem::ClassInfo;
+     using ecpps::typeSystem::ClassState;
+     using ecpps::typeSystem::ClassType;
+     using ecpps::typeSystem::IntegralType;
+     using ecpps::typeSystem::Qualifiers;
+     using ecpps::typeSystem::Signedness;
+     using ecpps::typeSystem::TypeKind;
+
+     IntegralType integerType{Signedness::Signed, TypeKind::Int, "int", Qualifiers::None};
+     ClassInfo classInfo{};
+     classInfo.state = ClassState::Complete;
+     classInfo.size = 8;
+     classInfo.alignment = 4;
+     classInfo.triviallyCopyable = true;
+     classInfo.fields = {{.type = &integerType}, {.type = &integerType}};
+     ClassType classType{&classInfo, "X", Qualifiers::None};
+
+     const auto aggregateInfo = ecpps::abi::api::AggregateInfo(classType);
+     LinuxPlatform platform{nullptr};
+     ecpps::abi::encoders::x8664::WindowsPlatform windowsPlatform{nullptr};
+     const auto argumentPlan = platform.ClassArgumentPassing(aggregateInfo);
+     const auto returnPlan = platform.ClassReturnPassing(aggregateInfo);
+     const auto linuxResultAddress = platform.IndirectClassResultAddress();
+     const auto windowsResultAddress = windowsPlatform.IndirectClassResultAddress();
+     CHECK((platform.ClassArgumentCleanup() == ecpps::abi::api::ClassArgumentCleanupOwner::Caller));
+     CHECK((windowsPlatform.ClassArgumentCleanup() == ecpps::abi::api::ClassArgumentCleanupOwner::Callee));
+     CHECK((linuxResultAddress.location == ecpps::abi::api::AggregateResultAddressLocation::FirstIntegerArgument));
+     CHECK((linuxResultAddress.addressEchoedInIntegerReturnRegister));
+     CHECK((windowsResultAddress.location == ecpps::abi::api::AggregateResultAddressLocation::FirstIntegerArgument));
+     CHECK((windowsResultAddress.addressEchoedInIntegerReturnRegister));
+     REQUIRE((ecpps::abi::api::IsSingleIntegerRegister(argumentPlan, classType.Size())));
+     REQUIRE((ecpps::abi::api::IsSingleIntegerRegister(returnPlan, classType.Size())));
+
+     auto function = std::make_shared<ecpps::ir::FunctionScope>();
+     function->returnType = &classType;
+     function->returnsByPointer = true;
+     function->parameters.push_back({.name = "value", .type = &classType});
+
+     ecpps::abi::api::Target target{};
+     target.platform = std::make_unique<LinuxPlatform>(nullptr);
+     target.EnsureVRM();
+     target.registerMap->Describe(VirtualRegister{0}, 64, AllocationClass::Temporary);
+     target.registerMap->Describe(VirtualRegister{1}, 64, AllocationClass::Allocation);
+     target.registerMap->SetAlignment(VirtualRegister{1}, 8);
+     target.registerMap->Describe(VirtualRegister{2}, 64, AllocationClass::Temporary);
+
+     X8664VirtualInstructionEncoder encoder{target};
+     encoder.SetFunctionCallTable({function.get()});
+     std::vector<VirtualInstruction> input{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {VirtualRegister{0}, VirtualRegister{0x1000}}},
+          {.type = VirtualInstructionType::CopyParameter,
+           .operands = {VirtualRegister{0}, VirtualRegister{1}, VirtualRegister{0}, VirtualRegister{1}}},
+          {.type = VirtualInstructionType::AddressOf, .operands = {VirtualRegister{2}, VirtualRegister{1}}},
+          {.type = VirtualInstructionType::ReturnAggregate,
+           .operands = {VirtualRegister{2}, VirtualRegister{classType.Width()}}},
+     };
+
+     auto encoded = encoder.Encode(input);
+     encoder.Finalise(encoded);
+     std::string assembly{};
+     for (const auto& instruction : encoded) assembly += encoder.Stringify(instruction) + '\n';
+
+     const bool storesIncomingIntegerArgument =
+          std::ranges::any_of(encoded,
+                              [&encoder](const auto& instruction)
+                              {
+                                   const auto text = encoder.Stringify(instruction);
+                                   return text.starts_with("MOV.64 [rbp - ") && text.ends_with(", rdi");
+                              });
+     const bool loadsAggregateReturnValue =
+          std::ranges::any_of(encoded,
+                              [&encoder](const auto& instruction)
+                              {
+                                   return encoder.Stringify(instruction).starts_with("MOV.64 rax, [");
+                              });
+     INFO(assembly);
+     CHECK(storesIncomingIntegerArgument);
+     CHECK(loadsAggregateReturnValue);
+     CHECK((assembly.find("RET") != std::string::npos));
 }
 
 TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[codegen][x86_64][regalloc]")

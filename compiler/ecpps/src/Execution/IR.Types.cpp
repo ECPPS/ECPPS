@@ -223,6 +223,17 @@ namespace
           request.data = PointerRequest{.elementType = baseType};
           return request;
      }
+     if (const auto* referenceType = dynamic_cast<const ast::ReferenceType*>(base); referenceType != nullptr)
+     {
+          const auto baseTypeRequest = TypeASTToRequest(referenceType->BaseType());
+          const auto* baseType = typeContext.Get(baseTypeRequest);
+          request.kind = TypeKind::Compound;
+          request.data = ReferenceRequest{.elementType = baseType,
+                                          .kind = referenceType->GetKind() == ast::ReferenceType::Kind::LValue
+                                                       ? typeSystem::ReferenceType::Kind::LValue
+                                                       : typeSystem::ReferenceType::Kind::RValue};
+          return request;
+     }
      if (const auto* qualifiedType = dynamic_cast<const ast::QualifiedType*>(base); qualifiedType != nullptr)
      {
           if (qualifiedType->Sections().Size() == 0)
@@ -643,10 +654,9 @@ std::optional<std::uint64_t> ecpps::ir::IR::EvaluateArrayBound(const ast::NodePo
      return length;
 }
 
-ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const ast::Declarator& declarator,
-                                                                         typeSystem::NonowningTypePointer base,
-                                                                         const std::string& name,
-                                                                         const bool allowUnboundedOutermost)
+ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(
+     const ast::Declarator& declarator, typeSystem::NonowningTypePointer base, const std::string& name,
+     const bool allowUnboundedOutermost, const std::optional<std::size_t> ignoredFunctionSuffix)
 {
      const DeclaratorTypeResult failure{.type = nullptr, .unboundedArray = false, .failed = true};
      auto& list = DiagnosticSink::List(this->GetContext());
@@ -691,6 +701,7 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(const a
      bool unbounded = false;
      for (std::size_t index = declarator.suffixes.size(); index-- > 0;)
      {
+          if (ignoredFunctionSuffix.has_value() && *ignoredFunctionSuffix == index) continue;
           const auto* array = std::get_if<ast::ArrayBound>(&declarator.suffixes[index]);
           if (array == nullptr) throw TracedException("TODO: function declarators are not implemented yet");
 

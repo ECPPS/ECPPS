@@ -163,3 +163,28 @@ std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::S
      diagnostic->SubDiagnostics().push_back(MakeCandidateNote(candidate));
      return diagnostic;
 }
+
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::NoViableCopyOrMoveConstructor(
+     std::string className, const Location source, const std::vector<Candidate>& candidates)
+{
+     auto diagnostic = std::make_unique<diagnostics::TypeError>(
+          std::format("No viable copy or move constructor for '{}'", className), source);
+     AppendCandidates(*diagnostic, candidates);
+     return diagnostic;
+}
+
+std::unique_ptr<ecpps::diagnostics::TypeError> ecpps::ir::overloadDiagnostics::SelectedDestructorFailure(
+     std::string className, const Location source, const bool inaccessible, const bool isDeleted,
+     const Candidate& candidate)
+{
+     std::string message = std::format("Destructor for '{}' is ", className);
+     if (inaccessible && isDeleted) message += "inaccessible and deleted";
+     else if (inaccessible)
+          message += "inaccessible";
+     else
+          message += "deleted";
+
+     auto diagnostic = std::make_unique<diagnostics::TypeError>(std::move(message), source);
+     diagnostic->SubDiagnostics().push_back(MakeCandidateNote(candidate));
+     return diagnostic;
+}

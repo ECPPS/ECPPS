@@ -4,7 +4,6 @@
 #include <new>
 #include <optional>
 #include <span>
-#include <tuple>
 #include <utility>
 #include "../../encoder.h"
 #include "CodeGeneration/AbstractNodes.h"
@@ -26,7 +25,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      const auto destination = registerArray[0];
      const auto source = registerArray[1];
 
-     const bool large = this->IsLargeObject(destination);
+     const bool large = this->IsLargeObject(destination) || this->IsMutable(destination);
      const std::size_t size = std::max<std::size_t>(this->GetVRM().GetSize(destination), 1);
 
      const bool disposable =
@@ -68,11 +67,20 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      if (large)
      {
-          auto pointer = acquirePointer();
-          const MemoryLocation sourceLocation{.base = MemoryOperand{.relativeTo = pointer.reg, .offset = 0},
-                                              .disposable = pointer.owned.has_value()};
+          if (this->IsMutable(source))
+          {
+               this->EmitMemoryCopy(built, MemoryLocation{.base = this->EnsureStackSlot(destination)},
+                                    MemoryLocation{.base = this->EnsureStackSlot(source)}, size);
+          }
+          else
+          {
+               auto pointer = acquirePointer();
+               const MemoryLocation sourceLocation{.base = MemoryOperand{.relativeTo = pointer.reg, .offset = 0},
+                                                   .disposable = pointer.owned.has_value()};
 
-          this->EmitMemoryCopy(built, MemoryLocation{.base = this->EnsureStackSlot(destination)}, sourceLocation, size);
+               this->EmitMemoryCopy(built, MemoryLocation{.base = this->EnsureStackSlot(destination)}, sourceLocation,
+                                    size);
+          }
 
           this->Redefine(destination, ir::abstract::State{});
           this->DereferenceAndMaybeFree(source);
@@ -135,7 +143,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           return scratch;
      };
 
-     if (this->IsLargeObject(source))
+     if (this->IsLargeObject(source) || this->IsMutable(source))
      {
           ecpps::detail::AppendRange(built, this->EnsureMaterialisation(destinationPointer));
           const bool pointerDisposable = destinationPointer != source &&

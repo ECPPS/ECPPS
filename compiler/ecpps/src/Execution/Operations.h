@@ -1106,9 +1106,10 @@ namespace ecpps::ir
      {
      public:
           explicit SSACallNode(std::optional<SSAPointer> result, const FunctionScope* function,
-                               std::vector<const SingleAssignRegisterNode*> arguments, Location source)
+                               std::vector<const SingleAssignRegisterNode*> arguments, Location source,
+                               ABICleanupKind abiCleanupKind = ABICleanupKind::None)
               : NodeBase(NodeKind::Call, source), _result(std::move(result)), _function(function),
-                _arguments(std::move(arguments))
+                _arguments(std::move(arguments)), _abiCleanupKind(abiCleanupKind)
           {
                runtime_assert(this->_function != nullptr, "Invalid function scope");
 
@@ -1130,6 +1131,10 @@ namespace ecpps::ir
           [[nodiscard]] const std::vector<const SingleAssignRegisterNode*>& Arguments() const noexcept
           {
                return this->_arguments;
+          }
+          [[nodiscard]] ABICleanupKind AbiCleanupKind(void) const noexcept
+          {
+               return this->_abiCleanupKind;
           }
 
           [[nodiscard]] std::string ToString(std::size_t indent) const override
@@ -1153,6 +1158,7 @@ namespace ecpps::ir
           std::optional<SSAPointer> _result;
           const FunctionScope* _function;
           std::vector<const SingleAssignRegisterNode*> _arguments;
+          ABICleanupKind _abiCleanupKind{ABICleanupKind::None};
      };
 
      class SSAReturnNode final : public NodeBase

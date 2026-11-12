@@ -361,6 +361,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                else
                     InitialiseAtAddress(variableType, objectAddress, &decl.initialiser, decl.initialiserType,
                                         ObjectInitialisationMode::Explicit, decl.initialiser->Source());
+               RegisterObjectForDestruction(variableType, objectAddress, decl.name->Source());
                continue;
           }
 
@@ -386,6 +387,7 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                     const auto* objectAddress = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
                     InitialiseAtAddress(variableType, objectAddress, nullptr, ast::InitialisationType::Default,
                                         ObjectInitialisationMode::Default, decl.name->Source());
+                    RegisterObjectForDestruction(variableType, objectAddress, decl.name->Source());
                }
                else if (isArray)
                {
@@ -405,8 +407,11 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                {
                     const auto* objectAddress = AddressOfAllocation(ssaNode, variableType, decl.name->Source());
                     if (dynamic_cast<const ast::InitialiserListNode*>(decl.initialiser.get()) != nullptr)
+                    {
                          InitialiseAtAddress(variableType, objectAddress, &decl.initialiser, decl.initialiserType,
                                              ObjectInitialisationMode::Explicit, decl.initialiser->Source());
+                         RegisterObjectForDestruction(variableType, objectAddress, decl.name->Source());
+                    }
                     else
                          DiagnosticSink::Report(this->GetContext(),
                                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(

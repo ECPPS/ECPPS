@@ -283,6 +283,20 @@ namespace ecpps::ir
                std::size_t hitCount{};
           };
 
+          [[nodiscard]] static bool IsTriviallyDestructibleType(typeSystem::NonowningTypePointer type)
+          {
+               if (const auto* array = type->CastTo<typeSystem::ArrayType>())
+                    return IsTriviallyDestructibleType(array->ElementType());
+               const auto* classType = type->CastTo<typeSystem::ClassType>();
+               if (classType == nullptr) return true;
+               if (classType->Info().Has(typeSystem::ClassInfo::Property::NontrivialDestructor)) return false;
+               return std::ranges::all_of(classType->Info().fields,
+                                          [](const auto& member)
+                                          {
+                                               return IsTriviallyDestructibleType(member.type);
+                                          });
+          }
+
      public:
           explicit TypeContext(void) = default;
           // typeSystem::TypeId PushType(typeSystem::OwningTypePointer type)
@@ -373,11 +387,13 @@ namespace ecpps::ir
                std::vector<abi::MemberLayoutInput> inputs;
                inputs.reserve(fields.size());
                bool triviallyCopyable = true;
+               bool triviallyDestructible = !info.Has(typeSystem::ClassInfo::Property::NontrivialDestructor);
                for (const auto& field : fields)
                {
                     runtime_assert(field.type != nullptr && field.type->IsComplete(),
                                    "Incomplete member reached layout");
                     triviallyCopyable = triviallyCopyable && IsTriviallyCopyable(field.type);
+                    triviallyDestructible = triviallyDestructible && IsTriviallyDestructibleType(field.type);
                     inputs.push_back({.size = field.type->Size(), .alignment = field.type->Alignment()});
                }
                const auto layout = abi::ABI::Current().LayoutClass(info.kind == typeSystem::ClassKind::Union, inputs);
@@ -386,7 +402,11 @@ namespace ecpps::ir
                info.fields = std::move(fields);
                info.size = layout.size;
                info.alignment = layout.alignment;
-               info.triviallyCopyable = triviallyCopyable;
+               info.Set(typeSystem::ClassInfo::Property::NontrivialDestructor, !triviallyDestructible);
+               info.triviallyCopyable = triviallyCopyable &&
+                                        !info.Has(typeSystem::ClassInfo::Property::NontrivialCopyOrMoveConstructor) &&
+                                        !info.Has(typeSystem::ClassInfo::Property::NontrivialCopyOrMoveAssignment) &&
+                                        !info.Has(typeSystem::ClassInfo::Property::NontrivialDestructor);
                info.state = typeSystem::ClassState::Complete;
           }
 
@@ -539,6 +559,10 @@ namespace ecpps::ir
                     }
                     if (std::holds_alternative<ClassRequest>(request.data))
                     {
+                         if (this->_classes.size() <= std::get<ClassRequest>(request.data).id)
+                         {
+                              return nullptr;
+                         }
                          const auto& info = this->_classes.at(std::get<ClassRequest>(request.data).id);
                          return std::make_unique<typeSystem::ClassType>(
                               &info, std::format("{}{}", cv, info.DisplayName()), request.qualifiers);
@@ -604,6 +628,21 @@ namespace ecpps::ir
      };
      using ContextPointer = std::shared_ptr<ContextBase>;
 
+     enum struct ABICleanupKind : std::uint8_t
+     {
+          None,
+          ByValueParameter,
+          ByValueArgument
+     };
+
+     struct AutomaticObject
+     {
+          typeSystem::NonowningTypePointer type{};
+          const ir::SingleAssignRegisterNode* address{};
+          Location source{0, 0, 0};
+          ABICleanupKind abiCleanupKind = ABICleanupKind::None;
+     };
+
      struct FunctionContext final : ContextBase
      {
           explicit FunctionContext(Scope* vScope, typeSystem::NonowningTypePointer returnType)
@@ -616,6 +655,9 @@ namespace ecpps::ir
           std::vector<typeSystem::NonowningTypePointer> parameters;
           std::uint32_t nextRegisterIndex = 0;
           typeSystem::NonowningTypePointer thisType{};
+          const ir::SingleAssignRegisterNode* returnBuffer{};
+          std::vector<AutomaticObject> automaticObjects{};
+          std::vector<AutomaticObject> temporaryObjects{};
 
           void RegisterThisAllocReg(const ir::SingleAssignRegisterNode* node) noexcept
           {
@@ -719,9 +761,11 @@ namespace ecpps::ir
           bool isStatic = false;
           bool isMemberFunctionDefined = false;
           bool isDeleted = false;
+          bool isDefaulted = false;
           bool isInline = false;
           bool isFriend = false;
           bool isExtern = false;
+          bool returnsByPointer = false;
           ConstexprType constexprSpecifier = ConstexprType::None;
           abi::CallingConventionName callingConvention{};
           abi::Linkage linkage{};
@@ -744,7 +788,8 @@ namespace ecpps::ir
           [[nodiscard]] std::size_t CallingConventionParameterCount(void) const noexcept
           {
                return this->parameters.size() +
-                      static_cast<std::size_t>(this->memberClassInfo != nullptr && !this->isStatic);
+                      static_cast<std::size_t>(this->memberClassInfo != nullptr && !this->isStatic) +
+                      static_cast<std::size_t>(this->returnsByPointer);
           }
 
           ///
@@ -984,6 +1029,9 @@ namespace ecpps::ir
           typeSystem::Access access{typeSystem::Access::Public};
           ast::FunctionBodyKind bodyKind{ast::FunctionBodyKind::None};
           bool isExplicit{};
+          bool isCopyConstructor{};
+          bool isMoveConstructor{};
+          bool isImplicitlyDeclared{};
      };
 
      struct ClassIrData
@@ -991,6 +1039,9 @@ namespace ecpps::ir
           ClassScope* scope{};
           std::vector<DefaultMemberInitialiser> memberInitialisers{};
           std::vector<ClassConstructor> constructors{};
+          std::shared_ptr<FunctionScope> destructor{};
+          typeSystem::Access destructorAccess = typeSystem::Access::Public;
+          ast::FunctionBodyKind destructorBodyKind = ast::FunctionBodyKind::None;
      };
      struct ClassSideTable
      {

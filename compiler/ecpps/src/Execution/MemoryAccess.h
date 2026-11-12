@@ -20,6 +20,7 @@ namespace ecpps::ir
      struct MemoryAccess
      {
           bool isVolatile{};
+          bool isAggregate{};
           std::optional<MemoryOrdering> atomicOrdering{}; // nullopt: not atomic
           std::uint32_t alignment{};                      // BYTES! must ^2
           std::uint32_t addressSpace{};                   // trust me I'm doing somethnig

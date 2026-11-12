@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <format>
 #include <functional>
 #include <limits>
@@ -98,6 +99,7 @@ namespace ecpps::codegen
                _descriptorArray.emplace_back(AllocationDescriptor{.width = width, .type = type});
 
                _ssaByVirtual.push_back(InvalidIndex);
+               _isSyntheticVirtual.push_back(false);
 
                if (ssaIndex >= _descriptorArrayWindow.size()) _descriptorArrayWindow.resize(ssaIndex + 1, InvalidIndex);
 
@@ -106,6 +108,15 @@ namespace ecpps::codegen
                _descriptorArrayWindow[ssaIndex] = virtualIndex;
                _ssaByVirtual[virtualIndex] = ssaIndex;
 
+               return virtualIndex;
+          }
+
+          [[nodiscard]] Index EmplaceAllocateSynthetic(Index width, AllocationDescriptor::Type type)
+          {
+               const Index virtualIndex = _descriptorArray.size();
+               _descriptorArray.emplace_back(AllocationDescriptor{.width = width, .type = type});
+               _ssaByVirtual.push_back(InvalidIndex);
+               _isSyntheticVirtual.push_back(true);
                return virtualIndex;
           }
 
@@ -144,7 +155,8 @@ namespace ecpps::codegen
 
           [[nodiscard]] AllocationDescriptor& GetDescriptorFromVirtual(Index virtualIndex)
           {
-               if (virtualIndex >= _descriptorArray.size() || _ssaByVirtual[virtualIndex] == InvalidIndex)
+               if (virtualIndex >= _descriptorArray.size() ||
+                   (_ssaByVirtual[virtualIndex] == InvalidIndex && !_isSyntheticVirtual[virtualIndex]))
                     throw TracedException(std::format("Invalid virtual index {}", virtualIndex));
 
                return _descriptorArray[virtualIndex];
@@ -152,7 +164,8 @@ namespace ecpps::codegen
 
           [[nodiscard]] const AllocationDescriptor& GetDescriptorFromVirtual(Index virtualIndex) const
           {
-               if (virtualIndex >= _descriptorArray.size() || _ssaByVirtual[virtualIndex] == InvalidIndex)
+               if (virtualIndex >= _descriptorArray.size() ||
+                   (_ssaByVirtual[virtualIndex] == InvalidIndex && !_isSyntheticVirtual[virtualIndex]))
                     throw TracedException(std::format("Invalid virtual index {}", virtualIndex));
 
                return _descriptorArray[virtualIndex];
@@ -175,6 +188,7 @@ namespace ecpps::codegen
           std::vector<Index> _descriptorArrayWindow{};
           std::vector<AllocationDescriptor> _descriptorArray{};
           std::vector<Index> _ssaByVirtual{};
+          std::vector<bool> _isSyntheticVirtual{};
      };
 
      struct AssemblyContext;
@@ -187,6 +201,8 @@ namespace ecpps::codegen
           AllocationMap virtualRegisterAllocationMap;
           std::vector<const ir::FunctionScope*> functionUsageTable{};
           AssemblyContext* assembly{};
+          const ir::FunctionScope* currentScope{};
+          std::optional<std::size_t> aggregateReturnBufferVirtual{};
           std::size_t CallFunctionIndex(const ir::FunctionScope* contextPointer);
 
           void ParseNode(const ir::NodeBase* node);
@@ -242,6 +258,8 @@ namespace ecpps::codegen
           void DereferenceSSA(std::size_t ssaIndex);
           [[nodiscard]] std::size_t AllocateVirtual(std::size_t ssaIndex, std::size_t width,
                                                     AllocationDescriptor::Type type);
+          [[nodiscard]] std::size_t AllocateSyntheticVirtual(std::size_t width, std::size_t alignment,
+                                                             AllocationDescriptor::Type type);
 
           void ParseCompareNode(const ir::SSACompareNode& node);
           void ParseBranchNode(const ir::SSABranchNode& node);
@@ -282,12 +300,13 @@ namespace ecpps::codegen
 
                case StringPooling::Exact:
                {
-                    ByteView probe{.begin = static_cast<std::size_t>(value.data() - this->_arena.data()),
-                                   .end = value.size()};
-
-                    if (const auto iterator = _exactLookup.find(probe); iterator != _exactLookup.end())
+                    const auto [first, last] = this->_contentLookup.equal_range(HashBytes(value));
+                    for (auto iterator = first; iterator != last; ++iterator)
                     {
-                         return {.indexInTable = iterator->second, .offset = 0};
+                         const auto& entry = this->_stringTable[iterator->second];
+                         if (entry.length != value.size()) continue;
+                         if (std::equal(value.begin(), value.end(), this->_arena.begin() + entry.offset))
+                              return {.indexInTable = iterator->second, .offset = 0};
                     }
 
                     return AppendNew(value);
@@ -337,8 +356,17 @@ namespace ecpps::codegen
      private:
           static std::uint32_t ReserveNextStringEntry(void) noexcept;
 
+          [[nodiscard]] static std::size_t HashBytes(std::span<const Byte> value) noexcept
+          {
+               std::size_t hash = value.size();
+               for (const Byte byte : value)
+                    hash ^= static_cast<std::size_t>(byte) + 0x9e3779b9U + (hash << 6U) + (hash >> 2U);
+               return hash;
+          }
+
           [[nodiscard]] StringIndex AppendNew(std::span<const Byte> value)
           {
+               const std::size_t contentHash = HashBytes(value);
                const std::uint32_t offset = static_cast<std::uint32_t>(_arena.size());
 
                _arena.insert(_arena.end(), value.begin(), value.end());
@@ -350,6 +378,7 @@ namespace ecpps::codegen
 
                ByteView view{offset, value.size()};
                _exactLookup.emplace(view, index);
+               _contentLookup.emplace(contentHash, index);
 
                return {.indexInTable = index, .offset = 0};
           }
@@ -358,6 +387,7 @@ namespace ecpps::codegen
           std::vector<StringEntry> _stringTable;
 
           std::unordered_map<ByteView, std::uint32_t, std::hash<ByteView>, std::equal_to<>> _exactLookup;
+          std::unordered_multimap<std::size_t, std::uint32_t> _contentLookup;
 
           std::reference_wrapper<CompilerConfig> _config;
      };
