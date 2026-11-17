@@ -2,7 +2,9 @@
 #include <RuntimeAssert.h>
 #include <format>
 #include <memory>
+#include <optional>
 #include <ranges>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -26,6 +28,56 @@ static InternedString CombineTypeWords(const std::vector<InternedString>& words,
 static bool IsOperatorToken(const ecpps::Token& token, std::string_view op)
 {
      return token.type == ecpps::TokenType::Operator && token.AsOperator() == op;
+}
+
+static std::optional<ecpps::ast::Operator> MatchOverloadedOperator(const ecpps::Token& token)
+{
+     if (token.type != ecpps::TokenType::Operator) return std::nullopt;
+
+     using ecpps::ast::Operator;
+     static const std::unordered_map<std::string_view, Operator> operators{
+          {"->", Operator::Arrow},
+          {"->*", Operator::PointerToMember},
+          {"~", Operator::Tilde},
+          {"!", Operator::Exclamation},
+          {"+", Operator::Plus},
+          {"-", Operator::Minus},
+          {"*", Operator::Asterisk},
+          {"/", Operator::Solidus},
+          {"%", Operator::Percent},
+          {"^", Operator::CircumflexAccent},
+          {"&", Operator::Ampersand},
+          {"|", Operator::VerticalLine},
+          {"=", Operator::Assignment},
+          {"+=", Operator::PlusAssign},
+          {"-=", Operator::MinusAssign},
+          {"*=", Operator::MultiplyAssign},
+          {"/=", Operator::DivideAssign},
+          {"%=", Operator::ModuloAssign},
+          {"^=", Operator::XorAssign},
+          {"&=", Operator::AndAssign},
+          {"|=", Operator::OrAssign},
+          {"==", Operator::EqualsSign},
+          {"!=", Operator::NotEqual},
+          {"<", Operator::Less},
+          {">", Operator::Greater},
+          {"<=", Operator::LessEqual},
+          {">=", Operator::GreaterEqual},
+          {"<=>", Operator::Spaceship},
+          {"&&", Operator::LogicalAnd},
+          {"||", Operator::LogicalOr},
+          {"<<", Operator::LeftShift},
+          {">>", Operator::RightShift},
+          {"<<=", Operator::LeftShiftAssign},
+          {">>=", Operator::RightShiftAssign},
+          {"++", Operator::Increment},
+          {"--", Operator::Decrement},
+          {",", Operator::Comma},
+     };
+
+     const auto found = operators.find(token.AsOperator().View());
+     if (found == operators.end()) return std::nullopt;
+     return found->second;
 }
 
 static bool IsWord(const ecpps::Token& token, std::string_view word)
@@ -1443,15 +1495,28 @@ NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
      {
           auto source = token.location;
           Advance();
-          if (IsOperatorToken(Peek(), "="))
+          if ((Peek().type == TokenType::LeftParenthesis && Peek(1).type == TokenType::RightParenthesis) ||
+              (Peek().type == TokenType::LeftBracket && Peek(1).type == TokenType::RightBracket))
+          {
+               const auto operatorId =
+                    Peek().type == TokenType::LeftParenthesis ? Operator::Function : Operator::Subscript;
+               source.endPosition = Peek(1).location.endPosition;
+               Advance();
+               Advance();
+               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{new (context)
+                                                                           OperatorFunctionId(operatorId, source)};
+          }
+
+          if (const auto operatorId = MatchOverloadedOperator(Peek()); operatorId.has_value())
           {
                source.endPosition = Peek().location.endPosition;
                Advance();
-               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{
-                    new (context) OperatorFunctionId(Operator::Assignment, source)};
+               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{new (context)
+                                                                           OperatorFunctionId(*operatorId, source)};
           }
+          // TODO: Conversion
           this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-               "Only operator= function ids are supported yet", token.location));
+               "Expected an overloaded operator after 'operator'", Peek().location));
           return nullptr;
      }
 

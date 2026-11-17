@@ -138,6 +138,94 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
+TEST_CASE("AST - Operator function ids map to their operators", "[unit][parsing][ast]")
+{
+     const std::vector<std::pair<std::string, ecpps::ast::Operator>> operators{
+          {"()", ecpps::ast::Operator::Function},
+          {"[]", ecpps::ast::Operator::Subscript},
+          {"->", ecpps::ast::Operator::Arrow},
+          {"->*", ecpps::ast::Operator::PointerToMember},
+          {"~", ecpps::ast::Operator::Tilde},
+          {"!", ecpps::ast::Operator::Exclamation},
+          {"+", ecpps::ast::Operator::Plus},
+          {"-", ecpps::ast::Operator::Minus},
+          {"*", ecpps::ast::Operator::Asterisk},
+          {"/", ecpps::ast::Operator::Solidus},
+          {"%", ecpps::ast::Operator::Percent},
+          {"^", ecpps::ast::Operator::CircumflexAccent},
+          {"&", ecpps::ast::Operator::Ampersand},
+          {"|", ecpps::ast::Operator::VerticalLine},
+          {"=", ecpps::ast::Operator::Assignment},
+          {"+=", ecpps::ast::Operator::PlusAssign},
+          {"-=", ecpps::ast::Operator::MinusAssign},
+          {"*=", ecpps::ast::Operator::MultiplyAssign},
+          {"/=", ecpps::ast::Operator::DivideAssign},
+          {"%=", ecpps::ast::Operator::ModuloAssign},
+          {"^=", ecpps::ast::Operator::XorAssign},
+          {"&=", ecpps::ast::Operator::AndAssign},
+          {"|=", ecpps::ast::Operator::OrAssign},
+          {"==", ecpps::ast::Operator::EqualsSign},
+          {"!=", ecpps::ast::Operator::NotEqual},
+          {"<", ecpps::ast::Operator::Less},
+          {">", ecpps::ast::Operator::Greater},
+          {"<=", ecpps::ast::Operator::LessEqual},
+          {">=", ecpps::ast::Operator::GreaterEqual},
+          {"<=>", ecpps::ast::Operator::Spaceship},
+          {"&&", ecpps::ast::Operator::LogicalAnd},
+          {"||", ecpps::ast::Operator::LogicalOr},
+          {"<<", ecpps::ast::Operator::LeftShift},
+          {">>", ecpps::ast::Operator::RightShift},
+          {"<<=", ecpps::ast::Operator::LeftShiftAssign},
+          {">>=", ecpps::ast::Operator::RightShiftAssign},
+          {"++", ecpps::ast::Operator::Increment},
+          {"--", ecpps::ast::Operator::Decrement},
+          {",", ecpps::ast::Operator::Comma},
+     };
+
+     std::vector<ecpps::Token> tokens{};
+     for (const auto& [spelling, unusedOperator] : operators)
+     {
+          static_cast<void>(unusedOperator);
+          tokens.push_back(Keyword("int"));
+          tokens.push_back(Keyword("operator"));
+          if (spelling == "()")
+          {
+               tokens.push_back(Punctuation(ecpps::TokenType::LeftParenthesis));
+               tokens.push_back(Punctuation(ecpps::TokenType::RightParenthesis));
+          }
+          else if (spelling == "[]")
+          {
+               tokens.push_back(Punctuation(ecpps::TokenType::LeftBracket));
+               tokens.push_back(Punctuation(ecpps::TokenType::RightBracket));
+          }
+          else
+               tokens.push_back(Operator(spelling));
+          tokens.push_back(Punctuation(ecpps::TokenType::LeftParenthesis));
+          tokens.push_back(Punctuation(ecpps::TokenType::RightParenthesis));
+          tokens.push_back(Punctuation(ecpps::TokenType::SemiColon));
+     }
+
+     Fixture fixture{};
+     auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == operators.size()));
+     if (nodes.size() != operators.size()) return;
+
+     for (std::size_t index = 0; index < operators.size(); ++index)
+     {
+          const auto* declaration = dynamic_cast<const ecpps::ast::FunctionDeclarationNode*>(nodes[index].get());
+          REQUIRE((declaration != nullptr));
+          if (declaration == nullptr) return;
+
+          const auto* operatorId =
+               dynamic_cast<const ecpps::ast::OperatorFunctionId*>(declaration->Signature().name.get());
+          REQUIRE((operatorId != nullptr));
+          if (operatorId == nullptr) return;
+          REQUIRE((operatorId->GetOperator() == operators[index].second));
+          REQUIRE((operatorId->ToString(0) == "operator" + operators[index].first));
+     }
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
 TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[unit][parsing][ast]")
 {
      Fixture fixture{};
