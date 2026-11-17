@@ -55,6 +55,44 @@ using ecpps::ir::detail::ToClassKind;
 
 namespace
 {
+     using ecpps::ast::Operator;
+
+     [[nodiscard]] bool IsCallOrSubscriptOperator(const Operator operatorId) noexcept
+     {
+          return operatorId == Operator::Function || operatorId == Operator::Subscript;
+     }
+
+     [[nodiscard]] std::optional<std::string> ValidateMemberOperatorParameterCount(
+          const Operator operatorId, const bool isStatic, const std::size_t parameterCount)
+     {
+          if (operatorId == Operator::QuestionMark || operatorId == Operator::FullStop ||
+              operatorId == Operator::PointerToMemberObject || operatorId == Operator::Ellipsis)
+               return std::format("operator{} cannot be overloaded", ecpps::ast::ToString(operatorId));
+
+          if (isStatic && !IsCallOrSubscriptOperator(operatorId))
+               return std::format("operator{} must be a non-static member function", ecpps::ast::ToString(operatorId));
+
+          if (operatorId == Operator::Function || operatorId == Operator::Subscript) return std::nullopt;
+
+          if (operatorId == Operator::Increment || operatorId == Operator::Decrement)
+          {
+               if (parameterCount <= 1) return std::nullopt;
+               return std::format("operator{} must have zero or one parameter", ecpps::ast::ToString(operatorId));
+          }
+
+          if (operatorId == Operator::Plus || operatorId == Operator::Minus || operatorId == Operator::Asterisk ||
+              operatorId == Operator::Ampersand)
+          {
+               if (parameterCount <= 1) return std::nullopt;
+               return std::format("operator{} must have zero or one parameter", ecpps::ast::ToString(operatorId));
+          }
+
+          const std::size_t expectedParameterCount = operatorId == Operator::Arrow ? 0 : 1;
+          if (parameterCount == expectedParameterCount) return std::nullopt;
+          return std::format("operator{} must have exactly {} parameter{}", ecpps::ast::ToString(operatorId),
+                             expectedParameterCount, expectedParameterCount == 1 ? "" : "s");
+     }
+
      [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
      {
           switch (access)
@@ -650,11 +688,6 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                report("Expected an unqualified identifier in member declarator", node.Source());
                continue;
           }
-          if (operatorId != nullptr && operatorId->GetOperator() != ast::Operator::Assignment)
-          {
-               report("Only operator= member functions are supported yet", declarator.location);
-               continue;
-          }
           const std::string name = identifier != nullptr ? std::string{identifier->Value().View()}
                                                          : "operator" + ast::ToString(operatorId->GetOperator());
           const auto& idenSource = identifier != nullptr ? identifier->Source() : declarator.location;
@@ -703,6 +736,17 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     continue;
                }
                const auto& functionType = std::get<ast::ParametersAndQualifiers>(*suffix);
+               const bool isStatic = specifiers.storageSpecifier & ast::StorageClassSpecifier::Static;
+               const bool hasOperatorId = operatorId != nullptr;
+               const bool allowsDefaultArguments = hasOperatorId && IsCallOrSubscriptOperator(operatorId->GetOperator());
+               if (hasOperatorId)
+                    if (const auto error = ValidateMemberOperatorParameterCount(operatorId->GetOperator(), isStatic,
+                                                                                 functionType.parameters.size());
+                        error.has_value())
+                    {
+                         report(*error, functionNameSource);
+                         continue;
+                    }
                if (declarator.nested != nullptr)
                {
                     report("Nested member function return declarators are not supported yet", functionNameSource);
@@ -718,16 +762,17 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     continue;
                }
                const auto* memberFunctionReturnType = resolvedReturnType.type;
-               const bool isStatic = specifiers.storageSpecifier & ast::StorageClassSpecifier::Static;
                if (isStatic && (functionType.isConst || functionType.isVolatile ||
                                 functionType.refQualifier != ast::RefQualifier::None))
                {
                     report("A static member function cannot have cv- or ref-qualifiers", functionNameSource);
                     continue;
                }
-               if (functionType.isVariadic)
+               if (functionType.isVariadic && !allowsDefaultArguments)
                {
-                    report("Variadic member functions are not supported", functionNameSource);
+                    report(hasOperatorId ? "Only operator() and operator[] may be variadic"
+                                          : "Variadic member functions are not supported",
+                           functionNameSource);
                     continue;
                }
 
@@ -744,10 +789,14 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     }
                     if (parameter.defaultInitialiser != nullptr)
                     {
-                         report("Default member function arguments are not supported yet",
-                                parameter.defaultInitialiser->Source());
-                         invalidParameters = true;
-                         break;
+                         if (!allowsDefaultArguments)
+                         {
+                              report(hasOperatorId ? "Only operator() and operator[] may have default arguments"
+                                                   : "Default member function arguments are not supported yet",
+                                     parameter.defaultInitialiser->Source());
+                              invalidParameters = true;
+                              break;
+                         }
                     }
                     const auto* parameterType = ParseType(parameter.type);
                     if (parameterType == nullptr ||
@@ -760,6 +809,16 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                             false);
                }
                if (invalidParameters) continue;
+               if (hasOperatorId && functionType.parameters.size() == 1 &&
+                   (operatorId->GetOperator() == ast::Operator::Increment ||
+                    operatorId->GetOperator() == ast::Operator::Decrement) &&
+                   parameters.front().type != typeSystem::g_int.get())
+               {
+                    report(std::format("The postfix operator{} parameter must have type int",
+                                       ast::ToString(operatorId->GetOperator())),
+                           functionType.parameters.front().type->Source());
+                    continue;
+               }
                if (parameters.size() == 1 && parameters.front().type == typeSystem::g_void.get()) parameters.clear();
                bool isCopyAssignment = false;
                bool isMoveAssignment = false;

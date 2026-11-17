@@ -476,6 +476,40 @@ namespace
                std::move(specifiers), std::move(declarators), Source);
      }
 
+     ecpps::ast::NodePointer MakeMemberOperatorDeclaration(Fixture& fixture,
+                                                           [[maybe_unused]] const std::string& className,
+                                                           const ecpps::ast::Operator operatorId,
+                                                           const std::vector<std::string>& parameterTypes,
+                                                           const std::vector<bool>& defaultArguments = {},
+                                                           const bool isVariadic = false, const bool isStatic = false)
+     {
+          ecpps::ast::ParametersAndQualifiers parameters{};
+          parameters.isVariadic = isVariadic;
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+          {
+               ecpps::ast::FunctionParameter parameter{};
+               parameter.type = fixture.MakeBasicType(parameterTypes[index]);
+               parameter.name = fixture.MakeIdentifier("parameter");
+               if (index < defaultArguments.size() && defaultArguments[index])
+                    parameter.defaultInitialiser = fixture.MakeIntegerLiteral(0);
+               parameters.parameters.push_back(std::move(parameter));
+          }
+
+          ecpps::ast::MemberDeclarator declarator{};
+          declarator.declaredIdExpression =
+               MakeASTNode<ecpps::ast::OperatorFunctionId>(fixture.astAllocator, operatorId, Source);
+          declarator.suffixes.emplace_back(std::move(parameters));
+          std::vector<ecpps::ast::MemberDeclarator> declarators{};
+          declarators.push_back(std::move(declarator));
+
+          ecpps::ast::DeclSpecifierSequence specifiers{};
+          specifiers.definingTypeSpecifier = fixture.MakeBasicType("int");
+          if (isStatic) specifiers.storageSpecifier |= ecpps::ast::StorageClassSpecifier::Static;
+          return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
+               fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
+               std::move(specifiers), std::move(declarators), Source);
+     }
+
      ecpps::ast::NodePointer MakeDestructor(
           Fixture& fixture, const std::string& className,
           const ecpps::ast::FunctionBodyKind bodyKind = ecpps::ast::FunctionBodyKind::Block)
@@ -1066,6 +1100,44 @@ TEST_CASE("IR - Copy initialization does not select an explicit copy constructor
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 1));
      CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message() ==
            "This explicit constructor is not considered by copy-initialisation");
+}
+
+TEST_CASE("IR - Member operator declarations enforce parameter counts", "[unit][ir][classes][operators]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "OperatorArityValue", ecpps::ast::Operator::Plus, {}));
+     members.push_back(
+          MakeMemberOperatorDeclaration(fixture, "OperatorArityValue", ecpps::ast::Operator::Plus, {"int"}));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "OperatorArityValue", ecpps::ast::Operator::Solidus, {}));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "OperatorArityValue", ecpps::ast::Operator::Assignment,
+                                                     {"int", "int"}));
+     members.push_back(
+          MakeMemberOperatorDeclaration(fixture, "OperatorArityValue", ecpps::ast::Operator::Increment, {"short"}));
+
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, "OperatorArityValue", std::move(members)));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator/ must have exactly 1 parameter"));
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator= must have exactly 1 parameter"));
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "postfix operator++ parameter must have type int"));
+}
+
+TEST_CASE("IR - Call and subscript operators allow C++23 parameter forms", "[unit][ir][classes][operators]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "FlexibleOperatorValue", ecpps::ast::Operator::Function,
+                                                     {"int", "int"}, {false, true}, true, true));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "FlexibleOperatorValue", ecpps::ast::Operator::Subscript,
+                                                     {"int", "int"}, {false, true}));
+
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, "FlexibleOperatorValue", std::move(members)));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
 TEST_CASE("IR - Copy assignment invokes the declared operator= overload", "[unit][ir][classes][by-value]")
