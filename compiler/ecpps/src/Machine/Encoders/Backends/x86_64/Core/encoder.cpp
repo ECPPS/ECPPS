@@ -60,10 +60,18 @@ extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encode
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CallWithResult>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::CallWithAggregateResult>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::CopyParameter>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::PassArgument>(
+          const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
+extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
+     X8664VirtualInstructionEncoder::EncoderImplementation<
+          ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate>(
           const std::vector<ecpps::ir::abstract::VirtualRegister>& registerArray);
 extern template std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::
      X8664VirtualInstructionEncoder::EncoderImplementation<ecpps::ir::abstract::VirtualInstructionType::ZeroMemory>(
@@ -218,7 +226,6 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->_savedRegisters.clear();
      this->_remainingUses.clear();
      this->_localsSize = 0;
-     this->_parameterReserve = 0;
      this->_outgoingReserve = this->_target->platform->InitialStackReserve();
      this->_stackFrameSize = 0;
      this->_evicted.clear();
@@ -467,6 +474,10 @@ std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X
      case Type::CopyParameter: return {};
      case Type::IndirectStore: return operands;
      case Type::Return: return operands;
+     case Type::ReturnAggregate:
+          return operands.empty() ? std::vector<ir::abstract::VirtualRegister>{}
+                                  : std::vector<ir::abstract::VirtualRegister>{operands[0]};
+     case Type::CallWithAggregateResult:
      case Type::PassArgument:
           if (operands.size() < 2) return {};
           return std::vector<ir::abstract::VirtualRegister>{operands[1]};
@@ -502,7 +513,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                this->_evictable.insert(cell.owner->index);
 
      const bool hasDestination = instruction.type != ir::abstract::VirtualInstructionType::Return &&
+                                 instruction.type != ir::abstract::VirtualInstructionType::ReturnAggregate &&
                                  instruction.type != ir::abstract::VirtualInstructionType::Call &&
+                                 instruction.type != ir::abstract::VirtualInstructionType::CallWithAggregateResult &&
                                  instruction.type != ir::abstract::VirtualInstructionType::PassArgument &&
                                  instruction.type != ir::abstract::VirtualInstructionType::CopyParameter &&
                                  !instruction.operands.empty();
@@ -546,6 +559,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      case ecpps::ir::abstract::VirtualInstructionType::Unreachable:
           runtime_assert(instruction.operands.empty(), "invalid unreachable instruction");
           instructions.push_back({.opcode = X8664InstructionName::UD2});
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::ReturnAggregate:
+          ecpps::detail::AppendRange(
+               instructions,
+               EncoderImplementation<ir::abstract::VirtualInstructionType::ReturnAggregate>(instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::LeftShift:
           ecpps::detail::AppendRange(
@@ -610,6 +628,11 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           ecpps::detail::AppendRange(
                instructions,
                EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithResult>(instruction.operands));
+          break;
+     case ecpps::ir::abstract::VirtualInstructionType::CallWithAggregateResult:
+          ecpps::detail::AppendRange(
+               instructions, EncoderImplementation<ir::abstract::VirtualInstructionType::CallWithAggregateResult>(
+                                  instruction.operands));
           break;
      case ecpps::ir::abstract::VirtualInstructionType::CopyParameter:
           ecpps::detail::AppendRange(
@@ -1486,6 +1509,16 @@ ecpps::abi::encoders::x8664::Operand ecpps::abi::encoders::x8664::X8664VirtualIn
      const auto* stack = std::get_if<StackOperand>(&operand);
      if (stack == nullptr) return operand;
 
+     if (stack->isIncomingParameter)
+     {
+          const auto incomingBaseOffset =
+               this->OmitsFramePointer() ? this->_stackFrameSize + this->SavedRegistersSize() + sizeof(std::uint64_t)
+                                         : 2 * sizeof(std::uint64_t);
+          const auto offset = incomingBaseOffset + stack->offset;
+          const auto base = this->OmitsFramePointer() ? RegisterIndex::Rsp : RegisterIndex::Rbp;
+          return MemoryOperand{.relativeTo = base, .offset = static_cast<std::int32_t>(offset)};
+     }
+
      const auto aboveRsp = this->_outgoingReserve + stack->offset;
      runtime_assert(aboveRsp < this->_stackFrameSize, "Stack slot lies outside of the stack frame");
 
@@ -1548,7 +1581,7 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Finalise(
 {
      this->_savedRegisters = this->CollectCalleeSavedWrites(instructions);
 
-     const std::size_t rawSize = this->_outgoingReserve + this->_localsSize + this->_parameterReserve;
+     const std::size_t rawSize = this->_outgoingReserve + this->_localsSize;
      this->_stackFrameSize = rawSize;
 
      if (rawSize != 0 || !this->_savedRegisters.empty())
@@ -1789,8 +1822,8 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsTerminator(
      const ir::abstract::VirtualInstructionType type) noexcept
 {
      using Type = ir::abstract::VirtualInstructionType;
-     return type == Type::Return || type == Type::UnconditionalJump || type == Type::CompareAndJump ||
-            type == Type::Unreachable;
+     return type == Type::Return || type == Type::ReturnAggregate || type == Type::UnconditionalJump ||
+            type == Type::CompareAndJump || type == Type::Unreachable;
 }
 
 std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DestinationOf(
@@ -1800,7 +1833,9 @@ std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionE
      switch (i.type)
      {
      case Type::CopyParameter: return i.operands.size() >= 2 ? std::optional{i.operands[1].index} : std::nullopt;
+     case Type::CallWithAggregateResult:
      case Type::Return:
+     case Type::ReturnAggregate:
      case Type::Call:
      case Type::PassArgument:
      case Type::Label:
@@ -1853,6 +1888,7 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildControlFl
           switch (last.type)
           {
           case Type::Return:
+          case Type::ReturnAggregate:
           case Type::Unreachable: break;
           case Type::UnconditionalJump: block.successors.push_back(blockOf(last.operands[0].index)); break;
           case Type::CompareAndJump:

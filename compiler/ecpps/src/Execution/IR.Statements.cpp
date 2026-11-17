@@ -26,11 +26,18 @@ using ecpps::Expression;
 
 void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
 {
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "An if statement must appear inside a function");
+     if (function == nullptr) return;
+     const auto scopeDepth = function->automaticObjects.size();
+     const auto temporaryDepth = function->temporaryObjects.size();
      auto condition = ParseCondition(node.Condition());
      if (condition == nullptr) return;
 
      const auto* conditionReg = LowerExpressionLoaded(std::move(condition), this->_built);
      if (conditionReg == nullptr) return;
+     EmitTemporaryDestructorsFrom(temporaryDepth);
+     function->temporaryObjects.resize(temporaryDepth);
 
      const auto thenLabel = MakeLabelName("if.then");
      const auto endLabel = MakeLabelName("if.end");
@@ -41,11 +48,15 @@ void ecpps::ir::IR::ParseIfStatement(const ast::IfStatementNode& node)
 
      EmitLabel(thenLabel, node.Source());
      for (const auto& statement : node.Body()) ParseNode(statement);
+     EmitDestructorsFrom(scopeDepth);
+     function->automaticObjects.resize(scopeDepth);
      EmitJump(endLabel, node.Source());
      if (elseLabel != endLabel)
      {
           EmitLabel(elseLabel, node.Source());
           for (const auto& statement : node.ElseBody()) ParseNode(statement);
+          EmitDestructorsFrom(scopeDepth);
+          function->automaticObjects.resize(scopeDepth);
      }
 
      EmitLabel(endLabel, node.Source());
@@ -60,11 +71,18 @@ bool ecpps::ir::IR::EmitConditionalBranch(const ast::NodePointer& conditionNode,
           return true;
      }
 
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     const auto temporaryDepth = function == nullptr ? 0 : function->temporaryObjects.size();
      auto condition = ParseCondition(conditionNode);
      if (condition == nullptr) return false;
 
      const auto* conditionReg = LowerExpressionLoaded(std::move(condition), this->_built);
      if (conditionReg == nullptr) return false;
+     if (function != nullptr)
+     {
+          EmitTemporaryDestructorsFrom(temporaryDepth);
+          function->temporaryObjects.resize(temporaryDepth);
+     }
 
      EmitBranch(conditionReg, trueLabel, falseLabel, source);
      return true;
@@ -82,6 +100,13 @@ void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
      {
           const JumpScope jumpScope{*this, endLabel, continueLabel};
           for (const auto& statement : node.Body()) ParseNode(statement);
+          auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+          runtime_assert(function != nullptr, "A loop body must appear inside a function");
+          if (function != nullptr)
+          {
+               EmitDestructorsFrom(jumpScope.Depth());
+               function->automaticObjects.resize(jumpScope.Depth());
+          }
      }
 
      EmitLabel(continueLabel, node.Source());
@@ -92,6 +117,10 @@ void ecpps::ir::IR::ParseWhileStatement(const ast::WhileStatementNode& node)
 
 void ecpps::ir::IR::ParseForStatement(const ast::ForStatementNode& node)
 {
+     auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+     runtime_assert(function != nullptr, "A for statement must appear inside a function");
+     if (function == nullptr) return;
+     const auto forScopeDepth = function->automaticObjects.size();
      const auto bodyLabel = MakeLabelName("for.body");
      const auto continueLabel = MakeLabelName("for.cont");
      const auto endLabel = MakeLabelName("for.end");
@@ -105,12 +134,16 @@ void ecpps::ir::IR::ParseForStatement(const ast::ForStatementNode& node)
           const JumpScope jumpScope{*this, endLabel, continueLabel};
           for (const auto& statement : node.Body()) ParseNode(statement);
           ParseNode(node.Expression());
+          EmitDestructorsFrom(jumpScope.Depth());
+          function->automaticObjects.resize(jumpScope.Depth());
      }
 
      EmitLabel(continueLabel, node.Source());
      if (!EmitConditionalBranch(node.Condition(), bodyLabel, endLabel, node.Source())) return;
 
      EmitLabel(endLabel, node.Source());
+     EmitDestructorsFrom(forScopeDepth);
+     function->automaticObjects.resize(forScopeDepth);
 }
 
 void ecpps::ir::IR::ParseDoWhileStatement(const ast::DoWhileStatementNode& node)
@@ -123,6 +156,13 @@ void ecpps::ir::IR::ParseDoWhileStatement(const ast::DoWhileStatementNode& node)
      {
           const JumpScope jumpScope{*this, endLabel, continueLabel};
           for (const auto& statement : node.Body()) ParseNode(statement);
+          auto* function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
+          runtime_assert(function != nullptr, "A loop body must appear inside a function");
+          if (function != nullptr)
+          {
+               EmitDestructorsFrom(jumpScope.Depth());
+               function->automaticObjects.resize(jumpScope.Depth());
+          }
      }
 
      EmitLabel(continueLabel, node.Source());
@@ -158,6 +198,7 @@ void ecpps::ir::IR::ParseBreakNode(const ast::BreakNode& node)
           return;
      }
 
+     EmitDestructorsFrom(this->_jumpStack.back().destructionDepth);
      EmitJump(this->_jumpStack.back().breakLabel, node.Source());
 }
 
@@ -167,6 +208,7 @@ void ecpps::ir::IR::ParseContinueNode(const ast::ContinueNode& node)
      {
           if (!targets.continueLabel.has_value()) continue;
 
+          EmitDestructorsFrom(targets.destructionDepth);
           EmitJump(*targets.continueLabel, node.Source());
           return;
      }

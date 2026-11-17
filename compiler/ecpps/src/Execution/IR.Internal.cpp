@@ -72,6 +72,8 @@ namespace ecpps::ir::detail
      {
           ecpps::ir::MemoryAccess access{};
           access.alignment = static_cast<std::uint32_t>(type->Alignment());
+          access.isAggregate = type->Traits().Has(ecpps::typeSystem::TypeTraitEnum::Class) ||
+                               type->Traits().Has(ecpps::typeSystem::TypeTraitEnum::Array);
           if (const auto* qualified = type->CastTo<ecpps::typeSystem::QualifiedType>())
                access.isVolatile = qualified->IsVolatile();
           return access;
@@ -104,6 +106,8 @@ namespace ecpps::ir::detail
      {
           const bool isConstructor = func->memberClassInfo != nullptr && func->Name().has_value() &&
                                      *func->Name() == func->memberClassInfo->name;
+          const bool isDestructor = func->memberClassInfo != nullptr && func->Name().has_value() &&
+                                    *func->Name() == "~" + func->memberClassInfo->name;
           std::string signature;
           if (func->memberClassInfo != nullptr)
           {
@@ -131,7 +135,7 @@ namespace ecpps::ir::detail
                case ecpps::abi::MemberRefQualifier::RValue: signature += " &&"; break;
                }
           }
-          if (func->returnType && !isConstructor)
+          if (func->returnType && !isConstructor && !isDestructor)
           {
                signature += " -> " + FormatTypeName(func->returnType);
           }

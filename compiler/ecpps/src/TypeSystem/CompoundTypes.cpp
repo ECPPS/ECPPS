@@ -15,7 +15,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ArrayType::CompareTo(
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::ArrayType::Traits(void) const noexcept
 {
-     return TypeTraits{TypeTraitEnum::Array, TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime};
+     TypeTraits traits{TypeTraitEnum::Array};
+     if (IsTriviallyCopyable(this->_elementType)) traits.Set(TypeTraitEnum::TriviallyCopyable);
+     if (IsImplicitLifetime(this->_elementType)) traits.Set(TypeTraitEnum::ImplicitLifetime);
+     return traits;
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::ArrayType::CommonWith(

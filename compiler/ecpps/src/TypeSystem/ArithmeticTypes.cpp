@@ -359,11 +359,32 @@ std::size_t ecpps::typeSystem::ReferenceType::Alignment(void) const noexcept
      return abi::ABI::Current().PointerSize();
 }
 
-ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(
-     [[maybe_unused]] NonowningTypePointer other) const
+ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareTo(NonowningTypePointer other) const
 {
-     // TODO: Implement
-     throw nullptr;
+     if (other == nullptr) return ConversionSequence{std::nullopt};
+     if (const auto* reference = other->CastTo<ReferenceType>()) other = reference->BaseType();
+
+     const auto* targetClass = this->_baseType->CastTo<ClassType>();
+     const auto* sourceClass = other->CastTo<ClassType>();
+     if (targetClass != nullptr || sourceClass != nullptr)
+     {
+          if (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id)
+               return ConversionSequence{std::nullopt};
+     }
+
+     const auto* targetQualified = this->_baseType->CastTo<QualifiedType>();
+     const auto* sourceQualified = other->CastTo<QualifiedType>();
+     const bool targetConst = targetQualified != nullptr && targetQualified->IsConst();
+     const bool sourceConst = sourceQualified != nullptr && sourceQualified->IsConst();
+     const bool targetVolatile = targetQualified != nullptr && targetQualified->IsVolatile();
+     const bool sourceVolatile = sourceQualified != nullptr && sourceQualified->IsVolatile();
+     if ((sourceConst && !targetConst) || (sourceVolatile && !targetVolatile)) return ConversionSequence{std::nullopt};
+
+     auto conversion = this->_baseType->CompareTo(other);
+     if (!conversion.IsValid()) return conversion;
+     if ((!sourceConst && targetConst) || (!sourceVolatile && targetVolatile))
+          return ConversionSequence{SBOVector{1, ConversionSequence::ConversionKind::QualifierConversion}};
+     return conversion;
 }
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::ReferenceType::Traits(void) const noexcept

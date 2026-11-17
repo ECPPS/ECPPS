@@ -11,12 +11,53 @@
 #include "../Execution/Operations.h"
 #include "../Execution/Procedural.h"
 #include "../Machine/ABI.h"
+#include "../Machine/Encoders/API/Aggregate.h"
 #include "AbstractNodes.h"
 #include "Execution/NodeBase.h"
 #include "Nodes.h"
 #include "Shared/Error.h"
 
 using ecpps::codegen::Routine;
+
+static bool HasUnsupportedIndirectClassResultLocation(const ecpps::ir::FunctionScope& scope,
+                                                      const ecpps::abi::api::PlatformBase& platform)
+{
+     if (!scope.returnsByPointer || !ecpps::typeSystem::IsClass(scope.returnType)) return false;
+     const auto plan = ecpps::abi::api::ClassReturnPassing(platform, scope.returnType);
+     if (plan.kind != ecpps::abi::api::AggregatePassingKind::Indirect &&
+         plan.kind != ecpps::abi::api::AggregatePassingKind::Memory)
+          return false;
+     return platform.IndirectClassResultAddress().location !=
+            ecpps::abi::api::AggregateResultAddressLocation::FirstIntegerArgument;
+}
+
+static bool HasUnsupportedExternalClassArgument(const ecpps::ir::FunctionScope::Parameter& parameter,
+                                                const ecpps::abi::api::PlatformBase& platform)
+{
+     if (!ecpps::typeSystem::IsClass(parameter.type)) return false;
+     const auto plan = ecpps::abi::api::ClassArgumentPassing(platform, parameter.type);
+     return plan.kind != ecpps::abi::api::AggregatePassingKind::Indirect &&
+            !ecpps::abi::api::IsSingleIntegerRegister(plan, parameter.type->Size());
+}
+
+static bool HasUnsupportedExternalClassABI(const ecpps::ir::FunctionScope& scope,
+                                           const ecpps::abi::api::PlatformBase& platform)
+{
+     if (scope.returnsByPointer && ecpps::typeSystem::IsClass(scope.returnType))
+     {
+          const auto plan = ecpps::abi::api::ClassReturnPassing(platform, scope.returnType);
+          if (plan.kind == ecpps::abi::api::AggregatePassingKind::Unsupported ||
+              (plan.kind == ecpps::abi::api::AggregatePassingKind::Direct &&
+               !ecpps::abi::api::IsSingleIntegerRegister(plan, scope.returnType->Size())))
+               return true;
+     }
+
+     return std::ranges::any_of(scope.parameters,
+                                [&platform](const auto& parameter)
+                                {
+                                     return HasUnsupportedExternalClassArgument(parameter, platform);
+                                });
+}
 
 #ifdef __clang__
 [[clang::no_sanitize("address")]]
@@ -309,6 +350,33 @@ void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::
 {
      if (!node.HasOperand())
      {
+          if (this->currentScope != nullptr && this->currentScope->returnsByPointer &&
+              ecpps::abi::api::IsSingleIntegerRegister(
+                   ecpps::abi::api::ClassReturnPassing(*this->target->platform, this->currentScope->returnType),
+                   this->currentScope->returnType->Size()))
+          {
+               if (!this->aggregateReturnBufferVirtual.has_value())
+               {
+                    this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+                         "Direct class return has no local result storage", node.Source()));
+                    return;
+               }
+               const auto* resultType = this->currentScope->returnType;
+               this->instructions.push_back(
+                    {.type = ir::abstract::VirtualInstructionType::ReturnAggregate,
+                     .operands = {ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual},
+                                  ir::abstract::VirtualRegister{resultType->Width()}}});
+               return;
+          }
+          if (this->currentScope != nullptr && this->currentScope->returnsByPointer &&
+              this->target->platform->IndirectClassResultAddress().addressEchoedInIntegerReturnRegister &&
+              this->aggregateReturnBufferVirtual.has_value())
+          {
+               this->instructions.push_back(
+                    {.type = ir::abstract::VirtualInstructionType::Return,
+                     .operands = {ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual}}});
+               return;
+          }
           ir::abstract::VirtualInstruction instruction{
                .type = ir::abstract::VirtualInstructionType::Return,
                .operands = {},
@@ -425,11 +493,14 @@ void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
      auto virtualLeftIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaLeftIndex);
      auto virtualRightIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaRightIndex);
      auto& describedLeft = this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualLeftIndex);
+     [[maybe_unused]] const auto rightWidth =
+          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).width;
 
      auto width = describedLeft.width;
 
-     runtime_assert(width == this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(virtualRightIndex).width,
-                    "Widths don't match while getting a common width");
+     runtime_assert(width == rightWidth,
+                    std::format("Addition operands have different widths ({} and {} bits; SSA registers {} and {})",
+                                width, rightWidth, ssaLeftIndex, ssaRightIndex));
 
      ir::abstract::VirtualRegister allocatedIndex(
           this->AllocateVirtual(ssaResultIndex, width, AllocationDescriptor::Type::Temporary));
@@ -786,8 +857,9 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
 
      const auto width = node.Result().Width();
 
-     ir::abstract::VirtualRegister allocatedIndex(
-          this->AllocateVirtual(ssaResultIndex, width, AllocationDescriptor::Type::Temporary));
+     const auto allocationType =
+          node.Access().isAggregate ? AllocationDescriptor::Type::Allocation : AllocationDescriptor::Type::Temporary;
+     ir::abstract::VirtualRegister allocatedIndex(this->AllocateVirtual(ssaResultIndex, width, allocationType));
 
      this->DereferenceSSA(ssaSourceIndex);
 
@@ -823,24 +895,67 @@ void ecpps::codegen::ParsingContext::ParseIntNode(const ir::SSAImmNode& node)
 }
 void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 {
+     const auto& functionScope = node.Function();
+     if (HasUnsupportedIndirectClassResultLocation(functionScope, *this->target->platform) ||
+         ((functionScope.isExtern || functionScope.isDllImportExport) &&
+          HasUnsupportedExternalClassABI(functionScope, *this->target->platform)))
+     {
+          this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+               "The selected target ABI has no implemented lowering for this class-by-value signature", node.Source()));
+          return;
+     }
+     const auto cleanupOwner = this->target->platform->ClassArgumentCleanup();
+     if ((node.AbiCleanupKind() == ir::ABICleanupKind::ByValueParameter &&
+          cleanupOwner == abi::api::ClassArgumentCleanupOwner::Caller) ||
+         (node.AbiCleanupKind() == ir::ABICleanupKind::ByValueArgument &&
+          cleanupOwner == abi::api::ClassArgumentCleanupOwner::Callee))
+          return;
      const auto callIndex = CallFunctionIndex(&node.Function());
+     const bool hasResultBuffer = node.Function().returnsByPointer && typeSystem::IsClass(node.Function().returnType);
+     const bool directAggregateReturn =
+          hasResultBuffer &&
+          ecpps::abi::api::IsSingleIntegerRegister(
+               ecpps::abi::api::ClassReturnPassing(*this->target->platform, node.Function().returnType),
+               node.Function().returnType->Size());
+     std::optional<ir::abstract::VirtualRegister> aggregateResultBuffer{};
 
      std::size_t nextIndex{};
      for (const auto& argument : node.Arguments())
      {
           const auto argumentIndex = nextIndex++;
+          if (directAggregateReturn && argumentIndex == 0)
+          {
+               aggregateResultBuffer = ir::abstract::VirtualRegister{
+                    this->virtualRegisterAllocationMap.FindVirtualBySSA(argument->Index())};
+               continue;
+          }
           auto ssaTargetIndex = argument->Index();
 
           auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
 
           ir::abstract::VirtualRegister virtualTarget{virtualSourceIndex};
-          ir::abstract::VirtualRegister virtualSource{argumentIndex};
 
           ir::abstract::VirtualInstruction instruction{
                .type = ir::abstract::VirtualInstructionType::PassArgument,
-               .operands = {ir::abstract::VirtualRegister{callIndex}, virtualTarget, virtualSource},
+               .operands = {ir::abstract::VirtualRegister{callIndex}, virtualTarget,
+                            ir::abstract::VirtualRegister{argumentIndex -
+                                                          static_cast<std::size_t>(directAggregateReturn)}},
           };
           this->instructions.push_back(instruction);
+     }
+
+     if (directAggregateReturn)
+     {
+          if (!aggregateResultBuffer.has_value())
+          {
+               this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
+                    "Direct class return call has no result storage", node.Source()));
+               return;
+          }
+          this->instructions.push_back(
+               {.type = ir::abstract::VirtualInstructionType::CallWithAggregateResult,
+                .operands = {ir::abstract::VirtualRegister{callIndex}, *aggregateResultBuffer}});
+          return;
      }
 
      if (node.HasResult())
@@ -871,17 +986,76 @@ void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::ParameterNode& node)
 {
      auto ssaTargetIndex = node.Result()->Index();
-     auto paramtIndex = node.Index();
+     const auto parameterIndex = static_cast<std::size_t>(node.Index());
 
      auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaTargetIndex);
 
      ir::abstract::VirtualRegister virtualTarget{virtualSourceIndex};
-     ir::abstract::VirtualRegister virtualSource{paramtIndex};
+     const auto* scope = node.GetFunctionScope();
+     const bool hasResultBuffer = scope->returnsByPointer && typeSystem::IsClass(scope->returnType);
+     const bool directAggregateReturn =
+          hasResultBuffer && ecpps::abi::api::IsSingleIntegerRegister(
+                                  ecpps::abi::api::ClassReturnPassing(*this->target->platform, scope->returnType),
+                                  scope->returnType->Size());
+     const std::size_t hiddenResultParameterCount = static_cast<std::size_t>(directAggregateReturn);
      const auto functionIndex = this->CallFunctionIndex(node.GetFunctionScope());
+
+     if (directAggregateReturn && parameterIndex == 0)
+     {
+          const auto* classType = scope->returnType->CastTo<typeSystem::ClassType>();
+          runtime_assert(classType != nullptr, "Direct aggregate return type is not a class");
+          const auto objectVirtualIndex = this->AllocateSyntheticVirtual(classType->Width(), classType->Alignment(),
+                                                                         AllocationDescriptor::Type::Allocation);
+          const ir::abstract::VirtualRegister objectVirtual{objectVirtualIndex};
+          const auto pointerVirtualIndex =
+               this->AllocateSyntheticVirtual(abi::ABI::Current().PointerSize() * typeSystem::CharWidth,
+                                              abi::ABI::Current().PointerSize(), AllocationDescriptor::Type::Temporary);
+          const ir::abstract::VirtualRegister pointerVirtual{pointerVirtualIndex};
+          this->aggregateReturnBufferVirtual = virtualTarget.index;
+          this->instructions.push_back(
+               {.type = ir::abstract::VirtualInstructionType::AddressOf, .operands = {pointerVirtual, objectVirtual}});
+          this->instructions.push_back(
+               {.type = ir::abstract::VirtualInstructionType::Copy, .operands = {virtualTarget, pointerVirtual}});
+          return;
+     }
+
+     if (hasResultBuffer && parameterIndex == 0) this->aggregateReturnBufferVirtual = virtualTarget.index;
+
+     const auto physicalParameterIndex = parameterIndex - hiddenResultParameterCount;
+     const bool hasThisPointer = scope->memberClassInfo != nullptr && !scope->isStatic;
+     const auto explicitParameterIndex = physicalParameterIndex - static_cast<std::size_t>(hasThisPointer);
+     if (physicalParameterIndex >= static_cast<std::size_t>(hasThisPointer) &&
+         explicitParameterIndex < scope->parameters.size())
+     {
+          const auto* type = scope->parameters[explicitParameterIndex].type;
+          if (ecpps::abi::api::IsSingleIntegerRegister(
+                   ecpps::abi::api::ClassArgumentPassing(*this->target->platform, type), type->Size()))
+          {
+               const auto* classType = type->CastTo<typeSystem::ClassType>();
+               runtime_assert(classType != nullptr, "Direct aggregate parameter type is not a class");
+               const auto objectVirtualIndex = this->AllocateSyntheticVirtual(
+                    classType->Width(), classType->Alignment(), AllocationDescriptor::Type::Allocation);
+               const ir::abstract::VirtualRegister objectVirtual{objectVirtualIndex};
+               const auto pointerVirtualIndex = this->AllocateSyntheticVirtual(
+                    abi::ABI::Current().PointerSize() * typeSystem::CharWidth, abi::ABI::Current().PointerSize(),
+                    AllocationDescriptor::Type::Temporary);
+               const ir::abstract::VirtualRegister pointerVirtual{pointerVirtualIndex};
+               this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::CopyParameter,
+                                             .operands = {ir::abstract::VirtualRegister{functionIndex}, objectVirtual,
+                                                          ir::abstract::VirtualRegister{physicalParameterIndex},
+                                                          ir::abstract::VirtualRegister{1}}});
+               this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::AddressOf,
+                                             .operands = {pointerVirtual, objectVirtual}});
+               this->instructions.push_back(
+                    {.type = ir::abstract::VirtualInstructionType::Copy, .operands = {virtualTarget, pointerVirtual}});
+               return;
+          }
+     }
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::CopyParameter,
-          .operands = {ir::abstract::VirtualRegister{functionIndex}, virtualTarget, virtualSource},
+          .operands = {ir::abstract::VirtualRegister{functionIndex}, virtualTarget,
+                       ir::abstract::VirtualRegister{physicalParameterIndex}},
      };
      this->instructions.push_back(instruction);
 }
@@ -1036,8 +1210,9 @@ void ecpps::codegen::ParsingContext::ParseDereferenceNode(const ir::SSADerefNode
      const auto* resultRegister = &node.Result();
      const auto* operandRegister = &node.Ptr();
 
-     const auto virtualResultIndex =
-          AllocateVirtual(resultRegister->Index(), resultRegister->Width(), ir::abstract::AllocationClass::Temporary);
+     const auto allocationType = node.Access().isAggregate ? ir::abstract::AllocationClass::Allocation
+                                                           : ir::abstract::AllocationClass::Temporary;
+     const auto virtualResultIndex = AllocateVirtual(resultRegister->Index(), resultRegister->Width(), allocationType);
      const auto virtualSourceIndex = this->virtualRegisterAllocationMap.FindVirtualBySSA(operandRegister->Index());
 
      ir::abstract::VirtualRegister virtualResult{virtualResultIndex};
@@ -1175,6 +1350,16 @@ std::size_t ecpps::codegen::ParsingContext::AllocateVirtual(const std::size_t ss
      return virtualIndex;
 }
 
+std::size_t ecpps::codegen::ParsingContext::AllocateSyntheticVirtual(const std::size_t width,
+                                                                     const std::size_t alignment,
+                                                                     AllocationDescriptor::Type type)
+{
+     const auto virtualIndex = this->virtualRegisterAllocationMap.EmplaceAllocateSynthetic(width, type);
+     this->target->registerMap->Describe(virtualIndex, width, type);
+     this->target->registerMap->SetAlignment(virtualIndex, alignment);
+     return virtualIndex;
+}
+
 void ecpps::codegen::ParsingContext::DereferenceSSA(const std::size_t ssaIndex)
 {
      if (this->target->registerMap->DereferenceRegister(ssaIndex) != 0) return;
@@ -1206,6 +1391,13 @@ static Routine CompileRoutine(ecpps::codegen::AssemblyContext& context, const ec
      ecpps::codegen::ParsingContext parseContext(currentAbi);
      parseContext.target = target;
      parseContext.assembly = &context;
+     parseContext.currentScope = node.Scope();
+     if (HasUnsupportedIndirectClassResultLocation(*node.Scope(), *target->platform) ||
+         ((node.Scope()->isExtern || node.Scope()->isDllImportExport) &&
+          HasUnsupportedExternalClassABI(*node.Scope(), *target->platform)))
+          parseContext.diagnostics.push_back(std::make_unique<ecpps::diagnostics::TypeError>(
+               "The selected target ABI has no implemented lowering for this class-by-value signature",
+               node.Scope()->source));
 
      for (const auto& line : node.Body())
      {

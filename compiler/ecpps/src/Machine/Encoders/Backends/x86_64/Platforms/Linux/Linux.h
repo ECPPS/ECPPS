@@ -62,6 +62,27 @@ namespace ecpps::abi::encoders::x8664
                return true;
           }
 
+          [[nodiscard]] api::AggregatePassingPlan ClassArgumentPassing(api::AggregateValueInfo info) const final
+          {
+               return ClassPassing(info, false);
+          }
+
+          [[nodiscard]] api::AggregatePassingPlan ClassReturnPassing(api::AggregateValueInfo info) const final
+          {
+               return ClassPassing(info, true);
+          }
+
+          [[nodiscard]] api::AggregateResultAddressPlan IndirectClassResultAddress(void) const noexcept final
+          {
+               return {.location = api::AggregateResultAddressLocation::FirstIntegerArgument,
+                       .addressEchoedInIntegerReturnRegister = true};
+          }
+
+          [[nodiscard]] api::ClassArgumentCleanupOwner ClassArgumentCleanup(void) const noexcept final
+          {
+               return api::ClassArgumentCleanupOwner::Caller;
+          }
+
           [[nodiscard]] std::size_t ParameterStackSlotWidth(void) const noexcept final
           {
                return 64;
@@ -73,10 +94,31 @@ namespace ecpps::abi::encoders::x8664
           }
           [[nodiscard]] api::StackParameterOrdering StackParameterOrder(void) const noexcept final
           {
-               return api::StackParameterOrdering::Reverse;
+               return api::StackParameterOrdering::Forward;
           }
 
      private:
+          [[nodiscard]] static api::AggregatePassingPlan ClassPassing(api::AggregateValueInfo info, const bool isReturn)
+          {
+               if (!info.triviallyCopyable) return {};
+               if (info.size > 16)
+                    return isReturn ? api::AggregatePassingPlan{.kind = api::AggregatePassingKind::Memory}
+                                    : api::AggregatePassingPlan{.kind = api::AggregatePassingKind::Unsupported};
+               if (info.size > 8 || !info.integerOnly) return {.kind = api::AggregatePassingKind::Unsupported};
+               switch (info.size)
+               {
+               case 1:
+               case 2:
+               case 4:
+               case 8:
+                    return {
+                         .kind = api::AggregatePassingKind::Direct,
+                         .pieces = {
+                              {.offset = 0, .size = info.size, .registerClass = api::AggregateRegisterClass::Integer}}};
+               default: return {.kind = api::AggregatePassingKind::Unsupported};
+               }
+          }
+
           [[nodiscard]] static constexpr std::uint32_t MaskOf(const RegisterIndex index) noexcept
           {
                return 1u << std::to_underlying(index);

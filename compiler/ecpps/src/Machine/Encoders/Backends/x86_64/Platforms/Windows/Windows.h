@@ -69,6 +69,27 @@ namespace ecpps::abi::encoders::x8664
                return false;
           }
 
+          [[nodiscard]] api::AggregatePassingPlan ClassArgumentPassing(api::AggregateValueInfo info) const final
+          {
+               return ClassPassing(info);
+          }
+
+          [[nodiscard]] api::AggregatePassingPlan ClassReturnPassing(api::AggregateValueInfo info) const final
+          {
+               return ClassPassing(info);
+          }
+
+          [[nodiscard]] api::AggregateResultAddressPlan IndirectClassResultAddress(void) const noexcept final
+          {
+               return {.location = api::AggregateResultAddressLocation::FirstIntegerArgument,
+                       .addressEchoedInIntegerReturnRegister = true};
+          }
+
+          [[nodiscard]] api::ClassArgumentCleanupOwner ClassArgumentCleanup(void) const noexcept final
+          {
+               return api::ClassArgumentCleanupOwner::Callee;
+          }
+
           [[nodiscard]] std::size_t ParameterStackSlotWidth(void) const noexcept final
           {
                return 64;
@@ -80,10 +101,28 @@ namespace ecpps::abi::encoders::x8664
           }
           [[nodiscard]] api::StackParameterOrdering StackParameterOrder(void) const noexcept final
           {
-               return api::StackParameterOrdering::Reverse;
+               return api::StackParameterOrdering::Forward;
           }
 
      private:
+          [[nodiscard]] static api::AggregatePassingPlan ClassPassing(api::AggregateValueInfo info)
+          {
+               if (!info.triviallyCopyable) return {};
+               if (info.hasUserDeclaredSpecialMembers) return {};
+               switch (info.size)
+               {
+               case 1:
+               case 2:
+               case 4:
+               case 8:
+                    return {
+                         .kind = api::AggregatePassingKind::Direct,
+                         .pieces = {
+                              {.offset = 0, .size = info.size, .registerClass = api::AggregateRegisterClass::Integer}}};
+               default: return {};
+               }
+          }
+
           [[nodiscard]] static constexpr std::uint32_t MaskOf(const RegisterIndex index) noexcept
           {
                return 1u << std::to_underlying(index);

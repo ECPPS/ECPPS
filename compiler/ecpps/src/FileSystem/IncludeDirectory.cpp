@@ -54,7 +54,7 @@ ecpps::fs::PathResult ecpps::fs::NativeExecutablePathProvider::GetExecutablePath
      }
 #elifdef __APPLE__
      std::uint32_t size{};
-     static_cast<void>(_NSGetExecutablePath(nullptr, &size));
+     [[maybe_unused]] const auto probeResult = _NSGetExecutablePath(nullptr, &size);
      if (size == 0) return {.error = "_NSGetExecutablePath did not provide a buffer size"};
 
      std::vector<char> buffer(size);

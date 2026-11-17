@@ -45,7 +45,8 @@ Checks: >
   -readability-suspicious-call-argument,
   -bugprone-reserved-identifier,
   -cppcoreguidelines-macro-usage,
-  -clang-analyzer-cplusplus.NewDeleteLeaks
+  -clang-analyzer-cplusplus.NewDeleteLeaks,
+  -bugprone-chained-comparison
 
 CheckOptions:
   # Identifier naming rules

@@ -89,8 +89,9 @@ namespace ecpps::ir
      {
      public:
           explicit FunctionCallNode(std::shared_ptr<FunctionScope> function, std::vector<Expression> arguments,
-                                    Location source)
-              : NodeBase(NodeKind::Call, source), _function(std::move(function)), _arguments(std::move(arguments))
+                                    Location source, ABICleanupKind abiCleanupKind = ABICleanupKind::None)
+              : NodeBase(NodeKind::Call, source), _function(std::move(function)), _arguments(std::move(arguments)),
+                _abiCleanupKind(abiCleanupKind)
           {
           }
 
@@ -120,9 +121,14 @@ namespace ecpps::ir
           {
                return this->_arguments;
           }
+          [[nodiscard]] ABICleanupKind AbiCleanupKind(void) const noexcept
+          {
+               return this->_abiCleanupKind;
+          }
 
      private:
           std::shared_ptr<FunctionScope> _function;
           std::vector<Expression> _arguments{};
+          ABICleanupKind _abiCleanupKind{ABICleanupKind::None};
      };
 } // namespace ecpps::ir
