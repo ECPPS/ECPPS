@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <cstdint>
 #include <deque>
+#include <format>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <string>
@@ -14,6 +16,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include "../Parsing/ASTs/General.h"
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Constexpr.h"
@@ -103,6 +106,69 @@ namespace
                                          &ecpps::ir::FunctionScope::Parameter::type);
           }
      };
+
+     [[nodiscard]] std::optional<std::string> ValidateNonMemberOperatorFunction(
+          const ecpps::ast::FunctionSignature& signature,
+          const std::vector<ecpps::ir::FunctionScope::Parameter>& parameters)
+     {
+          const auto* operatorId =
+               dynamic_cast<const ecpps::ast::OperatorFunctionId*>(signature.name.get());
+          if (operatorId == nullptr) return std::nullopt;
+
+          using ecpps::ast::Operator;
+          const auto operatorValue = operatorId->GetOperator();
+          if (operatorValue == Operator::QuestionMark || operatorValue == Operator::FullStop ||
+              operatorValue == Operator::PointerToMemberObject || operatorValue == Operator::Ellipsis)
+               return std::format("operator{} cannot be overloaded", ecpps::ast::ToString(operatorValue));
+
+          if (operatorValue == Operator::Function || operatorValue == Operator::Subscript ||
+              operatorValue == Operator::Arrow || operatorValue == Operator::Assignment)
+               return std::format("operator{} must be a member function", ecpps::ast::ToString(operatorValue));
+
+          if (signature.isVariadic ||
+              std::ranges::any_of(signature.parameters.parameters,
+                                  [](const ecpps::ast::FunctionParameter& parameter)
+                                  {
+                                       return parameter.defaultInitialiser != nullptr;
+                                  }))
+               return "Non-member operator functions cannot be variadic or have default arguments";
+
+          const auto count = parameters.size();
+          if (operatorValue == Operator::Increment || operatorValue == Operator::Decrement)
+          {
+               if (count != 1 && count != 2)
+                    return std::format("Non-member operator{} must have one or two parameters",
+                                       ecpps::ast::ToString(operatorValue));
+               if (count == 2 && parameters.back().type != ecpps::typeSystem::g_int.get())
+                    return std::format("The postfix operator{} parameter must have type int",
+                                       ecpps::ast::ToString(operatorValue));
+          }
+          else if (operatorValue == Operator::Plus || operatorValue == Operator::Minus ||
+                   operatorValue == Operator::Asterisk || operatorValue == Operator::Ampersand)
+          {
+               if (count != 1 && count != 2)
+                    return std::format("Non-member operator{} must have one or two parameters",
+                                       ecpps::ast::ToString(operatorValue));
+          }
+          else if (operatorValue == Operator::Exclamation || operatorValue == Operator::Tilde)
+          {
+               if (count != 1)
+                    return std::format("Non-member operator{} must have exactly 1 parameter",
+                                       ecpps::ast::ToString(operatorValue));
+          }
+          else if (count != 2)
+               return std::format("Non-member operator{} must have exactly 2 parameters",
+                                  ecpps::ast::ToString(operatorValue));
+
+          if (std::ranges::none_of(parameters,
+                                   [](const ecpps::ir::FunctionScope::Parameter& parameter)
+                                   {
+                                        return ecpps::typeSystem::IsClass(parameter.type);
+                                   }))
+               return "A non-member operator function must have a class-type parameter";
+
+          return std::nullopt;
+     }
 } // namespace
 
 std::vector<IRNodePointer> ecpps::ir::IR::Parse(Context& context, const std::vector<ASTNodePointer>& ast)
@@ -245,6 +311,13 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
                                                            return parameter.type == nullptr;
                                                       }))
           return; // TODO: Fallback to int, and maybe eventually guess the type?
+
+     if (const auto error = ValidateNonMemberOperatorFunction(node.Signature(), parameters); error.has_value())
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          *error, node.Source()));
+          return;
+     }
 
      abi::Linkage linkage = abi::Linkage::External;
      if (node.Signature().externOptional.has_value())
@@ -482,6 +555,13 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
                                                            return parameter.type == nullptr;
                                                       }))
           return; // TODO: Fallback to int, and maybe eventually guess the type?
+
+     if (const auto error = ValidateNonMemberOperatorFunction(node.Signature(), parameters); error.has_value())
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          *error, node.Source()));
+          return;
+     }
      abi::Linkage linkage = abi::Linkage::External;
 
      if (returnType != nullptr && !typeSystem::g_void->CommonWith(returnType))

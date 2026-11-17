@@ -69,6 +69,19 @@ namespace
           return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
      }
 
+     ecpps::ast::NodePointer MakeNonMemberOperatorDeclaration(
+          Fixture& fixture, const ecpps::ast::Operator operatorId, const std::vector<std::string>& parameterTypes)
+     {
+          std::vector<std::pair<std::string, std::string>> parameters{};
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+               parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
+          auto signature = fixture.MakeFunctionSignature("int", "operator", parameters);
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+               if (parameterTypes[index] == "Thing") signature.parameters.parameters[index].type = fixture.MakeClassType("Thing");
+          signature.name = MakeASTNode<ecpps::ast::OperatorFunctionId>(fixture.astAllocator, operatorId, Source);
+          return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
+     }
+
      std::vector<ecpps::ast::NodePointer> MakeCallProgram(Fixture& fixture, const std::string& functionName,
                                                           const std::size_t argumentCount)
      {
@@ -131,6 +144,24 @@ TEST_CASE("IR - Overload resolution prefers an exact match", "[unit][ir][overloa
      REQUIRE((call->Function().parameters.size() == 1));
      REQUIRE((call->Function().parameters.front().type->RawName() == "short"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Non-member operator declarations validate arity and member-only forms",
+          "[unit][ir][overload-resolution][operators]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(fixture.MakeStructDefinition("Thing", {}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Exclamation, {"Thing"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Plus, {"int", "int", "int"}));
+     ast.push_back(
+          MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));
+
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "Non-member operator+ must have one or two parameters"));
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator[] must be a member function"));
+     CHECK_FALSE(HasTypeErrorContaining(fixture.diagnostics, "Non-member operator! must have exactly 1 parameter"));
 }
 
 TEST_CASE("IR - Overload resolution prefers promotion to conversion", "[unit][ir][overload-resolution]")
