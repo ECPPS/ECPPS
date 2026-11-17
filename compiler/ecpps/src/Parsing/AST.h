@@ -505,6 +505,41 @@ namespace ecpps::ast
           SBOVector<NodePointer> _arguments;
      };
 
+     class SubscriptOperatorNode final : public Node
+     {
+     public:
+          explicit SubscriptOperatorNode(NodePointer object, SBOVector<NodePointer> arguments, Location source)
+              : Node(source), _object(std::move(object)), _arguments(std::move(arguments))
+          {
+          }
+
+          [[nodiscard]] const NodePointer& Object(void) const noexcept
+          {
+               return this->_object;
+          }
+          [[nodiscard]] const SBOVector<NodePointer>& Arguments(void) const noexcept
+          {
+               return this->_arguments;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               std::string arguments{};
+               for (const auto& argument : this->_arguments)
+                    arguments += (argument == nullptr ? "__unknown" : argument->ToString(0)) + ", ";
+               if (!arguments.empty())
+               {
+                    arguments.pop_back();
+                    arguments.pop_back();
+               }
+               return std::string(indent * PrettyIndent, ' ') +
+                      (this->_object == nullptr ? "__unknown" : this->_object->ToString(0)) + "[" + arguments + "]";
+          }
+
+     private:
+          NodePointer _object;
+          SBOVector<NodePointer> _arguments;
+     };
+
      class IdentifierNode;
 
      class ThisNode final : public Node

@@ -2071,6 +2071,22 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
      if (auto* const binaryExpression = dynamic_cast<ast::BinaryOperatorNode*>(expression.get());
          binaryExpression != nullptr)
           return this->ParseBinaryExpression(*binaryExpression);
+     if (auto* const subscriptExpression = dynamic_cast<ast::SubscriptOperatorNode*>(expression.get());
+         subscriptExpression != nullptr)
+     {
+          if (subscriptExpression->Arguments().Size() != 1)
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "Subscript expressions with zero or multiple arguments are not supported yet",
+                         subscriptExpression->Source()));
+               return nullptr;
+          }
+          return this->ParseSubscriptExpression(ParseExpression(subscriptExpression->Object()),
+                                                ParseExpression(subscriptExpression->Arguments().Front()),
+                                                subscriptExpression->Source());
+     }
      if (auto* const unaryExpression = dynamic_cast<ast::UnaryOperatorNode*>(expression.get());
          unaryExpression != nullptr)
           return this->ParseUnaryExpression(*unaryExpression);

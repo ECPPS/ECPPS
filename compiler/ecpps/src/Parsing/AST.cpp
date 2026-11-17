@@ -2231,18 +2231,38 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
           if (currentToken.type == TokenType::LeftBracket)
           {
                Advance();
-               auto subscriptExpression = ParseExpression(context);
+               SBOVector<NodePointer> arguments{};
                if (!Match(TokenType::RightBracket))
                {
-                    this->_diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                              "Expected a closing bracket in subscript expression", currentToken.location));
-                    return nullptr;
+                    while (!AtEnd())
+                    {
+                         auto argument = ParseAssignmentExpression(context);
+                         if (argument == nullptr) return nullptr;
+                         arguments.Push(std::move(argument));
+
+                         if (Match(TokenType::RightBracket)) break;
+                         if (IsOperatorToken(Peek(), ","))
+                         {
+                              Advance();
+                              continue;
+                         }
+
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                   "Expected a comma or closing bracket in subscript expression", Peek().location));
+                         return nullptr;
+                    }
+                    if (AtEnd() && Peek(-1).type != TokenType::RightBracket)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                   "Expected a closing bracket in subscript expression", currentToken.location));
+                         return nullptr;
+                    }
                }
-               source.endPosition = currentToken.location.endPosition;
-               expression =
-                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                         std::move(expression), Operator::Subscript, std::move(subscriptExpression), source));
+               source.endPosition = Peek(-1).location.endPosition;
+               expression = std::unique_ptr<SubscriptOperatorNode, ecpps::ast::ASTDeleter>(
+                    new (context) SubscriptOperatorNode(std::move(expression), std::move(arguments), source));
                continue;
           }
           if (currentToken.type == TokenType::LeftParenthesis)

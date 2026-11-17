@@ -67,6 +67,21 @@ namespace
           return tokens;
      }
 
+     std::vector<ecpps::Token> SubscriptFunction(std::vector<ecpps::Token> arguments)
+     {
+          std::vector<ecpps::Token> tokens{Keyword("int"), Identifier("subscript"),
+                                           Punctuation(ecpps::TokenType::LeftParenthesis),
+                                           Punctuation(ecpps::TokenType::RightParenthesis),
+                                           Punctuation(ecpps::TokenType::LeftBrace), Keyword("return"),
+                                           Identifier("object"), Punctuation(ecpps::TokenType::LeftBracket)};
+          tokens.insert(tokens.end(), std::make_move_iterator(arguments.begin()),
+                        std::make_move_iterator(arguments.end()));
+          tokens.insert(tokens.end(), {Punctuation(ecpps::TokenType::RightBracket),
+                                       Punctuation(ecpps::TokenType::SemiColon),
+                                       Punctuation(ecpps::TokenType::RightBrace)});
+          return tokens;
+     }
+
      const ecpps::ast::FunctionDefinitionNode* GetFunction(const std::vector<ecpps::ast::NodePointer>& nodes)
      {
           if (nodes.size() != 1) return nullptr;
@@ -224,6 +239,51 @@ TEST_CASE("AST - Operator function ids map to their operators", "[unit][parsing]
           REQUIRE((operatorId->ToString(0) == "operator" + operators[index].first));
      }
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Subscript expressions preserve separate arguments and comma expressions",
+          "[unit][parsing][ast]")
+{
+     Fixture multiArgumentFixture{};
+     auto multiArgumentNodes = multiArgumentFixture.Parse(SubscriptFunction({Identifier("row"), Operator(","),
+                                                                              Identifier("column")}));
+     const auto* multiArgumentFunction = GetFunction(multiArgumentNodes);
+     REQUIRE((multiArgumentFunction != nullptr));
+     const auto* multiArgumentReturn = GetReturn(*multiArgumentFunction);
+     REQUIRE((multiArgumentReturn != nullptr));
+     const auto* multiArgumentSubscript =
+          dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(multiArgumentReturn->Value().get());
+     REQUIRE((multiArgumentSubscript != nullptr));
+     REQUIRE((multiArgumentSubscript->Arguments().Size() == 2));
+     CHECK(dynamic_cast<const ecpps::ast::IdentifierNode*>(multiArgumentSubscript->Arguments()[0].get()) != nullptr);
+     CHECK(dynamic_cast<const ecpps::ast::IdentifierNode*>(multiArgumentSubscript->Arguments()[1].get()) != nullptr);
+
+     Fixture commaExpressionFixture{};
+     auto commaExpressionNodes = commaExpressionFixture.Parse(SubscriptFunction(
+          {Punctuation(ecpps::TokenType::LeftParenthesis), Identifier("row"), Operator(","), Identifier("column"),
+           Punctuation(ecpps::TokenType::RightParenthesis)}));
+     const auto* commaExpressionFunction = GetFunction(commaExpressionNodes);
+     REQUIRE((commaExpressionFunction != nullptr));
+     const auto* commaExpressionReturn = GetReturn(*commaExpressionFunction);
+     REQUIRE((commaExpressionReturn != nullptr));
+     const auto* commaExpressionSubscript =
+          dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(commaExpressionReturn->Value().get());
+     REQUIRE((commaExpressionSubscript != nullptr));
+     REQUIRE((commaExpressionSubscript->Arguments().Size() == 1));
+     const auto* commaExpression =
+          dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(commaExpressionSubscript->Arguments().Front().get());
+     REQUIRE((commaExpression != nullptr));
+     CHECK((commaExpression->Value() == ecpps::ast::Operator::Comma));
+
+     Fixture emptyFixture{};
+     auto emptyNodes = emptyFixture.Parse(SubscriptFunction({}));
+     const auto* emptyFunction = GetFunction(emptyNodes);
+     REQUIRE((emptyFunction != nullptr));
+     const auto* emptyReturn = GetReturn(*emptyFunction);
+     REQUIRE((emptyReturn != nullptr));
+     const auto* emptySubscript = dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(emptyReturn->Value().get());
+     REQUIRE((emptySubscript != nullptr));
+     CHECK((emptySubscript->Arguments().Size() == 0));
 }
 
 TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[unit][parsing][ast]")
