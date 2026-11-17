@@ -3,6 +3,7 @@
 #include "CodeGeneration/AbstractNodes.h"
 #include "Machine/Encoders/API/Target.h"
 #include "RuntimeAssert.h"
+#include "Shared/RangeCompat.h"
 
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::

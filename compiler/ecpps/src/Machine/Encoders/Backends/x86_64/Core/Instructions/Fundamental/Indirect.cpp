@@ -10,6 +10,7 @@
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.h"
 #include "Machine/Encoders/Backends/x86_64/Core/Instructions/Common/MemoryOperations.h"
 #include "RuntimeAssert.h"
+#include "Shared/RangeCompat.h"
 
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::

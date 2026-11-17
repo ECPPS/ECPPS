@@ -85,9 +85,11 @@ namespace
      bool HasAggregateFieldStore(const std::vector<AggregateFieldStore>& stores, const std::uint64_t value,
                                  const std::uint64_t offset)
      {
-          for (const auto& store : stores)
-               if (store.value == value && store.offset == offset) return true;
-          return false;
+          return std::ranges::any_of(stores,
+                                     [=](const auto& store)
+                                     {
+                                          return store.value == value && store.offset == offset;
+                                     });
      }
 
      [[nodiscard]] bool IsParameterNode(const ecpps::ir::NodePointer& node)
@@ -104,32 +106,38 @@ namespace
      [[nodiscard]] bool HasLoadOfIndirectStoreTarget(const std::vector<ecpps::ir::NodePointer>& body,
                                                      const ecpps::ir::SSAIndirectStoreNode& store)
      {
-          for (const auto& node : body)
-               if (const auto* load = dynamic_cast<const ecpps::ir::SSALoadNode*>(node.get());
-                   load != nullptr && &load->Result() == &store.Target())
-                    return true;
-          return false;
+          return std::ranges::any_of(body,
+                                     [&store](const auto& node)
+                                     {
+                                          const auto* load = dynamic_cast<const ecpps::ir::SSALoadNode*>(node.get());
+                                          return load != nullptr && &load->Result() == &store.Target();
+                                     });
      }
 
      [[nodiscard]] bool HasAddressOfIndirectStoreTarget(const std::vector<ecpps::ir::NodePointer>& body,
                                                         const ecpps::ir::SSAIndirectStoreNode& store)
      {
-          for (const auto& node : body)
-               if (const auto* address = dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node.get());
-                   address != nullptr && &address->Result() == &store.Target())
-                    return true;
-          return false;
+          return std::ranges::any_of(body,
+                                     [&store](const auto& node)
+                                     {
+                                          const auto* address =
+                                               dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node.get());
+                                          return address != nullptr && &address->Result() == &store.Target();
+                                     });
      }
 
      [[nodiscard]] bool HasAddressOfCallArgument(const std::vector<ecpps::ir::NodePointer>& body,
                                                  const ecpps::ir::SSACallNode& call, const std::size_t argumentIndex)
      {
           if (argumentIndex >= call.Arguments().size()) return false;
-          for (const auto& node : body)
-               if (const auto* address = dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node.get());
-                   address != nullptr && &address->Result() == call.Arguments()[argumentIndex])
-                    return true;
-          return false;
+
+          return std::ranges::any_of(
+               body,
+               [&call, argumentIndex](const auto& node)
+               {
+                    const auto* address = dynamic_cast<const ecpps::ir::SSAAddressOfNode*>(node.get());
+                    return address != nullptr && &address->Result() == call.Arguments()[argumentIndex];
+               });
      }
 
      [[nodiscard]] bool IsCallNamed(const ecpps::ir::NodePointer& node, const std::string_view name)
@@ -799,7 +807,7 @@ TEST_CASE("IR - Class assignment to a local passes its address to aggregate copy
      ast.push_back(fixture.MakeStructDefinition("LocalAssignableValue", {{"int", "value"}}));
 
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
-     for (const auto name : {"left", "right"})
+     for (const auto* const name : {"left", "right"})
      {
           auto initialiser = MakeASTNode<ecpps::ast::InitialiserListNode>(
                fixture.astAllocator, std::vector<ecpps::ast::NodePointer>{}, Source);
