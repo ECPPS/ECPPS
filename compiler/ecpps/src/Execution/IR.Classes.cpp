@@ -69,7 +69,7 @@ namespace
               operatorId == Operator::PointerToMemberObject || operatorId == Operator::Ellipsis)
                return std::format("operator{} cannot be overloaded", ecpps::ast::ToString(operatorId));
 
-          if (isStatic && !IsCallOrSubscriptOperator(operatorId))
+          if (isStatic && operatorId != Operator::Function)
                return std::format("operator{} must be a non-static member function", ecpps::ast::ToString(operatorId));
 
           if (operatorId == Operator::Function || operatorId == Operator::Subscript) return std::nullopt;

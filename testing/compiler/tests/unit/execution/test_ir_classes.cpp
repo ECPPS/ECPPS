@@ -1140,6 +1140,24 @@ TEST_CASE("IR - Call and subscript operators allow C++23 parameter forms", "[uni
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
+TEST_CASE("IR - C++23 permits static call operators but requires non-static subscript operators",
+          "[unit][ir][classes][operators]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "StaticOperatorValue", ecpps::ast::Operator::Function,
+                                                     {}, {}, false, true));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, "StaticOperatorValue", ecpps::ast::Operator::Subscript,
+                                                     {}, {}, false, true));
+
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, "StaticOperatorValue", std::move(members)));
+     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator[] must be a non-static member function"));
+     CHECK_FALSE(HasTypeErrorContaining(fixture.diagnostics, "operator() must be a non-static member function"));
+}
+
 TEST_CASE("IR - Copy assignment invokes the declared operator= overload", "[unit][ir][classes][by-value]")
 {
      ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
