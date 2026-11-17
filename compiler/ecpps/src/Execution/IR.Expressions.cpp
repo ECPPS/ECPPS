@@ -938,13 +938,60 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
      auto operand = ParseExpression(node.Operand());
      if (operand == nullptr) return nullptr;
 
+     if (typeSystem::IsClass(operand->Type()))
+     {
+          std::vector<Expression> arguments{};
+          if ((operator_ == ast::Operator::Increment || operator_ == ast::Operator::Decrement) &&
+              node.UnaryType() == ast::UnaryOperatorType::Postfix)
+               arguments.push_back(std::make_unique<PRValue>(
+                    typeSystem::g_int.get(),
+                    std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                  IntegralNode(0, node.Source())},
+                    true));
+          return ParseMemberOperatorCall("operator" + ast::ToString(operator_), std::move(operand),
+                                         std::move(arguments), node.Source());
+     }
+
      switch (operator_)
      {
      case ast::Operator::Plus:
+          if (const auto* integral = operand->Type()->CastTo<typeSystem::IntegralType>(); integral != nullptr)
+          {
+               const auto* promoted = typeSystem::PromoteInteger(integral);
+               if (operand->Type() == promoted) return operand;
+               return ConvertTo(std::move(operand), promoted);
+          }
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "The built-in unary + operator requires an integral operand",
+                                                          node.Source()));
+          return nullptr;
      case ast::Operator::Minus: return this->ParseArithmeticNegationExpression(std::move(operand), node.Source());
      case ast::Operator::Asterisk: return this->ParseDereferenceExpression(std::move(operand), node.Source());
      case ast::Operator::Ampersand: return this->ParseAddressOfExpression(std::move(operand), node.Source());
      case ast::Operator::Tilde: return this->ParseBitwiseNotExpression(std::move(operand), node.Source());
+     case ast::Operator::Exclamation:
+          if (!IsScalar(operand->Type()))
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                             "The built-in unary ! operator requires a scalar operand", node.Source()));
+               return nullptr;
+          }
+          {
+               auto nonZero = MakeNonZeroTest(std::move(operand), node.Source());
+               const auto* boolType = nonZero->Type();
+               auto falseValue = std::make_unique<PRValue>(
+                    boolType, std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                           IntegralNode(0, node.Source())},
+                    true);
+               return std::make_unique<PRValue>(
+                    boolType,
+                    std::unique_ptr<high::CompareNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
+                                                                       high::CompareNode(
+                                                                            std::move(nonZero), std::move(falseValue),
+                                                                            ComparisonPredicate::Equal, node.Source())},
+                    false);
+          }
      case ast::Operator::Increment:
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
                       ? this->ParsePreIncrementExpression(std::move(operand), node.Source())
@@ -1024,6 +1071,14 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
 
      auto right = ParseExpression(node.Right());
      if (left == nullptr || right == nullptr) return nullptr;
+
+     if (operator_ != ast::Operator::Assignment && typeSystem::IsClass(left->Type()))
+     {
+          std::vector<Expression> arguments{};
+          arguments.push_back(std::move(right));
+          return ParseMemberOperatorCall("operator" + ast::ToString(operator_), std::move(left),
+                                         std::move(arguments), node.Source());
+     }
 
      switch (operator_)
      {
@@ -1375,12 +1430,251 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
 }
 
+Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, Expression object,
+                                                  std::vector<Expression> arguments, const Location& source)
+{
+     const auto report = [&](std::string message) -> Expression
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          std::move(message), source));
+          return nullptr;
+     };
+     if (object == nullptr) return nullptr;
+     if (!typeSystem::IsClass(object->Type()))
+          return report(std::format("Member operator{} requires a class object", name));
+
+     const auto* classType = object->Type()->CastTo<typeSystem::ClassType>();
+     if (classType == nullptr) return report(std::format("Member operator{} requires a class object", name));
+
+     const auto classRecord = this->GetContext().classTable->classes.find(classType->Info().id);
+     if (classRecord == this->GetContext().classTable->classes.end() || classRecord->second.scope == nullptr)
+          return report(std::format("Member operators of '{}' are unavailable", classType->Info().DisplayName()));
+
+     const bool receiverIsLvalue = object->IsLValue();
+     using FunctionCandidate = CompareByPriority::Candidate;
+     std::priority_queue<FunctionCandidate, std::vector<FunctionCandidate>, CompareByPriority> candidates{};
+     std::vector<std::shared_ptr<FunctionScope>> sameNameCandidates{};
+     for (const auto& candidate : classRecord->second.scope->functions)
+     {
+          if (candidate->Name() != name || candidate->memberClassInfo == nullptr) continue;
+          sameNameCandidates.push_back(candidate);
+          std::size_t objectQualificationPenalty{};
+          if (!candidate->isStatic)
+          {
+               if (!object->IsGLValue() ||
+                   (classType->IsConst() && !candidate->memberFunctionInfo.isConst) ||
+                   (classType->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) ||
+                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue &&
+                    !receiverIsLvalue) ||
+                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue &&
+                    receiverIsLvalue))
+                    continue;
+               if (!classType->IsConst() && candidate->memberFunctionInfo.isConst) objectQualificationPenalty++;
+               if (!classType->IsVolatile() && candidate->memberFunctionInfo.isVolatile) objectQualificationPenalty++;
+          }
+          const auto score = MatchFunction(candidate, arguments);
+          if (score != MatchingScore::NotMatching)
+               candidates.push({.argumentScore = score,
+                                .objectQualificationPenalty = objectQualificationPenalty,
+                                .function = candidate});
+     }
+
+     std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
+     candidateDiagnostics.reserve(sameNameCandidates.size());
+     for (const auto& candidate : sameNameCandidates)
+          candidateDiagnostics.push_back(OverloadCandidateDiagnostic{.signature = FormatFunctionSignature(candidate),
+                                                                      .source = candidate->source,
+                                                                      .isDeleted = candidate->isDeleted});
+     if (candidates.empty())
+     {
+          if (sameNameCandidates.empty())
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::MissingMember(
+                                                                classType->Info().DisplayName(), std::string{name},
+                                                                source, std::nullopt, {}));
+          else
+               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+                                                                classType->Info().DisplayName() + "::" +
+                                                                     std::string{name},
+                                                                source, candidateDiagnostics, {},
+                                                                SimilarNamesKind::Members));
+          return nullptr;
+     }
+
+     auto rankedCandidates = candidates;
+     const auto selectedCandidate = rankedCandidates.top();
+     rankedCandidates.pop();
+     std::vector<std::shared_ptr<FunctionScope>> tiedBestCandidates{selectedCandidate.function};
+     while (!rankedCandidates.empty() && rankedCandidates.top().argumentScore == selectedCandidate.argumentScore &&
+            rankedCandidates.top().objectQualificationPenalty == selectedCandidate.objectQualificationPenalty)
+     {
+          tiedBestCandidates.push_back(rankedCandidates.top().function);
+          rankedCandidates.pop();
+     }
+     if (tiedBestCandidates.size() > 1)
+     {
+          candidateDiagnostics.clear();
+          for (const auto& candidate : tiedBestCandidates)
+               candidateDiagnostics.push_back(OverloadCandidateDiagnostic{
+                    .signature = FormatFunctionSignature(candidate), .source = candidate->source});
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
+                                                           classType->Info().DisplayName() + "::" +
+                                                                std::string{name},
+                                                           source, candidateDiagnostics));
+          return nullptr;
+     }
+
+     const auto& candidate = selectedCandidate.function;
+     const bool isAccessible = this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess);
+     if (!isAccessible || candidate->isDeleted)
+     {
+          const auto diagnosticCandidate = OverloadCandidateDiagnostic{.signature = FormatFunctionSignature(candidate),
+                                                                       .source = candidate->source,
+                                                                       .isDeleted = candidate->isDeleted};
+          DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
+                                                           diagnosticCandidate.signature, source, !isAccessible,
+                                                           candidate->isDeleted, diagnosticCandidate));
+          return nullptr;
+     }
+     if (!RequireComplete(candidate->returnType, source, "a member operator call")) return nullptr;
+     for (const auto& parameter : candidate->parameters)
+          if (!RequireComplete(parameter.type, source, "a member operator call")) return nullptr;
+
+     std::vector<Expression> evaluatedArguments{};
+     evaluatedArguments.reserve(arguments.size() + static_cast<std::size_t>(!candidate->isStatic));
+     if (candidate->isStatic)
+     {
+          [[maybe_unused]] const auto* evaluatedObject = LowerExpression(std::move(object), this->_built);
+     }
+     else
+     {
+          auto objectPointer = ParseAddressOfExpression(std::move(object), source);
+          if (objectPointer == nullptr) return nullptr;
+          evaluatedArguments.push_back(std::move(objectPointer));
+     }
+     for (std::size_t index = 0; index < arguments.size(); index++)
+          evaluatedArguments.push_back(
+               PrepareByValueArgument(std::move(arguments[index]), candidate->parameters[index].type, source));
+     if (std::ranges::any_of(evaluatedArguments,
+                             [](const Expression& argument)
+                             {
+                                  return argument == nullptr;
+                             }))
+          return nullptr;
+
+     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
+          candidate, std::move(evaluatedArguments), source)};
+     return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
+}
+
+Expression ecpps::ir::IR::ParseSubscriptOperatorExpression(const ast::SubscriptOperatorNode& node)
+{
+     auto object = ParseExpression(node.Object());
+     if (object == nullptr) return nullptr;
+
+     std::vector<Expression> arguments{};
+     arguments.reserve(node.Arguments().Size());
+     for (const auto& argument : node.Arguments()) arguments.push_back(ParseExpression(argument));
+     if (std::ranges::any_of(arguments,
+                             [](const Expression& argument)
+                             {
+                                  return argument == nullptr;
+                             }))
+          return nullptr;
+
+     if (typeSystem::IsClass(object->Type()))
+          return ParseMemberOperatorCall("operator[]", std::move(object), std::move(arguments), node.Source());
+
+     if (arguments.size() != 1)
+     {
+          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                          "The built-in subscript operator requires exactly one "
+                                                          "argument",
+                                                          node.Source()));
+          return nullptr;
+     }
+     return ParseSubscriptExpression(std::move(object), std::move(arguments.front()), node.Source());
+}
+
 Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
 {
      if (const auto* memberAccess = dynamic_cast<const ast::BinaryOperatorNode*>(node.Function().get());
          memberAccess != nullptr &&
          (memberAccess->Value() == ast::Operator::FullStop || memberAccess->Value() == ast::Operator::Arrow))
           return this->ParseMemberCallExpression(node, *memberAccess);
+
+     if (const auto* objectIdentifier = dynamic_cast<const ast::IdentifierNode*>(node.Function().get());
+         objectIdentifier != nullptr)
+     {
+          const auto objectName = objectIdentifier->Value().View();
+          bool namesObject = false;
+          for (const auto& context : this->GetContext().contextSequence | std::views::reverse)
+          {
+               const auto* functionScope = dynamic_cast<const FunctionScope*>(&context->GetScope());
+               if (functionScope != nullptr &&
+                   std::ranges::any_of(functionScope->Locals(),
+                                       [objectName](const FunctionScope::LocalEntity& local)
+                                       {
+                                            const auto* variable = std::get_if<Variable>(&local.local);
+                                            return variable != nullptr && variable->Name().value_or("") == objectName;
+                                       }))
+               {
+                    namesObject = true;
+                    break;
+               }
+
+               const auto* function = dynamic_cast<const FunctionContext*>(context.get());
+               const auto* pointerType = function != nullptr && function->thisType != nullptr
+                                              ? function->thisType->CastTo<typeSystem::PointerType>()
+                                              : nullptr;
+               const auto* classType = pointerType != nullptr
+                                            ? pointerType->BaseType()->CastTo<typeSystem::ClassType>()
+                                            : nullptr;
+               if (classType != nullptr &&
+                   std::ranges::any_of(classType->Info().fields,
+                                       [objectName](const typeSystem::ClassField& field)
+                                       {
+                                            return field.name == objectName;
+                                       }))
+               {
+                    namesObject = true;
+                    break;
+               }
+          }
+          if (!this->_objectInitialisationStack.empty())
+          {
+               const auto* classType = this->_objectInitialisationStack.back().type->CastTo<typeSystem::ClassType>();
+               namesObject = namesObject ||
+                             (classType != nullptr &&
+                              std::ranges::any_of(classType->Info().fields,
+                                                  [objectName](const typeSystem::ClassField& field)
+                                                  {
+                                                       return field.name == objectName;
+                                                  }));
+          }
+
+          if (namesObject)
+          {
+               auto object = ParseExpression(node.Function());
+               if (object != nullptr && typeSystem::IsClass(object->Type()))
+               {
+                    std::vector<Expression> arguments = node.Arguments() |
+                                                        std::views::transform(
+                                                             [this](const ast::NodePointer& argument)
+                                                             {
+                                                                  return this->ParseExpression(argument);
+                                                             }) |
+                                                        ecpps::detail::ToVector;
+                    if (std::ranges::any_of(arguments,
+                                            [](const Expression& argument)
+                                            {
+                                                 return argument == nullptr;
+                                            }))
+                         return nullptr;
+                    return ParseMemberOperatorCall("operator()", std::move(object), std::move(arguments),
+                                                   node.Source());
+               }
+          }
+     }
 
      const ast::IdentifierNode* identifierFunction = nullptr;
      std::vector<std::string> qualifiers;
@@ -2073,20 +2367,7 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
           return this->ParseBinaryExpression(*binaryExpression);
      if (auto* const subscriptExpression = dynamic_cast<ast::SubscriptOperatorNode*>(expression.get());
          subscriptExpression != nullptr)
-     {
-          if (subscriptExpression->Arguments().Size() != 1)
-          {
-               DiagnosticSink::Report(
-                    this->GetContext(),
-                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                         "Subscript expressions with zero or multiple arguments are not supported yet",
-                         subscriptExpression->Source()));
-               return nullptr;
-          }
-          return this->ParseSubscriptExpression(ParseExpression(subscriptExpression->Object()),
-                                                ParseExpression(subscriptExpression->Arguments().Front()),
-                                                subscriptExpression->Source());
-     }
+          return this->ParseSubscriptOperatorExpression(*subscriptExpression);
      if (auto* const unaryExpression = dynamic_cast<ast::UnaryOperatorNode*>(expression.get());
          unaryExpression != nullptr)
           return this->ParseUnaryExpression(*unaryExpression);

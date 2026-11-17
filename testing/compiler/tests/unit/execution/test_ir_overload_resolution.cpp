@@ -153,6 +153,7 @@ TEST_CASE("IR - Non-member operator declarations validate arity and member-only 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeStructDefinition("Thing", {}));
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Exclamation, {"Thing"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Increment, {"Thing", "int"}));
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Plus, {"int", "int", "int"}));
      ast.push_back(
           MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));

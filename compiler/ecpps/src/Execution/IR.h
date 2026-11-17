@@ -255,6 +255,9 @@ namespace ecpps::ir
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
+          Expression ParseSubscriptOperatorExpression(const ast::SubscriptOperatorNode& node);
+          Expression ParseMemberOperatorCall(std::string_view name, Expression object,
+                                             std::vector<Expression> arguments, const Location& source);
           Expression ParseMemberCallExpression(const ast::CallOperatorNode& node,
                                                const ast::BinaryOperatorNode& memberAccess);
           Expression ParseStringLiteral(const ast::StringLiteralNode& expression) const;

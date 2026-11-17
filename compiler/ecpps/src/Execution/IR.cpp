@@ -91,6 +91,13 @@ namespace
           return leftClass != nullptr && rightClass != nullptr && leftClass->Info().id == rightClass->Info().id;
      }
 
+     [[nodiscard]] bool IsIntType(ecpps::typeSystem::NonowningTypePointer type) noexcept
+     {
+          const auto* integral = type != nullptr ? type->CastTo<ecpps::typeSystem::IntegralType>() : nullptr;
+          return integral != nullptr && integral->Kind() == ecpps::typeSystem::TypeKind::Int &&
+                 integral->Sign() == ecpps::typeSystem::Signedness::Signed;
+     }
+
      struct FunctionSignatureMatcher
      {
           std::string_view name;
@@ -139,7 +146,7 @@ namespace
                if (count != 1 && count != 2)
                     return std::format("Non-member operator{} must have one or two parameters",
                                        ecpps::ast::ToString(operatorValue));
-               if (count == 2 && parameters.back().type != ecpps::typeSystem::g_int.get())
+               if (count == 2 && !IsIntType(parameters.back().type))
                     return std::format("The postfix operator{} parameter must have type int",
                                        ecpps::ast::ToString(operatorValue));
           }

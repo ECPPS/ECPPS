@@ -1158,6 +1158,235 @@ TEST_CASE("IR - C++23 permits static call operators but requires non-static subs
      CHECK_FALSE(HasTypeErrorContaining(fixture.diagnostics, "operator() must be a non-static member function"));
 }
 
+TEST_CASE("IR - Multi-argument subscript expressions call operator[]", "[unit][ir][classes][operators]")
+{
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+     Fixture fixture{};
+     const std::string className{"MultiIndexValue"};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Subscript,
+                                                     {"int", "int"}));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Subscript, {}));
+
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
+     ecpps::SBOVector<ecpps::ast::NodePointer> indices{};
+     indices.Push(fixture.MakeIntegerLiteral(2));
+     indices.Push(fixture.MakeIntegerLiteral(3));
+     auto subscript = MakeASTNode<ecpps::ast::SubscriptOperatorNode>(fixture.astAllocator,
+                                                                    fixture.MakeIdentifier("value"),
+                                                                    std::move(indices), Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(subscript), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(
+          MakeClassFunctionSignature(fixture, "int", "read", {{className, "value"}}), std::move(body)));
+     auto emptySubscript = MakeASTNode<ecpps::ast::SubscriptOperatorNode>(
+          fixture.astAllocator, fixture.MakeIdentifier("value"), ecpps::SBOVector<ecpps::ast::NodePointer>{}, Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> emptyBody{};
+     emptyBody.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(emptySubscript), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(
+          MakeClassFunctionSignature(fixture, "int", "read_empty", {{className, "value"}}),
+          std::move(emptyBody)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* read = FindProcedure(nodes, "read");
+     REQUIRE((read != nullptr));
+     const auto* call = FindCall(*read);
+     REQUIRE((call != nullptr));
+     CHECK((call->Function().Name() == "operator[]"));
+     CHECK((call->Arguments().size() == 3));
+     const auto* readEmpty = FindProcedure(nodes, "read_empty");
+     REQUIRE((readEmpty != nullptr));
+     const auto* emptyCall = FindCall(*readEmpty);
+     REQUIRE((emptyCall != nullptr));
+     CHECK((emptyCall->Function().Name() == "operator[]"));
+     CHECK((emptyCall->Arguments().size() == 1));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Single-argument subscripts keep built-in pointer lowering", "[unit][ir][classes][operators]")
+{
+     Fixture fixture{};
+     auto signature = fixture.MakeFunctionSignature("int", "read_pointer", {});
+     ecpps::ast::FunctionParameter pointerParameter{};
+     pointerParameter.type = MakeASTNode<ecpps::ast::PointerType>(fixture.astAllocator,
+                                                                  fixture.MakeBasicType("int"), Source);
+     pointerParameter.name = fixture.MakeIdentifier("values");
+     signature.parameters.parameters.push_back(std::move(pointerParameter));
+     ecpps::SBOVector<ecpps::ast::NodePointer> indices{};
+     indices.Push(fixture.MakeIntegerLiteral(1));
+     auto subscript = MakeASTNode<ecpps::ast::SubscriptOperatorNode>(fixture.astAllocator,
+                                                                    fixture.MakeIdentifier("values"),
+                                                                    std::move(indices), Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(subscript), Source));
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     CHECK((FindProcedure(nodes, "read_pointer") != nullptr));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Calling a class object invokes member operator()", "[unit][ir][classes][operators]")
+{
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+     Fixture fixture{};
+     const std::string className{"CallableValue"};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Function, {"int"}));
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
+
+     ecpps::SBOVector<ecpps::ast::NodePointer> arguments{};
+     arguments.Push(fixture.MakeIntegerLiteral(7));
+     auto call = MakeASTNode<ecpps::ast::CallOperatorNode>(fixture.astAllocator, fixture.MakeIdentifier("callable"),
+                                                           std::move(arguments), Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(call), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(
+          MakeClassFunctionSignature(fixture, "int", "invoke", {{className, "callable"}}), std::move(body)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* invoke = FindProcedure(nodes, "invoke");
+     REQUIRE((invoke != nullptr));
+     const auto* loweredCall = FindCall(*invoke);
+     REQUIRE((loweredCall != nullptr));
+     CHECK((loweredCall->Function().Name() == "operator()"));
+     CHECK((loweredCall->Arguments().size() == 2));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Calling a class object supports static operator()", "[unit][ir][classes][operators]")
+{
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+     Fixture fixture{};
+     const std::string className{"StaticCallableValue"};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Function, {"int"}, {},
+                                                     false, true));
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
+
+     ecpps::SBOVector<ecpps::ast::NodePointer> arguments{};
+     arguments.Push(fixture.MakeIntegerLiteral(7));
+     auto call = MakeASTNode<ecpps::ast::CallOperatorNode>(fixture.astAllocator, fixture.MakeIdentifier("callable"),
+                                                           std::move(arguments), Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(call), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(
+          MakeClassFunctionSignature(fixture, "int", "invoke_static", {{className, "callable"}}), std::move(body)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* invoke = FindProcedure(nodes, "invoke_static");
+     REQUIRE((invoke != nullptr));
+     const auto* loweredCall = FindCall(*invoke);
+     REQUIRE((loweredCall != nullptr));
+     CHECK((loweredCall->Function().Name() == "operator()"));
+     CHECK((loweredCall->Arguments().size() == 1));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Binary expressions invoke member operator overloads", "[unit][ir][classes][operators]")
+{
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+     Fixture fixture{};
+     const std::string className{"AddableValue"};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Plus, {"int"}));
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
+
+     auto addition = MakeASTNode<ecpps::ast::BinaryOperatorNode>(fixture.astAllocator,
+                                                                 fixture.MakeIdentifier("value"),
+                                                                 ecpps::ast::Operator::Plus,
+                                                                 fixture.MakeIntegerLiteral(5), Source);
+     ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+     body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(addition), Source));
+     ast.push_back(fixture.MakeFunctionDefinition(
+          MakeClassFunctionSignature(fixture, "int", "add", {{className, "value"}}), std::move(body)));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* add = FindProcedure(nodes, "add");
+     REQUIRE((add != nullptr));
+     const auto* call = FindCall(*add);
+     REQUIRE((call != nullptr));
+     CHECK((call->Function().Name() == "operator+"));
+     CHECK((call->Arguments().size() == 2));
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Unary expressions invoke member operator overloads", "[unit][ir][classes][operators]")
+{
+     ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
+     Fixture fixture{};
+     const std::string className{"UnaryOperatorValue"};
+     std::vector<ecpps::ast::NodePointer> members{};
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Increment, {}));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Increment, {"int"}));
+     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Exclamation, {}));
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
+
+     const auto makeUnaryCaller = [&fixture, &className](const std::string& functionName,
+                                                         const ecpps::ast::Operator operatorId,
+                                                         const ecpps::ast::UnaryOperatorType unaryType)
+     {
+          auto unary = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, operatorId,
+                                                                  fixture.MakeIdentifier("value"), unaryType, Source);
+          ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+          body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(unary), Source));
+          return fixture.MakeFunctionDefinition(
+               MakeClassFunctionSignature(fixture, "int", functionName, {{className, "value"}}), std::move(body));
+     };
+     ast.push_back(makeUnaryCaller("prefix_increment", ecpps::ast::Operator::Increment,
+                                   ecpps::ast::UnaryOperatorType::Prefix));
+     ast.push_back(makeUnaryCaller("postfix_increment", ecpps::ast::Operator::Increment,
+                                   ecpps::ast::UnaryOperatorType::Postfix));
+     ast.push_back(makeUnaryCaller("logical_not", ecpps::ast::Operator::Exclamation,
+                                   ecpps::ast::UnaryOperatorType::Prefix));
+
+     const auto makeBuiltinUnaryCaller = [&fixture](const std::string& functionName,
+                                                    const ecpps::ast::Operator operatorId)
+     {
+          auto unary = MakeASTNode<ecpps::ast::UnaryOperatorNode>(fixture.astAllocator, operatorId,
+                                                                  fixture.MakeIdentifier("value"),
+                                                                  ecpps::ast::UnaryOperatorType::Prefix, Source);
+          ecpps::SBOVector<ecpps::ast::NodePointer> body{};
+          body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(unary), Source));
+          return fixture.MakeFunctionDefinition(
+               fixture.MakeFunctionSignature("int", functionName, {{"short", "value"}}), std::move(body));
+     };
+     ast.push_back(makeBuiltinUnaryCaller("builtin_unary_plus", ecpps::ast::Operator::Plus));
+     ast.push_back(makeBuiltinUnaryCaller("builtin_logical_not", ecpps::ast::Operator::Exclamation));
+
+     const auto nodes = fixture.Parse(std::move(ast));
+     const auto* prefix = FindProcedure(nodes, "prefix_increment");
+     REQUIRE((prefix != nullptr));
+     const auto* prefixCall = FindCall(*prefix);
+     REQUIRE((prefixCall != nullptr));
+     CHECK((prefixCall->Function().Name() == "operator++"));
+     CHECK((prefixCall->Arguments().size() == 1));
+
+     const auto* postfix = FindProcedure(nodes, "postfix_increment");
+     REQUIRE((postfix != nullptr));
+     const auto* postfixCall = FindCall(*postfix);
+     REQUIRE((postfixCall != nullptr));
+     CHECK((postfixCall->Function().Name() == "operator++"));
+     CHECK((postfixCall->Arguments().size() == 2));
+
+     const auto* logicalNot = FindProcedure(nodes, "logical_not");
+     REQUIRE((logicalNot != nullptr));
+     const auto* notCall = FindCall(*logicalNot);
+     REQUIRE((notCall != nullptr));
+     CHECK((notCall->Function().Name() == "operator!"));
+     CHECK((notCall->Arguments().size() == 1));
+     CHECK((FindProcedure(nodes, "builtin_unary_plus") != nullptr));
+     CHECK((FindProcedure(nodes, "builtin_logical_not") != nullptr));
+
+     CHECK(fixture.diagnostics.diagnosticsList.empty());
+}
+
 TEST_CASE("IR - Copy assignment invokes the declared operator= overload", "[unit][ir][classes][by-value]")
 {
      ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));

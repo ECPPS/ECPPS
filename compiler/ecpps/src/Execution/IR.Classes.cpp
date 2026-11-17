@@ -62,6 +62,13 @@ namespace
           return operatorId == Operator::Function || operatorId == Operator::Subscript;
      }
 
+     [[nodiscard]] bool IsIntType(const ecpps::typeSystem::NonowningTypePointer type) noexcept
+     {
+          const auto* integral = type != nullptr ? type->CastTo<ecpps::typeSystem::IntegralType>() : nullptr;
+          return integral != nullptr && integral->Kind() == ecpps::typeSystem::TypeKind::Int &&
+                 integral->Sign() == ecpps::typeSystem::Signedness::Signed;
+     }
+
      [[nodiscard]] std::optional<std::string> ValidateMemberOperatorParameterCount(
           const Operator operatorId, const bool isStatic, const std::size_t parameterCount)
      {
@@ -85,6 +92,12 @@ namespace
           {
                if (parameterCount <= 1) return std::nullopt;
                return std::format("operator{} must have zero or one parameter", ecpps::ast::ToString(operatorId));
+          }
+
+          if (operatorId == Operator::Exclamation || operatorId == Operator::Tilde)
+          {
+               if (parameterCount == 0) return std::nullopt;
+               return std::format("operator{} must have zero parameters", ecpps::ast::ToString(operatorId));
           }
 
           const std::size_t expectedParameterCount = operatorId == Operator::Arrow ? 0 : 1;
@@ -812,7 +825,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                if (hasOperatorId && functionType.parameters.size() == 1 &&
                    (operatorId->GetOperator() == ast::Operator::Increment ||
                     operatorId->GetOperator() == ast::Operator::Decrement) &&
-                   parameters.front().type != typeSystem::g_int.get())
+                   !IsIntType(parameters.front().type))
                {
                     report(std::format("The postfix operator{} parameter must have type int",
                                        ast::ToString(operatorId->GetOperator())),
