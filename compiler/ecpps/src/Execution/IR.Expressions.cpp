@@ -14,6 +14,8 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -56,6 +58,131 @@ using OverloadCandidateDiagnostic = ecpps::ir::overloadDiagnostics::Candidate;
 using OverloadCandidateDetail = ecpps::ir::overloadDiagnostics::CandidateDetail;
 using OverloadSimilarName = ecpps::ir::overloadDiagnostics::SimilarName;
 using SimilarNamesKind = ecpps::ir::overloadDiagnostics::SimilarNamesKind;
+
+template <std::ranges::input_range Range, typename Ranker> auto SelectUniqueBest(const Range& candidates, Ranker ranker)
+{
+     using Candidate = std::ranges::range_value_t<Range>;
+     using Projection = std::invoke_result_t<Ranker&, std::ranges::range_reference_t<const Range>>;
+     using Rank = typename Projection::value_type;
+     std::optional<std::pair<Candidate, Rank>> best{};
+     bool ambiguous = false;
+     for (const auto& candidate : candidates)
+     {
+          const auto rank = ranker(candidate);
+          if (!rank.has_value()) continue;
+          if (!best.has_value() || *rank > best->second)
+          {
+               best.emplace(candidate, *rank);
+               ambiguous = false;
+          }
+          else if (*rank == best->second)
+               ambiguous = true;
+     }
+     return std::pair{std::move(best), ambiguous};
+}
+
+using ExplicitConstDeclaration = std::pair<std::string, ecpps::Location>;
+
+static std::optional<ExplicitConstDeclaration> ExplicitConstLocalDeclaration(const Expression& expression,
+                                                                             const ecpps::ir::Context& context)
+{
+     if (expression == nullptr) return std::nullopt;
+     const auto* reference = dynamic_cast<const ecpps::ir::ReferenceNode*>(expression->Value().get());
+     if (reference == nullptr) return std::nullopt;
+
+     for (const auto& nestedContext : context.contextSequence | std::views::reverse)
+          if (const auto* function = dynamic_cast<const ecpps::ir::FunctionScope*>(&nestedContext->GetScope()))
+               for (const auto& local : function->Locals() | std::views::reverse)
+                    if (const auto* variable = std::get_if<ecpps::ir::Variable>(&local.local);
+                        variable != nullptr && variable->Name() == reference->Address() && variable->isExplicitlyConst)
+                         return ExplicitConstDeclaration{variable->Name().value_or("<anonymous>"),
+                                                         variable->declarationSource};
+     return std::nullopt;
+}
+
+static bool SameLocation(const ecpps::Location& left, const ecpps::Location& right)
+{
+     return left.line == right.line && left.position == right.position && left.endPosition == right.endPosition;
+}
+
+static bool IsExplicitConstLocalReference(const Expression& expression,
+                                          const std::optional<ExplicitConstDeclaration>& editedDeclaration,
+                                          const ecpps::ir::Context& context)
+{
+     const auto argumentDeclaration = ExplicitConstLocalDeclaration(expression, context);
+     return editedDeclaration.has_value() && argumentDeclaration.has_value() &&
+            editedDeclaration->first == argumentDeclaration->first &&
+            SameLocation(editedDeclaration->second, argumentDeclaration->second);
+}
+
+static Expression MakeExpressionProbe(const ecpps::typeSystem::NonowningTypePointer type, const bool isLValue,
+                                      const bool isXValue, const bool isConstantExpression,
+                                      const ecpps::Location& source, ecpps::BumpAllocator& allocator)
+{
+     auto value = ecpps::ir::NodePointer{new (allocator) ecpps::ir::ReferenceNode("__overload_probe", source)};
+     if (isLValue) return std::make_unique<ecpps::LValue>(type, std::move(value), isConstantExpression);
+     if (isXValue) return std::make_unique<ecpps::XValue>(type, std::move(value), isConstantExpression);
+     return std::make_unique<ecpps::PRValue>(type, std::move(value), isConstantExpression);
+}
+
+static Expression MakeExpressionProbe(const Expression& expression, const ecpps::typeSystem::NonowningTypePointer type,
+                                      ecpps::BumpAllocator& allocator)
+{
+     if (expression == nullptr) return nullptr;
+     return MakeExpressionProbe(type, expression->IsLValue(), expression->IsXValue(),
+                                expression->IsConstantExpression(), expression->Value()->Source(), allocator);
+}
+
+static ecpps::typeSystem::NonowningTypePointer RemoveConstFromClassType(const ecpps::typeSystem::ClassType* classType,
+                                                                        ecpps::ir::TypeContext& typeContext)
+{
+     if (classType == nullptr) return nullptr;
+     const auto qualifiers =
+          classType->IsVolatile() ? ecpps::typeSystem::Qualifiers::Volatile : ecpps::typeSystem::Qualifiers::None;
+     return typeContext.Get(ecpps::ir::TypeRequest{.kind = ecpps::ir::TypeKind::Compound,
+                                                   .qualifiers = qualifiers,
+                                                   .data = ecpps::ir::ClassRequest{.id = classType->Info().id}});
+}
+
+static bool CanModelSuggestionArguments(const std::vector<ecpps::ir::FunctionScope::Parameter>& parameters,
+                                        const std::vector<Expression>& arguments)
+{
+     return std::ranges::equal(
+          parameters, arguments,
+          [](const auto& parameter, const auto& argument)
+          {
+               if (parameter.type == nullptr || argument == nullptr) return false;
+               const auto* reference = parameter.type->template CastTo<ecpps::typeSystem::ReferenceType>();
+               const auto* target = reference != nullptr ? reference->BaseType() : parameter.type;
+               const auto* targetClass = target->template CastTo<ecpps::typeSystem::ClassType>();
+               const auto* argumentClass = argument->Type()->template CastTo<ecpps::typeSystem::ClassType>();
+               return targetClass == nullptr && argumentClass == nullptr
+                           ? true
+                           : reference != nullptr && targetClass != nullptr && argumentClass != nullptr &&
+                                  targetClass->Info().id == argumentClass->Info().id;
+          });
+}
+
+static std::optional<std::vector<Expression>> MakeSuggestionArgumentProbes(
+     const std::vector<ecpps::ir::FunctionScope::Parameter>& parameters, const std::vector<Expression>& arguments,
+     const std::optional<ExplicitConstDeclaration>& editedDeclaration, const ecpps::ir::Context& context,
+     ecpps::ir::TypeContext& typeContext)
+{
+     if (!CanModelSuggestionArguments(parameters, arguments)) return std::nullopt;
+     std::vector<Expression> probes{};
+     probes.reserve(arguments.size());
+     for (const auto& argument : arguments)
+     {
+          const auto* argumentType = argument->Type();
+          if (IsExplicitConstLocalReference(argument, editedDeclaration, context))
+          {
+               const auto* classType = argumentType->CastTo<ecpps::typeSystem::ClassType>();
+               argumentType = RemoveConstFromClassType(classType, typeContext);
+          }
+          probes.push_back(MakeExpressionProbe(argument, argumentType, *context.nodeAllocator));
+     }
+     return probes;
+}
 
 Expression ecpps::ir::IR::ParseAdditiveExpression(Expression left, ast::Operator operator_, Expression right,
                                                   const Location& source) const
@@ -385,6 +512,9 @@ Expression ecpps::ir::IR::ParseDereferenceExpression(Expression operand, const L
 Expression ecpps::ir::IR::ParseAddressOfExpression(Expression operand, const Location& source) const
 {
      runtime_assert(operand != nullptr, "Operand was null");
+
+     if (auto* dereference = dynamic_cast<high::DereferenceNode*>(operand->Value().get()); dereference != nullptr)
+          return std::move(*dereference).Operand();
 
      if (!operand->IsGLValue())
      {
@@ -1022,6 +1152,25 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                return nullptr;
           }
 
+          std::vector<std::tuple<typeSystem::ClassId, bool, bool, bool, bool>> visitedArrowReceivers{};
+          while (operator_ == ast::Operator::Arrow && typeSystem::IsClass(left->Type()))
+          {
+               const auto* receiverClass = left->Type()->CastTo<typeSystem::ClassType>();
+               const auto receiverState = std::tuple{receiverClass->Info().id, receiverClass->IsConst(),
+                                                     receiverClass->IsVolatile(), left->IsLValue(), left->IsXValue()};
+               if (std::ranges::find(visitedArrowReceivers, receiverState) != visitedArrowReceivers.end())
+               {
+                    DiagnosticSink::Report(
+                         this->GetContext(),
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "Recursive operator-> did not produce a pointer to a class", node.Source()));
+                    return nullptr;
+               }
+               visitedArrowReceivers.push_back(receiverState);
+               left = ParseMemberOperatorCall("operator->", std::move(left), {}, node.Source());
+               if (left == nullptr) return nullptr;
+          }
+
           typeSystem::NonowningTypePointer objectType = left->Type();
           Expression objectPointer{};
           if (operator_ == ast::Operator::Arrow)
@@ -1072,12 +1221,149 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
      auto right = ParseExpression(node.Right());
      if (left == nullptr || right == nullptr) return nullptr;
 
-     if (operator_ != ast::Operator::Assignment && typeSystem::IsClass(left->Type()))
+     if ((operator_ == ast::Operator::Plus || operator_ == ast::Operator::Minus) &&
+         (typeSystem::IsClass(left->Type()) || typeSystem::IsClass(right->Type())))
      {
-          std::vector<Expression> arguments{};
-          arguments.push_back(std::move(right));
-          return ParseMemberOperatorCall("operator" + ast::ToString(operator_), std::move(left),
-                                         std::move(arguments), node.Source());
+          std::optional<CompareByPriority::Candidate> bestMember{};
+          bool memberAmbiguous = false;
+          if (const auto* leftClass = left->Type()->CastTo<typeSystem::ClassType>())
+          {
+               const auto classRecord = this->GetContext().classTable->classes.find(leftClass->Info().id);
+               if (classRecord != this->GetContext().classTable->classes.end() && classRecord->second.scope != nullptr)
+               {
+                    std::vector<Expression> arguments{};
+                    arguments.push_back(MakeExpressionProbe(right, right->Type(), *this->GetContext().nodeAllocator));
+                    for (const auto& candidate : classRecord->second.scope->functions)
+                    {
+                         if (candidate->Name() != "operator" + ast::ToString(operator_) ||
+                             candidate->memberClassInfo == nullptr || candidate->isStatic)
+                              continue;
+                         const auto& member = candidate->memberFunctionInfo;
+                         if ((leftClass->IsConst() && !member.isConst) ||
+                             (leftClass->IsVolatile() && !member.isVolatile) ||
+                             (member.refQualifier == abi::MemberRefQualifier::LValue && !left->IsLValue()) ||
+                             (member.refQualifier == abi::MemberRefQualifier::RValue && left->IsLValue()))
+                              continue;
+                         const auto score = MatchFunction(candidate, arguments);
+                         if (score == MatchingScore::NotMatching) continue;
+                         std::size_t objectQualificationPenalty{};
+                         if (!leftClass->IsConst() && member.isConst) ++objectQualificationPenalty;
+                         if (!leftClass->IsVolatile() && member.isVolatile) ++objectQualificationPenalty;
+                         if (!bestMember.has_value() || score > bestMember->argumentScore ||
+                             (score == bestMember->argumentScore &&
+                              objectQualificationPenalty < bestMember->objectQualificationPenalty))
+                         {
+                              bestMember = CompareByPriority::Candidate{.argumentScore = score,
+                                                                        .objectQualificationPenalty =
+                                                                             objectQualificationPenalty,
+                                                                        .function = candidate};
+                              memberAmbiguous = false;
+                         }
+                         else if (score == bestMember->argumentScore &&
+                                  objectQualificationPenalty == bestMember->objectQualificationPenalty)
+                              memberAmbiguous = true;
+                    }
+               }
+          }
+
+          const auto builtin = detail::SelectBuiltinArithmeticType(this->GetContext(), left, right);
+          const auto memberCost = bestMember.has_value()
+                                       ? std::optional<std::size_t>{std::numeric_limits<std::size_t>::max() -
+                                                                    std::to_underlying(bestMember->argumentScore)}
+                                       : std::nullopt;
+          if (memberCost.has_value() && (!builtin.has_value() || *memberCost < builtin->cost))
+          {
+               if (memberAmbiguous)
+               {
+                    DiagnosticSink::Report(this->GetContext(),
+                                           overloadDiagnostics::AmbiguousOverload(
+                                                left->Type()->CastTo<typeSystem::ClassType>()->Info().DisplayName() +
+                                                     "::operator" + ast::ToString(operator_),
+                                                node.Source()));
+                    return nullptr;
+               }
+               std::vector<Expression> arguments{};
+               arguments.push_back(std::move(right));
+               return ParseMemberOperatorCall("operator" + ast::ToString(operator_), std::move(left),
+                                              std::move(arguments), node.Source());
+          }
+          if (builtin.has_value() && (!memberCost.has_value() || builtin->cost < *memberCost))
+          {
+               if (builtin->ambiguous)
+               {
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "The built-in arithmetic operator has ambiguous user-defined "
+                                                "conversions",
+                                                node.Source()));
+                    return nullptr;
+               }
+               auto operands = UsualArithmeticConversions(std::move(left), std::move(right));
+               if (!operands.has_value()) return nullptr;
+               if (operator_ == ast::Operator::Plus)
+                    return std::make_unique<PRValue>(
+                         operands->type,
+                         std::unique_ptr<high::AdditionNode, IRDeleter>{
+                              new (*this->GetContext().nodeAllocator) high::AdditionNode(
+                                   std::move(operands->left), std::move(operands->right), node.Source())},
+                         false);
+               return std::make_unique<PRValue>(
+                    operands->type,
+                    std::unique_ptr<high::SubtractionNode, IRDeleter>{
+                         new (*this->GetContext().nodeAllocator) high::SubtractionNode(
+                              std::move(operands->left), std::move(operands->right), node.Source())},
+                    false);
+          }
+          if (builtin.has_value() && memberCost.has_value() && builtin->cost == *memberCost)
+          {
+               DiagnosticSink::Report(
+                    this->GetContext(),
+                    diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                         "The overloaded and built-in arithmetic operators are ambiguous", node.Source()));
+               return nullptr;
+          }
+     }
+
+     if (typeSystem::IsClass(left->Type()))
+     {
+          if (operator_ == ast::Operator::Assignment)
+          {
+               const auto* classType = left->Type()->CastTo<typeSystem::ClassType>();
+               const auto classRecord = this->GetContext().classTable->classes.find(classType->Info().id);
+               if (classRecord != this->GetContext().classTable->classes.end() && classRecord->second.scope != nullptr)
+               {
+                    std::vector<Expression> arguments{};
+                    arguments.push_back(std::move(right));
+                    const bool hasViableMemberOverload = std::ranges::any_of(
+                         classRecord->second.scope->functions,
+                         [&](const std::shared_ptr<FunctionScope>& candidate)
+                         {
+                              if (candidate->Name() != "operator=" || candidate->memberClassInfo == nullptr ||
+                                  candidate->isStatic ||
+                                  MatchFunction(candidate, arguments) == MatchingScore::NotMatching)
+                                   return false;
+                              if ((classType->IsConst() && !candidate->memberFunctionInfo.isConst) ||
+                                  (classType->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) ||
+                                  (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue &&
+                                   !left->IsLValue()) ||
+                                  (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue &&
+                                   left->IsLValue()))
+                                   return false;
+                              return true;
+                         });
+                    if (hasViableMemberOverload)
+                         return ParseMemberOperatorCall("operator=", std::move(left), std::move(arguments),
+                                                        node.Source());
+                    right = std::move(arguments.front());
+               }
+          }
+          else
+          {
+               std::vector<Expression> arguments{};
+               arguments.push_back(std::move(right));
+               return ParseMemberOperatorCall("operator" + ast::ToString(operator_), std::move(left),
+                                              std::move(arguments), node.Source());
+          }
      }
 
      switch (operator_)
@@ -1120,6 +1406,11 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
      case ast::Operator::Greater:
      case ast::Operator::GreaterEqual:
           return this->ParseRelationalExpression(std::move(left), operator_, std::move(right), node.Source());
+     case ast::Operator::Comma:
+     {
+          [[maybe_unused]] const auto* discardedValue = LowerExpression(std::move(left), this->_built);
+          return right;
+     }
      default: throw TracedException(std::logic_error("Invalid binary operator"));
      }
 }
@@ -1127,6 +1418,52 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
 Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode& node,
                                                     const ast::BinaryOperatorNode& memberAccess)
 {
+     const auto* operatorId = dynamic_cast<const ast::OperatorFunctionId*>(memberAccess.Right().get());
+     const auto* conversionId = dynamic_cast<const ast::ConversionFunctionId*>(memberAccess.Right().get());
+     if (operatorId != nullptr || conversionId != nullptr)
+     {
+          auto object = ParseExpression(memberAccess.Left());
+          if (object == nullptr) return nullptr;
+          if (memberAccess.Value() == ast::Operator::Arrow)
+          {
+               const auto* pointerType = object->Type()->CastTo<typeSystem::PointerType>();
+               if (pointerType == nullptr || !typeSystem::IsClass(pointerType->BaseType()))
+               {
+                    DiagnosticSink::Report(
+                         this->GetContext(),
+                         diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                              "The '->' member access requires a pointer to a class type", memberAccess.Source()));
+                    return nullptr;
+               }
+               object = ParseDereferenceExpression(std::move(object), memberAccess.Source());
+          }
+          else if (memberAccess.Value() != ast::Operator::FullStop || !typeSystem::IsClass(object->Type()))
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Explicit operator calls require a class object", memberAccess.Source()));
+               return nullptr;
+          }
+          if (object == nullptr) return nullptr;
+
+          std::vector<Expression> arguments = node.Arguments() |
+                                              std::views::transform(
+                                                   [this](const ast::NodePointer& argument)
+                                                   {
+                                                        return this->ParseExpression(argument);
+                                                   }) |
+                                              ecpps::detail::ToVector;
+          if (std::ranges::any_of(arguments,
+                                  [](const Expression& argument)
+                                  {
+                                       return argument == nullptr;
+                                  }))
+               return nullptr;
+          const std::string name = conversionId != nullptr ? conversionId->ToString(0)
+                                                           : "operator" + ast::ToString(operatorId->GetOperator());
+          return ParseMemberOperatorCall(name, std::move(object), std::move(arguments), node.Source());
+     }
+
      const auto* memberName = dynamic_cast<const ast::IdentifierNode*>(memberAccess.Right().get());
      const auto report = [&](std::string message, const Location& source) -> Expression
      {
@@ -1139,6 +1476,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
 
      auto receiver = ParseExpression(memberAccess.Left());
      if (receiver == nullptr) return nullptr;
+     const auto constObjectDeclaration = ExplicitConstLocalDeclaration(receiver, this->GetContext());
 
      typeSystem::NonowningTypePointer objectType = receiver->Type();
      Expression receiverPointer{};
@@ -1201,14 +1539,59 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           if (function->isStatic) return failures;
 
           if (classType->IsConst() && !function->memberFunctionInfo.isConst)
-               failures.emplace_back("The receiver is const, but this candidate is not const-qualified");
+               failures.emplace_back(
+                    "The implied object argument is const-qualified, but the implicit object parameter is not "
+                    "const-qualified");
           if (classType->IsVolatile() && !function->memberFunctionInfo.isVolatile)
-               failures.emplace_back("The receiver is volatile, but this candidate is not volatile-qualified");
+               failures.emplace_back(
+                    "The implied object argument is volatile-qualified, but the implicit object parameter is not "
+                    "volatile-qualified");
           if (function->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue && !receiverIsLvalue)
-               failures.emplace_back("The receiver is an rvalue, but this candidate requires an lvalue receiver");
+               failures.emplace_back(
+                    "The implied object argument is an rvalue, but the implicit object parameter is an lvalue "
+                    "reference");
           if (function->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue && receiverIsLvalue)
-               failures.emplace_back("The receiver is an lvalue, but this candidate requires an rvalue receiver");
+               failures.emplace_back(
+                    "The implied object argument is an lvalue, but the implicit object parameter is an rvalue "
+                    "reference");
           return failures;
+     };
+
+     const auto selectedAfterRemovingConst = [&](const std::shared_ptr<FunctionScope>& expected)
+     {
+          const auto [best, ambiguous] = SelectUniqueBest(
+               sameNameCandidates,
+               [&](const std::shared_ptr<FunctionScope>& candidate)
+                    -> std::optional<std::tuple<MatchingScore, std::size_t>>
+               {
+                    const auto editedArguments =
+                         MakeSuggestionArgumentProbes(candidate->parameters, arguments, constObjectDeclaration,
+                                                      this->GetContext(), GetTypeContext());
+                    if (!editedArguments.has_value()) return std::nullopt;
+                    const auto& member = candidate->memberFunctionInfo;
+                    if (!candidate->isStatic &&
+                        ((classType->IsVolatile() && !member.isVolatile) ||
+                         (member.refQualifier == abi::MemberRefQualifier::LValue && !receiverIsLvalue) ||
+                         (member.refQualifier == abi::MemberRefQualifier::RValue && receiverIsLvalue)))
+                         return std::nullopt;
+
+                    const auto score = MatchFunction(candidate, *editedArguments);
+                    if (score == MatchingScore::NotMatching) return std::nullopt;
+                    const std::size_t qualificationPenalty =
+                         candidate->isStatic
+                              ? 0
+                              : static_cast<std::size_t>(member.isConst) +
+                                     static_cast<std::size_t>(!classType->IsVolatile() && member.isVolatile);
+                    return std::tuple{score, std::numeric_limits<std::size_t>::max() - qualificationPenalty};
+               });
+          return best.has_value() && !ambiguous && best->first == expected && !expected->isDeleted &&
+                 this->CanAccess(expected->memberClassInfo->id, expected->memberAccess) &&
+                 expected->returnType != nullptr && expected->returnType->IsComplete() &&
+                 std::ranges::all_of(expected->parameters,
+                                     [](const FunctionScope::Parameter& parameter)
+                                     {
+                                          return parameter.type != nullptr && parameter.type->IsComplete();
+                                     });
      };
 
      const auto accessName = [](const typeSystem::Access access)
@@ -1257,8 +1640,17 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           }
           if (includeReceiverFailures)
                for (const auto& failure : receiverFailuresFor(function))
+               {
                     candidate.details.push_back(
                          OverloadCandidateDetail{.message = failure, .source = memberAccess.Left()->Source()});
+                    if (failure == "The implied object argument is const-qualified, but the implicit object parameter "
+                                   "is not const-qualified" &&
+                        constObjectDeclaration.has_value() && selectedAfterRemovingConst(function))
+                         candidate.details.push_back(
+                              OverloadCandidateDetail{.message = "The implied object argument is declared const here",
+                                                      .source = constObjectDeclaration->second,
+                                                      .followup = "Suggestion: remove const from this declaration"});
+               }
 
           if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess))
                candidate.access = accessName(function->memberAccess);
@@ -1440,6 +1832,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
           return nullptr;
      };
      if (object == nullptr) return nullptr;
+     const auto constObjectDeclaration = ExplicitConstLocalDeclaration(object, this->GetContext());
      if (!typeSystem::IsClass(object->Type()))
           return report(std::format("Member operator{} requires a class object", name));
 
@@ -1454,6 +1847,136 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      using FunctionCandidate = CompareByPriority::Candidate;
      std::priority_queue<FunctionCandidate, std::vector<FunctionCandidate>, CompareByPriority> candidates{};
      std::vector<std::shared_ptr<FunctionScope>> sameNameCandidates{};
+     const auto receiverFailuresFor = [&](const std::shared_ptr<FunctionScope>& candidate)
+     {
+          std::vector<std::string> failures{};
+          if (candidate->isStatic) return failures;
+          if (classType->IsConst() && !candidate->memberFunctionInfo.isConst)
+               failures.emplace_back(
+                    "The implied object argument is const-qualified, but the implicit object parameter is not "
+                    "const-qualified");
+          if (classType->IsVolatile() && !candidate->memberFunctionInfo.isVolatile)
+               failures.emplace_back(
+                    "The implied object argument is volatile-qualified, but the implicit object parameter is not "
+                    "volatile-qualified");
+          if (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue && !receiverIsLvalue)
+               failures.emplace_back(
+                    "The implied object argument is an rvalue, but the implicit object parameter is an lvalue "
+                    "reference");
+          if (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue && receiverIsLvalue)
+               failures.emplace_back(
+                    "The implied object argument is an lvalue, but the implicit object parameter is an rvalue "
+                    "reference");
+          return failures;
+     };
+     const auto selectedAfterRemovingConst = [&](const std::shared_ptr<FunctionScope>& expected)
+     {
+          const auto [best, ambiguous] = SelectUniqueBest(
+               sameNameCandidates,
+               [&](const std::shared_ptr<FunctionScope>& candidate)
+                    -> std::optional<std::tuple<MatchingScore, std::size_t>>
+               {
+                    const auto editedArguments =
+                         MakeSuggestionArgumentProbes(candidate->parameters, arguments, constObjectDeclaration,
+                                                      this->GetContext(), GetTypeContext());
+                    if (!editedArguments.has_value()) return std::nullopt;
+                    const auto& member = candidate->memberFunctionInfo;
+                    if (!candidate->isStatic &&
+                        ((classType->IsVolatile() && !member.isVolatile) ||
+                         (member.refQualifier == abi::MemberRefQualifier::LValue && !receiverIsLvalue) ||
+                         (member.refQualifier == abi::MemberRefQualifier::RValue && receiverIsLvalue)))
+                         return std::nullopt;
+
+                    const auto score = MatchFunction(candidate, *editedArguments);
+                    if (score == MatchingScore::NotMatching) return std::nullopt;
+                    const std::size_t qualificationPenalty =
+                         candidate->isStatic
+                              ? 0
+                              : static_cast<std::size_t>(member.isConst) +
+                                     static_cast<std::size_t>(!classType->IsVolatile() && member.isVolatile);
+                    return std::tuple{score, std::numeric_limits<std::size_t>::max() - qualificationPenalty};
+               });
+          if (!best.has_value() || ambiguous || best->first != expected || expected->isDeleted ||
+              !this->CanAccess(expected->memberClassInfo->id, expected->memberAccess) ||
+              expected->returnType == nullptr || !expected->returnType->IsComplete() ||
+              !std::ranges::all_of(expected->parameters,
+                                   [](const FunctionScope::Parameter& parameter)
+                                   {
+                                        return parameter.type != nullptr && parameter.type->IsComplete();
+                                   }))
+               return false;
+
+          const auto editedArguments = MakeSuggestionArgumentProbes(
+               expected->parameters, arguments, constObjectDeclaration, this->GetContext(), GetTypeContext());
+          if (!editedArguments.has_value()) return false;
+          if ((name == "operator+" || name == "operator-") && editedArguments->size() == 1)
+          {
+               const auto* unqualifiedType = RemoveConstFromClassType(classType, GetTypeContext());
+               auto objectProbe = MakeExpressionProbe(object, unqualifiedType, *this->GetContext().nodeAllocator);
+               if (detail::SelectBuiltinArithmeticType(this->GetContext(), objectProbe, editedArguments->front())
+                        .has_value())
+                    return false;
+          }
+          return true;
+     };
+     const auto makeCandidateDiagnostic = [&](const std::shared_ptr<FunctionScope>& candidate)
+     {
+          OverloadCandidateDiagnostic diagnostic{.signature = FormatFunctionSignature(candidate),
+                                                 .source = candidate->source,
+                                                 .isDeleted = candidate->isDeleted};
+          const auto matchedCount = std::min(arguments.size(), candidate->parameters.size());
+          for (std::size_t index = 0; index < matchedCount; ++index)
+          {
+               const auto& argument = arguments[index];
+               const auto& parameter = candidate->parameters[index];
+               if (argument != nullptr && !ConstructorArgumentCost(parameter.type, argument).has_value())
+               {
+                    const auto* referenceType = parameter.type->CastTo<typeSystem::ReferenceType>();
+                    diagnostic.details.push_back(OverloadCandidateDetail{
+                         .message = std::format(
+                              "Argument {} of type '{}' cannot {} parameter '{}' of type '{}'", index + 1,
+                              argument->Type()->Name(), referenceType != nullptr ? "bind to" : "convert to",
+                              parameter.name.empty() ? "<unnamed>" : parameter.name, parameter.type->Name()),
+                         .source = argument->Value()->Source()});
+               }
+          }
+          if (arguments.size() < candidate->parameters.size())
+          {
+               auto requiredCount = candidate->parameters.size();
+               while (requiredCount > 0 && candidate->parameters[requiredCount - 1].hasDefaultArgument) --requiredCount;
+               if (arguments.size() < requiredCount)
+                    diagnostic.details.push_back(OverloadCandidateDetail{
+                         .message = std::format("Expected at least {} argument{}, got {}", requiredCount,
+                                                requiredCount == 1 ? "" : "s", arguments.size()),
+                         .source = source});
+          }
+          if (arguments.size() > candidate->parameters.size() && !candidate->isVariadic)
+               for (std::size_t index = candidate->parameters.size(); index < arguments.size(); ++index)
+                    diagnostic.details.push_back(OverloadCandidateDetail{
+                         .message = std::format("Argument {} has no corresponding parameter", index + 1),
+                         .source = arguments[index] != nullptr ? arguments[index]->Value()->Source() : source});
+          for (const auto& failure : receiverFailuresFor(candidate))
+          {
+               diagnostic.details.push_back(OverloadCandidateDetail{.message = failure, .source = source});
+               if (failure == "The implied object argument is const-qualified, but the implicit object parameter "
+                              "is not const-qualified" &&
+                   constObjectDeclaration.has_value() && selectedAfterRemovingConst(candidate))
+                    diagnostic.details.push_back(
+                         OverloadCandidateDetail{.message = "The implied object argument is declared const here",
+                                                 .source = constObjectDeclaration->second,
+                                                 .followup = "Suggestion: remove const from this declaration"});
+          }
+          if (!this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess))
+          {
+               switch (candidate->memberAccess)
+               {
+               case typeSystem::Access::Public: diagnostic.access = "public"; break;
+               case typeSystem::Access::Protected: diagnostic.access = "protected"; break;
+               case typeSystem::Access::Private: diagnostic.access = "private"; break;
+               }
+          }
+          return diagnostic;
+     };
      for (const auto& candidate : classRecord->second.scope->functions)
      {
           if (candidate->Name() != name || candidate->memberClassInfo == nullptr) continue;
@@ -1461,14 +1984,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
           std::size_t objectQualificationPenalty{};
           if (!candidate->isStatic)
           {
-               if (!object->IsGLValue() ||
-                   (classType->IsConst() && !candidate->memberFunctionInfo.isConst) ||
-                   (classType->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) ||
-                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue &&
-                    !receiverIsLvalue) ||
-                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue &&
-                    receiverIsLvalue))
-                    continue;
+               if (!receiverFailuresFor(candidate).empty()) continue;
                if (!classType->IsConst() && candidate->memberFunctionInfo.isConst) objectQualificationPenalty++;
                if (!classType->IsVolatile() && candidate->memberFunctionInfo.isVolatile) objectQualificationPenalty++;
           }
@@ -1482,9 +1998,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
      candidateDiagnostics.reserve(sameNameCandidates.size());
      for (const auto& candidate : sameNameCandidates)
-          candidateDiagnostics.push_back(OverloadCandidateDiagnostic{.signature = FormatFunctionSignature(candidate),
-                                                                      .source = candidate->source,
-                                                                      .isDeleted = candidate->isDeleted});
+          candidateDiagnostics.push_back(makeCandidateDiagnostic(candidate));
      if (candidates.empty())
      {
           if (sameNameCandidates.empty())
@@ -1535,6 +2049,20 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                                                            candidate->isDeleted, diagnosticCandidate));
           return nullptr;
      }
+     if (arguments.size() < candidate->parameters.size())
+     {
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Default arguments for {} are not supported yet", name), source));
+          return nullptr;
+     }
+     if (arguments.size() > candidate->parameters.size())
+     {
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      std::format("Variadic arguments for {} are not supported yet", name), source));
+          return nullptr;
+     }
      if (!RequireComplete(candidate->returnType, source, "a member operator call")) return nullptr;
      for (const auto& parameter : candidate->parameters)
           if (!RequireComplete(parameter.type, source, "a member operator call")) return nullptr;
@@ -1547,11 +2075,24 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      }
      else
      {
-          auto objectPointer = ParseAddressOfExpression(std::move(object), source);
+          Expression objectPointer{};
+          if (object->IsGLValue()) objectPointer = ParseAddressOfExpression(std::move(object), source);
+          else
+          {
+               const auto* objectType = object->Type();
+               const auto* objectStorage = LowerExpression(std::move(object), this->_built);
+               if (objectStorage == nullptr) return nullptr;
+               auto materializedObject = std::make_unique<LValue>(
+                    objectType,
+                    std::unique_ptr<SSARegisterReferenceNode, IRDeleter>{
+                         new (*this->GetContext().nodeAllocator) SSARegisterReferenceNode(objectStorage, source)},
+                    false);
+               objectPointer = ParseAddressOfExpression(std::move(materializedObject), source);
+          }
           if (objectPointer == nullptr) return nullptr;
           evaluatedArguments.push_back(std::move(objectPointer));
      }
-     for (std::size_t index = 0; index < arguments.size(); index++)
+     for (std::size_t index = 0; index < arguments.size(); ++index)
           evaluatedArguments.push_back(
                PrepareByValueArgument(std::move(arguments[index]), candidate->parameters[index].type, source));
      if (std::ranges::any_of(evaluatedArguments,
@@ -1563,6 +2104,16 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
 
      auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
           candidate, std::move(evaluatedArguments), source)};
+     if (const auto* referenceType = candidate->returnType->CastTo<typeSystem::ReferenceType>();
+         referenceType != nullptr)
+     {
+          auto pointerResult = std::make_unique<PRValue>(PointerTo(referenceType->BaseType()), std::move(call), false);
+          auto dereference = std::unique_ptr<high::DereferenceNode, IRDeleter>{
+               new (*this->GetContext().nodeAllocator) high::DereferenceNode(std::move(pointerResult), source)};
+          if (referenceType->GetKind() == typeSystem::ReferenceType::Kind::LValue)
+               return std::make_unique<LValue>(referenceType->BaseType(), std::move(dereference), false);
+          return std::make_unique<XValue>(referenceType->BaseType(), std::move(dereference), false);
+     }
      return std::make_unique<PRValue>(candidate->returnType, std::move(call), false);
 }
 
@@ -2394,19 +2945,29 @@ Expression ecpps::ir::IR::ParseExpression(const ast::NodePointer& expression)
 ecpps::ir::MatchingScore ecpps::ir::IR::MatchFunction(const std::shared_ptr<FunctionScope>& function,
                                                       const std::vector<Expression>& arguments)
 {
-     if (arguments.size() != function->parameters.size()) return MatchingScore::NotMatching;
+     const auto fixedArgumentCount = std::min(arguments.size(), function->parameters.size());
+     if (arguments.size() < function->parameters.size())
+          for (std::size_t index = arguments.size(); index < function->parameters.size(); ++index)
+               if (!function->parameters[index].hasDefaultArgument) return MatchingScore::NotMatching;
+     if (arguments.size() > function->parameters.size() && !function->isVariadic) return MatchingScore::NotMatching;
 
      std::size_t totalCost{};
 
-     auto parameterIterator = function->parameters.begin();
-     for (const auto& argument : arguments)
+     for (std::size_t index = 0; index < fixedArgumentCount; ++index)
      {
-          const auto& parameter = *parameterIterator++;
+          const auto& argument = arguments[index];
+          const auto& parameter = function->parameters[index];
           if (argument == nullptr) continue;
           const auto cost = ConstructorArgumentCost(parameter.type, argument);
           if (!cost.has_value() || *cost > std::numeric_limits<std::size_t>::max() - totalCost)
                return MatchingScore::NotMatching;
           totalCost += *cost;
+     }
+     if (arguments.size() > fixedArgumentCount)
+     {
+          const auto ellipsisCost = std::numeric_limits<std::size_t>::max() / 2;
+          if (ellipsisCost > std::numeric_limits<std::size_t>::max() - totalCost) return MatchingScore::NotMatching;
+          totalCost += ellipsisCost;
      }
 
      if (totalCost >= std::to_underlying(MatchingScore::MaxScore)) return MatchingScore::NotMatching;

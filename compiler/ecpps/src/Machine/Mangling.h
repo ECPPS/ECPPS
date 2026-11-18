@@ -40,7 +40,6 @@ namespace ecpps::abi
           [[nodiscard]] static std::string MangleType(typeSystem::NonowningTypePointer type);
           [[nodiscard]] static std::string MangleClassPath(const typeSystem::ClassInfo& info);
 
-          // TODO: namespaces and classes
           [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
                                                       CallingConventionName callingConvention,
                                                       typeSystem::NonowningTypePointer returnType,

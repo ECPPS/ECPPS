@@ -701,13 +701,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (IsOperatorOrPunctuatorBeginning(character))
           {
-               std::string operatorOrPunctuator{character};
-               while (sourceIterator != source.end() && std::next(sourceIterator) != source.end() &&
-                      IsOperatorOrPunctuator(operatorOrPunctuator + *std::next(sourceIterator)))
+               std::string operatorOrPunctuator{};
+               const auto second = std::next(sourceIterator);
+               const auto third = second != source.end() ? std::next(second) : source.end();
+               const auto fourth = third != source.end() ? std::next(third) : source.end();
+               if (character == '<' && second != source.end() && *second == ':' && third != source.end() &&
+                   *third == ':' && fourth != source.end() && *fourth != ':' && *fourth != '>')
+                    operatorOrPunctuator = "<";
+               else
                {
-                    ++sourceIterator;
-                    operatorOrPunctuator += *sourceIterator;
+                    std::string candidate{};
+                    auto lookahead = sourceIterator;
+                    for (std::size_t length = 0; length < 4 && lookahead != source.end(); ++length, ++lookahead)
+                    {
+                         candidate += *lookahead;
+                         if (IsOperatorOrPunctuator(candidate)) operatorOrPunctuator = candidate;
+                    }
                }
+               std::advance(sourceIterator, static_cast<std::ptrdiff_t>(operatorOrPunctuator.size() - 1));
 
                location.endPosition = location.position;
                tokens.emplace_back(PreprocessingTokenType::OperatorOrPunctuator,
@@ -789,9 +800,10 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)
 {
      static std::unordered_set<std::string> OperatorsAndPunctuators{
-          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
-          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
-          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
+          "{",   "}",  "[",  "]",   "(",   ")",  ";",  ":",  "...", "?",  "::", ".",  ".*",  "->",
+          "->*", "~",  "!",  "+",   "-",   "*",  "/",  "%",  "^",   "&",  "|",  "=",  "+=",  "-=",
+          "*=",  "/=", "%=", "^=",  "&=",  "|=", "==", "!=", "<",   ">",  "<=", ">=", "<=>", "&&",
+          "||",  "<<", ">>", "<<=", ">>=", "++", "--", ",",  "<:",  ":>", "<%", "%>", "%:",  "%:%:"};
 
      return OperatorsAndPunctuators.contains(string);
 }

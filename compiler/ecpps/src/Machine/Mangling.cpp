@@ -1,4 +1,6 @@
 #include "Mangling.h"
+#include <array>
+#include <ranges>
 #include <string>
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "Shared/Diagnostics.h"
@@ -40,16 +42,35 @@ constexpr std::string_view ClassPrefix = "C";
 constexpr std::string_view ConstQualifier = "K";
 constexpr std::string_view VolatileQualifier = "V";
 
-// floating point
-constexpr std::string_view Float32 = "f";
-constexpr std::string_view Float64 = "F";
-
-static void RequireMangleable(const std::string& identifier, const std::string_view what)
+static std::string MangleIdentifier(const std::string_view identifier)
 {
-     if (identifier.empty() || identifier.find_first_of("<>,$@?:; ") != std::string::npos)
-          throw ecpps::TracedException(std::format(
-               "TODO(mangling): {} '{}' cannot be mangled yet (template arguments, unnamed or special names)", what,
-               identifier));
+     const auto isStart = [](const unsigned char value)
+     {
+          return (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z') || value == '_';
+     };
+     const auto isContinue = [&](const unsigned char value)
+     {
+          return isStart(value) || (value >= '0' && value <= '9');
+     };
+     const bool plainIdentifier = !identifier.empty() && identifier.front() != 'Q' &&
+                                  isStart(static_cast<unsigned char>(identifier.front())) &&
+                                  std::ranges::all_of(identifier.substr(1),
+                                                      [&](const char value)
+                                                      {
+                                                           return isContinue(static_cast<unsigned char>(value));
+                                                      });
+     if (plainIdentifier) return std::string{identifier};
+
+     constexpr std::array HexDigits{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+     std::string result = std::format("Q{}_", identifier.size());
+     result.reserve(result.size() + (identifier.size() * 2));
+     for (const char character : identifier)
+     {
+          const auto value = static_cast<unsigned char>(character);
+          result.push_back(HexDigits[value >> 4]);
+          result.push_back(HexDigits[value & 0x0F]);
+     }
+     return result;
 }
 
 std::string MangleTypeImpl(ecpps::typeSystem::NonowningTypePointer type, bool stripTopLevelCv);
@@ -94,15 +115,6 @@ static std::string MangleArithmetic(const ecpps::typeSystem::NonowningTypePointe
                                                                                                      : UnsignedZmmWord};
                }
                break;
-          }
-          return "_";
-     }
-     if (const auto* floatingType = type->CastTo<ecpps::typeSystem::IntegralType>()) // TODO: ???
-     {
-          switch (floatingType->Size())
-          {
-          case 4: return std::string{Float32};
-          case 8: return std::string{Float64};
           }
           return "_";
      }
@@ -190,25 +202,15 @@ static std::string BuildName(const ecpps::abi::Linkage linkage, const std::strin
      {
           switch (segment.kind)
           {
-          case ecpps::typeSystem::ScopeKind::Namespace:
-               RequireMangleable(segment.name, "namespace");
-               built += segment.name + "??";
-               break;
-          case ecpps::typeSystem::ScopeKind::Class:
-               RequireMangleable(segment.name, "class");
-               built += segment.name + "?C";
-               break;
-          case ecpps::typeSystem::ScopeKind::Function:
-               throw ecpps::TracedException(std::format(
-                    "TODO(mangling): function-local scope '{}' while mangling '{}'; local entities are unsupported",
-                    segment.name, name));
+          case ecpps::typeSystem::ScopeKind::Namespace: built += MangleIdentifier(segment.name) + "??"; break;
+          case ecpps::typeSystem::ScopeKind::Class: built += MangleIdentifier(segment.name) + "?C"; break;
+          case ecpps::typeSystem::ScopeKind::Function: built += MangleIdentifier(segment.name) + "?F"; break;
           }
      }
 
      built += returnType == nullptr ? std::string{"v"} : MangleTypeImpl(returnType, true);
      built += "@";
-     RequireMangleable(name, "function");
-     built += name;
+     built += MangleIdentifier(name);
      for (const auto& param : parameters) built += "$" + MangleParameter(param);
      if (parameters.empty()) built += "$v";
 
@@ -242,20 +244,26 @@ std::string ecpps::abi::Mangling::MangleName(const Linkage linkage, const std::s
 }
 std::string ecpps::abi::Mangling::MangleClassPath(const typeSystem::ClassInfo& info)
 {
-     // TODO(mangling): unnamed classes get a linkage name only through a typedef name for linkage
-     if (info.name.empty()) throw TracedException("TODO(mangling): unnamed classes");
-     if (info.isLocal) throw TracedException("TODO(mangling): local classes");
-     if (info.instantiationKey.has_value()) throw TracedException("TODO(mangling): template arguments");
-
      std::string path;
      for (const auto& segment : info.enclosingPath)
      {
-          if (segment.kind == typeSystem::ScopeKind::Function) throw TracedException("TODO(mangling): local classes");
-          RequireMangleable(segment.name, "scope");
-          path += segment.name + ":";
+          path += MangleIdentifier(segment.name);
+          path += segment.kind == typeSystem::ScopeKind::Function ? "?F:"
+                  : segment.kind == typeSystem::ScopeKind::Class  ? "?C:"
+                                                                  : "??:";
      }
-     RequireMangleable(info.name, "class");
-     return std::string{ClassPrefix} + path + info.name;
+     std::string className = info.name;
+     if (className.empty())
+          className =
+               std::format("<unnamed {} {} at {}:{}>", info.Keyword(), info.id, info.source.line, info.source.position);
+     if (info.isLocal && std::ranges::none_of(info.enclosingPath,
+                                              [](const auto& segment)
+                                              {
+                                                   return segment.kind == typeSystem::ScopeKind::Function;
+                                              }))
+          path += MangleIdentifier("<local class>") + ":";
+     if (info.instantiationKey.has_value()) className += "<template arguments:" + *info.instantiationKey + ">";
+     return std::string{ClassPrefix} + path + MangleIdentifier(className);
 }
 
 std::string ecpps::abi::Mangling::MangleMemberName(const Linkage linkage, const std::string& name,

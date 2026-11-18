@@ -18,6 +18,7 @@
 #include "../Parsing/ASTs/Type.h"
 #include "../TypeSystem/ArithmeticTypes.h"
 #include "../TypeSystem/ClassType.h"
+#include "../TypeSystem/CompoundTypes.h"
 #include "Constexpr.h"
 #include "Context.h"
 #include "Execution/Diagnostics.h"
@@ -25,7 +26,9 @@
 #include "HighLevel.h"
 #include "NodeBase.h"
 #include "Operations.h"
+#include "OverloadDiagnostics.h"
 #include "Parsing/AST.h"
+#include "Procedural.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
@@ -290,7 +293,69 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
           }
      }
 
-     const auto comparison = toType->CompareTo(expression->Type());
+     auto comparison = toType->CompareTo(expression->Type());
+
+     if (!comparison.IsValid())
+     {
+          const auto userDefined = detail::FindConversionFunction(this->GetContext(), expression, toType);
+          if (userDefined.has_value())
+          {
+               if (userDefined->ambiguous || userDefined->function == nullptr)
+               {
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                std::format("Conversion from '{}' to '{}' is ambiguous",
+                                                            expression->Type()->Name(), toType->Name()),
+                                                expression->Value()->Source()));
+                    return nullptr;
+               }
+               const auto& function = userDefined->function;
+               if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess) || function->isDeleted)
+               {
+                    const auto candidate =
+                         overloadDiagnostics::Candidate{.signature = detail::FormatFunctionSignature(function),
+                                                        .source = function->source,
+                                                        .isDeleted = function->isDeleted};
+                    DiagnosticSink::Report(this->GetContext(),
+                                           overloadDiagnostics::SelectedOverloadFailure(
+                                                candidate.signature, expression->Value()->Source(),
+                                                !this->CanAccess(function->memberClassInfo->id, function->memberAccess),
+                                                function->isDeleted, candidate));
+                    return nullptr;
+               }
+               if (!expression->IsGLValue())
+               {
+                    DiagnosticSink::Report(this->GetContext(),
+                                           diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                                "Conversion functions on class prvalues are not supported yet",
+                                                expression->Value()->Source()));
+                    return nullptr;
+               }
+
+               const auto source = expression->Value()->Source();
+               auto objectPointer = this->ParseAddressOfExpression(std::move(expression), source);
+               if (objectPointer == nullptr) return nullptr;
+               std::vector<Expression> arguments{};
+               arguments.push_back(std::move(objectPointer));
+               auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
+                    new (*this->GetContext().nodeAllocator) FunctionCallNode(function, std::move(arguments), source)};
+               if (const auto* reference = function->returnType->CastTo<typeSystem::ReferenceType>();
+                   reference != nullptr)
+               {
+                    auto pointerResult =
+                         std::make_unique<PRValue>(PointerTo(reference->BaseType()), std::move(call), false);
+                    auto dereference = std::unique_ptr<high::DereferenceNode, IRDeleter>{new (
+                         *this->GetContext().nodeAllocator) high::DereferenceNode(std::move(pointerResult), source)};
+                    if (reference->GetKind() == typeSystem::ReferenceType::Kind::LValue)
+                         expression = std::make_unique<LValue>(reference->BaseType(), std::move(dereference), false);
+                    else
+                         expression = std::make_unique<XValue>(reference->BaseType(), std::move(dereference), false);
+               }
+               else
+                    expression = std::make_unique<PRValue>(function->returnType, std::move(call), false);
+               comparison = toType->CompareTo(expression->Type());
+          }
+     }
 
      if (!comparison.IsValid())
      {
@@ -470,12 +535,29 @@ std::optional<ecpps::ir::IR::CommonOperands> ecpps::ir::IR::UsualArithmeticConve
 
      if (leftIntegral == nullptr || rightIntegral == nullptr)
      {
-          // TODO: Classes
-          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                          "Cannot perform this binary operation on " +
-                                                               left->Type()->Name() + " and " + right->Type()->Name(),
-                                                          left->Value()->Source()));
-          return std::nullopt;
+          const auto selection = detail::SelectBuiltinArithmeticType(this->GetContext(), left, right);
+          if (selection.has_value() && selection->ambiguous)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "The built-in arithmetic operator has ambiguous user-defined "
+                                           "conversions",
+                                           left->Value()->Source()));
+               return std::nullopt;
+          }
+          if (!selection.has_value() || selection->type == nullptr)
+          {
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "Cannot perform this binary operation on " + left->Type()->Name() + " and " +
+                                                right->Type()->Name(),
+                                           left->Value()->Source()));
+               return std::nullopt;
+          }
+          left = ConvertTo(std::move(left), selection->type);
+          right = ConvertTo(std::move(right), selection->type);
+          if (left == nullptr || right == nullptr) return std::nullopt;
+          return CommonOperands{.left = std::move(left), .right = std::move(right), .type = selection->type};
      }
 
      leftIntegral = typeSystem::PromoteInteger(leftIntegral);
@@ -595,14 +677,30 @@ std::vector<ecpps::typeSystem::ScopeSegment> ecpps::ir::IR::EnclosingPathUpTo(co
      for (const auto& context : this->GetContext().contextSequence)
      {
           const auto& scope = context->GetScope();
-          if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope); ns && ns->Name().has_value())
-               path.push_back({.kind = typeSystem::ScopeKind::Namespace,
-                               .name = *ns->Name()}); // TODO: unnamed namespaces are skipped
-          else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope); cs && !cs->name.empty())
-               path.push_back({.kind = typeSystem::ScopeKind::Class, .name = cs->name});
-          else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
+          if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope);
+              ns != nullptr && (ns->Name().has_value() || ns->parentScope != nullptr))
                path.push_back(
-                    {.kind = typeSystem::ScopeKind::Function, .name = fn->Name().value_or("__unknown")}); // local class
+                    {.kind = typeSystem::ScopeKind::Namespace, .name = ns->Name().value_or("<anonymous namespace>")});
+          else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope))
+               path.push_back({.kind = typeSystem::ScopeKind::Class,
+                               .name = cs->name.empty() ? std::format("<unnamed class {}>", cs->id) : cs->name});
+          else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
+          {
+               std::string functionKey = fn->Name().value_or("<anonymous function>") + "(";
+               for (const auto& parameter : fn->parameters)
+                    functionKey += (parameter.type == nullptr ? "<unknown>" : parameter.type->RawName()) + ";";
+               if (fn->isVariadic) functionKey += "...";
+               functionKey += ")";
+               if (fn->memberFunctionInfo.isConst) functionKey += " const";
+               if (fn->memberFunctionInfo.isVolatile) functionKey += " volatile";
+               switch (fn->memberFunctionInfo.refQualifier)
+               {
+               case abi::MemberRefQualifier::None: break;
+               case abi::MemberRefQualifier::LValue: functionKey += " &"; break;
+               case abi::MemberRefQualifier::RValue: functionKey += " &&"; break;
+               }
+               path.push_back({.kind = typeSystem::ScopeKind::Function, .name = std::move(functionKey)});
+          }
           if (&scope == &target) break;
      }
      return path;

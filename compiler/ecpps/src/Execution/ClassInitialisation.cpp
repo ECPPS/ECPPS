@@ -1816,6 +1816,13 @@ std::optional<std::size_t> ecpps::ir::IR::ConstructorArgumentCost(typeSystem::No
                          conversionCost = 0;
                          for (const auto kind : conversion.Sequence()) *conversionCost += ConversionCost(kind);
                     }
+                    else
+                    {
+                         const auto userDefined =
+                              detail::FindConversionFunction(this->GetContext(), argument, reference->BaseType());
+                         if (userDefined.has_value() && !userDefined->ambiguous && userDefined->function != nullptr)
+                              conversionCost = userDefined->cost;
+                    }
                }
           }
           if (same && directCategory) return qualifierCost;
@@ -1854,10 +1861,16 @@ std::optional<std::size_t> ecpps::ir::IR::ConstructorArgumentCost(typeSystem::No
      if (parameterType->CastTo<typeSystem::ArrayType>() != nullptr) return std::nullopt;
 
      const auto conversion = parameterType->CompareTo(argument->Type());
-     if (!conversion.IsValid()) return std::nullopt;
-     std::size_t score = 0;
-     for (const auto kind : conversion.Sequence()) score += ConversionCost(kind);
-     return score;
+     if (conversion.IsValid())
+     {
+          std::size_t score = 0;
+          for (const auto kind : conversion.Sequence()) score += ConversionCost(kind);
+          return score;
+     }
+
+     const auto userDefined = detail::FindConversionFunction(this->GetContext(), argument, parameterType);
+     if (!userDefined.has_value() || userDefined->ambiguous || userDefined->function == nullptr) return std::nullopt;
+     return userDefined->cost;
 }
 
 std::optional<ecpps::ir::IR::ConstructorSelection> ecpps::ir::IR::SelectConstructor(const typeSystem::ClassInfo& info,

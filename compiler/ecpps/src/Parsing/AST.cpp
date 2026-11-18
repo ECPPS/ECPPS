@@ -1514,10 +1514,16 @@ NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
                return std::unique_ptr<OperatorFunctionId, ASTDeleter>{new (context)
                                                                            OperatorFunctionId(*operatorId, source)};
           }
-          // TODO: Conversion
-          this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-               "Expected an overloaded operator after 'operator'", Peek().location));
-          return nullptr;
+          auto conversionType = ParseTypeId(context);
+          if (!conversionType.WasSuccessful() || conversionType.value == nullptr)
+          {
+               for (auto& diagnostic : conversionType.diagnostics)
+                    this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+               return nullptr;
+          }
+          source.endPosition = Peek(-1).location.endPosition;
+          return std::unique_ptr<ConversionFunctionId, ASTDeleter>{
+               new (context) ConversionFunctionId(std::move(conversionType.value), source)};
      }
 
      if (token.type == TokenType::Identifier) return ParseIdExpression(context);
@@ -2222,9 +2228,11 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     source.endPosition = currentToken.location.endPosition;
                     Operator operatorId =
                          std::get<InternedString>(currentToken.value) == "." ? Operator::FullStop : Operator::Arrow;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseIdExpression(context), source));
+                    auto memberId = Peek().type == TokenType::Keyword && Peek().AsKeyword() == "operator"
+                                         ? ParseDeclaratorId(context)
+                                         : ParseIdExpression(context);
+                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (
+                         context) BinaryOperatorNode(std::move(expression), operatorId, std::move(memberId), source));
                     continue;
                }
           }

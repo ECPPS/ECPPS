@@ -241,6 +241,64 @@ TEST_CASE("AST - Operator function ids map to their operators", "[unit][parsing]
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
+TEST_CASE("AST - Explicit operator calls preserve operator function ids", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     auto nodes = fixture.Parse(
+          ZeroArgumentFunction("explicit_arrow_call", {Identifier("object"), Operator("."), Keyword("operator"),
+                                                       Operator("->"), Punctuation(ecpps::TokenType::LeftParenthesis),
+                                                       Punctuation(ecpps::TokenType::RightParenthesis)}));
+
+     const auto* function = GetFunction(nodes);
+     REQUIRE((function != nullptr));
+     const auto* returnNode = GetReturn(*function);
+     REQUIRE((returnNode != nullptr));
+     const auto* call = dynamic_cast<const ecpps::ast::CallOperatorNode*>(returnNode->Value().get());
+     REQUIRE((call != nullptr));
+     const auto* memberAccess = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(call->Function().get());
+     REQUIRE((memberAccess != nullptr));
+     CHECK((memberAccess->Value() == ecpps::ast::Operator::FullStop));
+     const auto* operatorId = dynamic_cast<const ecpps::ast::OperatorFunctionId*>(memberAccess->Right().get());
+     REQUIRE((operatorId != nullptr));
+     CHECK((operatorId->GetOperator() == ecpps::ast::Operator::Arrow));
+     CHECK((call->Arguments().Empty()));
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Conversion function ids preserve their target type", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::Token> tokens{Keyword("struct"),
+                                      Identifier("ScalarConversion"),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("operator"),
+                                      Keyword("int"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Keyword("const"),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace),
+                                      Punctuation(ecpps::TokenType::SemiColon)};
+
+     const auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == 1));
+     const auto* classDefinition = dynamic_cast<const ecpps::ast::ClassDefNode*>(nodes.front().get());
+     REQUIRE((classDefinition != nullptr));
+     REQUIRE((classDefinition->MemberSpecifiers().size() == 1));
+     const auto* declaration =
+          dynamic_cast<const ecpps::ast::MemberDeclarationNode*>(classDefinition->MemberSpecifiers().front().get());
+     REQUIRE((declaration != nullptr));
+     REQUIRE((declaration->Declarators().size() == 1));
+     const auto* conversionId = dynamic_cast<const ecpps::ast::ConversionFunctionId*>(
+          declaration->Declarators().front().declaredIdExpression.get());
+     REQUIRE((conversionId != nullptr));
+     const auto* conversionType = dynamic_cast<const ecpps::ast::BasicType*>(conversionId->ConversionType().get());
+     REQUIRE((conversionType != nullptr));
+     CHECK((conversionType->ToString(0) == "int"));
+     CHECK((conversionId->ToString(0) == "operator int"));
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
 TEST_CASE("AST - Subscript expressions preserve separate arguments and comma expressions",
           "[unit][parsing][ast]")
 {

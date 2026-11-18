@@ -118,6 +118,9 @@ namespace
           const ecpps::ast::FunctionSignature& signature,
           const std::vector<ecpps::ir::FunctionScope::Parameter>& parameters)
      {
+          if (dynamic_cast<const ecpps::ast::ConversionFunctionId*>(signature.name.get()) != nullptr)
+               return "A conversion function must be a non-static member function";
+
           const auto* operatorId =
                dynamic_cast<const ecpps::ast::OperatorFunctionId*>(signature.name.get());
           if (operatorId == nullptr) return std::nullopt;
@@ -713,7 +716,7 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
 
      for (const auto& param : parameters)
      {
-          Variable paramVariable{param.name, param.type, StorageDuration::Automatic};
+          Variable paramVariable{param.name, param.type, StorageDuration::Automatic, node.Source()};
           FunctionScope::LocalEntity localEntity{std::move(paramVariable)};
           locals->push_back(std::move(localEntity));
 
@@ -932,11 +935,8 @@ std::vector<std::string> ecpps::ir::IR::NamespacePathFromContext(void) const
 
                auto* vNamespaceScope = dynamic_cast<NamespaceScope*>(vScope);
                runtime_assert(vNamespaceScope != nullptr, "Expected a namespace scope in a namespace context");
-               if (vNamespaceScope->Name().has_value())
-               {
-                    const auto& namespaceName = vNamespaceScope->Name().value();
-                    path.push_back(namespaceName);
-               }
+               if (vNamespaceScope->Name().has_value() || vNamespaceScope->parentScope != nullptr)
+                    path.push_back(vNamespaceScope->Name().value_or("<anonymous namespace>"));
           }
      }
      return path;

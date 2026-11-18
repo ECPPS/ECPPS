@@ -742,6 +742,8 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer type;
           StorageDuration storageDuration;
+          Location declarationSource{};
+          bool isExplicitlyConst{};
 
           [[nodiscard]] std::string ToString(void) const override
           {
@@ -749,9 +751,11 @@ namespace ecpps::ir
                                   this->Name().value_or("<anonymous>"));
           }
 
-          explicit Variable(std::string name, typeSystem::NonowningTypePointer type, StorageDuration storageDuration)
+          explicit Variable(std::string name, typeSystem::NonowningTypePointer type, StorageDuration storageDuration,
+                            Location declarationSource = {}, bool isExplicitlyConst = false)
               : ir::Entity(IsReference(type) ? ir::EntityKind::Reference : ir::EntityKind::Object, std::move(name)),
-                type(type), storageDuration(storageDuration)
+                type(type), storageDuration(storageDuration), declarationSource(declarationSource),
+                isExplicitlyConst(isExplicitlyConst)
           {
           }
      };
@@ -759,6 +763,9 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
+          bool isVariadic = false;
+          bool isConversionFunction = false;
+          bool isExplicit = false;
           bool isMemberFunctionDefined = false;
           bool isDeleted = false;
           bool isDefaulted = false;
@@ -782,6 +789,7 @@ namespace ecpps::ir
                std::string name{};
                typeSystem::NonowningTypePointer type{};
                bool isVariadic = false;
+               bool hasDefaultArgument = false;
           };
           std::vector<Parameter> parameters{};
 
@@ -829,15 +837,22 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(void) const override
           {
-               std::string result = std::format("{}{} {}(", this->isInline ? "inline " : "",
-                                                this->returnType ? this->returnType->Name() : "void",
-                                                this->Name().has_value() ? this->Name().value() : "<anonymous>");
+               std::string result = this->isInline ? "inline " : "";
+               if (this->isExplicit) result += "explicit ";
+               if (!this->isConversionFunction)
+                    result += std::format("{} ", this->returnType ? this->returnType->Name() : "void");
+               result += std::format("{}(", this->Name().has_value() ? this->Name().value() : "<anonymous>");
                for (std::size_t i = 0; i < this->parameters.size(); i++)
                {
                     const auto& param = this->parameters[i];
                     result += std::format("{}{} {}", param.isVariadic ? "..." : "",
                                           param.type ? param.type->Name() : "void", param.name);
                     if (i != this->parameters.size() - 1) result += ", ";
+               }
+               if (this->isVariadic)
+               {
+                    if (!this->parameters.empty()) result += ", ";
+                    result += "...";
                }
                result += ")";
                return result;

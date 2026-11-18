@@ -133,6 +133,30 @@ TEST_CASE("Preprocessor - operator-or-punctuators", "[parsing][operators-or-punc
           REQUIRE((operatorCount == 2));
      }
 
+     SECTION("Ellipsis is tokenised as one punctuator")
+     {
+          auto tokens = preprocessor.Parse("...", macros, "tests.cpp");
+          REQUIRE((tokens.size() == 1));
+          REQUIRE((tokens.front().type == ecpps::PreprocessingTokenType::OperatorOrPunctuator));
+          REQUIRE((tokens.front().value == "..."));
+     }
+
+     SECTION("Digraphs are tokenised atomically")
+     {
+          for (const char* const punctuator : {"<:", ":>", "<%", "%>", "%:", "%:%:"})
+          {
+               const auto tokens = preprocessor.Parse(punctuator, macros, "tests.cpp");
+               REQUIRE((tokens.size() == 1));
+               CHECK((tokens.front().type == ecpps::PreprocessingTokenType::OperatorOrPunctuator));
+               CHECK((tokens.front().value == punctuator));
+          }
+
+          const auto angleScope = preprocessor.Parse("<::name", macros, "tests.cpp");
+          REQUIRE((angleScope.size() == 3));
+          CHECK((angleScope[0].value == "<"));
+          CHECK((angleScope[1].value == "::"));
+     }
+
      SECTION("Ambiguous operators")
      {
           auto tokens = preprocessor.Parse("& && | ||", macros, "tests.cpp");
