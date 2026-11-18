@@ -121,8 +121,7 @@ namespace
           if (dynamic_cast<const ecpps::ast::ConversionFunctionId*>(signature.name.get()) != nullptr)
                return "A conversion function must be a non-static member function";
 
-          const auto* operatorId =
-               dynamic_cast<const ecpps::ast::OperatorFunctionId*>(signature.name.get());
+          const auto* operatorId = dynamic_cast<const ecpps::ast::OperatorFunctionId*>(signature.name.get());
           if (operatorId == nullptr) return std::nullopt;
 
           using ecpps::ast::Operator;
@@ -135,12 +134,11 @@ namespace
               operatorValue == Operator::Arrow || operatorValue == Operator::Assignment)
                return std::format("operator{} must be a member function", ecpps::ast::ToString(operatorValue));
 
-          if (signature.isVariadic ||
-              std::ranges::any_of(signature.parameters.parameters,
-                                  [](const ecpps::ast::FunctionParameter& parameter)
-                                  {
-                                       return parameter.defaultInitialiser != nullptr;
-                                  }))
+          if (signature.isVariadic || std::ranges::any_of(signature.parameters.parameters,
+                                                          [](const ecpps::ast::FunctionParameter& parameter)
+                                                          {
+                                                               return parameter.defaultInitialiser != nullptr;
+                                                          }))
                return "Non-member operator functions cannot be variadic or have default arguments";
 
           const auto count = parameters.size();

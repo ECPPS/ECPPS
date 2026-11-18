@@ -69,8 +69,9 @@ namespace
                  integral->Sign() == ecpps::typeSystem::Signedness::Signed;
      }
 
-     [[nodiscard]] std::optional<std::string> ValidateMemberOperatorParameterCount(
-          const Operator operatorId, const bool isStatic, const std::size_t parameterCount)
+     [[nodiscard]] std::optional<std::string> ValidateMemberOperatorParameterCount(const Operator operatorId,
+                                                                                   const bool isStatic,
+                                                                                   const std::size_t parameterCount)
      {
           if (operatorId == Operator::QuestionMark || operatorId == Operator::FullStop ||
               operatorId == Operator::PointerToMemberObject || operatorId == Operator::Ellipsis)
@@ -828,10 +829,11 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                            condition != nullptr ? condition->Source() : node.Source());
                     continue;
                }
-               const bool allowsDefaultArguments = hasOperatorId && IsCallOrSubscriptOperator(operatorId->GetOperator());
+               const bool allowsDefaultArguments =
+                    hasOperatorId && IsCallOrSubscriptOperator(operatorId->GetOperator());
                if (hasOperatorId)
                     if (const auto error = ValidateMemberOperatorParameterCount(operatorId->GetOperator(), isStatic,
-                                                                                 functionType.parameters.size());
+                                                                                functionType.parameters.size());
                         error.has_value())
                     {
                          report(*error, functionNameSource);
@@ -861,7 +863,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                if (functionType.isVariadic && !allowsDefaultArguments)
                {
                     report(hasOperatorId ? "Only operator() and operator[] may be variadic"
-                                          : "Variadic member functions are not supported",
+                                         : "Variadic member functions are not supported",
                            functionNameSource);
                     continue;
                }

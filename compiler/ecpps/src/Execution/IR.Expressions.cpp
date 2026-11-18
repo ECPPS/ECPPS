@@ -1091,9 +1091,9 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
                if (operand->Type() == promoted) return operand;
                return ConvertTo(std::move(operand), promoted);
           }
-          DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                                          "The built-in unary + operator requires an integral operand",
-                                                          node.Source()));
+          DiagnosticSink::Report(this->GetContext(),
+                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                      "The built-in unary + operator requires an integral operand", node.Source()));
           return nullptr;
      case ast::Operator::Minus: return this->ParseArithmeticNegationExpression(std::move(operand), node.Source());
      case ast::Operator::Asterisk: return this->ParseDereferenceExpression(std::move(operand), node.Source());
@@ -1102,25 +1102,25 @@ Expression ecpps::ir::IR::ParseUnaryExpression(const ast::UnaryOperatorNode& nod
      case ast::Operator::Exclamation:
           if (!IsScalar(operand->Type()))
           {
-               DiagnosticSink::Report(
-                    this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
-                                             "The built-in unary ! operator requires a scalar operand", node.Source()));
+               DiagnosticSink::Report(this->GetContext(),
+                                      diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
+                                           "The built-in unary ! operator requires a scalar operand", node.Source()));
                return nullptr;
           }
           {
                auto nonZero = MakeNonZeroTest(std::move(operand), node.Source());
                const auto* boolType = nonZero->Type();
-               auto falseValue = std::make_unique<PRValue>(
-                    boolType, std::unique_ptr<IntegralNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                           IntegralNode(0, node.Source())},
-                    true);
-               return std::make_unique<PRValue>(
-                    boolType,
-                    std::unique_ptr<high::CompareNode, IRDeleter>{new (*this->GetContext().nodeAllocator)
-                                                                       high::CompareNode(
-                                                                            std::move(nonZero), std::move(falseValue),
+               auto falseValue =
+                    std::make_unique<PRValue>(boolType,
+                                              std::unique_ptr<IntegralNode, IRDeleter>{new (
+                                                   *this->GetContext().nodeAllocator) IntegralNode(0, node.Source())},
+                                              true);
+               return std::make_unique<PRValue>(boolType,
+                                                std::unique_ptr<high::CompareNode, IRDeleter>{
+                                                     new (*this->GetContext().nodeAllocator)
+                                                          high::CompareNode(std::move(nonZero), std::move(falseValue),
                                                                             ComparisonPredicate::Equal, node.Source())},
-                    false);
+                                                false);
           }
      case ast::Operator::Increment:
           return node.UnaryType() == ast::UnaryOperatorType::Prefix
@@ -2003,14 +2003,13 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      {
           if (sameNameCandidates.empty())
                DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::MissingMember(
-                                                                classType->Info().DisplayName(), std::string{name},
-                                                                source, std::nullopt, {}));
+                                                               classType->Info().DisplayName(), std::string{name},
+                                                               source, std::nullopt, {}));
           else
-               DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::NoMatchingOverload(
-                                                                classType->Info().DisplayName() + "::" +
-                                                                     std::string{name},
-                                                                source, candidateDiagnostics, {},
-                                                                SimilarNamesKind::Members));
+               DiagnosticSink::Report(this->GetContext(),
+                                      ecpps::ir::overloadDiagnostics::NoMatchingOverload(
+                                           classType->Info().DisplayName() + "::" + std::string{name}, source,
+                                           candidateDiagnostics, {}, SimilarNamesKind::Members));
           return nullptr;
      }
 
@@ -2031,9 +2030,8 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                candidateDiagnostics.push_back(OverloadCandidateDiagnostic{
                     .signature = FormatFunctionSignature(candidate), .source = candidate->source});
           DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
-                                                           classType->Info().DisplayName() + "::" +
-                                                                std::string{name},
-                                                           source, candidateDiagnostics));
+                                                          classType->Info().DisplayName() + "::" + std::string{name},
+                                                          source, candidateDiagnostics));
           return nullptr;
      }
 
@@ -2045,8 +2043,8 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                                                                        .source = candidate->source,
                                                                        .isDeleted = candidate->isDeleted};
           DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
-                                                           diagnosticCandidate.signature, source, !isAccessible,
-                                                           candidate->isDeleted, diagnosticCandidate));
+                                                          diagnosticCandidate.signature, source, !isAccessible,
+                                                          candidate->isDeleted, diagnosticCandidate));
           return nullptr;
      }
      if (arguments.size() < candidate->parameters.size())
@@ -2102,8 +2100,8 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                              }))
           return nullptr;
 
-     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{new (*this->GetContext().nodeAllocator) FunctionCallNode(
-          candidate, std::move(evaluatedArguments), source)};
+     auto call = std::unique_ptr<FunctionCallNode, IRDeleter>{
+          new (*this->GetContext().nodeAllocator) FunctionCallNode(candidate, std::move(evaluatedArguments), source)};
      if (const auto* referenceType = candidate->returnType->CastTo<typeSystem::ReferenceType>();
          referenceType != nullptr)
      {
@@ -2177,15 +2175,13 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                const auto* pointerType = function != nullptr && function->thisType != nullptr
                                               ? function->thisType->CastTo<typeSystem::PointerType>()
                                               : nullptr;
-               const auto* classType = pointerType != nullptr
-                                            ? pointerType->BaseType()->CastTo<typeSystem::ClassType>()
-                                            : nullptr;
-               if (classType != nullptr &&
-                   std::ranges::any_of(classType->Info().fields,
-                                       [objectName](const typeSystem::ClassField& field)
-                                       {
-                                            return field.name == objectName;
-                                       }))
+               const auto* classType =
+                    pointerType != nullptr ? pointerType->BaseType()->CastTo<typeSystem::ClassType>() : nullptr;
+               if (classType != nullptr && std::ranges::any_of(classType->Info().fields,
+                                                               [objectName](const typeSystem::ClassField& field)
+                                                               {
+                                                                    return field.name == objectName;
+                                                               }))
                {
                     namesObject = true;
                     break;
@@ -2194,13 +2190,12 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
           if (!this->_objectInitialisationStack.empty())
           {
                const auto* classType = this->_objectInitialisationStack.back().type->CastTo<typeSystem::ClassType>();
-               namesObject = namesObject ||
-                             (classType != nullptr &&
-                              std::ranges::any_of(classType->Info().fields,
-                                                  [objectName](const typeSystem::ClassField& field)
-                                                  {
-                                                       return field.name == objectName;
-                                                  }));
+               namesObject = namesObject || (classType != nullptr &&
+                                             std::ranges::any_of(classType->Info().fields,
+                                                                 [objectName](const typeSystem::ClassField& field)
+                                                                 {
+                                                                      return field.name == objectName;
+                                                                 }));
           }
 
           if (namesObject)

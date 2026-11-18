@@ -1308,8 +1308,8 @@ TEST_CASE("IR - Multi-argument subscript expressions call operator[]", "[unit][i
      Fixture fixture{};
      const std::string className{"MultiIndexValue"};
      std::vector<ecpps::ast::NodePointer> members{};
-     members.push_back(MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Subscript,
-                                                     {"int", "int"}));
+     members.push_back(
+          MakeMemberOperatorDeclaration(fixture, className, ecpps::ast::Operator::Subscript, {"int", "int"}));
 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeConstructorClass(fixture, className, std::move(members)));
@@ -1341,15 +1341,14 @@ TEST_CASE("IR - Single-argument subscripts keep built-in pointer lowering", "[un
      Fixture fixture{};
      auto signature = fixture.MakeFunctionSignature("int", "read_pointer", {});
      ecpps::ast::FunctionParameter pointerParameter{};
-     pointerParameter.type = MakeASTNode<ecpps::ast::PointerType>(fixture.astAllocator,
-                                                                  fixture.MakeBasicType("int"), Source);
+     pointerParameter.type =
+          MakeASTNode<ecpps::ast::PointerType>(fixture.astAllocator, fixture.MakeBasicType("int"), Source);
      pointerParameter.name = fixture.MakeIdentifier("values");
      signature.parameters.parameters.push_back(std::move(pointerParameter));
      ecpps::SBOVector<ecpps::ast::NodePointer> indices{};
      indices.Push(fixture.MakeIntegerLiteral(1));
-     auto subscript = MakeASTNode<ecpps::ast::SubscriptOperatorNode>(fixture.astAllocator,
-                                                                    fixture.MakeIdentifier("values"),
-                                                                    std::move(indices), Source);
+     auto subscript = MakeASTNode<ecpps::ast::SubscriptOperatorNode>(
+          fixture.astAllocator, fixture.MakeIdentifier("values"), std::move(indices), Source);
      ecpps::SBOVector<ecpps::ast::NodePointer> body{};
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(subscript), Source));
      std::vector<ecpps::ast::NodePointer> ast{};
@@ -1975,12 +1974,12 @@ TEST_CASE("IR - Unary expressions invoke member operator overloads", "[unit][ir]
           return MakeReturningFunction(fixture, "int", functionName, {{className, "value"}},
                                        AstUnary(fixture, operatorId, fixture.MakeIdentifier("value"), unaryType));
      };
-     ast.push_back(makeUnaryCaller("prefix_increment", ecpps::ast::Operator::Increment,
-                                   ecpps::ast::UnaryOperatorType::Prefix));
+     ast.push_back(
+          makeUnaryCaller("prefix_increment", ecpps::ast::Operator::Increment, ecpps::ast::UnaryOperatorType::Prefix));
      ast.push_back(makeUnaryCaller("postfix_increment", ecpps::ast::Operator::Increment,
                                    ecpps::ast::UnaryOperatorType::Postfix));
-     ast.push_back(makeUnaryCaller("logical_not", ecpps::ast::Operator::Exclamation,
-                                   ecpps::ast::UnaryOperatorType::Prefix));
+     ast.push_back(
+          makeUnaryCaller("logical_not", ecpps::ast::Operator::Exclamation, ecpps::ast::UnaryOperatorType::Prefix));
 
      const auto makeBuiltinUnaryCaller =
           [&fixture](const std::string& functionName, const ecpps::ast::Operator operatorId)

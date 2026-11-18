@@ -69,16 +69,19 @@ namespace
 
      std::vector<ecpps::Token> SubscriptFunction(std::vector<ecpps::Token> arguments)
      {
-          std::vector<ecpps::Token> tokens{Keyword("int"), Identifier("subscript"),
+          std::vector<ecpps::Token> tokens{Keyword("int"),
+                                           Identifier("subscript"),
                                            Punctuation(ecpps::TokenType::LeftParenthesis),
                                            Punctuation(ecpps::TokenType::RightParenthesis),
-                                           Punctuation(ecpps::TokenType::LeftBrace), Keyword("return"),
-                                           Identifier("object"), Punctuation(ecpps::TokenType::LeftBracket)};
+                                           Punctuation(ecpps::TokenType::LeftBrace),
+                                           Keyword("return"),
+                                           Identifier("object"),
+                                           Punctuation(ecpps::TokenType::LeftBracket)};
           tokens.insert(tokens.end(), std::make_move_iterator(arguments.begin()),
                         std::make_move_iterator(arguments.end()));
-          tokens.insert(tokens.end(), {Punctuation(ecpps::TokenType::RightBracket),
-                                       Punctuation(ecpps::TokenType::SemiColon),
-                                       Punctuation(ecpps::TokenType::RightBrace)});
+          tokens.insert(tokens.end(),
+                        {Punctuation(ecpps::TokenType::RightBracket), Punctuation(ecpps::TokenType::SemiColon),
+                         Punctuation(ecpps::TokenType::RightBrace)});
           return tokens;
      }
 
@@ -299,12 +302,11 @@ TEST_CASE("AST - Conversion function ids preserve their target type", "[unit][pa
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 }
 
-TEST_CASE("AST - Subscript expressions preserve separate arguments and comma expressions",
-          "[unit][parsing][ast]")
+TEST_CASE("AST - Subscript expressions preserve separate arguments and comma expressions", "[unit][parsing][ast]")
 {
      Fixture multiArgumentFixture{};
-     auto multiArgumentNodes = multiArgumentFixture.Parse(SubscriptFunction({Identifier("row"), Operator(","),
-                                                                              Identifier("column")}));
+     auto multiArgumentNodes =
+          multiArgumentFixture.Parse(SubscriptFunction({Identifier("row"), Operator(","), Identifier("column")}));
      const auto* multiArgumentFunction = GetFunction(multiArgumentNodes);
      REQUIRE((multiArgumentFunction != nullptr));
      const auto* multiArgumentReturn = GetReturn(*multiArgumentFunction);
@@ -317,9 +319,9 @@ TEST_CASE("AST - Subscript expressions preserve separate arguments and comma exp
      CHECK(dynamic_cast<const ecpps::ast::IdentifierNode*>(multiArgumentSubscript->Arguments()[1].get()) != nullptr);
 
      Fixture commaExpressionFixture{};
-     auto commaExpressionNodes = commaExpressionFixture.Parse(SubscriptFunction(
-          {Punctuation(ecpps::TokenType::LeftParenthesis), Identifier("row"), Operator(","), Identifier("column"),
-           Punctuation(ecpps::TokenType::RightParenthesis)}));
+     auto commaExpressionNodes = commaExpressionFixture.Parse(
+          SubscriptFunction({Punctuation(ecpps::TokenType::LeftParenthesis), Identifier("row"), Operator(","),
+                             Identifier("column"), Punctuation(ecpps::TokenType::RightParenthesis)}));
      const auto* commaExpressionFunction = GetFunction(commaExpressionNodes);
      REQUIRE((commaExpressionFunction != nullptr));
      const auto* commaExpressionReturn = GetReturn(*commaExpressionFunction);

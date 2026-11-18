@@ -69,15 +69,16 @@ namespace
           return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
      }
 
-     ecpps::ast::NodePointer MakeNonMemberOperatorDeclaration(
-          Fixture& fixture, const ecpps::ast::Operator operatorId, const std::vector<std::string>& parameterTypes)
+     ecpps::ast::NodePointer MakeNonMemberOperatorDeclaration(Fixture& fixture, const ecpps::ast::Operator operatorId,
+                                                              const std::vector<std::string>& parameterTypes)
      {
           std::vector<std::pair<std::string, std::string>> parameters{};
           for (std::size_t index = 0; index < parameterTypes.size(); ++index)
                parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
           auto signature = fixture.MakeFunctionSignature("int", "operator", parameters);
           for (std::size_t index = 0; index < parameterTypes.size(); ++index)
-               if (parameterTypes[index] == "Thing") signature.parameters.parameters[index].type = fixture.MakeClassType("Thing");
+               if (parameterTypes[index] == "Thing")
+                    signature.parameters.parameters[index].type = fixture.MakeClassType("Thing");
           signature.name = MakeASTNode<ecpps::ast::OperatorFunctionId>(fixture.astAllocator, operatorId, Source);
           return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
      }
@@ -155,8 +156,7 @@ TEST_CASE("IR - Non-member operator declarations validate arity and member-only 
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Exclamation, {"Thing"}));
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Increment, {"Thing", "int"}));
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Plus, {"int", "int", "int"}));
-     ast.push_back(
-          MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));
 
      [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
 
