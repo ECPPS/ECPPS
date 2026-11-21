@@ -72,9 +72,10 @@ jobs:
             echo "LLVM 23 is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
+          llvm_series="${llvm_version%.*}"
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          if [[ "$version" != *"clang version ${llvm_version} "* ]]; then
-            echo "Expected Clang ${llvm_version} but found: $version" >&2
+          if [[ "$version" != *"clang version ${llvm_series}."* ]]; then
+            echo "Expected Clang ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
 

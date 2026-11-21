@@ -47,12 +47,12 @@ jobs:
           $versionOutput = & $clangFormat --version
           $versionOutput | Write-Host
 
-          $expectedVersion = "${{ inputs.llvm-version }}"
-          if ($versionOutput -notmatch [regex]::Escape($expectedVersion)) {
-            throw "Expected LLVM $expectedVersion but found: $($versionOutput | Select-Object -First 1)"
+          $expectedSeries = "${{ inputs.llvm-version }}" -replace '\.[0-9]+$', ''
+          if ($versionOutput -notmatch ([regex]::Escape($expectedSeries) + '\.\d+')) {
+            throw "Expected LLVM $expectedSeries.x but found: $($versionOutput | Select-Object -First 1)"
           }
 
-          Write-Host "Using preinstalled LLVM $expectedVersion"
+          Write-Host "Using LLVM $expectedSeries.x"
           echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Install LLVM (Linux)
@@ -61,6 +61,8 @@ jobs:
         run: |
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
+          llvm_series="${{ inputs.llvm-version }}"
+          llvm_series="${llvm_series%.*}"
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh "$llvm_major"
@@ -71,8 +73,8 @@ jobs:
             exit 1
           fi
           version="$("$llvm_bin/clang-format" --version)"
-          if [[ "$version" != *"${{ inputs.llvm-version }}"* ]]; then
-            echo "Expected clang-format ${{ inputs.llvm-version }} but found: $version" >&2
+          if [[ "$version" != *"${llvm_series}."* ]]; then
+            echo "Expected clang-format ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
 

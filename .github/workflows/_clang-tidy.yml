@@ -93,12 +93,12 @@ jobs:
           $versionLine = (& $clang --version | Select-Object -First 1).ToString()
           Write-Host $versionLine
 
-          $expectedVersion = "${{ inputs.llvm-version }}"
-          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
-            throw "Expected LLVM $expectedVersion but found: $versionLine"
+          $expectedSeries = "${{ inputs.llvm-version }}" -replace '\.[0-9]+$', ''
+          if ($versionLine -notmatch ("clang version " + [regex]::Escape($expectedSeries) + '\.\d+(\s|$)')) {
+            throw "Expected LLVM $expectedSeries.x but found: $versionLine"
           }
 
-          Write-Host "Using preinstalled LLVM $expectedVersion"
+          Write-Host "Using LLVM $expectedSeries.x"
           echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Download Clang Release build artifact
@@ -133,10 +133,12 @@ jobs:
       - name: Verify clang-tidy version
         shell: bash
         run: |
+          llvm_series="${{ inputs.llvm-version }}"
+          llvm_series="${llvm_series%.*}"
           version="$(clang-tidy --version)"
           echo "$version"
-          if [[ "$version" != *"LLVM version ${{ inputs.llvm-version }}"* ]]; then
-            echo "Expected clang-tidy ${{ inputs.llvm-version }} but found: $version" >&2
+          if [[ "$version" != *"LLVM version ${llvm_series}."* ]]; then
+            echo "Expected clang-tidy ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
 

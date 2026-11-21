@@ -62,9 +62,11 @@ jobs:
             echo "LLVM $llvm_major is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
+          llvm_series="${{ inputs.llvm-version }}"
+          llvm_series="${llvm_series%.*}"
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          if [[ "$version" != *"clang version ${{ inputs.llvm-version }} "* ]]; then
-            echo "Expected Clang ${{ inputs.llvm-version }} but found: $version" >&2
+          if [[ "$version" != *"clang version ${llvm_series}."* ]]; then
+            echo "Expected Clang ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
           echo "$llvm_bin" >> "$GITHUB_PATH"

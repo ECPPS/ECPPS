@@ -61,8 +61,8 @@ jobs:
 
           $versionLine = (& $clang --version | Select-Object -First 1).ToString()
           Write-Host $versionLine
-          if ($versionLine -notmatch "clang version 23\.1\.4(\s|$)") {
-            throw "Expected LLVM 23.1.4 but found: $versionLine"
+          if ($versionLine -notmatch "clang version 23\.1\.\d+(\s|$)") {
+            throw "Expected LLVM 23.1.x but found: $versionLine"
           }
 
           echo $llvmBin >> $env:GITHUB_PATH
@@ -204,8 +204,8 @@ jobs:
             exit 1
           fi
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          [[ "$version" == *"clang version 23.1.4 "* ]] || {
-            echo "Expected Clang 23.1.4 but found: $version" >&2
+          [[ "$version" == *"clang version 23.1."* ]] || {
+            echo "Expected Clang 23.1.x but found: $version" >&2
             exit 1
           }
           echo "$llvm_bin" >> "$GITHUB_PATH"

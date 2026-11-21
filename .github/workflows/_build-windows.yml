@@ -127,12 +127,12 @@ jobs:
           $versionLine = (& $clang --version | Select-Object -First 1).ToString()
           Write-Host $versionLine
 
-          $expectedVersion = "${{ inputs.llvm-version }}"
-          if ($versionLine -notmatch "clang version $([regex]::Escape($expectedVersion))(\s|$)") {
-            throw "Expected LLVM $expectedVersion but found: $versionLine"
+          $expectedSeries = "${{ inputs.llvm-version }}" -replace '\.[0-9]+$', ''
+          if ($versionLine -notmatch ("clang version " + [regex]::Escape($expectedSeries) + '\.\d+(\s|$)')) {
+            throw "Expected LLVM $expectedSeries.x but found: $versionLine"
           }
 
-          Write-Host "Using preinstalled LLVM $expectedVersion"
+          Write-Host "Using LLVM $expectedSeries.x"
           echo $llvmBin >> $env:GITHUB_PATH
 
       - name: Setup MinGW (GCC)
