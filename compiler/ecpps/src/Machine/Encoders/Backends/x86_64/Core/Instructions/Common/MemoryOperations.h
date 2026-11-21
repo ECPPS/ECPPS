@@ -14,16 +14,17 @@
 
 namespace ecpps::abi::encoders::x8664
 {
-     [[nodiscard]] inline std::size_t NextSyntheticLabel() noexcept
+     [[nodiscard]] inline std::size_t NextSyntheticLabel(void) noexcept
      {
-          static std::atomic<std::size_t> counter{static_cast<std::size_t>(1ULL << 40)};
-          return counter.fetch_add(1);
+          static std::atomic<std::size_t> lblCounter{static_cast<std::size_t>(1ULL << 40)};
+          return lblCounter.fetch_add(1);
      }
 
-     [[nodiscard]] inline ir::abstract::VirtualRegister NextScratchOwner() noexcept
+     [[nodiscard]] inline ir::abstract::VirtualRegister NextScratchOwner(void) noexcept
      {
-          static std::atomic<std::size_t> counter{0};
-          return ir::abstract::VirtualRegister{.index = std::numeric_limits<std::size_t>::max() - counter.fetch_add(1)};
+          static std::atomic<std::size_t> scrCounter{0};
+          return ir::abstract::VirtualRegister{.index =
+                                                    std::numeric_limits<std::size_t>::max() - scrCounter.fetch_add(1)};
      }
 
      class ScratchRegister
