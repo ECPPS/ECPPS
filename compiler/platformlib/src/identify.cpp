@@ -47,9 +47,9 @@ ecpps::platformlib::PlatformIdentity ecpps::platformlib::PlatformIdentity::Ident
           }
      }
 #else
-#if defined(__x86_64__)
+#ifdef __x86_64__
      bitness = ecpps::platformlib::ArchitectureBitness::x86_64;
-#elif defined(__i386__)
+#elifdef __i386__
      bitness = ecpps::platformlib::ArchitectureBitness::x86_32;
 #elif defined(__aarch64__)
      bitness = ecpps::platformlib::ArchitectureBitness::ARM64;

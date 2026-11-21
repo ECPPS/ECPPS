@@ -121,7 +121,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
           return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, slot)},
-                  .assignedRegister = destinationRegister};
+                  .assignedRegister = destinationRegister,};
      }
 
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
@@ -137,5 +137,5 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
      return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, RegisterOperand{sourceRegister})},
-             .assignedRegister = destinationRegister};
+             .assignedRegister = destinationRegister,};
 }

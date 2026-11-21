@@ -23,7 +23,7 @@ namespace ecpps
      {
      public:
           explicit TracedException(std::string message);
-          explicit TracedException(std::string message, const std::exception_ptr& inner);
+          explicit TracedException(std::string message, std::exception_ptr  inner);
           explicit TracedException(const std::exception& exception)
               : _message(exception.what()), _trace(std::stacktrace::current(1)),
                 _inner(std::make_exception_ptr(exception))

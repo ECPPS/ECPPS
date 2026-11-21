@@ -82,7 +82,7 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] api::AggregateResultAddressPlan IndirectClassResultAddress(void) const noexcept final
           {
                return {.location = api::AggregateResultAddressLocation::FirstIntegerArgument,
-                       .addressEchoedInIntegerReturnRegister = true};
+                       .addressEchoedInIntegerReturnRegister = true,};
           }
 
           [[nodiscard]] api::ClassArgumentCleanupOwner ClassArgumentCleanup(void) const noexcept final
@@ -118,7 +118,7 @@ namespace ecpps::abi::encoders::x8664
                     return {
                          .kind = api::AggregatePassingKind::Direct,
                          .pieces = {
-                              {.offset = 0, .size = info.size, .registerClass = api::AggregateRegisterClass::Integer}}};
+                              {.offset = 0, .size = info.size, .registerClass = api::AggregateRegisterClass::Integer},},};
                default: return {};
                }
           }

@@ -877,7 +877,7 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth,
                                                                .sourceWidth = sourceWidth,
                                                                .destination = destination,
-                                                               .source = source};
+                                                               .source = source,};
 
      return instruction;
 }
@@ -891,7 +891,7 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth,
                                                                .sourceWidth = sourceWidth,
                                                                .destination = destination,
-                                                               .source = source};
+                                                               .source = source,};
 
      return instruction;
 }
@@ -1485,7 +1485,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                             [](const StackOperand& stack)
                             {
                                  return std::format("[locals + {}]", stack.offset);
-                            }},
+                            },},
           operand);
 }
 // Keep this by-value sink to move temporary states into the register map.
@@ -1527,7 +1527,7 @@ ecpps::abi::encoders::x8664::Operand ecpps::abi::encoders::x8664::X8664VirtualIn
 
      return MemoryOperand{.relativeTo = RegisterIndex::Rbp,
                           .offset = static_cast<std::int32_t>(aboveRsp) -
-                                    static_cast<std::int32_t>(this->_stackFrameSize + this->SavedRegistersSize())};
+                                    static_cast<std::int32_t>(this->_stackFrameSize + this->SavedRegistersSize()),};
 }
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOperands(

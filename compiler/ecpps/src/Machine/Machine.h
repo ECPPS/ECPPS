@@ -7,7 +7,7 @@ namespace ecpps::abi
      enum struct Architecture : std::uint_fast8_t
      {
           x86,
-          ARM
+          ARM,
      };
 
      enum struct ISA : std::uint16_t // NOLINT(performance-enum-size)
@@ -49,7 +49,7 @@ namespace ecpps::abi
           SVE = 1 << 5,
           SVE2 = 1 << 6,
           FP16 = 1 << 7,
-          DOTPROD = 1 << 8
+          DOTPROD = 1 << 8,
      };
      constexpr bool operator&(const ArchitectureExtensionFeatures features, const ArchitectureExtensionFeatures other)
      {

@@ -20,7 +20,7 @@ namespace ecpps
           MovFrom,
           MovTo,
           LeaFrom,
-          LeaTo
+          LeaTo,
      };
 
      struct StringPatch

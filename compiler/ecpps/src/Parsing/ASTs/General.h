@@ -5,7 +5,7 @@ namespace ecpps::ast
      class IdentifierNode final : public Node
      {
      public:
-          explicit IdentifierNode(InternedString value, Location where) : Node(where), _value(std::move(value))
+          explicit IdentifierNode(InternedString value, Location where) : Node(where), _value(value)
           {
           }
           [[nodiscard]] InternedString Value(void) const noexcept
@@ -39,6 +39,28 @@ namespace ecpps::ast
 
      private:
           Operator _operator;
+     };
+
+     class ConversionFunctionId final : public Node
+     {
+     public:
+          explicit ConversionFunctionId(NodePointer conversionType, Location where)
+              : Node(where), _conversionType(std::move(conversionType))
+          {
+          }
+
+          [[nodiscard]] const NodePointer& ConversionType(void) const noexcept
+          {
+               return this->_conversionType;
+          }
+          [[nodiscard]] std::string ToString(const std::size_t indent) const override
+          {
+               return std::string(indent * PrettyIndent, ' ') + "operator " +
+                      (this->_conversionType == nullptr ? "__unknown" : this->_conversionType->ToString(0));
+          }
+
+     private:
+          NodePointer _conversionType;
      };
 
      class QualifiedIdNode final : public Node

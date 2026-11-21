@@ -55,7 +55,64 @@ using ecpps::ir::detail::ToClassKind;
 
 namespace
 {
-     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     using ecpps::ast::Operator;
+
+     [[nodiscard]] bool IsCallOrSubscriptOperator(const Operator operatorId) noexcept
+     {
+          return operatorId == Operator::Function || operatorId == Operator::Subscript;
+     }
+
+     [[nodiscard]] bool IsIntType(const ecpps::typeSystem::NonowningTypePointer type) noexcept
+     {
+          const auto* integral = type != nullptr ? type->CastTo<ecpps::typeSystem::IntegralType>() : nullptr;
+          return integral != nullptr && integral->Kind() == ecpps::typeSystem::TypeKind::Int &&
+                 integral->Sign() == ecpps::typeSystem::Signedness::Signed;
+     }
+
+     [[nodiscard]] std::optional<std::string> ValidateMemberOperatorParameterCount(const Operator operatorId,
+                                                                                   const bool isStatic,
+                                                                                   const std::size_t parameterCount)
+     {
+          if (operatorId == Operator::QuestionMark || operatorId == Operator::FullStop ||
+              operatorId == Operator::PointerToMemberObject || operatorId == Operator::Ellipsis)
+               return std::format("operator{} cannot be overloaded", ecpps::ast::ToString(operatorId));
+
+          if (isStatic && operatorId != Operator::Function && operatorId != Operator::Subscript)
+               return std::format("operator{} must be a non-static member function", ecpps::ast::ToString(operatorId));
+
+          if (operatorId == Operator::Function) return std::nullopt;
+          if (operatorId == Operator::Subscript)
+          {
+               if (parameterCount != 0) return std::nullopt;
+               return "operator[] must have at least one parameter";
+          }
+
+          if (operatorId == Operator::Increment || operatorId == Operator::Decrement)
+          {
+               if (parameterCount <= 1) return std::nullopt;
+               return std::format("operator{} must have zero or one parameter", ecpps::ast::ToString(operatorId));
+          }
+
+          if (operatorId == Operator::Plus || operatorId == Operator::Minus || operatorId == Operator::Asterisk ||
+              operatorId == Operator::Ampersand)
+          {
+               if (parameterCount <= 1) return std::nullopt;
+               return std::format("operator{} must have zero or one parameter", ecpps::ast::ToString(operatorId));
+          }
+
+          if (operatorId == Operator::Exclamation || operatorId == Operator::Tilde)
+          {
+               if (parameterCount == 0) return std::nullopt;
+               return std::format("operator{} must have zero parameters", ecpps::ast::ToString(operatorId));
+          }
+
+          const std::size_t expectedParameterCount = operatorId == Operator::Arrow ? 0 : 1;
+          if (parameterCount == expectedParameterCount) return std::nullopt;
+          return std::format("operator{} must have exactly {} parameter{}", ecpps::ast::ToString(operatorId),
+                             expectedParameterCount, expectedParameterCount == 1 ? "" : "s");
+     }
+
+     [[nodiscard]] std::string_view ConstructorAccessName(const ecpps::typeSystem::Access access)
      {
           switch (access)
           {
@@ -72,7 +129,7 @@ namespace
           ecpps::ir::overloadDiagnostics::Candidate candidate{
                .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
                .source = constructor.function->source,
-               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted,};
           if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
           return candidate;
      }
@@ -153,8 +210,9 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
                return id;
           }
      }
-     else
+     else {
           id = DeclareClassInScope(scope, node);
+}
 
      types.BeginDefinition(id);
 
@@ -251,7 +309,7 @@ void ecpps::ir::IR::DeclareImplicitCopyMoveConstructors(const typeSystem::ClassI
                .kind = TypeKind::Compound,
                .data = ReferenceRequest{.elementType = parameterBase,
                                         .kind = isCopyConstructor ? typeSystem::ReferenceType::Kind::LValue
-                                                                  : typeSystem::ReferenceType::Kind::RValue}});
+                                                                  : typeSystem::ReferenceType::Kind::RValue,},});
 
           ClassConstructor constructor{};
           constructor.access = typeSystem::Access::Public;
@@ -383,9 +441,36 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                                           std::move(message), source));
      };
+     const auto explicitSpecifierValue = [&] -> std::optional<bool>
+     {
+          const auto& specifier = specifiers.functionSpecifier.explicitSpecifier;
+          if (!specifier.has_value()) return false;
+          const auto& condition = *specifier;
+          if (condition == nullptr) return true;
+          auto expression = ParseExpression(condition);
+          if (expression == nullptr || !expression->IsConstantExpression()) return std::nullopt;
+          const auto value = expression->Value()->TryConstantEvaluate(EvaluationContext{.currentDepth = 0});
+          if (!value.has_value()) return std::nullopt;
+          if (const auto* integral = std::get_if<std::uint64_t>(&value->variant); integral != nullptr && *integral <= 1)
+               return *integral != 0;
+          return std::nullopt;
+     };
+
+     const auto conversionFunctionId = [](const ast::Declarator& declarator)
+     {
+          const ast::Declarator* leaf = &declarator;
+          while (leaf->nested != nullptr) leaf = leaf->nested.get();
+          return dynamic_cast<const ast::ConversionFunctionId*>(leaf->declaredIdExpression.get());
+     };
+     const bool isConversionFunctionDeclaration =
+          !node.Declarators().empty() && std::ranges::all_of(node.Declarators(),
+                                                             [&](const auto& declarator)
+                                                             {
+                                                                  return conversionFunctionId(declarator) != nullptr;
+                                                             });
 
      if (specifiers.isFriend) throw TracedException("TODO: friend declarations are not implemented yet");
-     if (specifiers.definingTypeSpecifier == nullptr)
+     if (specifiers.definingTypeSpecifier == nullptr && !isConversionFunctionDeclaration)
      {
           const auto className = GetTypeContext().Class(id).name;
           if (node.Declarators().size() != 1 || !node.Declarators().front().IsFunction())
@@ -507,7 +592,15 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
 
           ClassConstructor constructor{};
           constructor.access = access;
-          constructor.isExplicit = specifiers.functionSpecifier.explicitSpecifier.has_value();
+          const auto isExplicit = explicitSpecifierValue();
+          if (!isExplicit.has_value())
+          {
+               const auto& condition = *specifiers.functionSpecifier.explicitSpecifier;
+               report("An explicit-specifier condition must be a constant expression convertible to bool",
+                      condition != nullptr ? condition->Source() : node.Source());
+               return;
+          }
+          constructor.isExplicit = *isExplicit;
           constructor.bodyKind = declarator.functionBody;
           for (const auto& parameter : functionSuffix->parameters)
           {
@@ -525,7 +618,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                }
                constructor.parameters.push_back({.name = parameter.name != nullptr ? parameter.name->ToString(0) : "",
                                                  .type = parameterType,
-                                                 .isVariadic = false});
+                                                 .isVariadic = false,});
           }
           if (constructor.parameters.size() == 1 && typeSystem::g_void->CommonWith(constructor.parameters.front().type))
                constructor.parameters.clear();
@@ -591,6 +684,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           function->parentScope = &classScope;
           function->memberClassInfo = &GetTypeContext().Class(id);
           function->memberAccess = access;
+          function->isExplicit = constructor.isExplicit;
           function->isDeleted = declarator.functionBody == ast::FunctionBodyKind::Deleted;
           function->isDefaulted = declarator.functionBody == ast::FunctionBodyKind::Defaulted;
           function->isMemberFunctionDefined = declarator.functionBody != ast::FunctionBodyKind::None;
@@ -608,7 +702,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                deferredFunctionBodies.push_back({.classId = id,
                                                  .declarator = &declarator,
                                                  .function = constructor.function,
-                                                 .isConstructor = true});
+                                                 .isConstructor = true,});
           }
           constructors.push_back(std::move(constructor));
           return;
@@ -626,8 +720,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
 
      const bool isMutable = specifiers.storageSpecifier & ast::StorageClassSpecifier::Mutable;
 
-     const auto* declaredType = ParseType(specifiers.definingTypeSpecifier);
-     if (declaredType == nullptr)
+     const auto* declaredType =
+          specifiers.definingTypeSpecifier != nullptr ? ParseType(specifiers.definingTypeSpecifier) : nullptr;
+     if (specifiers.definingTypeSpecifier != nullptr && declaredType == nullptr)
      {
           report(std::format("Unknown type {} in member declaration", specifiers.definingTypeSpecifier->ToString(0)),
                  node.Source());
@@ -645,18 +740,25 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           while (declaratorId->nested != nullptr) declaratorId = declaratorId->nested.get();
           const auto* operatorId =
                dynamic_cast<const ast::OperatorFunctionId*>(declaratorId->declaredIdExpression.get());
-          if (identifier == nullptr && operatorId == nullptr)
+          const auto* conversionId = conversionFunctionId(declarator);
+          const bool isConversionFunction = conversionId != nullptr;
+          if (identifier == nullptr && operatorId == nullptr && conversionId == nullptr)
           {
                report("Expected an unqualified identifier in member declarator", node.Source());
                continue;
           }
-          if (operatorId != nullptr && operatorId->GetOperator() != ast::Operator::Assignment)
+          const auto* memberDeclaredType =
+               conversionId != nullptr ? ParseType(conversionId->ConversionType()) : declaredType;
+          if (memberDeclaredType == nullptr)
           {
-               report("Only operator= member functions are supported yet", declarator.location);
+               const auto& typeNode =
+                    conversionId != nullptr ? conversionId->ConversionType() : specifiers.definingTypeSpecifier;
+               report(std::format("Unknown type {} in member declaration", typeNode->ToString(0)), node.Source());
                continue;
           }
-          const std::string name = identifier != nullptr ? std::string{identifier->Value().View()}
-                                                         : "operator" + ast::ToString(operatorId->GetOperator());
+          const std::string name = identifier != nullptr   ? std::string{identifier->Value().View()}
+                                   : operatorId != nullptr ? "operator" + ast::ToString(operatorId->GetOperator())
+                                                           : conversionId->ToString(0);
           const auto& idenSource = identifier != nullptr ? identifier->Source() : declarator.location;
           const Location functionNameSource = idenSource;
 
@@ -674,9 +776,14 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     report("Virtual member functions are not supported yet", functionNameSource);
                     continue;
                }
-               if (specifiers.functionSpecifier.explicitSpecifier.has_value())
+               if (specifiers.functionSpecifier.explicitSpecifier.has_value() && !isConversionFunction)
                {
                     report("'explicit' is only supported on constructors", functionNameSource);
+                    continue;
+               }
+               if (isConversionFunction && specifiers.definingTypeSpecifier != nullptr)
+               {
+                    report("A conversion function cannot have a declared return type", functionNameSource);
                     continue;
                }
                if (specifiers.constexprSpecifier != ast::ConstantExpressionSpecifier::None)
@@ -703,6 +810,36 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     continue;
                }
                const auto& functionType = std::get<ast::ParametersAndQualifiers>(*suffix);
+               const bool isStatic = specifiers.storageSpecifier & ast::StorageClassSpecifier::Static;
+               const bool hasOperatorId = operatorId != nullptr;
+               if (isConversionFunction && isStatic)
+               {
+                    report("A conversion function must be a non-static member function", functionNameSource);
+                    continue;
+               }
+               if (isConversionFunction && !functionType.parameters.empty())
+               {
+                    report("A conversion function must not have non-object parameters", functionNameSource);
+                    continue;
+               }
+               const auto isExplicit = explicitSpecifierValue();
+               if (!isExplicit.has_value())
+               {
+                    const auto& condition = *specifiers.functionSpecifier.explicitSpecifier;
+                    report("An explicit-specifier condition must be a constant expression convertible to bool",
+                           condition != nullptr ? condition->Source() : node.Source());
+                    continue;
+               }
+               const bool allowsDefaultArguments =
+                    hasOperatorId && IsCallOrSubscriptOperator(operatorId->GetOperator());
+               if (hasOperatorId)
+                    if (const auto error = ValidateMemberOperatorParameterCount(operatorId->GetOperator(), isStatic,
+                                                                                functionType.parameters.size());
+                        error.has_value())
+                    {
+                         report(*error, functionNameSource);
+                         continue;
+                    }
                if (declarator.nested != nullptr)
                {
                     report("Nested member function return declarators are not supported yet", functionNameSource);
@@ -710,7 +847,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                }
                const auto functionSuffixIndex = static_cast<std::size_t>(suffix - declarator.suffixes.begin());
                const auto resolvedReturnType =
-                    ResolveDeclaratorType(declarator, declaredType, name, false, functionSuffixIndex);
+                    ResolveDeclaratorType(declarator, memberDeclaredType, name, false, functionSuffixIndex);
                if (resolvedReturnType.failed || resolvedReturnType.type == nullptr) continue;
                if (resolvedReturnType.type->CastTo<typeSystem::ArrayType>() != nullptr)
                {
@@ -718,16 +855,17 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     continue;
                }
                const auto* memberFunctionReturnType = resolvedReturnType.type;
-               const bool isStatic = specifiers.storageSpecifier & ast::StorageClassSpecifier::Static;
                if (isStatic && (functionType.isConst || functionType.isVolatile ||
                                 functionType.refQualifier != ast::RefQualifier::None))
                {
                     report("A static member function cannot have cv- or ref-qualifiers", functionNameSource);
                     continue;
                }
-               if (functionType.isVariadic)
+               if (functionType.isVariadic && !allowsDefaultArguments)
                {
-                    report("Variadic member functions are not supported", functionNameSource);
+                    report(hasOperatorId ? "Only operator() and operator[] may be variadic"
+                                         : "Variadic member functions are not supported",
+                           functionNameSource);
                     continue;
                }
 
@@ -742,13 +880,16 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          invalidParameters = true;
                          break;
                     }
-                    if (parameter.defaultInitialiser != nullptr)
-                    {
-                         report("Default member function arguments are not supported yet",
-                                parameter.defaultInitialiser->Source());
-                         invalidParameters = true;
-                         break;
-                    }
+                    if ((parameter.defaultInitialiser != nullptr) && (!allowsDefaultArguments))
+
+                         {
+                              report(hasOperatorId ? "Only operator() and operator[] may have default arguments"
+                                                   : "Default member function arguments are not supported yet",
+                                     parameter.defaultInitialiser->Source());
+                              invalidParameters = true;
+                              break;
+                         }
+
                     const auto* parameterType = ParseType(parameter.type);
                     if (parameterType == nullptr ||
                         !RequireComplete(parameterType, parameter.type->Source(), "a member function parameter"))
@@ -757,9 +898,33 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          break;
                     }
                     parameters.emplace_back(parameter.name != nullptr ? parameter.name->ToString(0) : "", parameterType,
-                                            false);
+                                            false, parameter.defaultInitialiser != nullptr);
                }
                if (invalidParameters) continue;
+               bool hasDefaultArgument = false;
+               for (std::size_t index = 0; index < parameters.size(); ++index)
+               {
+                    if (parameters[index].hasDefaultArgument) { hasDefaultArgument = true;
+                    } else if (hasDefaultArgument)
+                    {
+                         report("A parameter following a parameter with a default argument must also have a default "
+                                "argument",
+                                functionType.parameters[index].type->Source());
+                         invalidParameters = true;
+                         break;
+                    }
+               }
+               if (invalidParameters) continue;
+               if (hasOperatorId && functionType.parameters.size() == 1 &&
+                   (operatorId->GetOperator() == ast::Operator::Increment ||
+                    operatorId->GetOperator() == ast::Operator::Decrement) &&
+                   !IsIntType(parameters.front().type))
+               {
+                    report(std::format("The postfix operator{} parameter must have type int",
+                                       ast::ToString(operatorId->GetOperator())),
+                           functionType.parameters.front().type->Source());
+                    continue;
+               }
                if (parameters.size() == 1 && parameters.front().type == typeSystem::g_void.get()) parameters.clear();
                bool isCopyAssignment = false;
                bool isMoveAssignment = false;
@@ -810,9 +975,10 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                         existing->memberFunctionInfo.isConst != memberInfo.isConst ||
                         existing->memberFunctionInfo.isVolatile != memberInfo.isVolatile ||
                         existing->memberFunctionInfo.refQualifier != memberInfo.refQualifier ||
+                        existing->isVariadic != functionType.isVariadic ||
                         existing->parameters.size() != parameters.size())
                          return false;
-                    for (std::size_t index = 0; index < parameters.size(); index++)
+                    for (std::size_t index = 0; index < parameters.size(); ++index)
                          if (existing->parameters[index].type != parameters[index].type) return false;
                     return true;
                };
@@ -837,6 +1003,43 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          report("Member function redeclaration has a different return type", functionNameSource);
                          continue;
                     }
+                    auto mergedDefaultArguments = function->parameters |
+                                                  std::views::transform(
+                                                       [](const FunctionScope::Parameter& parameter)
+                                                       {
+                                                            return parameter.hasDefaultArgument;
+                                                       }) |
+                                                  ecpps::detail::ToVector;
+                    bool duplicateDefaultArgument = false;
+                    for (std::size_t index = 0; index < parameters.size(); ++index)
+                    {
+                         if (!parameters[index].hasDefaultArgument) continue;
+                         if (mergedDefaultArguments[index])
+                         {
+                              report("A default argument cannot be redefined",
+                                     functionType.parameters[index].defaultInitialiser->Source());
+                              duplicateDefaultArgument = true;
+                              break;
+                         }
+                         mergedDefaultArguments[index] = true;
+                    }
+                    if (duplicateDefaultArgument) continue;
+                    hasDefaultArgument = false;
+                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); ++index)
+                    {
+                         if (mergedDefaultArguments[index]) { hasDefaultArgument = true;
+                         } else if (hasDefaultArgument)
+                         {
+                              report("A parameter following a parameter with a default argument must also have a "
+                                     "default argument",
+                                     functionType.parameters[index].type->Source());
+                              duplicateDefaultArgument = true;
+                              break;
+                         }
+                    }
+                    if (duplicateDefaultArgument) continue;
+                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); ++index)
+                         function->parameters[index].hasDefaultArgument = mergedDefaultArguments[index];
                     function->isInline = function->isInline || specifiers.isInline;
                }
                else
@@ -861,6 +1064,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                               .NamespacePath(NamespacePathFromContext())
                               .Build();
                     functionScope->parameters = parameters;
+                    functionScope->isVariadic = functionType.isVariadic;
+                    functionScope->isConversionFunction = isConversionFunction;
+                    functionScope->isExplicit = isConversionFunction && *isExplicit;
                     functionScope->parentScope = &classScope;
                     functionScope->memberClassInfo = &GetTypeContext().Class(id);
                     functionScope->returnsByPointer = typeSystem::IsClass(memberFunctionReturnType);
@@ -871,6 +1077,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                }
 
                function->returnsByPointer = typeSystem::IsClass(memberFunctionReturnType);
+               function->isConversionFunction = isConversionFunction;
+               function->isExplicit = isConversionFunction && *isExplicit;
                function->isDefaulted = declarator.functionBody == ast::FunctionBodyKind::Defaulted;
                classScope.memberAccess[name] = access;
                if (declarator.functionBody == ast::FunctionBodyKind::Deleted)
@@ -885,8 +1093,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     deferredFunctionBodies.push_back(
                          {.classId = id, .declarator = &declarator, .function = function, .isConstructor = false});
                }
-               else if (declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+               else if (declarator.functionBody == ast::FunctionBodyKind::Defaulted) {
                     function->isMemberFunctionDefined = true;
+}
                continue;
           }
 
@@ -910,7 +1119,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           }
           if (declarator.isBitField) throw TracedException("TODO: bit-fields are not implemented yet");
 
-          const auto resolved = ResolveDeclaratorType(declarator, declaredType, name, false);
+          const auto resolved = ResolveDeclaratorType(declarator, memberDeclaredType, name, false);
           if (resolved.failed || resolved.type == nullptr) continue;
 
           if (specifiers.isTypedef)
@@ -968,7 +1177,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                           .fieldIndex = fieldIndex,
                                           .declarator = &declarator,
                                           .memberType = resolved.type,
-                                          .source = idenSource});
+                                          .source = idenSource,});
      }
 }
 
@@ -1005,7 +1214,7 @@ void ecpps::ir::IR::EmitConstructorBody(const std::shared_ptr<FunctionScope>& fu
           }
      };
      RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
-                                                   .size = functionIr.GetContext().contextSequence.size()};
+                                                   .size = functionIr.GetContext().contextSequence.size(),};
      functionIr.GetContext().contextSequence.push_back(functionContext);
 
      auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
@@ -1017,7 +1226,7 @@ void ecpps::ir::IR::EmitConstructorBody(const std::shared_ptr<FunctionScope>& fu
      std::uint64_t parameterIndex = 1;
      for (const auto& parameter : function->parameters)
      {
-          locals->emplace_back(Variable{parameter.name, parameter.type, StorageDuration::Automatic});
+          locals->emplace_back(Variable{parameter.name, parameter.type, StorageDuration::Automatic, source});
 
           auto* activeFunction = dynamic_cast<FunctionContext*>(functionIr.GetContext().contextSequence.back().get());
           runtime_assert(activeFunction != nullptr, "Expected constructor function context during parameter emission");
@@ -1089,7 +1298,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
                GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound,
                                                 .qualifiers = QualifiersFrom(function->memberFunctionInfo.isConst,
                                                                              function->memberFunctionInfo.isVolatile),
-                                                .data = ClassRequest{.id = id}});
+                                                .data = ClassRequest{.id = id},});
           thisType = PointerTo(classType);
      }
 
@@ -1115,7 +1324,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
           }
      };
      RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
-                                                   .size = functionIr.GetContext().contextSequence.size()};
+                                                   .size = functionIr.GetContext().contextSequence.size(),};
      functionIr.GetContext().contextSequence.push_back(functionContext);
 
      auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
@@ -1148,7 +1357,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
      std::uint64_t parameterIndex = returnBufferParameterIndex + static_cast<std::uint64_t>(!function->isStatic);
      for (const auto& parameter : function->parameters)
      {
-          Variable variable{parameter.name, parameter.type, StorageDuration::Automatic};
+          Variable variable{parameter.name, parameter.type, StorageDuration::Automatic, declarator.location};
           locals->emplace_back(std::move(variable));
 
           auto* activeFunction = dynamic_cast<FunctionContext*>(functionIr.GetContext().contextSequence.back().get());
@@ -1189,10 +1398,10 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
           if (objectAddress != nullptr)
                functionIr.DestroyClassMembersAtAddress(GetTypeContext().Class(id), objectAddress);
      }
-     if (fallsThrough && typeSystem::g_void->CommonWith(function->returnType))
+     if (fallsThrough && typeSystem::g_void->CommonWith(function->returnType)) {
           functionIr._built.push_back(std::unique_ptr<SSAReturnNode, IRDeleter>{
                new (*functionIr.GetContext().nodeAllocator) SSAReturnNode(nullptr, declarator.location)});
-     else if (fallsThrough)
+     } else if (fallsThrough)
      {
           DiagnosticSink::Report(
                functionIr.GetContext(),

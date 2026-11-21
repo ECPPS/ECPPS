@@ -7,7 +7,7 @@ on:
         description: "LLVM version for the report-only unit coverage job"
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
 
 jobs:
   build-and-test:
@@ -53,14 +53,20 @@ jobs:
         run: |
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "$llvm_major"
+          sudo apt-get install -y clang-format-${llvm_major} clang-tidy-${llvm_major} llvm-${llvm_major}
           llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
           if [[ ! -x "$llvm_bin/clang++" || ! -x "$llvm_bin/llvm-profdata" || ! -x "$llvm_bin/llvm-cov" ]]; then
             echo "LLVM $llvm_major is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
+          llvm_series="${{ inputs.llvm-version }}"
+          llvm_series="${llvm_series%.*}"
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          if [[ "$version" != *"clang version ${{ inputs.llvm-version }} "* ]]; then
-            echo "Expected Clang ${{ inputs.llvm-version }} but found: $version" >&2
+          if [[ "$version" != *"clang version ${llvm_series}."* ]]; then
+            echo "Expected Clang ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
           echo "$llvm_bin" >> "$GITHUB_PATH"

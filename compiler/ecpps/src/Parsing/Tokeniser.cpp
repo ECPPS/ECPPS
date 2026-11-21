@@ -96,8 +96,8 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                               value = (value << 4) | h;
                          }
 
-                         if (value <= 0x7F) out += static_cast<char>(value);
-                         else if (value <= 0x7FF)
+                         if (value <= 0x7F) { out += static_cast<char>(value);
+                         } else if (value <= 0x7FF)
                          {
                               out += static_cast<char>(0xC0 | (value >> 6));
                               out += static_cast<char>(0x80 | (value & 0x3F));
@@ -124,8 +124,8 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                               value = (value << 4) | h;
                          }
 
-                         if (value <= 0x7F) out += static_cast<char>(value);
-                         else if (value <= 0x7FF)
+                         if (value <= 0x7F) { out += static_cast<char>(value);
+                         } else if (value <= 0x7FF)
                          {
                               out += static_cast<char>(0xC0 | (value >> 6));
                               out += static_cast<char>(0x80 | (value & 0x3F));
@@ -179,7 +179,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          if (auto val = ParseFloat(numericPart))
                               tokens.emplace_back(TokenType::Literal,
                                                   UserDefinedLiteral{.value = FloatingPointLiteral{*val},
-                                                                     .name = stringPool.Intern(suffix)},
+                                                                     .name = stringPool.Intern(suffix),},
                                                   preprocessorToken.source);
                     }
                     else
@@ -303,7 +303,7 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
                                  [](auto&&) -> std::string
                                  {
                                       return "?";
-                                 }},
+                                 },},
                literal);
      };
 
@@ -394,7 +394,7 @@ bool ecpps::Tokeniser::IsKeyword(const std::string_view identifier)
           "static_assert", "static_cast", "struct",    "switch",    "template",     "this",
           "thread_local",  "throw",       "true",      "try",       "typedef",      "typeid",
           "typename",      "union",       "unsigned",  "using",     "virtual",      "void",
-          "volatile",      "wchar_t",     "while"};
+          "volatile",      "wchar_t",     "while",};
 
      return Keywords.contains(identifier);
 }

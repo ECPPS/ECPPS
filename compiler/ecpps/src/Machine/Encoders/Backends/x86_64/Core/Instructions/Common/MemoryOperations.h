@@ -1,10 +1,8 @@
 #pragma once
 
-#include <atomic>
 #include <bit>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -14,17 +12,8 @@
 
 namespace ecpps::abi::encoders::x8664
 {
-     [[nodiscard]] inline std::size_t NextSyntheticLabel() noexcept
-     {
-          static std::atomic<std::size_t> counter{static_cast<std::size_t>(1ULL << 40)};
-          return counter.fetch_add(1);
-     }
-
-     [[nodiscard]] inline ir::abstract::VirtualRegister NextScratchOwner() noexcept
-     {
-          static std::atomic<std::size_t> counter{0};
-          return ir::abstract::VirtualRegister{.index = std::numeric_limits<std::size_t>::max() - counter.fetch_add(1)};
-     }
+     [[nodiscard]] std::size_t NextSyntheticLabel(void) noexcept;
+     [[nodiscard]] ir::abstract::VirtualRegister NextScratchOwner(void) noexcept;
 
      class ScratchRegister
      {
@@ -129,7 +118,7 @@ namespace ecpps::abi::encoders::x8664
           UnrolledMoves,
           GprLoop,
           RepMovs,   // TODO: Implement at some point
-          SimdChunks // TODO: Implement at some point
+          SimdChunks, // TODO: Implement at some point
      };
 
      [[nodiscard]] constexpr bool IsStrategyAvailable(const BlockStrategy strategy) noexcept

@@ -372,7 +372,7 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           And = 4,
           Sub = 5,
           Xor = 6,
-          Cmp = 7
+          Cmp = 7,
      };
      enum struct ShiftOp : std::uint8_t
      {
@@ -382,7 +382,7 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           Rcr = 3,
           Shl = 4,
           Shr = 5,
-          Sar = 7
+          Sar = 7,
      };
      enum struct UnaryOp : std::uint8_t
      {
@@ -393,19 +393,19 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           Mul = 4,
           Imul = 5,
           Div = 6,
-          Idiv = 7
+          Idiv = 7,
      };
      enum struct BitOp : std::uint8_t
      {
           Bt = 0,
           Bts = 1,
           Btr = 2,
-          Btc = 3
+          Btc = 3,
      };
      enum struct ExtendKind : std::uint8_t
      {
           Zero,
-          Sign
+          Sign,
      };
      enum struct Condition : std::uint8_t
      {
@@ -424,7 +424,7 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           Less = 12,
           GreaterOrEqual = 13,
           LessOrEqual = 14,
-          Greater = 15
+          Greater = 15,
      };
      enum struct StringOp : std::uint8_t
      {
@@ -432,13 +432,13 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           Cmps = 0xA6,
           Stos = 0xAA,
           Lods = 0xAC,
-          Scas = 0xAE
+          Scas = 0xAE,
      };
      enum struct RepPrefix : std::uint8_t
      {
           None,
           Rep,
-          Repne
+          Repne,
      };
      enum struct SystemTableOp : std::uint8_t
      {
@@ -446,7 +446,7 @@ namespace ecpps::codegen::x86_64 // NOLINT(readability-identifier-naming)
           Sidt = 1,
           Lgdt = 2,
           Lidt = 3,
-          Invlpg = 7
+          Invlpg = 7,
      };
 
      constexpr std::vector<std::byte> GenerateInt3(void)

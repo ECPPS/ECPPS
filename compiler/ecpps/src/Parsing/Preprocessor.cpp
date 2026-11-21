@@ -82,8 +82,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                ++location.line;
                location.position = 0;
           }
-          else
+          else {
                location.position++;
+}
      };
 
      for (auto sourceIterator = source.begin(); sourceIterator != source.end(); ++sourceIterator)
@@ -139,8 +140,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                          if (includedFiles.contains(canonicalPath)) return tokens;
                          includedFiles.insert(canonical(std::filesystem::path(fileName)));
                     }
-                    else
+                    else {
                          std::println("Warning: Unrecognized pragma '{}'", pragmaContent);
+}
                }
                else if (directive == "include")
                {
@@ -212,8 +214,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                    params.push_back(currentParam);
                                    currentParam.clear();
                               }
-                              else
+                              else {
                                    currentParam += *sourceIterator;
+}
                               ++sourceIterator;
                          }
                          if (!currentParam.empty()) params.push_back(currentParam);
@@ -345,8 +348,8 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                         Advance(sourceIterator);
                                    }
 
-                                   if (wasAnyBranchTaken) isCurrentBranch = false;
-                                   else if (wasConditionMet)
+                                   if (wasAnyBranchTaken) { isCurrentBranch = false;
+                                   } else if (wasConditionMet)
                                    {
                                         isCurrentBranch = true;
                                         wasAnyBranchTaken = true;
@@ -395,9 +398,10 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
                          std::format("preprocessor error: {}", errorMessage), location));
                }
-               else
+               else {
                     this->diagnostics.push_back(std::make_unique<diagnostics::SyntaxError>(
                          std::format("unknown preprocessor directive: {}", directive), location));
+}
 
                if (sourceIterator != source.begin()) --sourceIterator;
                location.position = 0;
@@ -414,7 +418,7 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                     ++sourceIterator;
                }
                static const std::unordered_set<std::string> stringPrefixes = {"u8",  "u",  "U",  "L", "R",
-                                                                              "u8R", "uR", "UR", "LR"};
+                                                                              "u8R", "uR", "UR", "LR",};
 
                auto peekNext = std::next(sourceIterator);
                bool isStringPrefix = stringPrefixes.contains(identifier) && peekNext != source.end() &&
@@ -525,8 +529,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                                              rawArgs.push_back(currentRawArg);
                                              currentRawArg.clear();
                                         }
-                                        else
+                                        else {
                                              currentRawArg += c;
+}
                                         ++argIt;
                                    }
 
@@ -550,9 +555,10 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
                               tokens.insert(tokens.end(), expandedTokens.begin(), expandedTokens.end());
                          }
                     }
-                    else
+                    else {
                          tokens.emplace_back(PreprocessingTokenType::Identifier, this->_stringPool.Intern(identifier),
                                              location);
+}
                }
                location.position += identifier.size() - 1;
           }
@@ -701,13 +707,24 @@ std::vector<ecpps::PreprocessingToken> ecpps::Preprocessor::Parse(const std::str
           }
           else if (IsOperatorOrPunctuatorBeginning(character))
           {
-               std::string operatorOrPunctuator{character};
-               while (sourceIterator != source.end() && std::next(sourceIterator) != source.end() &&
-                      IsOperatorOrPunctuator(operatorOrPunctuator + *std::next(sourceIterator)))
+               std::string operatorOrPunctuator{};
+               const auto second = std::next(sourceIterator);
+               const auto third = second != source.end() ? std::next(second) : source.end();
+               const auto fourth = third != source.end() ? std::next(third) : source.end();
+               if (character == '<' && second != source.end() && *second == ':' && third != source.end() &&
+                   *third == ':' && fourth != source.end() && *fourth != ':' && *fourth != '>') {
+                    operatorOrPunctuator = "<";
+               } else
                {
-                    ++sourceIterator;
-                    operatorOrPunctuator += *sourceIterator;
+                    std::string candidate{};
+                    auto lookahead = sourceIterator;
+                    for (std::size_t length = 0; length < 4 && lookahead != source.end(); ++length, ++lookahead)
+                    {
+                         candidate += *lookahead;
+                         if (IsOperatorOrPunctuator(candidate)) operatorOrPunctuator = candidate;
+                    }
                }
+               std::advance(sourceIterator, static_cast<std::ptrdiff_t>(operatorOrPunctuator.size() - 1));
 
                location.endPosition = location.position;
                tokens.emplace_back(PreprocessingTokenType::OperatorOrPunctuator,
@@ -789,9 +806,10 @@ void ecpps::Preprocessor::Print(const std::vector<PreprocessingToken>& ppTokens)
 bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::string& string)
 {
      static std::unordered_set<std::string> OperatorsAndPunctuators{
-          "{",  "}",  "[", "]", "(",  ")",  ";",   ":",  "...", "?",  "::", ".",   ".*",  "->", "->*", "~",  "!",
-          "+",  "-",  "*", "/", "%",  "^",  "&",   "|",  "=",   "+=", "-=", "*=",  "/=",  "%=", "^=",  "&=", "|=",
-          "==", "!=", "<", ">", "<=", ">=", "<=>", "&&", "||",  "<<", ">>", "<<=", ">>=", "++", "--",  ","};
+          "{",   "}",  "[",  "]",   "(",   ")",  ";",  ":",  "...", "?",  "::", ".",  ".*",  "->",
+          "->*", "~",  "!",  "+",   "-",   "*",  "/",  "%",  "^",   "&",  "|",  "=",  "+=",  "-=",
+          "*=",  "/=", "%=", "^=",  "&=",  "|=", "==", "!=", "<",   ">",  "<=", ">=", "<=>", "&&",
+          "||",  "<<", ">>", "<<=", ">>=", "++", "--", ",",  "<:",  ":>", "<%", "%>", "%:",  "%:%:",};
 
      return OperatorsAndPunctuators.contains(string);
 }
@@ -799,7 +817,7 @@ bool ecpps::Preprocessor::IsOperatorOrPunctuator([[maybe_unused]] const std::str
 bool ecpps::Preprocessor::IsOperatorOrPunctuatorBeginning(char ch)
 {
      static std::unordered_set<char> OperatorCharacters = {'{', '}', '[', ']', '(', ')', '.', '-', '~', '!', ';', ':',
-                                                           '+', '?', '*', '/', '%', '^', '&', '|', '<', '>', '=', ','};
+                                                           '+', '?', '*', '/', '%', '^', '&', '|', '<', '>', '=', ',',};
 
      return OperatorCharacters.contains(ch);
 }
@@ -962,8 +980,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     rawParameterMap[parameterName] =
                          (rf != std::string::npos) ? raw.substr(rf, rl - rf + 1) : std::string{};
                }
-               else
+               else {
                     rawParameterMap[parameterName] = {};
+}
 
                if (i < arguments.size())
                {
@@ -978,8 +997,9 @@ std::vector<ecpps::PreprocessingToken> ecpps::MacroReplacement::ProcessFunctionL
                     }
                     parameterMap[parameterName] = std::move(joined);
                }
-               else
+               else {
                     parameterMap[parameterName] = {};
+}
           }
           if (isVariadic)
           {

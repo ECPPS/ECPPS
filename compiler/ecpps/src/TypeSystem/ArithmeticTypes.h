@@ -7,7 +7,7 @@ namespace ecpps::typeSystem
      enum struct Signedness : bool
      {
           Signed = true,
-          Unsigned = false
+          Unsigned = false,
      };
 
      constexpr Signedness DefaultCharacterSign = Signedness::Signed; // implementation-defined property
@@ -51,7 +51,7 @@ namespace ecpps::typeSystem
                                  TypeTraitEnum::TriviallyCopyable,
                                  TypeTraitEnum::ImplicitLifetime,
                                  TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Object};
+                                 TypeTraitEnum::Object,};
           }
 
           [[nodiscard]] ConversionSequence CompareTo(ecpps::typeSystem::NonowningTypePointer other) const override;
@@ -70,7 +70,7 @@ namespace ecpps::typeSystem
      {
           Char,
           SignedChar,
-          UnsignedChar
+          UnsignedChar,
      };
      class CharacterType final : public IntegralType
      {
@@ -91,7 +91,7 @@ namespace ecpps::typeSystem
                return TypeTraits{TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
                                  TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
                                  TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Character,        TypeTraitEnum::Object};
+                                 TypeTraitEnum::Character,        TypeTraitEnum::Object,};
           }
 
      private:
@@ -145,7 +145,7 @@ namespace ecpps::typeSystem
           enum struct Kind : std::uint_fast8_t
           {
                LValue,
-               RValue
+               RValue,
           };
 
           explicit ReferenceType(NonowningTypePointer baseType, Kind kind, std::string name)

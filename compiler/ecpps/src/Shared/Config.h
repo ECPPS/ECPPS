@@ -15,7 +15,7 @@ namespace ecpps
      {
           HighMemory = 0,
           Multithreaded = 1,
-          LowMemory = 2
+          LowMemory = 2,
      };
 
      extern CompilerStrategy g_compilerStrategy;
@@ -27,15 +27,15 @@ namespace ecpps
           Caosys,
           Undefined,
           Windows64Coff,
-          Linux64ELF
+          Linux64ELF,
      };
 
      constexpr LinkerUsed DefaultLinker =
 #ifdef _WIN64
           LinkerUsed::Windows64;
-#elif defined(_WIN32)
+#elifdef _WIN32
           LinkerUsed::Windows32;
-#elif defined(__linux__)
+#elifdef __linux__
           LinkerUsed::Linux64ELF;
 #else
           LinkerUsed::Undefined;
@@ -43,14 +43,14 @@ namespace ecpps
 
      enum struct DiagnosticType : std::uint_fast8_t
      {
-          FileNotFound
+          FileNotFound,
      };
 
      enum struct DiagnosticState : std::uint_fast8_t
      {
           Suppress,
           Warning,
-          Error
+          Error,
      };
 
      enum struct VerboseFeature : std::uint16_t
@@ -64,7 +64,7 @@ namespace ecpps
           PInst = 1uz << 6,
           Emit = 1uz << 7,
           FinalEmit = 1uz << 8,
-          Time = 1uz << 9
+          Time = 1uz << 9,
      };
 
      using VerboseFeatures = std::uint16_t;
@@ -85,7 +85,7 @@ namespace ecpps
      {
           None,
           Exact,
-          Substring
+          Substring,
      };
 
      enum struct Optimisation : std::uint64_t // NOLINT
@@ -102,7 +102,7 @@ namespace ecpps
           AggressiveEncoderOptimisations,
           OptimiseDeadJumps,
 
-          Count
+          Count,
      };
 
      struct OptimisationFeatureSets
@@ -138,7 +138,7 @@ namespace ecpps
           Short,
           Int,
           Long,
-          LongLong
+          LongLong,
      };
 
      struct CompilerConfig

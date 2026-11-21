@@ -38,7 +38,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           std::optional<ScratchRegister> owned;
      };
 
-     const auto acquirePointer = [&]() -> SourcePointer
+     const auto acquirePointer = [&] -> SourcePointer
      {
           if (const auto immediate = this->ImmediateOf(source); immediate.has_value())
           {
@@ -77,7 +77,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           {
                auto pointer = acquirePointer();
                const MemoryLocation sourceLocation{.base = MemoryOperand{.relativeTo = pointer.reg, .offset = 0},
-                                                   .disposable = pointer.owned.has_value()};
+                                                   .disposable = pointer.owned.has_value(),};
 
                this->EmitMemoryCopy(built, MemoryLocation{.base = this->EnsureStackSlot(destination)}, sourceLocation,
                                     size);
@@ -152,7 +152,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
                                          !this->IsMutable(destinationPointer);
           auto pointer = acquireScratch(destinationPointer, Width::W64, pointerDisposable);
           const MemoryLocation destination{.base = MemoryOperand{.relativeTo = pointer.Register(), .offset = 0},
-                                           .disposable = true};
+                                           .disposable = true,};
           const MemoryLocation sourceLocation{.base = this->EnsureStackSlot(source)};
           this->EmitMemoryCopy(built, destination, sourceLocation, this->GetVRM().GetSize(source));
           this->DereferenceAndMaybeFree(destinationPointer);
@@ -213,14 +213,14 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      {
           this->TransferRegister(virtualSource, owner);
           return {.instructions = {BuildMov(width, RegisterOperand{sourceRegister},
-                                            MemoryOperand{.relativeTo = sourceRegister, .offset = 0})},
-                  .assignedRegister = sourceRegister};
+                                            MemoryOperand{.relativeTo = sourceRegister, .offset = 0}),},
+                  .assignedRegister = sourceRegister,};
      }
 
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
      if (remainingUses == 0) this->ReleaseRegister(virtualSource);
 
      return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister},
-                                       MemoryOperand{.relativeTo = sourceRegister, .offset = 0})},
-             .assignedRegister = destinationRegister};
+                                       MemoryOperand{.relativeTo = sourceRegister, .offset = 0}),},
+             .assignedRegister = destinationRegister,};
 }

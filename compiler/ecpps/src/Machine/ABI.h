@@ -19,7 +19,7 @@ namespace ecpps::abi
      enum struct SpecialMemberKind : std::uint_fast8_t
      {
           Constructor,
-          Destructor
+          Destructor,
      };
      struct MemberLayoutInput
      {

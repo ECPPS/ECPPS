@@ -20,7 +20,7 @@ namespace ecpps::typeSystem
           Short,
           Int,
           Long,
-          LongLong
+          LongLong,
      };
 
      enum struct TypeTraitEnum : std::uint_fast8_t
@@ -42,7 +42,7 @@ namespace ecpps::typeSystem
           Class,
           Union,
 
-          Count
+          Count,
      };
 
      struct ConversionSequence
@@ -64,7 +64,7 @@ namespace ecpps::typeSystem
                FunctionPointerConversion = 4,
                BooleanConversion = 3,
                UserDefined = 2,
-               Ellipsis = 1 // Variadic function (worst match)
+               Ellipsis = 1, // Variadic function (worst match)
           };
 
           explicit ConversionSequence(const std::optional<SBOVector<ConversionKind>>& sequence,
@@ -96,7 +96,7 @@ namespace ecpps::typeSystem
      struct TypeTraits
      {
           constexpr explicit TypeTraits(void) = default;
-          constexpr explicit TypeTraits(std::initializer_list<TypeTraitEnum> traits)
+          constexpr TypeTraits(std::initializer_list<TypeTraitEnum> traits)
           {
                for (const auto trait : traits) Set(trait);
           }
@@ -354,6 +354,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const override;
-          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final override;
+          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final ;
      };
 } // namespace ecpps::typeSystem

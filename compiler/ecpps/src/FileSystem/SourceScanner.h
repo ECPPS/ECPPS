@@ -18,7 +18,7 @@ namespace ecpps::fs
      enum struct IncludeType : bool
      {
           Local, // ""
-          System // <>
+          System, // <>
      };
      class SourceScanner
      {

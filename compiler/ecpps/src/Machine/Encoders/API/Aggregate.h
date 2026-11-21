@@ -40,7 +40,7 @@ namespace ecpps::abi::api
                        info.Has(typeSystem::ClassInfo::Property::UserDeclaredConstructors) ||
                        info.Has(typeSystem::ClassInfo::Property::UserDeclaredCopyAssignment) ||
                        info.Has(typeSystem::ClassInfo::Property::UserDeclaredMoveAssignment) ||
-                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredDestructor)};
+                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredDestructor),};
      }
 
      [[nodiscard]] inline AggregatePassingPlan ClassArgumentPassing(const PlatformBase& platform,

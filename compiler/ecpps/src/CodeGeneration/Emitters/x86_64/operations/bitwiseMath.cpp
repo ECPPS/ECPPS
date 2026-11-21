@@ -75,7 +75,7 @@ static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, c
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, const Operand& source)
@@ -96,7 +96,7 @@ static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, con
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -125,7 +125,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryOr(
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid ADD source");
-                            }},
+                            },},
           bin.modifiedDestination);
 }
 
@@ -193,7 +193,7 @@ static std::vector<std::byte> AsmBinaryAnd(Width width, RegisterOperand target, 
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, const Operand& source)
@@ -214,7 +214,7 @@ static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, co
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid OR source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -244,7 +244,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryAnd(
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid ADD source");
-                            }},
+                            },},
           bin.modifiedDestination);
 }
 
@@ -312,7 +312,7 @@ static std::vector<std::byte> AsmBinaryXor(Width width, RegisterOperand target, 
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, const Operand& source)
@@ -333,7 +333,7 @@ static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, co
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -363,7 +363,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryXor(
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid ADD source");
-                            }},
+                            },},
           bin.modifiedDestination);
 }
 
@@ -405,7 +405,7 @@ static std::vector<std::byte> AsmBitwiseNot(Width width, const Operand& operand)
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid NOT operand");
-               }},
+               },},
           operand);
 }
 

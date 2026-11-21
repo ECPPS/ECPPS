@@ -18,7 +18,7 @@ namespace ecpps::typeSystem
      {
           Namespace,
           Class,
-          Function
+          Function,
      };
      struct ScopeSegment
      {
@@ -29,19 +29,19 @@ namespace ecpps::typeSystem
      {
           Class,
           Struct,
-          Union
+          Union,
      };
      enum struct Access : std::uint_fast8_t
      {
           Private,
           Protected,
-          Public
+          Public,
      };
      enum struct ClassState : std::uint_fast8_t
      {
           Declared,
           Defining,
-          Complete
+          Complete,
      };
 
      struct ClassField
@@ -68,7 +68,7 @@ namespace ecpps::typeSystem
                NontrivialCopyOrMoveAssignment,
                UserDeclaredDestructor,
                NontrivialDestructor,
-               Count
+               Count,
           };
 
           static constexpr std::size_t PropertyCount = static_cast<std::size_t>(Property::Count);
@@ -103,11 +103,11 @@ namespace ecpps::typeSystem
           [[nodiscard]] std::vector<ScopeSegment> QualifiedScope(void) const
           {
                auto scope = this->enclosingPath;
-               scope.push_back({ScopeKind::Class, this->name});
+               scope.push_back({.kind=ScopeKind::Class, .name=this->name});
                return scope;
           }
 
-          [[nodiscard]] std::string Keyword(void) const
+          [[nodiscard]] std::string_view Keyword(void) const
           {
                switch (this->kind)
                {

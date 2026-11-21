@@ -127,7 +127,7 @@ static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, const 
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, const Operand& source)
@@ -148,7 +148,7 @@ static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, const Op
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid ADD source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -175,7 +175,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const ir:
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid ADD source");
-                            }},
+                            },},
           mov.modifiedDestination);
 }
 
@@ -282,7 +282,7 @@ static std::vector<std::byte> AsmSub(Width width, RegisterOperand target, const 
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid SUB source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, const Operand& source)
@@ -303,7 +303,7 @@ static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, const Op
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid SUB source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -330,6 +330,6 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const ir:
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid SUB source");
-                            }},
+                            },},
           mov.modifiedDestination);
 }

@@ -31,7 +31,7 @@ namespace ecpps::diagnostics
      {
           Error,
           Warning,
-          Information
+          Information,
      };
 
      constexpr std::string ToString(const DiagnosticsLevel e)

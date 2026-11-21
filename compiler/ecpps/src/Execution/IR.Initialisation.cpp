@@ -23,6 +23,7 @@
 #include "NodeBase.h"
 #include "Operations.h"
 #include "Parsing/AST.h"
+#include "Parsing/ASTs/Type.h"
 #include "Shared/BumpAllocator.h"
 #include "Shared/Diagnostics.h"
 #include "Shared/Error.h"
@@ -31,6 +32,17 @@
 using IRNodePointer = ecpps::ir::NodePointer;
 using ASTNodePointer = ecpps::ast::NodePointer;
 using ecpps::Expression;
+
+static bool IsExplicitlyConstObjectType(const ecpps::ast::Node* type)
+{
+     if (const auto* basicType = dynamic_cast<const ecpps::ast::BasicType*>(type); basicType != nullptr)
+          return basicType->IsConst();
+     if (const auto* classType = dynamic_cast<const ecpps::ast::ClassType*>(type); classType != nullptr)
+          return classType->IsConst();
+     if (const auto* qualifiedType = dynamic_cast<const ecpps::ast::QualifiedType*>(type); qualifiedType != nullptr)
+          return IsExplicitlyConstObjectType(qualifiedType->UnqualifiedType().get());
+     return false;
+}
 
 std::optional<std::uint64_t> ecpps::ir::IR::InferArrayLength(const ast::NodePointer& initialiser,
                                                              typeSystem::NonowningTypePointer elementType,
@@ -316,7 +328,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           auto* const function = dynamic_cast<FunctionContext*>(this->GetContext().contextSequence.back().get());
           runtime_assert(function != nullptr, "Function was null when parsing the function");
 
-          Variable varEntry{varName, variableType, StorageDuration::Automatic};
+          const bool isExplicitlyConst = IsExplicitlyConstObjectType(node.Type().get());
+          Variable varEntry{varName, variableType, StorageDuration::Automatic, node.Source(), isExplicitlyConst};
           const auto ssaIndex = function->GetNextRegisterIndex();
 
           fscope.Locals().emplace_back(FunctionScope::LocalEntity{std::move(varEntry)});
@@ -396,8 +409,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          elementType = arrayType->ElementType();
                     diagnoseConstScalarDefaultInitialisation(elementType);
                }
-               else
+               else {
                     diagnoseConstScalarDefaultInitialisation(variableType);
+}
                continue;
           }
 
@@ -412,11 +426,12 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                                              ObjectInitialisationMode::Explicit, decl.initialiser->Source());
                          RegisterObjectForDestruction(variableType, objectAddress, decl.name->Source());
                     }
-                    else
+                    else {
                          DiagnosticSink::Report(this->GetContext(),
                                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                                      "An array of class objects requires a braced initialiser",
                                                      decl.initialiser->Source()));
+}
                     continue;
                }
                // Arrays are initialised with a single aggregate store. Elements without an initialiser are
@@ -490,10 +505,10 @@ Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointe
                                                     ecpps::typeSystem::NonowningTypePointer desiredType)
 {
      auto operand = ParseExpression(expression);
-     if (IsBoolean(desiredType))
-     {
-          if (IsBoolean(operand->Type())) return operand;
-     }
+     if ((IsBoolean(desiredType)) && (IsBoolean(operand->Type())))
+
+          return operand;
+
      auto converted = ConvertTo(std::move(operand), desiredType);
      if (converted == nullptr)
      {

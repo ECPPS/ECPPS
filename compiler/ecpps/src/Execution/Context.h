@@ -36,14 +36,14 @@ namespace ecpps::ir
      {
           Compound,
           Fundamental,
-          Error
+          Error,
      };
      enum struct PlatformIntegerKind : std::uint_fast8_t
      {
           Size,    // size_t
           PtrDiff, // ptrdiff_t
           UIntPtr, // uintptr_t
-          IntPtr   // intptr_t
+          IntPtr,   // intptr_t
      };
      struct PlatformIntegerRequest
      {
@@ -256,12 +256,13 @@ namespace ecpps::ir
                          else if constexpr (std::is_same_v<T, BooleanRequest>)
                          {
                          }
-                         else if constexpr (std::is_same_v<T, ClassRequest>)
+                         else if constexpr (std::is_same_v<T, ClassRequest>) {
                               seed = HashCombine(seed, data.id);
-                         else if constexpr (std::is_same_v<T, InvalidRequest>)
+                         } else if constexpr (std::is_same_v<T, InvalidRequest>) {
                               seed = HashCombine(seed, &data);
-                         else
+                         } else {
                               std::terminate();
+}
                     },
                     value.data);
 
@@ -632,7 +633,7 @@ namespace ecpps::ir
      {
           None,
           ByValueParameter,
-          ByValueArgument
+          ByValueArgument,
      };
 
      struct AutomaticObject
@@ -689,7 +690,7 @@ namespace ecpps::ir
           enum struct NodeType : std::uint_fast8_t
           {
                Local,
-               Parameter
+               Parameter,
           };
           struct SSANode
           {
@@ -721,7 +722,7 @@ namespace ecpps::ir
      {
           None,
           Constexpr,
-          Consteval
+          Consteval,
      };
      struct TemplateParameter
      {
@@ -742,6 +743,8 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer type;
           StorageDuration storageDuration;
+          Location declarationSource{};
+          bool isExplicitlyConst{};
 
           [[nodiscard]] std::string ToString(void) const override
           {
@@ -749,9 +752,11 @@ namespace ecpps::ir
                                   this->Name().value_or("<anonymous>"));
           }
 
-          explicit Variable(std::string name, typeSystem::NonowningTypePointer type, StorageDuration storageDuration)
+          explicit Variable(std::string name, typeSystem::NonowningTypePointer type, StorageDuration storageDuration,
+                            Location declarationSource = {}, bool isExplicitlyConst = false)
               : ir::Entity(IsReference(type) ? ir::EntityKind::Reference : ir::EntityKind::Object, std::move(name)),
-                type(type), storageDuration(storageDuration)
+                type(type), storageDuration(storageDuration), declarationSource(declarationSource),
+                isExplicitlyConst(isExplicitlyConst)
           {
           }
      };
@@ -759,6 +764,9 @@ namespace ecpps::ir
      {
           typeSystem::NonowningTypePointer returnType{};
           bool isStatic = false;
+          bool isVariadic = false;
+          bool isConversionFunction = false;
+          bool isExplicit = false;
           bool isMemberFunctionDefined = false;
           bool isDeleted = false;
           bool isDefaulted = false;
@@ -782,6 +790,7 @@ namespace ecpps::ir
                std::string name{};
                typeSystem::NonowningTypePointer type{};
                bool isVariadic = false;
+               bool hasDefaultArgument = false;
           };
           std::vector<Parameter> parameters{};
 
@@ -829,9 +838,11 @@ namespace ecpps::ir
 
           [[nodiscard]] std::string ToString(void) const override
           {
-               std::string result = std::format("{}{} {}(", this->isInline ? "inline " : "",
-                                                this->returnType ? this->returnType->Name() : "void",
-                                                this->Name().has_value() ? this->Name().value() : "<anonymous>");
+               std::string result = this->isInline ? "inline " : "";
+               if (this->isExplicit) result += "explicit ";
+               if (!this->isConversionFunction)
+                    result += std::format("{} ", this->returnType ? this->returnType->Name() : "void");
+               result += std::format("{}(", this->Name().has_value() ? this->Name().value() : "<anonymous>");
                for (std::size_t i = 0; i < this->parameters.size(); i++)
                {
                     const auto& param = this->parameters[i];
@@ -839,7 +850,12 @@ namespace ecpps::ir
                                           param.type ? param.type->Name() : "void", param.name);
                     if (i != this->parameters.size() - 1) result += ", ";
                }
-               result += ")";
+               if (this->isVariadic)
+               {
+                    if (!this->parameters.empty()) result += ", ";
+                    result += "...";
+               }
+               result += ')';
                return result;
           }
 
@@ -880,7 +896,7 @@ namespace ecpps::ir
           IsDllImportExport = 1024,
           NamespacePath = 2048,
           All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
-                IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath
+               IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath,
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,6 +38,24 @@ namespace ecpps::ir::detail
           std::shared_ptr<FunctionScope> function;
           std::vector<std::pair<std::size_t, std::string>> parameterFailures;
      };
+     struct ConversionFunctionSelection
+     {
+          std::shared_ptr<FunctionScope> function;
+          std::size_t cost{};
+          bool ambiguous{};
+     };
+     [[nodiscard]] std::optional<ConversionFunctionSelection> FindConversionFunction(const Context&, const Expression&,
+                                                                                     typeSystem::NonowningTypePointer,
+                                                                                     bool allowExplicit = false);
+     struct BuiltinArithmeticSelection
+     {
+          const typeSystem::IntegralType* type{};
+          std::size_t cost{};
+          bool ambiguous{};
+     };
+     [[nodiscard]] std::optional<BuiltinArithmeticSelection> SelectBuiltinArithmeticType(const Context&,
+                                                                                         const Expression&,
+                                                                                         const Expression&);
      struct CompareByPriority
      {
           struct Candidate

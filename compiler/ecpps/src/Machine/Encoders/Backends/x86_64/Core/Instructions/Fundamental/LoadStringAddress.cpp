@@ -56,6 +56,6 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      return {.instructions = {BuildLea(width, RegisterOperand{destinationRegister},
                                        StringAddressOperand{.tableIndex = static_cast<std::uint32_t>(tableIndex),
-                                                            .offset = static_cast<std::uint32_t>(tableOffset)})},
-             .assignedRegister = destinationRegister};
+                                                            .offset = static_cast<std::uint32_t>(tableOffset),}),},
+             .assignedRegister = destinationRegister,};
 }

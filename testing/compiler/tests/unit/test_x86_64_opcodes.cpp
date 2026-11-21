@@ -97,10 +97,10 @@ TEST_CASE("x86-64 passes and returns a small integer aggregate in registers", "[
      std::vector<VirtualInstruction> input{
           {.type = VirtualInstructionType::CopyInteger, .operands = {VirtualRegister{0}, VirtualRegister{0x1000}}},
           {.type = VirtualInstructionType::CopyParameter,
-           .operands = {VirtualRegister{0}, VirtualRegister{1}, VirtualRegister{0}, VirtualRegister{1}}},
+           .operands = {VirtualRegister{0}, VirtualRegister{1}, VirtualRegister{0}, VirtualRegister{1}},},
           {.type = VirtualInstructionType::AddressOf, .operands = {VirtualRegister{2}, VirtualRegister{1}}},
           {.type = VirtualInstructionType::ReturnAggregate,
-           .operands = {VirtualRegister{2}, VirtualRegister{classType.Width()}}},
+           .operands = {VirtualRegister{2}, VirtualRegister{classType.Width()}},},
      };
 
      auto encoded = encoder.Encode(input);
@@ -154,9 +154,9 @@ TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[code
                                                             : X8664InstructionName::RightShift;
                const std::vector<VirtualInstruction> input{
                     {.type = VirtualInstructionType::CopyInteger,
-                     .operands = {VirtualRegister{0}, VirtualRegister{42}}},
+                     .operands = {VirtualRegister{0}, VirtualRegister{42}},},
                     {.type = VirtualInstructionType::CopyInteger,
-                     .operands = {VirtualRegister{1}, VirtualRegister{13}}},
+                     .operands = {VirtualRegister{1}, VirtualRegister{13}},},
                     {.type = shiftType, .operands = {VirtualRegister{2}, VirtualRegister{0}, VirtualRegister{1}}},
                     {.type = VirtualInstructionType::Return, .operands = {VirtualRegister{2}}},
                };
@@ -419,7 +419,7 @@ TEST_CASE("x86-64 indirect stores preserve reused and aliased operands", "[codeg
           X8664VirtualInstructionEncoder encoder{target};
           const std::vector<VirtualInstruction> input{
                {.type = VirtualInstructionType::CopyInteger,
-                .operands = {pointerAndValue, VirtualRegister{.index = 0x1000}}},
+                .operands = {pointerAndValue, VirtualRegister{.index = 0x1000}},},
                {.type = VirtualInstructionType::IndirectStore, .operands = {pointerAndValue, pointerAndValue}},
                {.type = VirtualInstructionType::Return, .operands = {pointerAndValue}},
           };

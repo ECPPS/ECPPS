@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <deque>
 #include <format>
+#include <limits>
 #include <memory>
 #include <set>
 #include <string>
@@ -24,6 +25,8 @@
 #include "Shared/Error.h"
 #include "TypeSystem/ArithmeticTypes.h"
 #include "TypeSystem/ClassInfo.h"
+#include "TypeSystem/ClassType.h"
+#include "TypeSystem/CompoundTypes.h"
 #include "TypeSystem/TypeBase.h"
 
 namespace ecpps::ir::detail
@@ -38,7 +41,7 @@ namespace ecpps::ir::detail
                TypeRequest request{.kind = TypeKind::Fundamental,
                                    .data = StandardSignedIntegerRequest{.size = size,
                                                                         .signedness = signedness,
-                                                                        .isCharWithoutSign = isCharWithoutSign}};
+                                                                        .isCharWithoutSign = isCharWithoutSign,},};
                types.insert(typeContext.Get(request));
           };
 
@@ -102,6 +105,146 @@ namespace ecpps::ir::detail
           }
           return 5;
      }
+
+     std::optional<ConversionFunctionSelection> FindConversionFunction(
+          const Context& context, const Expression& expression, const typeSystem::NonowningTypePointer targetType,
+          const bool allowExplicit)
+     {
+          if (expression == nullptr || targetType == nullptr) return std::nullopt;
+          const auto* sourceClass = expression->Type()->CastTo<typeSystem::ClassType>();
+          if (sourceClass == nullptr) return std::nullopt;
+          const auto classRecord = context.classTable->classes.find(sourceClass->Info().id);
+          if (classRecord == context.classTable->classes.end() || classRecord->second.scope == nullptr)
+               return std::nullopt;
+
+          std::optional<ConversionFunctionSelection> best{};
+          for (const auto& candidate : classRecord->second.scope->functions)
+          {
+               if (!candidate->isConversionFunction || candidate->isStatic ||
+                   (candidate->isExplicit && !allowExplicit) || candidate->returnType == nullptr ||
+                   !candidate->parameters.empty())
+                    continue;
+               if ((sourceClass->IsConst() && !candidate->memberFunctionInfo.isConst) ||
+                   (sourceClass->IsVolatile() && !candidate->memberFunctionInfo.isVolatile) ||
+                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::LValue &&
+                    !expression->IsLValue()) ||
+                   (candidate->memberFunctionInfo.refQualifier == abi::MemberRefQualifier::RValue &&
+                    !expression->IsRValue()))
+                    continue;
+
+               const auto* conversionType = candidate->returnType;
+               if (const auto* reference = conversionType->CastTo<typeSystem::ReferenceType>())
+                    conversionType = reference->BaseType();
+               const auto conversion = targetType->CompareTo(conversionType);
+               if (!conversion.IsValid()) continue;
+
+               std::size_t cost = 4;
+               for (const auto kind : conversion.Sequence()) cost += ConversionCost(kind);
+               if (!sourceClass->IsConst() && candidate->memberFunctionInfo.isConst) ++cost;
+               if (!sourceClass->IsVolatile() && candidate->memberFunctionInfo.isVolatile) ++cost;
+               if (!best.has_value() || cost < best->cost) {
+                    best = ConversionFunctionSelection{.function = candidate, .cost = cost, .ambiguous = false};
+               } else if (cost == best->cost)
+               {
+                    best->function.reset();
+                    best->ambiguous = true;
+               }
+          }
+          return best;
+     }
+
+     std::optional<BuiltinArithmeticSelection> SelectBuiltinArithmeticType(const Context& context,
+                                                                           const Expression& left,
+                                                                           const Expression& right)
+     {
+          const auto arithmeticTargets = [&](const Expression& expression)
+          {
+               std::vector<const typeSystem::IntegralType*> targets{};
+               const auto addTarget = [&](const typeSystem::IntegralType* target)
+               {
+                    if (target != nullptr && std::ranges::find(targets, target) == targets.end())
+                         targets.push_back(target);
+               };
+               if (const auto* integral = expression->Type()->CastTo<typeSystem::IntegralType>())
+               {
+                    addTarget(typeSystem::PromoteInteger(integral));
+                    return targets;
+               }
+               if (typeSystem::IsBoolean(expression->Type()))
+               {
+                    addTarget(typeSystem::g_int.get());
+                    return targets;
+               }
+               const auto* classType = expression->Type()->CastTo<typeSystem::ClassType>();
+               if (classType == nullptr || !expression->IsGLValue()) return targets;
+               const auto classRecord = context.classTable->classes.find(classType->Info().id);
+               if (classRecord == context.classTable->classes.end() || classRecord->second.scope == nullptr)
+                    return targets;
+               for (const auto& function : classRecord->second.scope->functions)
+               {
+                    if (!function->isConversionFunction || function->returnType == nullptr) continue;
+                    const auto* targetType = function->returnType;
+                    if (const auto* reference = targetType->CastTo<typeSystem::ReferenceType>())
+                         targetType = reference->BaseType();
+                    if (const auto* integral = targetType->CastTo<typeSystem::IntegralType>())
+                    {
+                         const auto* promoted = typeSystem::PromoteInteger(integral);
+                         const auto selection = FindConversionFunction(context, expression, promoted);
+                         if (selection.has_value() && !selection->ambiguous && selection->function != nullptr)
+                              addTarget(promoted);
+                    }
+                    else if (typeSystem::IsBoolean(targetType))
+                    {
+                         const auto* promoted = typeSystem::g_int.get();
+                         const auto selection = FindConversionFunction(context, expression, promoted);
+                         if (selection.has_value() && !selection->ambiguous && selection->function != nullptr)
+                              addTarget(promoted);
+                    }
+               }
+               return targets;
+          };
+
+          const auto conversionCost = [&](const Expression& expression,
+                                          const typeSystem::IntegralType* target) -> std::optional<std::size_t>
+          {
+               if (typeSystem::IsClass(expression->Type()))
+               {
+                    const auto selection = FindConversionFunction(context, expression, target);
+                    if (!selection.has_value() || selection->ambiguous || selection->function == nullptr)
+                         return std::nullopt;
+                    return selection->cost;
+               }
+               const auto sequence = target->CompareTo(expression->Type());
+               if (!sequence.IsValid()) return std::nullopt;
+               std::size_t cost{};
+               for (const auto kind : sequence.Sequence()) cost += ConversionCost(kind);
+               return cost;
+          };
+
+          const auto leftTargets = arithmeticTargets(left);
+          const auto rightTargets = arithmeticTargets(right);
+          std::optional<BuiltinArithmeticSelection> best{};
+          for (const auto* leftTarget : leftTargets)
+               for (const auto* rightTarget : rightTargets)
+               {
+                    const auto* commonBase = leftTarget->CommonWith(rightTarget);
+                    const auto* commonType =
+                         commonBase != nullptr ? commonBase->CastTo<typeSystem::IntegralType>() : nullptr;
+                    if (commonType == nullptr || (best.has_value() && best->type == commonType)) continue;
+                    const auto leftCost = conversionCost(left, commonType);
+                    const auto rightCost = conversionCost(right, commonType);
+                    if (!leftCost.has_value() || !rightCost.has_value() ||
+                        *rightCost > std::numeric_limits<std::size_t>::max() - *leftCost)
+                         continue;
+                    const auto cost = *leftCost + *rightCost;
+                    if (!best.has_value() || cost < best->cost)
+                         best = BuiltinArithmeticSelection{.type = commonType, .cost = cost, .ambiguous = false};
+                    else if (cost == best->cost && commonType != best->type)
+                         best->ambiguous = true;
+               }
+          return best;
+     }
+
      std::string FormatFunctionSignature(const std::shared_ptr<ecpps::ir::FunctionScope>& func)
      {
           const bool isConstructor = func->memberClassInfo != nullptr && func->Name().has_value() &&
@@ -109,11 +252,14 @@ namespace ecpps::ir::detail
           const bool isDestructor = func->memberClassInfo != nullptr && func->Name().has_value() &&
                                     *func->Name() == "~" + func->memberClassInfo->name;
           std::string signature;
+          if (func->isExplicit) signature += "explicit ";
           if (func->memberClassInfo != nullptr)
           {
                if (func->isStatic) signature += "static ";
                signature += func->memberClassInfo->DisplayName() + "::";
           }
+          if (!func->isConversionFunction && !isConstructor && !isDestructor)
+               signature += FormatTypeName(func->returnType) + " ";
           signature += func->Name().value_or("__unknown") + "(";
           bool first = true;
           for (const auto& param : func->parameters)
@@ -123,7 +269,12 @@ namespace ecpps::ir::detail
                signature += FormatTypeName(param.type);
                if (!param.name.empty() && param.name != "<unnamed>") signature += " " + param.name;
           }
-          signature += ")";
+          if (func->isVariadic)
+          {
+               if (!first) signature += ", ";
+               signature += "...";
+          }
+          signature += ')';
           if (func->memberClassInfo != nullptr && !func->isStatic)
           {
                if (func->memberFunctionInfo.isConst) signature += " const";
@@ -321,7 +472,7 @@ namespace ecpps::ir::detail
           }
 
           const std::size_t matchedCount = std::min(arguments.size(), function->parameters.size());
-          for (std::size_t index = 0; index < matchedCount; index++)
+          for (std::size_t index = 0; index < matchedCount; ++index)
           {
                const auto& argument = arguments[index];
                const auto& parameter = function->parameters[index];
@@ -349,11 +500,11 @@ namespace ecpps::ir::detail
                }
           }
 
-          for (std::size_t index = matchedCount; index < arguments.size(); index++)
+          for (std::size_t index = matchedCount; index < arguments.size(); ++index)
                info.parameterFailures.emplace_back(
                     index + 1, std::format("Argument {} has no corresponding parameter", index + 1));
 
-          for (std::size_t index = matchedCount; index < function->parameters.size(); index++)
+          for (std::size_t index = matchedCount; index < function->parameters.size(); ++index)
           {
                const auto& parameter = function->parameters[index];
                info.parameterFailures.emplace_back(
