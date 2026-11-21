@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
 
 jobs:
   clang-format:
@@ -19,6 +19,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install LLVM (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-${{ inputs.llvm-version }}-win64.msi"
+          Invoke-WebRequest `
+            -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.llvm-version }}/LLVM-${{ inputs.llvm-version }}-win64.msi" `
+            -OutFile $installer
+          $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $installer, '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "LLVM installer failed with exit code $($process.ExitCode)"
+          }
 
       - name: Setup LLVM (Windows)
         if: runner.os == 'Windows'
@@ -48,6 +61,10 @@ jobs:
         run: |
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "$llvm_major"
+          sudo apt-get install -y clang-format-${llvm_major} clang-tidy-${llvm_major} llvm-${llvm_major}
           llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
           if [[ ! -x "$llvm_bin/clang-format" ]]; then
             echo "clang-format is missing from the pinned Ubuntu runner image." >&2

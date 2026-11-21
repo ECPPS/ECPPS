@@ -48,6 +48,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
           -Wno-shadow-uncaptured-local
           -Wno-switch-default
           -Wno-unsafe-buffer-usage
+          -Wno-lifetime-safety-all # Temporarily disabled for Clang 23; lifetime warnings will be addressed separately.
           -Wno-nrvo
           -Wno-ctad-maybe-unsupported
           -Wno-undefined-reinterpret-cast

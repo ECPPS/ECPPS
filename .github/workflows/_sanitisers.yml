@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
       enable-ccache:
         required: false
         type: boolean
@@ -63,9 +63,13 @@ jobs:
         run: |
           llvm_version="${{ inputs.llvm-version }}"
           llvm_major="${llvm_version%%.*}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "$llvm_major"
+          sudo apt-get install -y clang-format-${llvm_major} clang-tidy-${llvm_major} llvm-${llvm_major}
           llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
           if [[ ! -x "$llvm_bin/clang++" ]]; then
-            echo "LLVM 20 is missing from the pinned Ubuntu runner image." >&2
+            echo "LLVM 23 is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
           version="$("$llvm_bin/clang++" --version | head -n 1)"

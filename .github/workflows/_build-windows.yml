@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
       upload-artifacts:
         description: "Whether to upload build artifacts"
         required: false
@@ -48,7 +48,7 @@ jobs:
             needs_llvm: false
 
           - compiler: Clang
-            name: clang20
+            name: clang23
             build_type: Debug
             preset_configure: Win64-Clang
             preset_build: Win64-Clang-Debug
@@ -56,7 +56,7 @@ jobs:
             needs_llvm: true
 
           - compiler: Clang
-            name: clang20
+            name: clang23
             build_type: Release
             preset_configure: Win64-Clang
             preset_build: Win64-Clang-Release
@@ -64,7 +64,7 @@ jobs:
             needs_llvm: true
 
           - compiler: Clang-cl
-            name: clang20-cl
+            name: clang23-cl
             build_type: Debug
             preset_configure: Win64-Clang-cl
             preset_build: Win64-Clang-cl-Debug
@@ -72,7 +72,7 @@ jobs:
             needs_llvm: true
 
           - compiler: Clang-cl
-            name: clang20-cl
+            name: clang23-cl
             build_type: Release
             preset_configure: Win64-Clang-cl
             preset_build: Win64-Clang-cl-Release
@@ -99,6 +99,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install LLVM
+        if: matrix.needs_llvm
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-${{ inputs.llvm-version }}-win64.msi"
+          Invoke-WebRequest `
+            -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.llvm-version }}/LLVM-${{ inputs.llvm-version }}-win64.msi" `
+            -OutFile $installer
+          $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $installer, '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "LLVM installer failed with exit code $($process.ExitCode)"
+          }
 
       - name: Setup LLVM
         if: matrix.needs_llvm

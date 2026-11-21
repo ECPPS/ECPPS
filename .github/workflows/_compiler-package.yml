@@ -37,6 +37,19 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Install LLVM
+        shell: pwsh
+        run: |
+          $llvmVersion = "23.1.4"
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-$llvmVersion-win64.msi"
+          Invoke-WebRequest `
+            -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.msi" `
+            -OutFile $installer
+          $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $installer, '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "LLVM installer failed with exit code $($process.ExitCode)"
+          }
+
       - name: Verify Clang
         shell: pwsh
         run: |
@@ -48,8 +61,8 @@ jobs:
 
           $versionLine = (& $clang --version | Select-Object -First 1).ToString()
           Write-Host $versionLine
-          if ($versionLine -notmatch "clang version 20\.1\.8(\s|$)") {
-            throw "Expected LLVM 20.1.8 but found: $versionLine"
+          if ($versionLine -notmatch "clang version 23\.1\.4(\s|$)") {
+            throw "Expected LLVM 23.1.4 but found: $versionLine"
           }
 
           echo $llvmBin >> $env:GITHUB_PATH
@@ -174,25 +187,25 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Install LLVM 20 on Ubuntu 24
-        if: matrix.runner == 'ubuntu-24.04'
+      - name: Install LLVM 23
         shell: bash
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 20
+          sudo ./llvm.sh 23
+          sudo apt-get install -y clang-format-23 clang-tidy-23 llvm-23
 
-      - name: Verify LLVM 20
+      - name: Verify LLVM 23
         shell: bash
         run: |
-          llvm_bin="/usr/lib/llvm-20/bin"
+          llvm_bin="/usr/lib/llvm-23/bin"
           if [[ ! -x "$llvm_bin/clang++" ]]; then
-            echo "LLVM 20 is missing from the pinned Ubuntu runner image." >&2
+            echo "LLVM 23 is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          [[ "$version" == *"clang version 20.1.8 "* ]] || {
-            echo "Expected Clang 20.1.8 but found: $version" >&2
+          [[ "$version" == *"clang version 23.1.4 "* ]] || {
+            echo "Expected Clang 23.1.4 but found: $version" >&2
             exit 1
           }
           echo "$llvm_bin" >> "$GITHUB_PATH"

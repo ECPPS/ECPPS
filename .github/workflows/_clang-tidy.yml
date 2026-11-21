@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
 
 jobs:
 #   clang-tidy-ubuntu:
@@ -25,16 +25,16 @@ jobs:
 #         run: |
 #           wget -q https://apt.llvm.org/llvm.sh
 #           chmod +x llvm.sh
-#           sudo ./llvm.sh 20 all
+#           sudo ./llvm.sh 23 all
 
 #       - name: Add LLVM to PATH
 #         run: |
-#           echo "/usr/lib/llvm-20/bin" >> $GITHUB_PATH
+#           echo "/usr/lib/llvm-23/bin" >> $GITHUB_PATH
 
 #       - name: Download build artifact
 #         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
 #         with:
-#           name: build-linux-clang20-Release
+#           name: build-linux-clang23-Release
 #           path: out/build
 
 #       - name: Configure (fetch dependencies only)
@@ -68,6 +68,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Install LLVM
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP "LLVM-${{ inputs.llvm-version }}-win64.msi"
+          Invoke-WebRequest `
+            -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.llvm-version }}/LLVM-${{ inputs.llvm-version }}-win64.msi" `
+            -OutFile $installer
+          $process = Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', $installer, '/qn', '/norestart') -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "LLVM installer failed with exit code $($process.ExitCode)"
+          }
+
       - name: Setup LLVM
         shell: pwsh
         run: |
@@ -92,7 +104,7 @@ jobs:
       - name: Download Clang Release build artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: build-windows-clang20-Release
+          name: build-windows-clang23-Release
           path: out/build
 
       - name: Setup MSVC Developer Environment
@@ -120,7 +132,13 @@ jobs:
 
       - name: Verify clang-tidy version
         shell: bash
-        run: clang-tidy --version
+        run: |
+          version="$(clang-tidy --version)"
+          echo "$version"
+          if [[ "$version" != *"LLVM version ${{ inputs.llvm-version }}"* ]]; then
+            echo "Expected clang-tidy ${{ inputs.llvm-version }} but found: $version" >&2
+            exit 1
+          fi
 
       - name: Run clang-tidy (parallel, warnings-as-errors)
         shell: bash
