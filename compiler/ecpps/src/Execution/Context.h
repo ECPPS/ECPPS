@@ -895,7 +895,7 @@ namespace ecpps::ir
           IsDllImportExport = 1024,
           NamespacePath = 2048,
           All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
-                IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath
+               IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept
