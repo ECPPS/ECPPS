@@ -5,7 +5,7 @@ namespace ecpps::ast
      class IdentifierNode final : public Node
      {
      public:
-          explicit IdentifierNode(InternedString value, Location where) : Node(where), _value(std::move(value))
+          explicit IdentifierNode(InternedString value, Location where) : Node(where), _value(value)
           {
           }
           [[nodiscard]] InternedString Value(void) const noexcept

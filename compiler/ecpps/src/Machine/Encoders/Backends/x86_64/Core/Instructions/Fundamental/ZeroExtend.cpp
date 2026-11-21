@@ -39,8 +39,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           }
 
           Operand sourceOperand{};
-          if (this->IsSpilled(source)) sourceOperand = this->EnsureStackSlot(source);
-          else
+          if (this->IsSpilled(source)) { sourceOperand = this->EnsureStackSlot(source);
+          } else
           {
                ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
                sourceOperand = RegisterOperand{this->PhysicalRegisterOf(source)};
@@ -95,7 +95,7 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
           return {
                .instructions = {BuildMovzx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, slot)},
-               .assignedRegister = destinationRegister};
+               .assignedRegister = destinationRegister,};
      }
 
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
@@ -115,6 +115,6 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      }
 
      return {.instructions = {BuildMovzx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister},
-                                         RegisterOperand{sourceRegister})},
-             .assignedRegister = destinationRegister};
+                                         RegisterOperand{sourceRegister}),},
+             .assignedRegister = destinationRegister,};
 }

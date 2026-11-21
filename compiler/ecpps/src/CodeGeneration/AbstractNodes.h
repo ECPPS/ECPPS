@@ -23,18 +23,18 @@ namespace ecpps::ir::abstract
      {
           Input = 0b01,
           Output = 0b10,
-          Both = 0b11
+          Both = 0b11,
      };
      enum struct OperandCompatibility : std::uint8_t
      {
           Register = 0b0100,
           Memory = 0b1000,
-          Both = 0b1100
+          Both = 0b1100,
      };
      struct Operand
      {
           explicit constexpr Operand(OperandType type, OperandCompatibility compatibility)
-              : _value(std::to_underlying(type) | (std::to_underlying(compatibility)))
+              : _value(std::to_underlying(type) | std::to_underlying(compatibility))
           {
           }
           explicit constexpr Operand(std::uint8_t initial) : _value(initial)
@@ -49,7 +49,7 @@ namespace ecpps::ir::abstract
           }
           [[nodiscard]] constexpr OperandCompatibility Compatibility(void) const noexcept
           {
-               return static_cast<OperandCompatibility>((this->_value) & 0b1100);
+               return static_cast<OperandCompatibility>(this->_value & 0b1100);
           }
 
      private:
@@ -76,7 +76,7 @@ namespace ecpps::ir::abstract
           Below,
           BelowEqual,
           Above,
-          AboveEqual
+          AboveEqual,
      };
      [[nodiscard]] constexpr ConditionCode Invert(const ConditionCode c) noexcept
      {
@@ -132,7 +132,7 @@ namespace ecpps::ir::abstract
           IndirectStore,
           Unreachable,
           ReturnAggregate,
-          CallWithAggregateResult
+          CallWithAggregateResult,
      };
      constexpr std::string_view ToString(const VirtualInstructionType type)
      {
@@ -207,7 +207,7 @@ namespace ecpps::ir::abstract
           Allocation,
           ColdAllocation,
 
-          Invalid = std::numeric_limits<std::uint8_t>::max()
+          Invalid = std::numeric_limits<std::uint8_t>::max(),
      };
 
      struct State

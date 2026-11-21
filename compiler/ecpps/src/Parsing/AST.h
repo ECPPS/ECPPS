@@ -47,7 +47,7 @@ namespace ecpps::ast
           None,
           Constexpr,
           Consteval,
-          Constinit
+          Constinit,
      };
      enum struct StorageClassSpecifier : std::uint8_t
      {
@@ -55,7 +55,7 @@ namespace ecpps::ast
           Static = 1,
           ThreadLocal = 2,
           Extern = 4,
-          Mutable = 8
+          Mutable = 8,
      };
      constexpr bool operator&(StorageClassSpecifier a, StorageClassSpecifier b)
      {
@@ -112,7 +112,7 @@ namespace ecpps::ast
           RightShiftAssign, // <<=
           Increment,        // ++
           Decrement,        // --
-          Comma             // ,
+          Comma,             // ,
      };
      [[nodiscard]] constexpr std::string ToString(const Operator op) noexcept
      {
@@ -169,7 +169,7 @@ namespace ecpps::ast
      {
      public:
           explicit AttributeNode(InternedString name, SBOVector<Token> arguments, Location source)
-              : Node(source), _name(std::move(name)), _arguments(std::move(arguments))
+              : Node(source), _name(name), _arguments(std::move(arguments))
           {
           }
           [[nodiscard]] std::string ToString([[maybe_unused]] std::size_t indent) const override
@@ -177,7 +177,7 @@ namespace ecpps::ast
                std::string built = "[[" + std::string(this->_name.View());
                if (this->_arguments.Size() != 0)
                {
-                    built += "(";
+                    built += '(';
 
                     for (const auto& arg : this->_arguments)
                          built += (std::holds_alternative<InternedString>(arg.value)
@@ -187,7 +187,7 @@ namespace ecpps::ast
 
                     built.pop_back();
                     built.pop_back();
-                    built += ")";
+                    built += ')';
                }
                return built + "]]";
           }
@@ -208,7 +208,7 @@ namespace ecpps::ast
      enum struct ExplicitThisSpecifier : bool
      {
           Yes = true,
-          No = false
+          No = false,
      };
 
      struct PtrOperator
@@ -218,7 +218,7 @@ namespace ecpps::ast
                Pointer,
                LValueReference,
                RValueReference,
-               PointerToMember
+               PointerToMember,
           };
 
           Kind kind = Kind::Pointer;
@@ -232,7 +232,7 @@ namespace ecpps::ast
      {
           None,
           LValue,
-          RValue
+          RValue,
      };
 
      struct NoexceptSpecifier
@@ -300,7 +300,7 @@ namespace ecpps::ast
           Plain,
           Pointer,
           Array,
-          Function
+          Function,
      };
 
      struct Declarator
@@ -337,7 +337,7 @@ namespace ecpps::ast
           None,
           Block,     // { ... }
           Defaulted, // = default
-          Deleted    // = delete
+          Deleted,    // = delete
      };
 
      struct FunctionSignature
@@ -382,10 +382,10 @@ namespace ecpps::ast
                built += this->type == nullptr ? "__unknown" : this->type->ToString(0) + " ";
                built += ::ToString(this->callingConvention) + " ";
                built += this->name == nullptr ? "__unknown" : this->name->ToString(0);
-               built += "(";
+               built += '(';
                built += this->parameters.ToString();
                if (this->isVariadic) built += this->parameters.parameters.empty() ? "..." : ", ...";
-               built += ")";
+               built += ')';
 
                return built;
           }
@@ -766,7 +766,7 @@ namespace ecpps::ast
      class LabelNode final : public Node
      {
      public:
-          explicit LabelNode(InternedString name, Location source) : Node(source), _name(std::move(name))
+          explicit LabelNode(InternedString name, Location source) : Node(source), _name(name)
           {
           }
           [[nodiscard]] InternedString Name(void) const noexcept
@@ -784,7 +784,7 @@ namespace ecpps::ast
      class GotoNode final : public Node
      {
      public:
-          explicit GotoNode(InternedString name, Location source) : Node(source), _name(std::move(name))
+          explicit GotoNode(InternedString name, Location source) : Node(source), _name(name)
           {
           }
           [[nodiscard]] InternedString Name(void) const noexcept
@@ -880,7 +880,7 @@ namespace ecpps::ast
           BracedInitialiser,
           EqualInitialiser,
           Error,
-          Default
+          Default,
      };
 
      class VariableDeclarationNode final : public Node
@@ -994,7 +994,7 @@ namespace ecpps::ast
      class StringLiteralNode final : public Node
      {
      public:
-          explicit StringLiteralNode(InternedString value, Location source) : Node(source), _value(std::move(value))
+          explicit StringLiteralNode(InternedString value, Location source) : Node(source), _value(value)
           {
           }
 
@@ -1140,7 +1140,7 @@ namespace ecpps::ast
                                               : init->ToString(indent + 1)) +
                              ",";
                if (!this->_initialisers.empty()) built.pop_back(); // trailing comma
-               built += "}";
+               built += '}';
                return built;
           }
 
@@ -1152,7 +1152,7 @@ namespace ecpps::ast
      {
      public:
           explicit DesignatedInitialiserNode(InternedString member, NodePointer initialiser, Location source)
-              : Node(source), _member(std::move(member)), _initialiser(std::move(initialiser))
+              : Node(source), _member(member), _initialiser(std::move(initialiser))
           {
           }
           [[nodiscard]] InternedString Member(void) const noexcept
@@ -1181,11 +1181,11 @@ namespace ecpps::ast
      {
           NodePointer value{};
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
-          bool HasValue(void) const noexcept
+          [[nodiscard]] bool HasValue(void) const noexcept
           {
                return this->value != nullptr;
           }
-          bool WasSuccessful(void) const noexcept
+          [[nodiscard]] bool WasSuccessful(void) const noexcept
           {
                return this->_wasSuccessful;
           }
@@ -1313,8 +1313,8 @@ namespace ecpps::ast
                          {
                               switch (op.kind)
                               {
-                              case PtrOperator::Kind::Pointer: current += "*"; break;
-                              case PtrOperator::Kind::LValueReference: current += "&"; break;
+                              case PtrOperator::Kind::Pointer: current += '*'; break;
+                              case PtrOperator::Kind::LValueReference: current += '&'; break;
                               case PtrOperator::Kind::RValueReference: current += "&&"; break;
                               case PtrOperator::Kind::PointerToMember:
                                    current += op.nestedNameSpecifier->ToString(indent) + "::*";
@@ -1323,11 +1323,11 @@ namespace ecpps::ast
                               for (const auto& attribute : op.attributes) current += " " + attribute->ToString(indent);
                               if (op.isConst) current += " const";
                               if (op.isVolatile) current += " volatile";
-                              if (op.isConst || op.isVolatile || !op.attributes.empty()) current += " ";
+                              if (op.isConst || op.isVolatile || !op.attributes.empty()) current += ' ';
                          }
 
-                         if (level.nested != nullptr) current += "(" + text + ")";
-                         else
+                         if (level.nested != nullptr) { current += "(" + text + ")";
+                         } else
                          {
                               if (level.isParameterPack) current += "...";
                               current += level.declaredIdExpression ? level.declaredIdExpression->ToString(indent)
@@ -1340,16 +1340,16 @@ namespace ecpps::ast
                          {
                               if (const auto* array = std::get_if<ArrayBound>(&suffix))
                               {
-                                   current += "[";
+                                   current += '[';
                                    if (array->size != nullptr) current += array->size->ToString(indent);
-                                   current += "]";
+                                   current += ']';
                                    for (const auto& attribute : array->attributes)
                                         current += " " + attribute->ToString(indent);
                                    continue;
                               }
 
                               const auto& function = std::get<ParametersAndQualifiers>(suffix);
-                              current += "(";
+                              current += '(';
                               for (std::size_t parameterIndex = 0; parameterIndex < function.parameters.size();
                                    ++parameterIndex)
                               {
@@ -1361,7 +1361,7 @@ namespace ecpps::ast
                                         current += " = " + parameter.defaultInitialiser->ToString(indent);
                               }
                               if (function.isVariadic) current += function.parameters.empty() ? "..." : ", ...";
-                              current += ")";
+                              current += ')';
 
                               if (function.isConst) current += " const";
                               if (function.isVolatile) current += " volatile";
@@ -1384,7 +1384,7 @@ namespace ecpps::ast
 
                     if (member.isBitField)
                     {
-                         if (!text.empty()) text += " ";
+                         if (!text.empty()) text += ' ';
                          text += ": " + member.bitFieldWidth->ToString(indent);
                     }
                     if (member.isOverride) text += " override";
@@ -1403,7 +1403,7 @@ namespace ecpps::ast
                     {
                          if (member.initialisationType == InitialisationType::EqualInitialiser) text += " = ";
                          else
-                              text += " ";
+                              text += ' ';
                          text += member.initialiser->ToString(indent);
                     }
 
@@ -1412,7 +1412,7 @@ namespace ecpps::ast
 
                const bool endsWithFunctionBody =
                     _declarators.size() == 1 && _declarators.front().functionBody == FunctionBodyKind::Block;
-               if (!endsWithFunctionBody) result += ";";
+               if (!endsWithFunctionBody) result += ';';
 
                return result;
           }

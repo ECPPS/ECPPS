@@ -734,7 +734,7 @@ TEST_CASE("IR - Assigning to a const-char pointer member is modifiable", "[unit]
 {
      ecpps::abi::ABI::Current().SetPointerSize(sizeof(std::uintptr_t));
      Fixture fixture{};
-     const auto makeConstCharPointer = [&fixture]()
+     const auto makeConstCharPointer = [&fixture]
      {
           auto charType = MakeASTNode<ecpps::ast::BasicType>(fixture.astAllocator, fixture.astAllocator.Intern("char"),
                                                              Source, true, false);
@@ -859,8 +859,8 @@ TEST_CASE("IR - Aggregate initialisation stores the provided field value", "[uni
      const ecpps::ir::SSAIndirectStoreNode* store = nullptr;
      for (const auto& node : procedure->Body())
      {
-          if (const auto* immediate = dynamic_cast<const ecpps::ir::SSAImmNode*>(node.get()))
-               if (immediate->Value() == 7) seven = immediate;
+          if (const auto* immediate = dynamic_cast<const ecpps::ir::SSAImmNode*>(node.get()); immediate && (immediate->Value() == 7))
+               seven = immediate;
           if (const auto* indirectStore = dynamic_cast<const ecpps::ir::SSAIndirectStoreNode*>(node.get());
               indirectStore != nullptr && seven != nullptr && &indirectStore->Src() == &seven->Result())
                store = indirectStore;
@@ -2132,11 +2132,10 @@ TEST_CASE("IR - Class locals are destroyed in reverse lifetime order", "[unit][i
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      std::vector<std::string> destructorCalls{};
      for (const auto& node : lifetime->Body())
-          if (const auto* call = dynamic_cast<const ecpps::ir::SSACallNode*>(node.get()))
-          {
-               if (call->Function().Name() == "~" + firstClassName || call->Function().Name() == "~" + secondClassName)
-                    destructorCalls.push_back(*call->Function().Name());
-          }
+          if (const auto* call = dynamic_cast<const ecpps::ir::SSACallNode*>(node.get()); call && (call->Function().Name() == "~" + firstClassName || call->Function().Name() == "~" + secondClassName))
+
+               destructorCalls.push_back(*call->Function().Name());
+
      REQUIRE((destructorCalls == std::vector<std::string>{"~" + secondClassName, "~" + firstClassName}));
 }
 

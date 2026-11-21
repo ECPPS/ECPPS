@@ -114,7 +114,7 @@ static std::vector<std::byte> AsmCopy(Width width, RegisterOperand target, const
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid MOV source");
-                                                }},
+                                                },},
                        source);
 }
 static std::vector<std::byte> AsmCopy(Width width, MemoryOperand target, const Operand& source)
@@ -135,7 +135,7 @@ static std::vector<std::byte> AsmCopy(Width width, MemoryOperand target, const O
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid MOV source");
-                                                }},
+                                                },},
                        source);
 }
 
@@ -162,6 +162,6 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const ir:
                             [](auto&&...) -> std::vector<std::byte>
                             {
                                  throw TracedException("invalid MOV source");
-                            }},
+                            },},
           mov.destination);
 }

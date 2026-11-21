@@ -29,6 +29,6 @@ std::expected<ecpps::ir::ConstantEvaluatedResult, std::stack<ecpps::diagnostics:
                                                                      return ConstantEvaluatedVariant{
                                                                           static_cast<std::uint64_t>(value)};
                                                                 }) |
-                                                           ecpps::detail::ToVector},
+                                                           ecpps::detail::ToVector,},
                                     this->Source()};
 }

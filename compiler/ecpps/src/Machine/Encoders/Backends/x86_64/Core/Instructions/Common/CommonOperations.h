@@ -29,7 +29,7 @@ namespace ecpps::abi::encoders::x8664::inline common
           LoadStringAddress,
           Multiplication,
           Division,
-          Indirect
+          Indirect,
      };
      enum struct MaterialisationType : std::uint16_t // NOLINT(performance-enum-size)
      {

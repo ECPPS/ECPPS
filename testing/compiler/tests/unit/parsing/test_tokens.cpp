@@ -48,7 +48,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {
                ConstructIdentifier("variable"), ConstructIdentifier("_private"), ConstructIdentifier("count123"),
-               ConstructIdentifier("__internal")};
+               ConstructIdentifier("__internal"),};
           auto tokens = Tokenise(ppTokens);
           SignedSize identifierCount = std::ranges::count_if(tokens,
                                                              [](const auto& token)
@@ -67,7 +67,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {
                ConstructIdentifier("variable123"), ConstructIdentifier("count"), ConstructOperator("+"),
-               ConstructIdentifier("_private"),    ConstructOperator("-"),       ConstructIdentifier("__internal")};
+               ConstructIdentifier("_private"),    ConstructOperator("-"),       ConstructIdentifier("__internal"),};
           auto tokens = Tokenise(ppTokens);
           SignedSize identifierCount = std::ranges::count_if(tokens,
                                                              [](const auto& token)
@@ -88,7 +88,7 @@ TEST_CASE("Tokeniser - Identifiers", "[parsing][tokeniser]")
 TEST_CASE("Tokeniser - Keywords", "[parsing][tokeniser]")
 {
      std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructIdentifier("if"), ConstructIdentifier("else"),
-                                                        ConstructIdentifier("while"), ConstructIdentifier("for")};
+                                                        ConstructIdentifier("while"), ConstructIdentifier("for"),};
      auto tokens = Tokenise(ppTokens);
      SignedSize keywordCount = std::ranges::count_if(tokens,
                                                      [](const auto& token)
@@ -108,7 +108,7 @@ TEST_CASE("Tokeniser - Operators", "[parsing][tokeniser]")
      SECTION("Mapping")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator("+"), ConstructOperator("-"),
-                                                             ConstructOperator("*"), ConstructOperator("/")};
+                                                             ConstructOperator("*"), ConstructOperator("/"),};
           auto tokens = Tokenise(ppTokens);
           SignedSize operatorCount = std::ranges::count_if(tokens,
                                                            [](const auto& token)
@@ -128,7 +128,7 @@ TEST_CASE("Tokeniser - Operators", "[parsing][tokeniser]")
 
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator("+"), ConstructIdentifier("A"),
                                                              ConstructOperator("*"), ConstructIdentifier("B"),
-                                                             ConstructOperator("/")};
+                                                             ConstructOperator("/"),};
           auto tokens = Tokenise(ppTokens);
           SignedSize operatorCount = std::ranges::count_if(tokens,
                                                            [](const auto& token)
@@ -149,7 +149,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
      SECTION("Mapping")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator(";"), ConstructOperator(","),
-                                                             ConstructOperator("."), ConstructOperator("->")};
+                                                             ConstructOperator("."), ConstructOperator("->"),};
           auto tokens = Tokenise(ppTokens);
           SignedSize semiColonCount = std::ranges::count_if(tokens,
                                                             [](const auto& token)
@@ -174,7 +174,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator(";"), ConstructIdentifier("A"),
                                                              ConstructOperator(","), ConstructIdentifier("B"),
-                                                             ConstructOperator(".")};
+                                                             ConstructOperator("."),};
           auto tokens = Tokenise(ppTokens);
           SignedSize semiColonCount = std::ranges::count_if(tokens,
                                                             [](const auto& token)
@@ -201,7 +201,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator("->"), ConstructIdentifier("A"),
                                                              ConstructOperator("::"), ConstructIdentifier("B"),
-                                                             ConstructOperator("...")};
+                                                             ConstructOperator("..."),};
           auto tokens = Tokenise(ppTokens);
           SignedSize arrowCount =
                std::ranges::count_if(tokens,
@@ -236,7 +236,7 @@ TEST_CASE("Tokeniser - Punctuators", "[parsing][tokeniser]")
      {
           std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructOperator("("), ConstructIdentifier("A"),
                                                              ConstructOperator(")"), ConstructIdentifier("B"),
-                                                             ConstructOperator("[")};
+                                                             ConstructOperator("["),};
           auto tokens = Tokenise(ppTokens);
           SignedSize leftParenCount = std::ranges::count_if(tokens,
                                                             [](const auto& token)
@@ -290,7 +290,7 @@ TEST_CASE("Literals", "[parsing][tokeniser]")
           ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::CharacterLiteral, TestStringPool().Intern("a"),
                                     ecpps::Location{0, 0, 0}},
           ecpps::PreprocessingToken{ecpps::PreprocessingTokenType::StringLiteral,
-                                    TestStringPool().Intern("Hello, World!"), ecpps::Location{0, 0, 0}}};
+                                    TestStringPool().Intern("Hello, World!"), ecpps::Location{0, 0, 0}},};
      auto tokens = Tokenise(ppTokens);
      SignedSize numberCount =
           std::ranges::count_if(tokens,
@@ -324,7 +324,7 @@ TEST_CASE("Literals", "[parsing][tokeniser]")
 TEST_CASE("Tokeniser - Boolean identifiers become boolean literals", "[unit][parsing][tokeniser]")
 {
      const std::vector<ecpps::PreprocessingToken> ppTokens = {ConstructIdentifier("true"),
-                                                              ConstructIdentifier("false")};
+                                                              ConstructIdentifier("false"),};
 
      const auto tokens = Tokenise(ppTokens);
 
@@ -361,6 +361,6 @@ TEST_CASE("Tokeniser - String escapes decode to their character values", "[unit]
      REQUIRE(tokens.size() == 1);
      REQUIRE(tokens[0].type == ecpps::TokenType::Literal);
      REQUIRE(std::holds_alternative<ecpps::StringLiteral>(tokens[0].value));
-     REQUIRE(std::get<ecpps::StringLiteral>(tokens[0].value).value == std::string{"line\n!\xCE\xA9"});
+     REQUIRE(std::get<ecpps::StringLiteral>(tokens[0].value).value == "line\n!\xCE\xA9");
 }
 // NOLINTEND(bugprone-chained-comparison)

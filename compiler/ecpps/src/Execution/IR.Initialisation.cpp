@@ -409,8 +409,9 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                          elementType = arrayType->ElementType();
                     diagnoseConstScalarDefaultInitialisation(elementType);
                }
-               else
+               else {
                     diagnoseConstScalarDefaultInitialisation(variableType);
+}
                continue;
           }
 
@@ -425,11 +426,12 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
                                              ObjectInitialisationMode::Explicit, decl.initialiser->Source());
                          RegisterObjectForDestruction(variableType, objectAddress, decl.name->Source());
                     }
-                    else
+                    else {
                          DiagnosticSink::Report(this->GetContext(),
                                                 diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                                      "An array of class objects requires a braced initialiser",
                                                      decl.initialiser->Source()));
+}
                     continue;
                }
                // Arrays are initialised with a single aggregate store. Elements without an initialiser are
@@ -503,10 +505,10 @@ Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointe
                                                     ecpps::typeSystem::NonowningTypePointer desiredType)
 {
      auto operand = ParseExpression(expression);
-     if (IsBoolean(desiredType))
-     {
-          if (IsBoolean(operand->Type())) return operand;
-     }
+     if ((IsBoolean(desiredType)) && (IsBoolean(operand->Type())))
+
+          return operand;
+
      auto converted = ConvertTo(std::move(operand), desiredType);
      if (converted == nullptr)
      {

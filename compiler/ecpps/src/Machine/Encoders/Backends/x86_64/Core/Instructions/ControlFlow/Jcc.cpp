@@ -15,9 +15,9 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      std::vector<ir::abstract::Instruction> built = this->EnsureMaterialisation(lhs);
 
      Operand right{};
-     if (const auto immediate = this->ImmediateOf(rhs); immediate.has_value() && *immediate <= 0x7FFFFFFFu)
+     if (const auto immediate = this->ImmediateOf(rhs); immediate.has_value() && *immediate <= 0x7FFFFFFFu) {
           right = IntegerOperand{*immediate};
-     else
+     } else
      {
           ecpps::detail::AppendRange(built, this->EnsureMaterialisation(rhs));
           right = RegisterOperand{this->PhysicalRegisterOf(rhs)};

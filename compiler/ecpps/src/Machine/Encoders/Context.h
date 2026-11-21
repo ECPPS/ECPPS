@@ -15,7 +15,7 @@ namespace ecpps::abi::encoding
      {
           None, // freestanding
           Windows,
-          Linux
+          Linux,
      };
 
      enum struct SDK : std::uint16_t // NOLINT(performance-enum-size)
@@ -34,7 +34,7 @@ namespace ecpps::abi::encoding
      {
           Unknown,
           Haswell,
-          Skylake
+          Skylake,
      };
 
      using Extensions = ArchitectureExtensionFeatures;

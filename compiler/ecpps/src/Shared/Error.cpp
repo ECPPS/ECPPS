@@ -51,7 +51,7 @@ namespace
                normalised.push_back(character >= 'A' && character <= 'Z' ? static_cast<char>(character - 'A' + 'a')
                                                                          : static_cast<char>(character));
 
-          return normalised.find("utf-8") != std::string::npos || normalised.find("utf8") != std::string::npos;
+          return normalised.contains("utf-8") || normalised.contains("utf8");
      }
 
      [[nodiscard]] bool InRange(const std::uint32_t value, const std::uint32_t first, const std::uint32_t last) noexcept
@@ -87,8 +87,9 @@ namespace
                byteCount = 4;
                value = first & 0x07;
           }
-          else
+          else {
                return {.value = 0xfffd, .byteCount = 1};
+}
 
           if (offset + byteCount > text.size()) return {.value = 0xfffd, .byteCount = 1};
           for (std::size_t index = 1; index < byteCount; index++)
@@ -438,7 +439,7 @@ namespace
      {
           Root,
           Branch,
-          Continuation
+          Continuation,
      };
 
      void PrintDiagnosticNode(const ecpps::diagnostics::DiagnosticsMessage& diagnostic, const std::size_t depth,

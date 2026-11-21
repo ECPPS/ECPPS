@@ -8,7 +8,7 @@ namespace ecpps::platformlib
           x86_64,
           x86_32,
           ARM32,
-          ARM64
+          ARM64,
      };
 
      enum struct OperatingSystem : std::uint_fast8_t

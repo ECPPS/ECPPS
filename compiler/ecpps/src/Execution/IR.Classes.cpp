@@ -112,7 +112,7 @@ namespace
                              expectedParameterCount, expectedParameterCount == 1 ? "" : "s");
      }
 
-     [[nodiscard]] std::string ConstructorAccessName(const ecpps::typeSystem::Access access)
+     [[nodiscard]] std::string_view ConstructorAccessName(const ecpps::typeSystem::Access access)
      {
           switch (access)
           {
@@ -129,7 +129,7 @@ namespace
           ecpps::ir::overloadDiagnostics::Candidate candidate{
                .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
                .source = constructor.function->source,
-               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted};
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted,};
           if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
           return candidate;
      }
@@ -210,8 +210,9 @@ ecpps::typeSystem::ClassId ecpps::ir::IR::DefineClass(const ast::ClassDefNode& n
                return id;
           }
      }
-     else
+     else {
           id = DeclareClassInScope(scope, node);
+}
 
      types.BeginDefinition(id);
 
@@ -308,7 +309,7 @@ void ecpps::ir::IR::DeclareImplicitCopyMoveConstructors(const typeSystem::ClassI
                .kind = TypeKind::Compound,
                .data = ReferenceRequest{.elementType = parameterBase,
                                         .kind = isCopyConstructor ? typeSystem::ReferenceType::Kind::LValue
-                                                                  : typeSystem::ReferenceType::Kind::RValue}});
+                                                                  : typeSystem::ReferenceType::Kind::RValue,},});
 
           ClassConstructor constructor{};
           constructor.access = typeSystem::Access::Public;
@@ -440,7 +441,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
           DiagnosticSink::Report(this->GetContext(), diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                                                           std::move(message), source));
      };
-     const auto explicitSpecifierValue = [&]() -> std::optional<bool>
+     const auto explicitSpecifierValue = [&] -> std::optional<bool>
      {
           const auto& specifier = specifiers.functionSpecifier.explicitSpecifier;
           if (!specifier.has_value()) return false;
@@ -617,7 +618,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                }
                constructor.parameters.push_back({.name = parameter.name != nullptr ? parameter.name->ToString(0) : "",
                                                  .type = parameterType,
-                                                 .isVariadic = false});
+                                                 .isVariadic = false,});
           }
           if (constructor.parameters.size() == 1 && typeSystem::g_void->CommonWith(constructor.parameters.front().type))
                constructor.parameters.clear();
@@ -701,7 +702,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                deferredFunctionBodies.push_back({.classId = id,
                                                  .declarator = &declarator,
                                                  .function = constructor.function,
-                                                 .isConstructor = true});
+                                                 .isConstructor = true,});
           }
           constructors.push_back(std::move(constructor));
           return;
@@ -879,9 +880,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          invalidParameters = true;
                          break;
                     }
-                    if (parameter.defaultInitialiser != nullptr)
-                    {
-                         if (!allowsDefaultArguments)
+                    if ((parameter.defaultInitialiser != nullptr) && (!allowsDefaultArguments))
+
                          {
                               report(hasOperatorId ? "Only operator() and operator[] may have default arguments"
                                                    : "Default member function arguments are not supported yet",
@@ -889,7 +889,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                               invalidParameters = true;
                               break;
                          }
-                    }
+
                     const auto* parameterType = ParseType(parameter.type);
                     if (parameterType == nullptr ||
                         !RequireComplete(parameterType, parameter.type->Source(), "a member function parameter"))
@@ -904,8 +904,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                bool hasDefaultArgument = false;
                for (std::size_t index = 0; index < parameters.size(); ++index)
                {
-                    if (parameters[index].hasDefaultArgument) hasDefaultArgument = true;
-                    else if (hasDefaultArgument)
+                    if (parameters[index].hasDefaultArgument) { hasDefaultArgument = true;
+                    } else if (hasDefaultArgument)
                     {
                          report("A parameter following a parameter with a default argument must also have a default "
                                 "argument",
@@ -1027,8 +1027,8 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     hasDefaultArgument = false;
                     for (std::size_t index = 0; index < mergedDefaultArguments.size(); ++index)
                     {
-                         if (mergedDefaultArguments[index]) hasDefaultArgument = true;
-                         else if (hasDefaultArgument)
+                         if (mergedDefaultArguments[index]) { hasDefaultArgument = true;
+                         } else if (hasDefaultArgument)
                          {
                               report("A parameter following a parameter with a default argument must also have a "
                                      "default argument",
@@ -1093,8 +1093,9 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     deferredFunctionBodies.push_back(
                          {.classId = id, .declarator = &declarator, .function = function, .isConstructor = false});
                }
-               else if (declarator.functionBody == ast::FunctionBodyKind::Defaulted)
+               else if (declarator.functionBody == ast::FunctionBodyKind::Defaulted) {
                     function->isMemberFunctionDefined = true;
+}
                continue;
           }
 
@@ -1176,7 +1177,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                           .fieldIndex = fieldIndex,
                                           .declarator = &declarator,
                                           .memberType = resolved.type,
-                                          .source = idenSource});
+                                          .source = idenSource,});
      }
 }
 
@@ -1213,7 +1214,7 @@ void ecpps::ir::IR::EmitConstructorBody(const std::shared_ptr<FunctionScope>& fu
           }
      };
      RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
-                                                   .size = functionIr.GetContext().contextSequence.size()};
+                                                   .size = functionIr.GetContext().contextSequence.size(),};
      functionIr.GetContext().contextSequence.push_back(functionContext);
 
      auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
@@ -1297,7 +1298,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
                GetTypeContext().Get(TypeRequest{.kind = TypeKind::Compound,
                                                 .qualifiers = QualifiersFrom(function->memberFunctionInfo.isConst,
                                                                              function->memberFunctionInfo.isVolatile),
-                                                .data = ClassRequest{.id = id}});
+                                                .data = ClassRequest{.id = id},});
           thisType = PointerTo(classType);
      }
 
@@ -1323,7 +1324,7 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
           }
      };
      RestoreContextSequence restoreContextSequence{.context = &functionIr.GetContext(),
-                                                   .size = functionIr.GetContext().contextSequence.size()};
+                                                   .size = functionIr.GetContext().contextSequence.size(),};
      functionIr.GetContext().contextSequence.push_back(functionContext);
 
      auto locals = std::make_shared<std::vector<FunctionScope::LocalEntity>>();
@@ -1397,10 +1398,10 @@ void ecpps::ir::IR::EmitMemberFunctionBody(const ast::MemberDeclarator& declarat
           if (objectAddress != nullptr)
                functionIr.DestroyClassMembersAtAddress(GetTypeContext().Class(id), objectAddress);
      }
-     if (fallsThrough && typeSystem::g_void->CommonWith(function->returnType))
+     if (fallsThrough && typeSystem::g_void->CommonWith(function->returnType)) {
           functionIr._built.push_back(std::unique_ptr<SSAReturnNode, IRDeleter>{
                new (*functionIr.GetContext().nodeAllocator) SSAReturnNode(nullptr, declarator.location)});
-     else if (fallsThrough)
+     } else if (fallsThrough)
      {
           DiagnosticSink::Report(
                functionIr.GetContext(),

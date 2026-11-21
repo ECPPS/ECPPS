@@ -56,7 +56,7 @@ namespace ecpps::ir
           StoreThis,
           ThisExpression,
           IncomingReturnSlot,
-          Unreachable
+          Unreachable,
      };
      enum struct ComparisonPredicate : std::uint_fast8_t
      {
@@ -261,7 +261,7 @@ namespace ecpps::ir
           Fixed13 = 0xfffc,
           Fixed14 = 0xfffd,
           Fixed15 = 0xfffe,
-          Fixed16 = 0xffff
+          Fixed16 = 0xffff,
      };
      struct RegisterPriorityInfo
      {

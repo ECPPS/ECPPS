@@ -73,7 +73,7 @@ namespace
      enum struct FileIterationStatus : bool
      {
           Success = true,
-          Failure = false
+          Failure = false,
      };
 
      struct DiagnosticOutputState

@@ -164,9 +164,10 @@ namespace
                     return std::format("Non-member operator{} must have exactly 1 parameter",
                                        ecpps::ast::ToString(operatorValue));
           }
-          else if (count != 2)
+          else if (count != 2) {
                return std::format("Non-member operator{} must have exactly 2 parameters",
                                   ecpps::ast::ToString(operatorValue));
+}
 
           if (std::ranges::none_of(parameters,
                                    [](const ecpps::ir::FunctionScope::Parameter& parameter)
@@ -332,8 +333,8 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
      {
           const std::string_view languageLinkage =
                node.Signature().externOptional->View(); // NOLINT(bugprone-unchecked-optional-access)
-          if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
-          else
+          if (languageLinkage == "C") { linkage = abi::Linkage::CLinkage;
+          } else
           {
                DiagnosticSink::Report(this->GetContext(),
                                       diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
@@ -341,8 +342,9 @@ void ecpps::ir::IR::ParseFunctionDeclaration(const ast::FunctionDeclarationNode&
           }
      }
      else if (node.Signature().isInline ||
-              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None) {
           linkage = ecpps::abi::Linkage::Internal;
+}
      // TODO: Error on conflicting linkage specification
 
      bool isDllImportExport{};
@@ -487,7 +489,7 @@ bool ecpps::ir::IR::ParseConstructorDefinition(const ast::FunctionDefinitionNode
           if (parameterType == nullptr) return true;
           parameters.push_back({.name = parameter.name == nullptr ? "" : parameter.name->ToString(0),
                                 .type = parameterType,
-                                .isVariadic = false});
+                                .isVariadic = false,});
      }
      if (parameters.size() == 1 && *parameters.front().type == typeSystem::g_void.get()) parameters.clear();
 
@@ -572,17 +574,17 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
      }
      abi::Linkage linkage = abi::Linkage::External;
 
-     if (returnType != nullptr && !typeSystem::g_void->CommonWith(returnType))
-     {
-          if (!RequireComplete(returnType, node.Source(), "a function return type")) return;
-     }
+     if ((returnType != nullptr && !typeSystem::g_void->CommonWith(returnType)) && (!RequireComplete(returnType, node.Source(), "a function return type")))
+
+          return;
+
 
      if (node.Signature().externOptional.has_value())
      {
           const std::string_view languageLinkage =
                node.Signature().externOptional->View(); // NOLINT(bugprone-unchecked-optional-access)
-          if (languageLinkage == "C") linkage = abi::Linkage::CLinkage;
-          else
+          if (languageLinkage == "C") { linkage = abi::Linkage::CLinkage;
+          } else
           {
                DiagnosticSink::Report(this->GetContext(),
                                       diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
@@ -590,8 +592,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           }
      }
      else if (node.Signature().isInline ||
-              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None)
+              node.Signature().constexprSpecifier != ast::ConstantExpressionSpecifier::None) {
           linkage = abi::Linkage::Internal;
+}
      // TODO: Error on conflicting linkage specification
 
      bool isDllImportExport{};
@@ -672,8 +675,9 @@ void ecpps::ir::IR::ParseFunctionDefinition(const ast::FunctionDefinitionNode& n
           functionScope->isDllImportExport = isDllImportExport;
           functionScope->dllImportName = dllImportName;
      }
-     else
+     else {
           functions.push_back(functionScope);
+}
      auto functionContext =
           std::make_shared<FunctionContext>(functionScope.get(), node.Signature().callingConvention, returnType, name,
                                             parameters |

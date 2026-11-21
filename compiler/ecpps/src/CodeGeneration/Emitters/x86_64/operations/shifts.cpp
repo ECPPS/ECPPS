@@ -38,7 +38,7 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid shift source");
-               }},
+               },},
           source);
 }
 
@@ -66,7 +66,7 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid shift source");
-               }},
+               },},
           source);
 }
 
@@ -94,7 +94,7 @@ static std::vector<std::byte> EmitShift(const ShiftOp op, const ecpps::ir::abstr
                                                 [](auto&&...) -> std::vector<std::byte>
                                                 {
                                                      throw TracedException("invalid shift destination");
-                                                }},
+                                                },},
                        shiftInstr.modifiedDestination);
 }
 

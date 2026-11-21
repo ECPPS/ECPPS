@@ -14,7 +14,7 @@ namespace ecpps::ir
           Static,
           ThreadLocal,
           Automatic,
-          Dynamic
+          Dynamic,
      };
      enum struct EntityKind : std::uint8_t
      {
@@ -28,7 +28,7 @@ namespace ecpps::ir
           Namespace,
           Template,
           TemplateSpecialisation,
-          Bitfield
+          Bitfield,
      };
      struct EntityStatistics
      {

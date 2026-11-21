@@ -153,7 +153,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::CodeSection(
                       std::byte{0});
 
           this->_relocations.emplace_back(Relocation{
-               .offset = position + 1, .symbolName = relocation.symbolName, .type = R_X86_64_PLT32, .addend = -4});
+               .offset = position + 1, .symbolName = relocation.symbolName, .type = R_X86_64_PLT32, .addend = -4,});
      }
 
      for (const auto offset : this->_stringRelocationOffsets)
@@ -168,7 +168,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::CodeSection(
           this->_relocations.emplace_back(Relocation{.offset = offset,
                                                      .symbolName = std::string(RdataSymbolName),
                                                      .type = R_X86_64_PC32,
-                                                     .addend = static_cast<std::int64_t>(stringOffset) - 4});
+                                                     .addend = static_cast<std::int64_t>(stringOffset) - 4,});
      }
 
      return this->_text;
@@ -256,7 +256,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
           rawRelocations.emplace_back(
                ELFRelocation64{.offset = relocation.offset,
                                .info = (static_cast<std::uint64_t>(symbolIndex->second) << 32) | relocation.type,
-                               .addend = relocation.addend});
+                               .addend = relocation.addend,});
      }
 
      const auto symbolBytes = AsBytes(symbols);
@@ -268,7 +268,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .type = SHT_PROGBITS,
                                        .flags = SHF_ALLOC | SHF_EXECINSTR,
                                        .data = this->_text,
-                                       .alignment = 16});
+                                       .alignment = 16,});
      sections.emplace_back(
           SectionData{.name = ".rodata", .type = SHT_PROGBITS, .flags = SHF_ALLOC, .data = stringData, .alignment = 1});
      sections.emplace_back(SectionData{.name = ".rela.text",
@@ -278,7 +278,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .alignment = alignof(ELFRelocation64),
                                        .entrySize = sizeof(ELFRelocation64),
                                        .link = 5,
-                                       .info = 1});
+                                       .info = 1,});
      sections.emplace_back(SectionData{.name = ".note.GNU-stack",
                                        .type = SHT_PROGBITS,
                                        .flags = 0,
@@ -287,7 +287,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .entrySize = 0,
                                        .link = 0,
                                        .info = 0,
-                                       .nameOffset = 0});
+                                       .nameOffset = 0,});
      sections.emplace_back(SectionData{.name = ".symtab",
                                        .type = SHT_SYMTAB,
                                        .flags = 0,
@@ -295,7 +295,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .alignment = alignof(ELFSymbol64),
                                        .entrySize = sizeof(ELFSymbol64),
                                        .link = 6,
-                                       .info = 4});
+                                       .info = 4,});
      sections.emplace_back(SectionData{.name = ".strtab",
                                        .type = SHT_STRTAB,
                                        .flags = 0,
@@ -304,7 +304,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .entrySize = 0,
                                        .link = 0,
                                        .info = 0,
-                                       .nameOffset = 0});
+                                       .nameOffset = 0,});
 
      std::vector<std::byte> sectionNameStringTable{std::byte{0}};
      for (auto& section : sections) section.nameOffset = AddString(sectionNameStringTable, section.name);
@@ -316,7 +316,7 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
                                        .entrySize = 0,
                                        .link = 0,
                                        .info = 0,
-                                       .nameOffset = 0});
+                                       .nameOffset = 0,});
      sections.back().nameOffset = AddString(sections.back().data, ".shstrtab");
 
      std::vector<std::byte> output(sizeof(ELFHeader64), std::byte{0});

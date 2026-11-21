@@ -82,7 +82,7 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                     Relocation{.symbolName = mangled,
                                .apply = ApplyImportLambda,
                                .applyOutputSize = 2uz,
-                               .isIndirect = function->isDllImportExport}); // Linker pass handles that, hopefully
+                               .isIndirect = function->isDllImportExport,}); // Linker pass handles that, hopefully
 
                const auto prefix = function->isDllImportExport ? ecpps::abi::ABI::Current().importPrefix : "";
                if (!ecpps::codegen::g_functionImports.contains(mangled))

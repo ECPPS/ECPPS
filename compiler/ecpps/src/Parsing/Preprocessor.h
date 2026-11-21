@@ -18,7 +18,7 @@ namespace ecpps
           Number,
           CharacterLiteral,
           StringLiteral,
-          OperatorOrPunctuator
+          OperatorOrPunctuator,
      };
      struct PreprocessingToken
      {
@@ -27,14 +27,14 @@ namespace ecpps
           Location source;
 
           explicit PreprocessingToken(const PreprocessingTokenType type, InternedString value, const Location source)
-              : type(type), value(std::move(value)), source(source)
+              : type(type), value(value), source(source)
           {
           }
      };
      enum struct MacroReplacementType : bool
      {
           FunctionLike = true,
-          ObjectLike = false
+          ObjectLike = false,
      };
 
      struct MacroReplacement

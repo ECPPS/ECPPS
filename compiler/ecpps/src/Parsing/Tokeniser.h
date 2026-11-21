@@ -73,7 +73,7 @@ namespace ecpps
           /// <summary>
           /// :
           /// </summary>
-          Colon
+          Colon,
      };
      struct StringLiteral
      {
@@ -105,7 +105,7 @@ namespace ecpps
           Location location;
 
           explicit Token(const TokenType type, TokenValue value, const Location location)
-              : type(type), value(std::move(value)), location(location)
+              : type(type), value(value), location(location)
           {
           }
 
@@ -207,9 +207,9 @@ namespace ecpps
                                                                runtime_assert(false,
                                                                               "Invalid user-defined literal value");
                                                                std::terminate();
-                                                          }},
+                                                          },},
                                                      udLit.value);
-                                           }},
+                                           },},
                          this->value);
                case TokenType::LeftParenthesis: return "(";
                case TokenType::RightParenthesis: return ")";

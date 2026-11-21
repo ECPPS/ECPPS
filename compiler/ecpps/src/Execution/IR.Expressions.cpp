@@ -57,13 +57,13 @@ using ecpps::ir::detail::LevenshteinDistance;
 using OverloadCandidateDiagnostic = ecpps::ir::overloadDiagnostics::Candidate;
 using OverloadCandidateDetail = ecpps::ir::overloadDiagnostics::CandidateDetail;
 using OverloadSimilarName = ecpps::ir::overloadDiagnostics::SimilarName;
-using SimilarNamesKind = ecpps::ir::overloadDiagnostics::SimilarNamesKind;
+using ecpps::ir::overloadDiagnostics::SimilarNamesKind;
 
 template <std::ranges::input_range Range, typename Ranker> auto SelectUniqueBest(const Range& candidates, Ranker ranker)
 {
      using Candidate = std::ranges::range_value_t<Range>;
      using Projection = std::invoke_result_t<Ranker&, std::ranges::range_reference_t<const Range>>;
-     using Rank = typename Projection::value_type;
+     using Rank = Projection::value_type;
      std::optional<std::pair<Candidate, Rank>> best{};
      bool ambiguous = false;
      for (const auto& candidate : candidates)
@@ -75,8 +75,9 @@ template <std::ranges::input_range Range, typename Ranker> auto SelectUniqueBest
                best.emplace(candidate, *rank);
                ambiguous = false;
           }
-          else if (*rank == best->second)
+          else if (*rank == best->second) {
                ambiguous = true;
+}
      }
      return std::pair{std::move(best), ambiguous};
 }
@@ -141,7 +142,7 @@ static ecpps::typeSystem::NonowningTypePointer RemoveConstFromClassType(const ec
           classType->IsVolatile() ? ecpps::typeSystem::Qualifiers::Volatile : ecpps::typeSystem::Qualifiers::None;
      return typeContext.Get(ecpps::ir::TypeRequest{.kind = ecpps::ir::TypeKind::Compound,
                                                    .qualifiers = qualifiers,
-                                                   .data = ecpps::ir::ClassRequest{.id = classType->Info().id}});
+                                                   .data = ecpps::ir::ClassRequest{.id = classType->Info().id},});
 }
 
 static bool CanModelSuggestionArguments(const std::vector<ecpps::ir::FunctionScope::Parameter>& parameters,
@@ -1256,12 +1257,13 @@ Expression ecpps::ir::IR::ParseBinaryExpression(const ast::BinaryOperatorNode& n
                               bestMember = CompareByPriority::Candidate{.argumentScore = score,
                                                                         .objectQualificationPenalty =
                                                                              objectQualificationPenalty,
-                                                                        .function = candidate};
+                                                                        .function = candidate,};
                               memberAmbiguous = false;
                          }
                          else if (score == bestMember->argumentScore &&
-                                  objectQualificationPenalty == bestMember->objectQualificationPenalty)
+                                  objectQualificationPenalty == bestMember->objectQualificationPenalty) {
                               memberAmbiguous = true;
+}
                     }
                }
           }
@@ -1499,8 +1501,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           receiverPointer = ParseAddressOfExpression(std::move(receiver), memberAccess.Source());
           if (receiverPointer == nullptr) return nullptr;
      }
-     else
+     else {
           return report("Expected '.' or '->' for member function access", memberAccess.Source());
+}
 
      const auto* pointerType = receiverPointer->Type()->CastTo<typeSystem::PointerType>();
      const auto* classType =
@@ -1610,7 +1613,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                                               const ecpps::ir::detail::CandidateFailureInfo* failureInfo)
      {
           OverloadCandidateDiagnostic candidate{.signature = FormatFunctionSignature(function),
-                                                .source = function->source};
+                                                .source = function->source,};
           if (includeArgumentFailures)
           {
                const auto calculatedFailureInfo = failureInfo == nullptr ? AnalyseCandidateFailure(function, arguments)
@@ -1635,7 +1638,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                               followup = "Did you mean to dereference the argument?";
                     }
                     candidate.details.push_back(OverloadCandidateDetail{
-                         .message = failure, .source = failureSource, .followup = std::move(followup)});
+                         .message = failure, .source = failureSource, .followup = std::move(followup),});
                }
           }
           if (includeReceiverFailures)
@@ -1649,7 +1652,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                          candidate.details.push_back(
                               OverloadCandidateDetail{.message = "The implied object argument is declared const here",
                                                       .source = constObjectDeclaration->second,
-                                                      .followup = "Suggestion: remove const from this declaration"});
+                                                      .followup = "Suggestion: remove const from this declaration",});
                }
 
           if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess))
@@ -1675,10 +1678,10 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
           if (!match) continue;
           candidates.push({.argumentScore = match,
                            .objectQualificationPenalty = objectQualificationPenalty,
-                           .function = candidate});
+                           .function = candidate,});
      }
 
-     const auto collectSimilarMembers = [&]()
+     const auto collectSimilarMembers = [&]
      {
           std::vector<OverloadSimilarName> suggestions{};
           const std::size_t maximumDistance = std::max<std::size_t>(3, memberName->Value().length() / 3);
@@ -1697,7 +1700,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                          OverloadSimilarName{.name = functionName,
                                              .source = function->source,
                                              .distance = distance,
-                                             .argumentFailureCount = std::numeric_limits<std::size_t>::max()});
+                                             .argumentFailureCount = std::numeric_limits<std::size_t>::max(),});
                     suggestion = std::prev(suggestions.end());
                }
                const auto match = MatchFunction(function, arguments);
@@ -1721,7 +1724,7 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
                                              .source = field.source,
                                              .distance = distance,
                                              .argumentFailureCount = std::numeric_limits<std::size_t>::max(),
-                                             .isDataMember = true});
+                                             .isDataMember = true,});
                else
                     suggestion->isDataMember = true;
           }
@@ -1811,8 +1814,9 @@ Expression ecpps::ir::IR::ParseMemberCallExpression(const ast::CallOperatorNode&
      {
           [[maybe_unused]] const auto* evaluatedReceiver = LowerExpression(std::move(receiverPointer), this->_built);
      }
-     else
+     else {
           evaluatedArguments.push_back(std::move(receiverPointer));
+}
      for (std::size_t index = 0; index < arguments.size(); index++)
           evaluatedArguments.push_back(PrepareByValueArgument(
                std::move(arguments[index]), candidate->parameters[index].type, node.Arguments()[index]->Source()));
@@ -1923,7 +1927,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      {
           OverloadCandidateDiagnostic diagnostic{.signature = FormatFunctionSignature(candidate),
                                                  .source = candidate->source,
-                                                 .isDeleted = candidate->isDeleted};
+                                                 .isDeleted = candidate->isDeleted,};
           const auto matchedCount = std::min(arguments.size(), candidate->parameters.size());
           for (std::size_t index = 0; index < matchedCount; ++index)
           {
@@ -1937,7 +1941,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                               "Argument {} of type '{}' cannot {} parameter '{}' of type '{}'", index + 1,
                               argument->Type()->Name(), referenceType != nullptr ? "bind to" : "convert to",
                               parameter.name.empty() ? "<unnamed>" : parameter.name, parameter.type->Name()),
-                         .source = argument->Value()->Source()});
+                         .source = argument->Value()->Source(),});
                }
           }
           if (arguments.size() < candidate->parameters.size())
@@ -1948,13 +1952,13 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                     diagnostic.details.push_back(OverloadCandidateDetail{
                          .message = std::format("Expected at least {} argument{}, got {}", requiredCount,
                                                 requiredCount == 1 ? "" : "s", arguments.size()),
-                         .source = source});
+                         .source = source,});
           }
           if (arguments.size() > candidate->parameters.size() && !candidate->isVariadic)
                for (std::size_t index = candidate->parameters.size(); index < arguments.size(); ++index)
                     diagnostic.details.push_back(OverloadCandidateDetail{
                          .message = std::format("Argument {} has no corresponding parameter", index + 1),
-                         .source = arguments[index] != nullptr ? arguments[index]->Value()->Source() : source});
+                         .source = arguments[index] != nullptr ? arguments[index]->Value()->Source() : source,});
           for (const auto& failure : receiverFailuresFor(candidate))
           {
                diagnostic.details.push_back(OverloadCandidateDetail{.message = failure, .source = source});
@@ -1964,7 +1968,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                     diagnostic.details.push_back(
                          OverloadCandidateDetail{.message = "The implied object argument is declared const here",
                                                  .source = constObjectDeclaration->second,
-                                                 .followup = "Suggestion: remove const from this declaration"});
+                                                 .followup = "Suggestion: remove const from this declaration",});
           }
           if (!this->CanAccess(candidate->memberClassInfo->id, candidate->memberAccess))
           {
@@ -1992,7 +1996,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
           if (score != MatchingScore::NotMatching)
                candidates.push({.argumentScore = score,
                                 .objectQualificationPenalty = objectQualificationPenalty,
-                                .function = candidate});
+                                .function = candidate,});
      }
 
      std::vector<OverloadCandidateDiagnostic> candidateDiagnostics{};
@@ -2028,7 +2032,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
           candidateDiagnostics.clear();
           for (const auto& candidate : tiedBestCandidates)
                candidateDiagnostics.push_back(OverloadCandidateDiagnostic{
-                    .signature = FormatFunctionSignature(candidate), .source = candidate->source});
+                    .signature = FormatFunctionSignature(candidate), .source = candidate->source,});
           DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::AmbiguousOverload(
                                                           classType->Info().DisplayName() + "::" + std::string{name},
                                                           source, candidateDiagnostics));
@@ -2041,7 +2045,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      {
           const auto diagnosticCandidate = OverloadCandidateDiagnostic{.signature = FormatFunctionSignature(candidate),
                                                                        .source = candidate->source,
-                                                                       .isDeleted = candidate->isDeleted};
+                                                                       .isDeleted = candidate->isDeleted,};
           DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::SelectedOverloadFailure(
                                                           diagnosticCandidate.signature, source, !isAccessible,
                                                           candidate->isDeleted, diagnosticCandidate));
@@ -2074,8 +2078,8 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
      else
      {
           Expression objectPointer{};
-          if (object->IsGLValue()) objectPointer = ParseAddressOfExpression(std::move(object), source);
-          else
+          if (object->IsGLValue()) { objectPointer = ParseAddressOfExpression(std::move(object), source);
+          } else
           {
                const auto* objectType = object->Type();
                const auto* objectStorage = LowerExpression(std::move(object), this->_built);
@@ -2332,9 +2336,8 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                if (candidate->Name() != name) continue;
 
                std::size_t objectQualificationPenalty{};
-               if (candidate->memberClassInfo != nullptr)
-               {
-                    if (!candidate->isStatic)
+               if ((candidate->memberClassInfo != nullptr) && (!candidate->isStatic))
+
                     {
                          typeSystem::NonowningTypePointer receiverType{};
                          if (!this->_objectInitialisationStack.empty())
@@ -2376,14 +2379,14 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                          if (!receiverClass->IsVolatile() && candidate->memberFunctionInfo.isVolatile)
                               objectQualificationPenalty++;
                     }
-               }
+
 
                didMatchName = true;
                const auto match = ecpps::ir::IR::MatchFunction(candidate, arguments);
                if (!match) continue;
                candidates.push({.argumentScore = match,
                                 .objectQualificationPenalty = objectQualificationPenalty,
-                                .function = candidate});
+                                .function = candidate,});
           }
 
           if (candidates.empty()) continue;
@@ -2500,7 +2503,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
      const auto makeCandidateDiagnostic = [&](const std::shared_ptr<FunctionScope>& function)
      {
           OverloadCandidateDiagnostic candidate{.signature = FormatFunctionSignature(function),
-                                                .source = function->source};
+                                                .source = function->source,};
           const auto failureInfo = AnalyseCandidateFailure(function, argumentsForAnalysis);
           for (const auto& [parameterIndex, failure] : failureInfo.parameterFailures)
           {
@@ -2520,11 +2523,11 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                          followup = "Did you mean to dereference the argument?";
                }
                candidate.details.push_back(OverloadCandidateDetail{
-                    .message = failure, .source = argumentSource, .followup = std::move(followup)});
+                    .message = failure, .source = argumentSource, .followup = std::move(followup),});
           }
           return candidate;
      };
-     const auto collectSimilarFunctions = [&]()
+     const auto collectSimilarFunctions = [&]
      {
           std::vector<OverloadSimilarName> similarNames{};
           const std::size_t maximumDistance = std::max<std::size_t>(3, name.length() / 3);
@@ -2544,7 +2547,7 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                               OverloadSimilarName{.name = functionName,
                                                   .source = identifierFunction->Source(),
                                                   .distance = distance,
-                                                  .argumentFailureCount = std::numeric_limits<std::size_t>::max()});
+                                                  .argumentFailureCount = std::numeric_limits<std::size_t>::max(),});
                          suggestion = std::prev(similarNames.end());
                     }
                     const bool acceptsArguments = static_cast<bool>(MatchFunction(function, argumentsForAnalysis));
@@ -2580,8 +2583,9 @@ Expression ecpps::ir::IR::ParseCallExpression(const ast::CallOperatorNode& node)
                for (const auto& qualifier : qualifiers) displayName += (displayName.empty() ? "" : "::") + qualifier;
                displayName += (displayName.empty() ? "" : "::") + name;
           }
-          else if (exactMatches.front()->memberClassInfo != nullptr)
+          else if (exactMatches.front()->memberClassInfo != nullptr) {
                displayName = exactMatches.front()->memberClassInfo->DisplayName() + "::" + name;
+}
           DiagnosticSink::Report(this->GetContext(),
                                  ecpps::ir::overloadDiagnostics::NoMatchingOverload(
                                       displayName, identifierFunction->Source(), candidateDiagnostics, similarNames,
@@ -2602,7 +2606,7 @@ Expression ecpps::ir::IR::ParseStringLiteral(const ast::StringLiteralNode& expre
      const auto* elementType =
           GetTypeContext().Get(TypeRequest{.kind = TypeKind::Fundamental,
                                            .qualifiers = typeSystem::Qualifiers::Const,
-                                           .data = StandardSignedIntegerRequest{.isCharWithoutSign = true}});
+                                           .data = StandardSignedIntegerRequest{.isCharWithoutSign = true},});
      std::vector<std::uint32_t> values{};
      values.reserve(length + 1);
      for (const auto character : expression.Value()) values.emplace_back(character);
@@ -2656,8 +2660,9 @@ Expression ecpps::ir::IR::ParseSizeofExpression(const ast::SizeOfNode& expressio
                                              basicTypeNode->Source()};
           operand = ParseIdExpression(identifierNode);
      }
-     else
+     else {
           operand = ParseExpression(expression.Value());
+}
 
      if (operand == nullptr) return nullptr;
 
@@ -2717,8 +2722,9 @@ Expression ecpps::ir::IR::ParseAlignofExpression(const ast::AlignOfNode& express
                                              basicTypeNode->Source()};
           operand = ParseIdExpression(identifierNode);
      }
-     else
+     else {
           operand = ParseExpression(expression.Value());
+}
 
      if (operand == nullptr) return nullptr;
 
@@ -2775,7 +2781,7 @@ Expression ecpps::ir::IR::ParseIdExpression(const ast::IdentifierNode& expressio
 
      if (name == "this") return this->ParseThisExpression(expression.Source());
 
-     const auto lookupLocal = [&]() -> Expression
+     const auto lookupLocal = [&] -> Expression
      {
           bool isInnermostContext = true;
           for (const auto& context : this->GetContext().contextSequence | std::views::reverse)

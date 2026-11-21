@@ -40,7 +40,7 @@ namespace ecpps::ir::overloadDiagnostics
      enum struct SimilarNamesKind : std::uint8_t
      {
           Functions,
-          Members
+          Members,
      };
 
      [[nodiscard]] std::unique_ptr<diagnostics::TypeError> NoMatchingOverload(

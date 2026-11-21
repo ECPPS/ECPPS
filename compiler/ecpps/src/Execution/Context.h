@@ -36,14 +36,14 @@ namespace ecpps::ir
      {
           Compound,
           Fundamental,
-          Error
+          Error,
      };
      enum struct PlatformIntegerKind : std::uint_fast8_t
      {
           Size,    // size_t
           PtrDiff, // ptrdiff_t
           UIntPtr, // uintptr_t
-          IntPtr   // intptr_t
+          IntPtr,   // intptr_t
      };
      struct PlatformIntegerRequest
      {
@@ -256,12 +256,13 @@ namespace ecpps::ir
                          else if constexpr (std::is_same_v<T, BooleanRequest>)
                          {
                          }
-                         else if constexpr (std::is_same_v<T, ClassRequest>)
+                         else if constexpr (std::is_same_v<T, ClassRequest>) {
                               seed = HashCombine(seed, data.id);
-                         else if constexpr (std::is_same_v<T, InvalidRequest>)
+                         } else if constexpr (std::is_same_v<T, InvalidRequest>) {
                               seed = HashCombine(seed, &data);
-                         else
+                         } else {
                               std::terminate();
+}
                     },
                     value.data);
 
@@ -632,7 +633,7 @@ namespace ecpps::ir
      {
           None,
           ByValueParameter,
-          ByValueArgument
+          ByValueArgument,
      };
 
      struct AutomaticObject
@@ -689,7 +690,7 @@ namespace ecpps::ir
           enum struct NodeType : std::uint_fast8_t
           {
                Local,
-               Parameter
+               Parameter,
           };
           struct SSANode
           {
@@ -721,7 +722,7 @@ namespace ecpps::ir
      {
           None,
           Constexpr,
-          Consteval
+          Consteval,
      };
      struct TemplateParameter
      {
@@ -854,7 +855,7 @@ namespace ecpps::ir
                     if (!this->parameters.empty()) result += ", ";
                     result += "...";
                }
-               result += ")";
+               result += ')';
                return result;
           }
 
@@ -895,7 +896,7 @@ namespace ecpps::ir
           IsDllImportExport = 1024,
           NamespacePath = 2048,
           All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
-               IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath
+               IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath,
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept

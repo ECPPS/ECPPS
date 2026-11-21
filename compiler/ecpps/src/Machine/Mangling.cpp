@@ -160,14 +160,14 @@ static std::string MangleMemberBlock(const ecpps::abi::MemberFunctionInfo& membe
      {
           runtime_assert(!member.isConst && !member.isVolatile && member.refQualifier == MemberRefQualifier::None,
                          "A static member function cannot have cv- or ref-qualifiers");
-          block += "s";
+          block += 's';
      }
      else
      {
           if (member.isConst) block += ConstQualifier;
           if (member.isVolatile) block += VolatileQualifier;
-          if (member.refQualifier == MemberRefQualifier::LValue) block += "l";
-          if (member.refQualifier == MemberRefQualifier::RValue) block += "r";
+          if (member.refQualifier == MemberRefQualifier::LValue) block += 'l';
+          if (member.refQualifier == MemberRefQualifier::RValue) block += 'r';
      }
      return block + ";";
 }
@@ -209,7 +209,7 @@ static std::string BuildName(const ecpps::abi::Linkage linkage, const std::strin
      }
 
      built += returnType == nullptr ? std::string{"v"} : MangleTypeImpl(returnType, true);
-     built += "@";
+     built += '@';
      built += MangleIdentifier(name);
      for (const auto& param : parameters) built += "$" + MangleParameter(param);
      if (parameters.empty()) built += "$v";

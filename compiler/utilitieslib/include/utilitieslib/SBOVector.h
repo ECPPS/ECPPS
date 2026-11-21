@@ -9,7 +9,7 @@
 #include <type_traits>
 #include <utility>
 
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
 #define ECPPS_SBO_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
 #else
 #define ECPPS_SBO_NO_UNIQUE_ADDRESS [[no_unique_address]]
@@ -389,8 +389,9 @@ namespace ecpps
                     this->_capacity = static_cast<TSize>(count);
                     block.Release();
                }
-               else
+               else {
                     fill(InlinePtr());
+}
 
                this->_size = static_cast<TSize>(count);
           }

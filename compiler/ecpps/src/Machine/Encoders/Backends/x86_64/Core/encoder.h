@@ -25,7 +25,7 @@ namespace ecpps::abi::encoders::x8664
      {
           Register,
           Memory,
-          Integer
+          Integer,
      };
 
      struct X8664InstructionName
@@ -63,13 +63,13 @@ namespace ecpps::abi::encoders::x8664
      {
           None,
           Moderate,
-          Aggressive
+          Aggressive,
      };
 
      enum struct FramePointer : std::uint8_t
      {
           Keep,
-          Omit
+          Omit,
      };
 
      [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const EncodingSpillage optimisation) noexcept
@@ -103,7 +103,7 @@ namespace ecpps::abi::encoders::x8664
                R13,
                R14,
                R15,
-               Rip
+               Rip,
           };
 
           enum struct Width : std::uint8_t
@@ -111,7 +111,7 @@ namespace ecpps::abi::encoders::x8664
                W8 = 8,
                W16 = 16,
                W32 = 32,
-               W64 = 64
+               W64 = 64,
           };
           [[nodiscard]] constexpr auto operator<(const Width left, const Width right)
           {
@@ -387,7 +387,7 @@ namespace ecpps::abi::encoders::x8664
                          cells.push_back(Cell{.reg = reg,
                                               .owner = occupancyIterator == this->_occupancy.end()
                                                             ? std::nullopt
-                                                            : std::optional{occupancyIterator->second}});
+                                                            : std::optional{occupancyIterator->second},});
                     }
 
                     return cells;
@@ -450,14 +450,14 @@ namespace ecpps::abi::encoders::x8664
           {
                if (const auto* s = std::get_if<StackOperand>(&this->base))
                     return StackOperand{.offset =
-                                             static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset)};
+                                             static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset),};
                if (const auto* m = std::get_if<MemoryOperand>(&this->base))
                     return MemoryOperand{.relativeTo = m->relativeTo,
-                                         .offset = static_cast<std::int32_t>(m->offset + offset)};
+                                         .offset = static_cast<std::int32_t>(m->offset + offset),};
                if (const auto* str = std::get_if<StringAddressOperand>(&this->base))
                     return StringAddressOperand{
                          .tableIndex = str->tableIndex,
-                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset)};
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset),};
                throw TracedException("Memory location must be a stack, memory or string address operand");
           }
      };

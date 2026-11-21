@@ -48,7 +48,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitXchg(
                               [](auto&&...) -> std::vector<std::byte>
                               {
                                    throw TracedException("invalid XCHG source");
-                              }},
+                              },},
                          source);
                },
                [&](const abi::encoders::x8664::MemoryOperand destination) -> std::vector<std::byte>
@@ -68,7 +68,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitXchg(
                               [](auto&&...) -> std::vector<std::byte>
                               {
                                    throw TracedException("XCHG cannot exchange memory with memory/immediate");
-                              }},
+                              },},
                          source);
                },
                [](const abi::encoders::x8664::StackOperand&) -> std::vector<std::byte>
@@ -78,6 +78,6 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitXchg(
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid XCHG destination");
-               }},
+               },},
           instruction.modifiedDestination);
 }

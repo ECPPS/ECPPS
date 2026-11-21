@@ -49,7 +49,7 @@ static std::vector<std::byte> AsmMul(Width width, const Operand& operand)
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid MUL operand");
-               }},
+               },},
           operand);
 }
 
