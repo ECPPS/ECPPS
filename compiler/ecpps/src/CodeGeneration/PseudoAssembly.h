@@ -83,7 +83,7 @@ namespace ecpps::codegen
      };
      struct VirtualNotFoundError : std::logic_error
      {
-          VirtualNotFoundError(std::logic_error error) : logic_error(std::move(error))
+          explicit VirtualNotFoundError(std::logic_error error) : logic_error(std::move(error))
           {
           }
      };
@@ -376,7 +376,7 @@ namespace ecpps::codegen
 
                _stringTable.emplace_back(static_cast<std::uint32_t>(value.size()), offset);
 
-               ByteView view{offset, value.size()};
+               ByteView view{.begin = offset, .end = value.size()};
                _exactLookup.emplace(view, index);
                _contentLookup.emplace(contentHash, index);
 

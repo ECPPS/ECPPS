@@ -20,14 +20,14 @@ TEST_CASE("E2E - Simple int main returns zero", "[e2e][basic]")
           TempFile source_file(source, ".cpp");
 
           INFO("Testing compilation of simplest program");
-          INFO("Source file: " << source_file.path());
+          INFO("Source file: " << source_file.Path());
 
           // TODO: Invoke compiler
           // auto result = CompileAndRun(source_file.path());
           // REQUIRE(result.exit_code == 0);
 
           // For now, just verify we can create the file
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -43,7 +43,7 @@ TEST_CASE("E2E - Arithmetic operations", "[e2e][arithmetic]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
 
           INFO("Testing arithmetic: 5 + 7 should equal 12");
           // TODO: Compile, run, verify exit code is 0
@@ -61,7 +61,7 @@ TEST_CASE("E2E - Arithmetic operations", "[e2e][arithmetic]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("Complex arithmetic expression")
@@ -74,7 +74,7 @@ TEST_CASE("E2E - Arithmetic operations", "[e2e][arithmetic]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -94,7 +94,7 @@ TEST_CASE("E2E - Function calls", "[e2e][functions]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
 
           INFO("Testing function call with parameters");
      }
@@ -118,7 +118,7 @@ TEST_CASE("E2E - Function calls", "[e2e][functions]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("Nested function calls")
@@ -133,7 +133,7 @@ TEST_CASE("E2E - Function calls", "[e2e][functions]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -157,7 +157,7 @@ TEST_CASE("E2E - Control flow", "[e2e][control_flow]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("For loop")
@@ -173,7 +173,7 @@ TEST_CASE("E2E - Control flow", "[e2e][control_flow]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -191,7 +191,7 @@ TEST_CASE("E2E - Pointers", "[e2e][pointers]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      // SECTION("Pointer arithmetic") {
@@ -238,7 +238,7 @@ TEST_CASE("E2E - Arrays", "[e2e][arrays]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("Array initialisation")
@@ -251,7 +251,7 @@ TEST_CASE("E2E - Arrays", "[e2e][arrays]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -273,7 +273,7 @@ TEST_CASE("E2E - Variable types", "[e2e][types]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("Unsigned types")
@@ -288,7 +288,7 @@ TEST_CASE("E2E - Variable types", "[e2e][types]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }
 
@@ -305,7 +305,7 @@ TEST_CASE("E2E - Expressions", "[e2e][expressions]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 
      SECTION("Logical operators")
@@ -320,6 +320,6 @@ TEST_CASE("E2E - Expressions", "[e2e][expressions]")
         )";
 
           TempFile source_file(code, ".cpp");
-          REQUIRE(std::filesystem::exists(source_file.path()));
+          REQUIRE(std::filesystem::exists(source_file.Path()));
      }
 }

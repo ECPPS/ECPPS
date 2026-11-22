@@ -117,9 +117,11 @@ namespace ecpps::abi::encoders::x8664
                          .kind = api::AggregatePassingKind::Direct,
                          .pieces =
                               {
-                                   {.offset = 0,
-                                    .size = info.size,
-                                    .registerClass = api::AggregateRegisterClass::Integer},
+                                   {
+                                        .offset = 0,
+                                        .size = info.size,
+                                        .registerClass = api::AggregateRegisterClass::Integer,
+                                   },
                               },
                     };
                default: return {.kind = api::AggregatePassingKind::Unsupported};

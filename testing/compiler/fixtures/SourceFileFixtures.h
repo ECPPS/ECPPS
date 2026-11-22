@@ -3,27 +3,24 @@
 #include <catch_amalgamated.hpp>
 #include <string_view>
 
-namespace TestHelpers
+/// Pre-defined source code snippets for testing
+namespace TestHelpers::SourceFixtures
 {
 
-     /// Pre-defined source code snippets for testing
-     namespace SourceFixtures
-     {
-
-          constexpr std::string_view SimpleFunction = R"(
+     constexpr std::string_view SimpleFunction = R"(
 int main() { 
     return 0; 
 }
 )";
 
-          constexpr std::string_view ArithmeticExpression = R"(
+     constexpr std::string_view ArithmeticExpression = R"(
 int main() {
     int x = 1 + 2 * 3;
     return x;
 }
 )";
 
-          constexpr std::string_view ControlFlow = R"(
+     constexpr std::string_view ControlFlow = R"(
 int main() {
     int sum = 0;
     for (std::size_t i = 0; i < 10; i++) {
@@ -37,7 +34,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view FunctionCall = R"(
+     constexpr std::string_view FunctionCall = R"(
 int add(int a, int b) {
     return a + b;
 }
@@ -47,7 +44,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view PointerOperations = R"(
+     constexpr std::string_view PointerOperations = R"(
 int main() {
     int x = 42;
     int* p = &x;
@@ -56,7 +53,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view ArrayDeclaration = R"(
+     constexpr std::string_view ArrayDeclaration = R"(
 int main() {
     int arr[10];
     arr[0] = 1;
@@ -65,7 +62,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view PointerArithmetic = R"(
+     constexpr std::string_view PointerArithmetic = R"(
 int main() {
     int arr[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     int* p = arr;
@@ -75,7 +72,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view VariableDeclarations = R"(
+     constexpr std::string_view VariableDeclarations = R"(
 int main() {
     int a = 1;
     long b = 2L;
@@ -86,7 +83,7 @@ int main() {
 }
 )";
 
-          constexpr std::string_view ConstExpressions = R"(
+     constexpr std::string_view ConstExpressions = R"(
 int main() {
     constexpr int x = 10 + 20;
     constexpr int y = x * 2;
@@ -94,6 +91,4 @@ int main() {
 }
 )";
 
-     } // namespace SourceFixtures
-
-} // namespace TestHelpers
+} // namespace TestHelpers::SourceFixtures
