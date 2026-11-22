@@ -145,28 +145,28 @@ TEST_CASE("BumpAllocator - Fixture usage", "[utilities][bump_allocator]")
 {
      SECTION("Small fixture")
      {
-          BumpAllocatorFixture fixture(BumpAllocatorFixture::Size::Small);
+          testHelpers::BumpAllocatorFixture fixture(testHelpers::BumpAllocatorFixture::Size::Small);
           auto* ptr = fixture->Allocate(256);
           REQUIRE((ptr != nullptr)); // NOLINT
      }
 
      SECTION("Medium fixture")
      {
-          BumpAllocatorFixture fixture(BumpAllocatorFixture::Size::Medium);
+          testHelpers::BumpAllocatorFixture fixture(testHelpers::BumpAllocatorFixture::Size::Medium);
           auto* ptr = fixture->Allocate(16uz * 1024);
           REQUIRE((ptr != nullptr)); // NOLINT
      }
 
      SECTION("Large fixture")
      {
-          BumpAllocatorFixture fixture(BumpAllocatorFixture::Size::Large);
+          testHelpers::BumpAllocatorFixture fixture(testHelpers::BumpAllocatorFixture::Size::Large);
           auto* ptr = fixture->Allocate(512uz * 1024);
           REQUIRE((ptr != nullptr)); // NOLINT
      }
 
      SECTION("Custom size fixture")
      {
-          BumpAllocatorFixture fixture(32uz * 1024);
+          testHelpers::BumpAllocatorFixture fixture(32uz * 1024);
           auto* ptr = fixture->Allocate(8uz * 1024);
           REQUIRE((ptr != nullptr)); // NOLINT
      }
