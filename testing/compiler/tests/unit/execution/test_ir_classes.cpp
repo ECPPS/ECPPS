@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 TEST_CASE("Mangling encodes lvalue and rvalue reference types", "[unit][machine][mangling]")
 {

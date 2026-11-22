@@ -3,7 +3,7 @@
 #include <catch_amalgamated.hpp>
 #include <algorithm>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 namespace
 {

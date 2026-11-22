@@ -915,7 +915,9 @@ namespace ecpps::ir
           FunctionScopeBuilder(FunctionScopeBuilder&&) = default;
           FunctionScopeBuilder& operator=(const FunctionScopeBuilder&) = delete;
           FunctionScopeBuilder& operator=(FunctionScopeBuilder&&) = default;
-          template <FunctionScopeBuilderState UState> explicit(false) operator FunctionScopeBuilder<UState>(void) &&
+          template <FunctionScopeBuilderState UState>
+          // NOLINTNEXTLINE(cppcoreguidelines-explicit-constructor)
+          explicit(false) operator FunctionScopeBuilder<UState>(void) &&
           {
                FunctionScopeBuilder<UState> newBuilder{std::exchange(this->_scope, nullptr)};
                return newBuilder;

@@ -361,8 +361,8 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           // Descriptor
           size_t descPos = descIndex * descriptorSize;
           ecpps::linker::win::ImageImportDescriptor desc{};
-          desc.OriginalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
-          desc.FirstThunk = idataVA + static_cast<uint32_t>(iatPtr);
+          desc.originalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
+          desc.firstThunk = idataVA + static_cast<uint32_t>(iatPtr);
 
           // Function thunks
           for (const auto& f : funcs)
@@ -394,7 +394,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           writeString(currentNameOffset, dllName);
           currentNameOffset = AlignUp(currentNameOffset + dllName.size() + 1, 2uz);
 
-          desc.Name = dllRVA;
+          desc.name = dllRVA;
           ensureSize(descPos + descriptorSize);
           std::memcpy(buffer.data() + descPos, &desc, descriptorSize);
 
@@ -415,13 +415,13 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
 {
      // Add export directory
      ImageExportDirectory exportDirectory{};
-     exportDirectory.Characteristics = 0;
-     exportDirectory.TimeDateStamp = static_cast<std::uint32_t>(std::time(nullptr));
-     exportDirectory.MajorVersion = 1;
-     exportDirectory.MinorVersion = 0;
-     exportDirectory.Base = 1; // Start ordinals from 1
-     exportDirectory.NumberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
-     exportDirectory.NumberOfNames = static_cast<std::uint32_t>(this->exports.size());
+     exportDirectory.characteristics = 0;
+     exportDirectory.timeDateStamp = static_cast<std::uint32_t>(std::time(nullptr));
+     exportDirectory.majorVersion = 1;
+     exportDirectory.minorVersion = 0;
+     exportDirectory.base = 1; // Start ordinals from 1
+     exportDirectory.numberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
+     exportDirectory.numberOfNames = static_cast<std::uint32_t>(this->exports.size());
 
      std::vector<std::byte> exportData{};
 
@@ -430,20 +430,20 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      const std::string& dllName = imageName;
      exportData.resize(dllName.size() + 1);
      std::memcpy(exportData.data(), dllName.c_str(), dllName.size() + 1);
-     exportDirectory.Name = currentOffset; // Typically 0 for no name in this case
+     exportDirectory.name = currentOffset; // Typically 0 for no name in this case
 
      currentOffset += AlignUp<std::uint32_t>(static_cast<std::uint32_t>(dllName.size() + 1), 1);
 
      // Calculate RVAs for the function addresses, names, and ordinals
-     exportDirectory.AddressOfFunctions = currentOffset;
+     exportDirectory.addressOfFunctions = currentOffset;
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
-     exportDirectory.AddressOfNames = currentOffset;
+     exportDirectory.addressOfNames = currentOffset;
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
-     exportDirectory.AddressOfNameOrdinals = currentOffset; // Ensure AddressOfNameOrdinals is set
+     exportDirectory.addressOfNameOrdinals = currentOffset; // Ensure AddressOfNameOrdinals is set
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
 
@@ -451,14 +451,14 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      // Serialise function addresses
      for (auto& [name, addr] : this->exports)
      {
-          std::size_t insertPos = (static_cast<std::size_t>(exportDirectory.AddressOfFunctions) - exportRVA) + offset;
+          std::size_t insertPos = (static_cast<std::size_t>(exportDirectory.addressOfFunctions) - exportRVA) + offset;
           if (insertPos + sizeof(std::uint32_t) > exportData.size())
           {
                exportData.resize(insertPos + sizeof(std::uint32_t));
           }
 
           std::uint32_t* pRVA = reinterpret_cast<std::uint32_t*>(exportData.data() + offset +
-                                                                 (exportDirectory.AddressOfFunctions - exportRVA));
+                                                                 (exportDirectory.addressOfFunctions - exportRVA));
           *pRVA = addr;
           addr = currentOffset;
           currentOffset += static_cast<std::uint32_t>(name.size() + 1);
@@ -470,14 +470,14 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      for (const auto& [name, address] : this->exports)
      {
           const std::size_t insertPos = std::max<std::size_t>(
-               address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
+               address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.addressOfNames - exportRVA));
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
           }
 
           std::uint32_t* pRVA = reinterpret_cast<std::uint32_t*>(exportData.data() + offset +
-                                                                 (exportDirectory.AddressOfNames - exportRVA));
+                                                                 (exportDirectory.addressOfNames - exportRVA));
           *pRVA = address;
           std::memcpy(exportData.data() + address - exportRVA, name.c_str(), name.size() + 1);
           offset += sizeof(std::uint32_t);
@@ -486,7 +486,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      offset = 0;
      for (size_t i = 0; i < this->exports.size(); i++)
      {
-          const size_t insertPos = (exportDirectory.AddressOfNameOrdinals - exportRVA) + offset;
+          const size_t insertPos = (exportDirectory.addressOfNameOrdinals - exportRVA) + offset;
 
           if (insertPos + sizeof(std::uint16_t) > exportData.size())
           {

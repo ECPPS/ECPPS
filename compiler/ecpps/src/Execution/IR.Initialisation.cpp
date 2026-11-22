@@ -507,7 +507,7 @@ Expression ecpps::ir::IR::ParseDirectInitialisation(const ecpps::ast::NodePointe
                                                     ecpps::typeSystem::NonowningTypePointer desiredType)
 {
      auto operand = ParseExpression(expression);
-     if ((IsBoolean(desiredType)) && (IsBoolean(operand->Type()))) return operand;
+     if (IsBoolean(desiredType) && IsBoolean(operand->Type())) return operand;
 
      auto converted = ConvertTo(std::move(operand), desiredType);
      if (converted == nullptr)

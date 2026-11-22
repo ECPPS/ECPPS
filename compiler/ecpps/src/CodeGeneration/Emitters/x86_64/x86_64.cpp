@@ -115,14 +115,14 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
 }
 
 void ecpps::codegen::emitters::X8664Emitter::PatchStrings(std::vector<std::byte>& instructions,
-                                                          std::vector<StringPatch> patches,
+                                                          std::vector<StringPatch> stringPatches,
                                                           const AssemblyContext& asmContext, const Routine& routine)
 {
-     this->_stringRelocation.reserve(patches.size());
-     for (const auto& patch : patches)
+     this->stringRelocation.reserve(stringPatches.size());
+     for (const auto& patch : stringPatches)
      {
           const auto index = asmContext.GetStringOffset(patch.string);
           std::memcpy(&instructions[patch.instructionOffset + 3], &index, sizeof(std::uint32_t));
-          this->_stringRelocation.push_back(patch.instructionOffset + routine.emittedOffset + 3);
+          this->stringRelocation.push_back(patch.instructionOffset + routine.emittedOffset + 3);
      }
 }

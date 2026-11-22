@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 
 static bool AreEqual(const std::vector<std::byte>& a, const std::vector<std::byte>& b) noexcept
 {

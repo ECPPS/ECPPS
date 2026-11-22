@@ -424,7 +424,7 @@ namespace ecpps::ir
 
           [[nodiscard]] TypeNameLookup LookupTypeName(const std::string& name) const; // ordinary lookup
           [[nodiscard]] std::optional<typeSystem::ClassId> LookupClassForElaboration(const std::string& name,
-                                                                                     const Location&);
+                                                                                     const Location& /*source*/);
           [[nodiscard]] Scope& NearestNamespaceOrBlockScope(void) const;
           [[nodiscard]] std::vector<typeSystem::ScopeSegment> EnclosingPathUpTo(const Scope& target) const;
           typeSystem::ClassId DeclareClassInScope(Scope& scope, const ast::ClassType& node);
@@ -511,9 +511,11 @@ namespace ecpps::ir
                          dynamic_cast<const FunctionContext*>(ir.GetContext().contextSequence.back().get());
                     const auto depth = function == nullptr ? 0 : function->automaticObjects.size();
                     this->_depth = depth;
-                    this->_ir->_jumpStack.push_back({.breakLabel = std::move(breakLabel),
-                                                     .continueLabel = std::move(continueLabel),
-                                                     .destructionDepth = depth});
+                    this->_ir->_jumpStack.push_back({
+                         .breakLabel = std::move(breakLabel),
+                         .continueLabel = std::move(continueLabel),
+                         .destructionDepth = depth,
+                    });
                }
                JumpScope(const JumpScope&) = delete;
                JumpScope& operator=(const JumpScope&) = delete;

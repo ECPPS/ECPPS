@@ -6,7 +6,7 @@
 #include <TypeSystem/TypeBase.h>
 #include <catch_amalgamated.hpp>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 using ecpps::typeSystem::Qualifiers;
 using ecpps::typeSystem::Signedness;
 using ecpps::typeSystem::TypeTraitEnum;

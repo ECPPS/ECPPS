@@ -10,7 +10,7 @@
 #include <memory>
 #include <string_view>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][codegen]")
 {

@@ -511,7 +511,7 @@ namespace
                     auto machineCode = emitter.EmitRoutine(routine);
                     routine.currentScope->emittedOffset = routine.emittedOffset;
                     emitter.PatchCalls(machineCode, routine);
-                    emitter.PatchStrings(machineCode, std::exchange(emitter._patches, {}), asmContext, routine);
+                    emitter.PatchStrings(machineCode, std::exchange(emitter.patches, {}), asmContext, routine);
 
                     routines.emplace(routine.name, generatedMachineCode.size());
 
@@ -812,7 +812,7 @@ int main(int argc, char* argv[])
 
           const auto imageBytes = ecpps::linker::Linker::SelectAndLink(
                config, generatedMachineCode, functions, mainOffset, emitter->linkerForwardedRelocations, codeSection,
-               emitter->_stringRelocation, 4, stringBytes);
+               emitter->stringRelocation, 4, stringBytes);
 
           if (imageBytes.empty())
           {

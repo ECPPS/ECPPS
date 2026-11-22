@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace TestHelpers
+namespace testHelpers
 {
 
      /// Create a diagnostics instance for testing
@@ -136,4 +136,4 @@ namespace TestHelpers
           return result;
      }
 
-} // namespace TestHelpers
+} // namespace testHelpers

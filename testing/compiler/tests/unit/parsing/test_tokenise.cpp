@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 using namespace ecpps;
 
 static ast::ASTContext& TestASTContext(void)

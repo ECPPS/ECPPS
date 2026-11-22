@@ -4,7 +4,7 @@
 #include <string_view>
 
 /// Pre-defined source code snippets for testing
-namespace TestHelpers::SourceFixtures
+namespace testHelpers::sourceFixtures
 {
 
      constexpr std::string_view SimpleFunction = R"(
@@ -91,4 +91,4 @@ int main() {
 }
 )";
 
-} // namespace TestHelpers::SourceFixtures
+} // namespace testHelpers::sourceFixtures

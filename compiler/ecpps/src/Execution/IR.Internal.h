@@ -29,10 +29,10 @@ namespace ecpps::ir::detail
                                                    std::size_t maximumDistance);
      [[nodiscard]] std::uint64_t ConvertConstant(std::uint64_t value, const typeSystem::IntegralType* from,
                                                  const typeSystem::IntegralType* to);
-     [[nodiscard]] std::vector<std::shared_ptr<FunctionScope>> CollectExactMatches(const std::string&,
-                                                                                   std::deque<ContextPointer>&);
+     [[nodiscard]] std::vector<std::shared_ptr<FunctionScope>> CollectExactMatches(
+          const std::string& /*name*/, std::deque<ContextPointer>& /*contextSequence*/);
      [[nodiscard]] std::vector<std::pair<std::string, std::size_t>> CollectSimilarIdentifierNames(
-          const std::string&, std::deque<ContextPointer>&);
+          const std::string& /*name*/, std::deque<ContextPointer>& /*contextSequence*/);
      struct CandidateFailureInfo
      {
           std::shared_ptr<FunctionScope> function;
@@ -44,18 +44,18 @@ namespace ecpps::ir::detail
           std::size_t cost{};
           bool ambiguous{};
      };
-     [[nodiscard]] std::optional<ConversionFunctionSelection> FindConversionFunction(const Context&, const Expression&,
-                                                                                     typeSystem::NonowningTypePointer,
-                                                                                     bool allowExplicit = false);
+     [[nodiscard]] std::optional<ConversionFunctionSelection> FindConversionFunction(
+          const Context& /*context*/, const Expression& /*expression*/, typeSystem::NonowningTypePointer /*targetType*/,
+          bool allowExplicit = false);
      struct BuiltinArithmeticSelection
      {
           const typeSystem::IntegralType* type{};
           std::size_t cost{};
           bool ambiguous{};
      };
-     [[nodiscard]] std::optional<BuiltinArithmeticSelection> SelectBuiltinArithmeticType(const Context&,
-                                                                                         const Expression&,
-                                                                                         const Expression&);
+     [[nodiscard]] std::optional<BuiltinArithmeticSelection> SelectBuiltinArithmeticType(const Context& /*context*/,
+                                                                                         const Expression& /*left*/,
+                                                                                         const Expression& /*right*/);
      struct CompareByPriority
      {
           struct Candidate
@@ -71,22 +71,22 @@ namespace ecpps::ir::detail
                return a.objectQualificationPenalty > b.objectQualificationPenalty;
           }
      };
-     [[nodiscard]] CandidateFailureInfo AnalyseCandidateFailure(const std::shared_ptr<FunctionScope>&,
-                                                                const std::vector<Expression>&);
-     [[nodiscard]] bool DeclaresNonType(const Scope&, const std::string&);
-     [[nodiscard]] typeSystem::ClassKind ToClassKind(ast::ClassKey);
-     [[nodiscard]] typeSystem::Access ToAccess(ast::AccessSpecifier);
-     [[nodiscard]] typeSystem::Qualifiers QualifiersFrom(bool, bool);
+     [[nodiscard]] CandidateFailureInfo AnalyseCandidateFailure(const std::shared_ptr<FunctionScope>& /*function*/,
+                                                                const std::vector<Expression>& /*arguments*/);
+     [[nodiscard]] bool DeclaresNonType(const Scope& /*scope*/, const std::string& /*name*/);
+     [[nodiscard]] typeSystem::ClassKind ToClassKind(ast::ClassKey /*key*/);
+     [[nodiscard]] typeSystem::Access ToAccess(ast::AccessSpecifier /*spec*/);
+     [[nodiscard]] typeSystem::Qualifiers QualifiersFrom(bool /*isConst*/, bool /*isVolatile*/);
      [[nodiscard]] TypeRequest ErrorRequest(std::vector<diagnostics::DiagnosticsMessage> diagnostics = {});
-     [[nodiscard]] bool IsValidIntegerSpecifierCombination(const std::vector<std::string_view>&);
+     [[nodiscard]] bool IsValidIntegerSpecifierCombination(const std::vector<std::string_view>& /*tokens*/);
      enum struct Derivation : std::uint_fast8_t
      {
           None,
           Pointer,
           Reference,
           Array,
-          Function
+          Function,
      };
-     [[nodiscard]] Derivation LastDerivation(const ast::Declarator&);
-     [[nodiscard]] const ast::IdentifierNode* DeclaratorIdentifier(const ast::Declarator&);
+     [[nodiscard]] Derivation LastDerivation(const ast::Declarator& /*declarator*/);
+     [[nodiscard]] const ast::IdentifierNode* DeclaratorIdentifier(const ast::Declarator& /*declarator*/);
 } // namespace ecpps::ir::detail

@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <vector>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 using namespace ecpps;
 
 TEST_CASE("BumpAllocator - Basic Allocation", "[utilities][bump_allocator]")

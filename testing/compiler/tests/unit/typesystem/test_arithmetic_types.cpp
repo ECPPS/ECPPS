@@ -6,7 +6,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch_amalgamated.hpp>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 using ecpps::typeSystem::Qualifiers;
 using ecpps::typeSystem::Signedness;
 using ecpps::typeSystem::TypeTraitEnum;

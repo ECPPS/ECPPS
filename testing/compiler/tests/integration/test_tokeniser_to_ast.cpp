@@ -10,7 +10,7 @@
 #include <TestHelpers.h>
 #include <catch_amalgamated.hpp>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 using namespace ecpps;
 using namespace ecpps::ast;
 using namespace ecpps::ir;
@@ -33,7 +33,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
 {
      SECTION("Simple function tokenisation and parsing")
      {
-          const auto& source = SourceFixtures::SimpleFunction;
+          const auto& source = sourceFixtures::SimpleFunction;
 
           // Step 1: Preprocess and Tokenise
           auto tokens = TokeniseSource(std::string{source});
@@ -51,7 +51,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
 
      SECTION("Arithmetic expression parsing")
      {
-          const auto& source = SourceFixtures::ArithmeticExpression;
+          const auto& source = sourceFixtures::ArithmeticExpression;
 
           auto tokens = TokeniseSource(std::string{source});
           REQUIRE(!tokens.empty());
@@ -65,7 +65,7 @@ TEST_CASE("Integration - Tokeniser to AST", "[integration][tokeniser_ast]")
 
      // SECTION("Control flow parsing")
      // {
-     //      const auto& source = SourceFixtures::ControlFlow;
+     //      const auto& source = sourceFixtures::ControlFlow;
 
      //      auto tokens = TokeniseSource(std::string{source});
      //      REQUIRE(!tokens.empty());
@@ -82,7 +82,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 {
      SECTION("Simple function to IR")
      {
-          const auto& source = SourceFixtures::SimpleFunction;
+          const auto& source = sourceFixtures::SimpleFunction;
 
           // Tokenise
           auto tokens = TokeniseSource(std::string{source});
@@ -104,7 +104,7 @@ TEST_CASE("Integration - AST to IR", "[integration][ast_ir]")
 
      SECTION("Arithmetic expression to IR")
      {
-          const auto& source = SourceFixtures::ArithmeticExpression;
+          const auto& source = sourceFixtures::ArithmeticExpression;
 
           auto tokens = TokeniseSource(std::string{source});
           Diagnostics diagnostics;
@@ -124,7 +124,7 @@ TEST_CASE("Integration - Full pipeline to code generation", "[integration][full_
 {
      SECTION("Compile simple function")
      {
-          const auto& source = SourceFixtures::SimpleFunction;
+          const auto& source = sourceFixtures::SimpleFunction;
 
           // Step 1: Tokenise
           auto tokens = TokeniseSource(std::string{source});
@@ -256,7 +256,7 @@ TEST_CASE("Integration - Multiple functions", "[integration][multiple_functions]
 {
      SECTION("Parse and generate IR for multiple functions")
      {
-          const auto& source = SourceFixtures::FunctionCall;
+          const auto& source = sourceFixtures::FunctionCall;
 
           auto tokens = TokeniseSource(std::string{source});
           REQUIRE(!tokens.empty()); // NOLINT

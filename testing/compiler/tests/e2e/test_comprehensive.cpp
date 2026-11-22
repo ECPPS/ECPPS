@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-using namespace TestHelpers;
+using namespace testHelpers;
 
 // E2E tests compile actual C++ code through the compiler and verify execution
 // These tests require the full compiler pipeline to be working
@@ -14,7 +14,7 @@ TEST_CASE("E2E - Simple int main returns zero", "[e2e][basic]")
 {
      SECTION("int main() { return 0; }")
      {
-          const auto& source = SourceFixtures::SimpleFunction;
+          const auto& source = sourceFixtures::SimpleFunction;
 
           // Create temporary source file
           TempFile source_file(source, ".cpp");

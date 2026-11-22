@@ -273,7 +273,7 @@ namespace ecpps::codegen
                std::size_t rhsVirtual{};
                ir::abstract::ConditionCode cc{};
           };
-          std::optional<PendingCompare> pendingCompare{};
+          std::optional<PendingCompare> _pendingCompare{};
      };
 
      struct AssemblyContext

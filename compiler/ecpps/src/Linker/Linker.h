@@ -13,7 +13,7 @@ namespace ecpps::linker
      enum struct LinkerBitness : std::uint_fast8_t
      {
           x32,
-          x64
+          x64,
      };
 
      enum struct PESubsystem : std::uint_fast8_t
@@ -30,19 +30,19 @@ namespace ecpps::linker
           EfiRom = 13,
           Xbox = 14,
           WindowsBootApplication = 15,
-          XboxCodeCatalogue = 16
+          XboxCodeCatalogue = 16,
      };
 
      enum struct LinkType : bool
      {
           Executable = true,
-          DynamicLibrary = false
+          DynamicLibrary = false,
      };
 
      enum struct LinkerType : std::uint_fast8_t
      {
           PE,
-          Coff
+          Coff,
      };
      struct LinkerOptionsBase
      {

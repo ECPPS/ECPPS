@@ -60,16 +60,16 @@ namespace ecpps::codegen
 
           static std::unique_ptr<CodeEmitter> New(abi::ISA isa);
           virtual void PatchCalls(std::vector<std::byte>& instructions, const Routine& routine) = 0;
-          virtual void PatchStrings(std::vector<std::byte>& instructions, std::vector<StringPatch> patches,
+          virtual void PatchStrings(std::vector<std::byte>& instructions, std::vector<StringPatch> stringPatches,
                                     const AssemblyContext& asmContext, const Routine& routine) = 0;
 
           LinkerRelocationMap linkerForwardedRelocations{}; // part of the public API
-          std::size_t _stringRelocationSize{};              // in bytes
-          std::vector<std::size_t> _stringRelocation{};
-          std::vector<StringPatch> _patches;
+          std::size_t stringRelocationSize{};               // in bytes
+          std::vector<std::size_t> stringRelocation{};
+          std::vector<StringPatch> patches;
           void AddStringPatch(std::uint32_t instructionOffset, InstructionPatchType patchType, StringIndex index)
           {
-               this->_patches.emplace_back(index, instructionOffset, patchType);
+               this->patches.emplace_back(index, instructionOffset, patchType);
           }
 
      protected:

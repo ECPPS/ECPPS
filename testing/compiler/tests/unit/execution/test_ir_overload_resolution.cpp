@@ -11,7 +11,7 @@
 #include <vector>
 #include <Execution/IR.Internal.h>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 namespace
 {

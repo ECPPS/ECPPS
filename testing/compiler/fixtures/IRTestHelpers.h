@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace IRTestHelpers
+namespace irTestHelpers
 {
      constexpr ecpps::Location Source{1, 1, 1};
 
@@ -30,13 +30,13 @@ namespace IRTestHelpers
           ecpps::BumpAllocator irAllocator{64uz * 1024};
           ecpps::ir::Context context{diagnostics, irAllocator};
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeBasicType(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeBasicType(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::BasicType>(this->astAllocator, this->astAllocator.Intern(name), Source,
                                                          false, false);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeIdentifier(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeIdentifier(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::IdentifierNode>(this->astAllocator, this->astAllocator.Intern(name),
                                                               Source);
@@ -104,7 +104,7 @@ namespace IRTestHelpers
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeStructDefinition(
-               std::string name, const std::vector<std::pair<std::string, std::string>>& fields)
+               const std::string& name, const std::vector<std::pair<std::string, std::string>>& fields)
           {
                std::vector<ecpps::ast::NodePointer> members{};
                members.reserve(fields.size());
@@ -115,7 +115,7 @@ namespace IRTestHelpers
                                                             false, Source);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeClassType(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeClassType(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::ClassType>(this->astAllocator, this->astAllocator.Intern(name),
                                                          ecpps::ast::ClassKey::Struct, false, false, Source);
@@ -144,7 +144,7 @@ namespace IRTestHelpers
                                                                       std::move(body), Source);
           }
 
-          [[nodiscard]] std::vector<ecpps::ir::NodePointer> Parse(std::vector<ecpps::ast::NodePointer> ast)
+          [[nodiscard]] std::vector<ecpps::ir::NodePointer> Parse(const std::vector<ecpps::ast::NodePointer>& ast)
           {
                return ecpps::ir::IR::Parse(this->context, ast);
           }
@@ -200,7 +200,7 @@ namespace IRTestHelpers
                                           return diagnostic != nullptr &&
                                                  diagnostic->Level() == ecpps::diagnostics::DiagnosticsLevel::Error &&
                                                  diagnostic->Name() == "type-error" &&
-                                                 diagnostic->Message().find(message) != std::string::npos;
+                                                 diagnostic->Message().contains(message);
                                      });
      }
-} // namespace IRTestHelpers
+} // namespace irTestHelpers

@@ -110,11 +110,11 @@ std::size_t ecpps::codegen::ParsingContext::CallFunctionIndex(const ir::Function
 void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
-     if (this->pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
+     if (this->_pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
      {
           this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                "Materialising a comparison result outside of a branch is not supported yet", node->Source()));
-          this->pendingCompare.reset();
+          this->_pendingCompare.reset();
      }
 
      try
@@ -1511,7 +1511,7 @@ void ecpps::codegen::ParsingContext::ParseCompareNode(const ir::SSACompareNode& 
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(rhsVirtual).width,
                     "Widths don't match in a comparison");
 
-     this->pendingCompare = PendingCompare{
+     this->_pendingCompare = PendingCompare{
           .resultSsa = node.Result().Index(),
           .lhsSsa = lhsSsa,
           .rhsSsa = rhsSsa,
@@ -1523,16 +1523,16 @@ void ecpps::codegen::ParsingContext::ParseCompareNode(const ir::SSACompareNode& 
 
 void ecpps::codegen::ParsingContext::ParseBranchNode(const ir::SSABranchNode& node)
 {
-     if (!this->pendingCompare.has_value() || this->pendingCompare->resultSsa != node.Condition().Index())
+     if (!this->_pendingCompare.has_value() || this->_pendingCompare->resultSsa != node.Condition().Index())
      {
           this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                "A branch condition must be produced by the comparison immediately preceding it", node.Source()));
-          this->pendingCompare.reset();
+          this->_pendingCompare.reset();
           return;
      }
 
-     const auto pending = this->pendingCompare.value();
-     this->pendingCompare.reset();
+     const auto pending = this->_pendingCompare.value();
+     this->_pendingCompare.reset();
 
      const auto trueId = this->LabelId(node.TrueLabel());
      const auto falseId = this->LabelId(node.FalseLabel());

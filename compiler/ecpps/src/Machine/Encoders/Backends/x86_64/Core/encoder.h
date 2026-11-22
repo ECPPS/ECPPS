@@ -510,7 +510,7 @@ namespace ecpps::abi::encoders::x8664
           void CollectDependencies(ir::abstract::VirtualRegister reg, std::unordered_set<std::size_t>& required);
           [[nodiscard]] std::string DescribeRegisterState(void) const;
 
-          std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
+          std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction& /*instruction*/);
           [[nodiscard]] ir::abstract::VirtualRegisterMap& GetVRM(void) noexcept;
 
           std::vector<ecpps::ir::abstract::Instruction> EnsureMaterialisation(

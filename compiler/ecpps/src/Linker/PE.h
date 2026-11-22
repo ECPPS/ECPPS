@@ -188,33 +188,33 @@ namespace ecpps::linker::win
 
      struct ImageExportDirectory
      {
-          std::uint32_t Characteristics;
-          std::uint32_t TimeDateStamp;
-          std::uint16_t MajorVersion;
-          std::uint16_t MinorVersion;
-          std::uint32_t Name;
-          std::uint32_t Base;
-          std::uint32_t NumberOfFunctions;
-          std::uint32_t NumberOfNames;
-          std::uint32_t AddressOfFunctions;    // RVA from base of image
-          std::uint32_t AddressOfNames;        // RVA from base of image
-          std::uint32_t AddressOfNameOrdinals; // RVA from base of image
+          std::uint32_t characteristics;
+          std::uint32_t timeDateStamp;
+          std::uint16_t majorVersion;
+          std::uint16_t minorVersion;
+          std::uint32_t name;
+          std::uint32_t base;
+          std::uint32_t numberOfFunctions;
+          std::uint32_t numberOfNames;
+          std::uint32_t addressOfFunctions;    // RVA from base of image
+          std::uint32_t addressOfNames;        // RVA from base of image
+          std::uint32_t addressOfNameOrdinals; // RVA from base of image
      };
      struct ImageImportDescriptor
      {
           union
           {
-               std::uint32_t Characteristics;    // 0 for terminating null import descriptor
-               std::uint32_t OriginalFirstThunk; // RVA to original unbound IAT (PIMAGE_THUNK_DATA)
+               std::uint32_t characteristics;    // 0 for terminating null import descriptor
+               std::uint32_t originalFirstThunk; // RVA to original unbound IAT (PIMAGE_THUNK_DATA)
           };
-          std::uint32_t TimeDateStamp; // 0 if not bound,
+          std::uint32_t timeDateStamp; // 0 if not bound,
                                        // -1 if bound, and real date\time stamp
                                        //     in IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT (new BIND)
                                        // O.W. date/time stamp of DLL bound to (Old BIND)
 
-          std::uint32_t ForwarderChain; // -1 if no forwarders
-          std::uint32_t Name;
-          std::uint32_t FirstThunk; // RVA to IAT (if bound this IAT has actual addresses)
+          std::uint32_t forwarderChain; // -1 if no forwarders
+          std::uint32_t name;
+          std::uint32_t firstThunk; // RVA to IAT (if bound this IAT has actual addresses)
      };
 
      struct PEImage
