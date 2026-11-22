@@ -30,8 +30,10 @@ constexpr std::size_t WidthBytes(const ecpps::abi::encoders::x8664::Width width)
 
 static ecpps::abi::encoders::x8664::MemoryOperand OutgoingSlot(const std::size_t rspOffset) noexcept
 {
-     return {.relativeTo = ecpps::abi::encoders::x8664::RegisterIndex::Rsp,
-             .offset = static_cast<std::int32_t>(rspOffset),};
+     return {
+          .relativeTo = ecpps::abi::encoders::x8664::RegisterIndex::Rsp,
+          .offset = static_cast<std::int32_t>(rspOffset),
+     };
 }
 template <>
 std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::

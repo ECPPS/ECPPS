@@ -38,7 +38,8 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid shift source");
-               },},
+               },
+          },
           source);
 }
 
@@ -66,7 +67,8 @@ static std::vector<std::byte> AsmShift(const ShiftOp op, const Width width, cons
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid shift source");
-               },},
+               },
+          },
           source);
 }
 
@@ -78,24 +80,26 @@ static std::vector<std::byte> EmitShift(const ShiftOp op, const ecpps::ir::abstr
      const auto width = shiftInstr.width;
      const auto& source = shiftInstr.source;
 
-     return std::visit(ecpps::OverloadedVisitor{[&](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmShift(op, width, reg, source);
-                                                },
-                                                [&](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmShift(op, width, mem, source);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid shift destination");
-                                                },},
-                       shiftInstr.modifiedDestination);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [&](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmShift(op, width, reg, source);
+               },
+               [&](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmShift(op, width, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid shift destination");
+               },
+          },
+          shiftInstr.modifiedDestination);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLeftShift(

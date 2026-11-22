@@ -126,9 +126,14 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const auto displacement = static_cast<std::uint32_t>(rawValue);
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-          return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister},
-                                            StackOperand{.offset = displacement, .isIncomingParameter = true}),},
-                  .assignedRegister = destinationRegister,};
+          return {
+               .instructions =
+                    {
+                         BuildMov(width, RegisterOperand{destinationRegister},
+                                  StackOperand{.offset = displacement, .isIncomingParameter = true}),
+                    },
+               .assignedRegister = destinationRegister,
+          };
      }
      const RegisterIndex abiRegister = static_cast<RegisterIndex>(rawValue);
 
@@ -138,6 +143,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      if (destinationRegister == abiRegister) return {.instructions = {}, .assignedRegister = destinationRegister};
 
-     return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, RegisterOperand{abiRegister})},
-             .assignedRegister = destinationRegister,};
+     return {
+          .instructions = {BuildMov(width, RegisterOperand{destinationRegister}, RegisterOperand{abiRegister})},
+          .assignedRegister = destinationRegister,
+     };
 }

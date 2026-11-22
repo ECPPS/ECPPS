@@ -96,8 +96,11 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                               value = (value << 4) | h;
                          }
 
-                         if (value <= 0x7F) { out += static_cast<char>(value);
-                         } else if (value <= 0x7FF)
+                         if (value <= 0x7F)
+                         {
+                              out += static_cast<char>(value);
+                         }
+                         else if (value <= 0x7FF)
                          {
                               out += static_cast<char>(0xC0 | (value >> 6));
                               out += static_cast<char>(0x80 | (value & 0x3F));
@@ -124,8 +127,11 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                               value = (value << 4) | h;
                          }
 
-                         if (value <= 0x7F) { out += static_cast<char>(value);
-                         } else if (value <= 0x7FF)
+                         if (value <= 0x7F)
+                         {
+                              out += static_cast<char>(value);
+                         }
+                         else if (value <= 0x7FF)
                          {
                               out += static_cast<char>(0xC0 | (value >> 6));
                               out += static_cast<char>(0x80 | (value & 0x3F));
@@ -178,8 +184,10 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                     {
                          if (auto val = ParseFloat(numericPart))
                               tokens.emplace_back(TokenType::Literal,
-                                                  UserDefinedLiteral{.value = FloatingPointLiteral{*val},
-                                                                     .name = stringPool.Intern(suffix),},
+                                                  UserDefinedLiteral{
+                                                       .value = FloatingPointLiteral{*val},
+                                                       .name = stringPool.Intern(suffix),
+                                                  },
                                                   preprocessorToken.source);
                     }
                     else
@@ -256,54 +264,56 @@ void ecpps::Tokeniser::Print(const std::vector<ecpps::Token>& tokens)
      const auto formatLiteral = [](const auto& literal) -> std::string
      {
           return std::visit(
-               OverloadedVisitor{[](const bool value) -> std::string
-                                 {
-                                      return value ? "true" : "false";
-                                 },
-                                 [](const StringLiteral& value) -> std::string
-                                 {
-                                      return "\"" + std::string(value.value.View()) + "\"";
-                                 },
-                                 [](const IntegerLiteral& value) -> std::string
-                                 {
-                                      return std::to_string(value.value);
-                                 },
-                                 [](const char value) -> std::string
-                                 {
-                                      return std::format("'{}'", value);
-                                 },
-                                 [](const FloatingPointLiteral& value) -> std::string
-                                 {
-                                      return std::to_string(value.value);
-                                 },
-                                 [](const UserDefinedLiteral& value) -> std::string
-                                 {
-                                      return std::visit(
-                                                  OverloadedVisitor{
-                                                       [](const StringLiteral& literal) -> std::string
-                                                       {
-                                                            return "\"" + std::string(literal.value.View()) + "\"";
-                                                       },
-                                                       [](const IntegerLiteral& literal) -> std::string
-                                                       {
-                                                            return std::to_string(literal.value);
-                                                       },
-                                                       [](const char literal) -> std::string
-                                                       {
-                                                            return std::format("'{}'", literal);
-                                                       },
-                                                       [](const FloatingPointLiteral& literal) -> std::string
-                                                       {
-                                                            return std::to_string(literal.value);
-                                                       },
-                                                  },
-                                                  value.value) +
-                                             std::string(value.name.View());
-                                 },
-                                 [](auto&&) -> std::string
-                                 {
-                                      return "?";
-                                 },},
+               OverloadedVisitor{
+                    [](const bool value) -> std::string
+                    {
+                         return value ? "true" : "false";
+                    },
+                    [](const StringLiteral& value) -> std::string
+                    {
+                         return "\"" + std::string(value.value.View()) + "\"";
+                    },
+                    [](const IntegerLiteral& value) -> std::string
+                    {
+                         return std::to_string(value.value);
+                    },
+                    [](const char value) -> std::string
+                    {
+                         return std::format("'{}'", value);
+                    },
+                    [](const FloatingPointLiteral& value) -> std::string
+                    {
+                         return std::to_string(value.value);
+                    },
+                    [](const UserDefinedLiteral& value) -> std::string
+                    {
+                         return std::visit(
+                                     OverloadedVisitor{
+                                          [](const StringLiteral& literal) -> std::string
+                                          {
+                                               return "\"" + std::string(literal.value.View()) + "\"";
+                                          },
+                                          [](const IntegerLiteral& literal) -> std::string
+                                          {
+                                               return std::to_string(literal.value);
+                                          },
+                                          [](const char literal) -> std::string
+                                          {
+                                               return std::format("'{}'", literal);
+                                          },
+                                          [](const FloatingPointLiteral& literal) -> std::string
+                                          {
+                                               return std::to_string(literal.value);
+                                          },
+                                     },
+                                     value.value) +
+                                std::string(value.name.View());
+                    },
+                    [](auto&&) -> std::string
+                    {
+                         return "?";
+                    },
+               },
                literal);
      };
 
@@ -394,7 +404,8 @@ bool ecpps::Tokeniser::IsKeyword(const std::string_view identifier)
           "static_assert", "static_cast", "struct",    "switch",    "template",     "this",
           "thread_local",  "throw",       "true",      "try",       "typedef",      "typeid",
           "typename",      "union",       "unsigned",  "using",     "virtual",      "void",
-          "volatile",      "wchar_t",     "while",};
+          "volatile",      "wchar_t",     "while",
+     };
 
      return Keywords.contains(identifier);
 }

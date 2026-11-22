@@ -338,8 +338,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept
 {
-     return TypeTraits{TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
-                       TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object,};
+     return TypeTraits{
+          TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
+          TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object,
+     };
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWith(
@@ -366,10 +368,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareT
 
      const auto* targetClass = this->_baseType->CastTo<ClassType>();
      const auto* sourceClass = other->CastTo<ClassType>();
-     if ((targetClass != nullptr || sourceClass != nullptr) && (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id))
+     if ((targetClass != nullptr || sourceClass != nullptr) &&
+         (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id))
 
           return ConversionSequence{std::nullopt};
-
 
      const auto* targetQualified = this->_baseType->CastTo<QualifiedType>();
      const auto* sourceQualified = other->CastTo<QualifiedType>();

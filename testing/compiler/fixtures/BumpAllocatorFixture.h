@@ -15,8 +15,8 @@ namespace testHelpers
      public:
           enum struct Size
           {
-               Small = 1024 * 4,   // 4 KB
-               Medium = 1024 * 64, // 64 KB
+               Small = 1024 * 4,    // 4 KB
+               Medium = 1024 * 64,  // 64 KB
                Large = 1024 * 1024, // 1 MB
           };
 
@@ -66,4 +66,4 @@ namespace testHelpers
           }
      };
 
-} // namespace TestHelpers
+} // namespace testHelpers

@@ -389,9 +389,10 @@ namespace ecpps
                     this->_capacity = static_cast<TSize>(count);
                     block.Release();
                }
-               else {
+               else
+               {
                     fill(InlinePtr());
-}
+               }
 
                this->_size = static_cast<TSize>(count);
           }

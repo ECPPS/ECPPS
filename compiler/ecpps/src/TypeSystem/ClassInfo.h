@@ -103,7 +103,7 @@ namespace ecpps::typeSystem
           [[nodiscard]] std::vector<ScopeSegment> QualifiedScope(void) const
           {
                auto scope = this->enclosingPath;
-               scope.push_back({.kind=ScopeKind::Class, .name=this->name});
+               scope.push_back({.kind = ScopeKind::Class, .name = this->name});
                return scope;
           }
 

@@ -43,7 +43,7 @@ namespace ecpps::ir
           Size,    // size_t
           PtrDiff, // ptrdiff_t
           UIntPtr, // uintptr_t
-          IntPtr,   // intptr_t
+          IntPtr,  // intptr_t
      };
      struct PlatformIntegerRequest
      {
@@ -256,13 +256,18 @@ namespace ecpps::ir
                          else if constexpr (std::is_same_v<T, BooleanRequest>)
                          {
                          }
-                         else if constexpr (std::is_same_v<T, ClassRequest>) {
+                         else if constexpr (std::is_same_v<T, ClassRequest>)
+                         {
                               seed = HashCombine(seed, data.id);
-                         } else if constexpr (std::is_same_v<T, InvalidRequest>) {
+                         }
+                         else if constexpr (std::is_same_v<T, InvalidRequest>)
+                         {
                               seed = HashCombine(seed, &data);
-                         } else {
+                         }
+                         else
+                         {
                               std::terminate();
-}
+                         }
                     },
                     value.data);
 

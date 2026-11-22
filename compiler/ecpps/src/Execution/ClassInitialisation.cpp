@@ -50,7 +50,8 @@ namespace
           ecpps::ir::overloadDiagnostics::Candidate candidate{
                .signature = ecpps::ir::detail::FormatFunctionSignature(constructor.function),
                .source = constructor.function->source,
-               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted,};
+               .isDeleted = constructor.bodyKind == ecpps::ast::FunctionBodyKind::Deleted,
+          };
           if (!accessible) candidate.access = ConstructorAccessName(constructor.access);
           return candidate;
      }
@@ -353,10 +354,11 @@ void ecpps::ir::IR::CopyClassAtAddress(typeSystem::NonowningTypePointer type,
                                      false)};
                     InitialiseClassFromExpression(field.type, destinationField, std::move(fieldSource), field.source);
                }
-               else {
+               else
+               {
                     CopyClassAtAddress(field.type, destinationField, sourceField, field.source, false,
                                        fieldSourceQualifiers);
-}
+               }
           }
           return;
      }
@@ -385,11 +387,12 @@ void ecpps::ir::IR::CopyClassAtAddress(typeSystem::NonowningTypePointer type,
                     InitialiseClassFromExpression(arrayType->ElementType(), destinationElement,
                                                   std::move(elementSource), location);
                }
-               else {
+               else
+               {
                     CopyClassAtAddress(arrayType->ElementType(), AddByteOffset(destination, offset, location),
                                        AddByteOffset(source, offset, location), location, moveFromSource,
                                        sourceQualifiers);
-}
+               }
           }
           return;
      }
@@ -552,9 +555,10 @@ void ecpps::ir::IR::InitialiseClassFromExpression(typeSystem::NonowningTypePoint
                     auto diagnosticCandidate =
                          ConstructorCandidateDiagnostic(candidate, this->CanAccess(info.id, candidate.access));
                     if (!allowExplicit && candidate.isExplicit)
-                         diagnosticCandidate.details.push_back(
-                              {.message = "This explicit constructor is not considered by copy-initialisation",
-                               .source = candidate.function->source,});
+                         diagnosticCandidate.details.push_back({
+                              .message = "This explicit constructor is not considered by copy-initialisation",
+                              .source = candidate.function->source,
+                         });
                     candidates.push_back(std::move(diagnosticCandidate));
                }
           DiagnosticSink::Report(this->GetContext(), ecpps::ir::overloadDiagnostics::NoViableCopyOrMoveConstructor(
@@ -628,9 +632,11 @@ ecpps::Expression ecpps::ir::IR::PrepareByValueArgument(Expression argument,
      this->_built.push_back(
           std::unique_ptr<AllocationNode, IRDeleter>{new (allocator) AllocationNode(std::move(storage), source)});
      const auto* address = AddressOfAllocation(storagePointer, parameterType, source);
-     if (argumentClass != nullptr && parameterClass->Info().id == argumentClass->Info().id) {
+     if (argumentClass != nullptr && parameterClass->Info().id == argumentClass->Info().id)
+     {
           InitialiseClassFromExpression(parameterType, address, std::move(argument), source, false);
-     } else
+     }
+     else
      {
           std::vector<Expression> constructorArguments{};
           constructorArguments.push_back(std::move(argument));
@@ -716,7 +722,9 @@ void ecpps::ir::IR::AssignClassAtAddress(typeSystem::NonowningTypePointer type,
           for (const auto& candidate : tiedCandidates)
           {
                ecpps::ir::overloadDiagnostics::Candidate diagnostic{
-                    .signature = detail::FormatFunctionSignature(candidate), .source = candidate->source,};
+                    .signature = detail::FormatFunctionSignature(candidate),
+                    .source = candidate->source,
+               };
                if (!this->CanAccess(classInfo.id, candidate->memberAccess))
                     diagnostic.access = ConstructorAccessName(candidate->memberAccess);
                candidates.push_back(std::move(diagnostic));
@@ -743,8 +751,10 @@ void ecpps::ir::IR::AssignClassAtAddress(typeSystem::NonowningTypePointer type,
                if (const auto* reference = selected->parameters.front().type->CastTo<typeSystem::ReferenceType>())
                     memberwiseMove = reference->GetKind() == typeSystem::ReferenceType::Kind::RValue;
           }
-          ecpps::ir::overloadDiagnostics::Candidate diagnostic{.signature = detail::FormatFunctionSignature(selected),
-                                                               .source = selected->source,};
+          ecpps::ir::overloadDiagnostics::Candidate diagnostic{
+               .signature = detail::FormatFunctionSignature(selected),
+               .source = selected->source,
+          };
           const bool accessible = this->CanAccess(classInfo.id, selected->memberAccess);
           if (!accessible) diagnostic.access = ConstructorAccessName(selected->memberAccess);
           if (!accessible || selected->isDeleted)
@@ -987,7 +997,8 @@ void ecpps::ir::IR::DestroyObjectAtAddress(typeSystem::NonowningTypePointer type
                ecpps::ir::overloadDiagnostics::Candidate candidate{
                     .signature = ecpps::ir::detail::FormatFunctionSignature(destructor),
                     .source = destructor->source,
-                    .isDeleted = isDeleted,};
+                    .isDeleted = isDeleted,
+               };
                if (!accessible) candidate.access = ConstructorAccessName(classIr->second.destructorAccess);
                DiagnosticSink::Report(this->GetContext(),
                                       ecpps::ir::overloadDiagnostics::SelectedDestructorFailure(
@@ -1050,9 +1061,11 @@ void ecpps::ir::IR::DestroyClassMembersAtAddress(const typeSystem::ClassInfo& in
                     this->context->contextSequence.erase(this->context->contextSequence.begin() +
                                                          static_cast<std::ptrdiff_t>(this->classContextIndex));
           }
-     } restoreContext{.context = &this->GetContext(),
-                      .classContextIndex = classContextIndex,
-                      .removeClassContext = addClassContext,};
+     } restoreContext{
+          .context = &this->GetContext(),
+          .classContextIndex = classContextIndex,
+          .removeClassContext = addClassContext,
+     };
 
      for (const auto& field : info.fields | std::views::reverse)
           DestroyObjectAtAddress(field.type, AddByteOffset(address, field.offset, field.source), field.source,
@@ -1138,9 +1151,10 @@ void ecpps::ir::IR::MarkDefaultedCopyMoveConstructorsDeleted(const typeSystem::C
                          bestCost = *cost;
                          ambiguous = false;
                     }
-                    else if (*cost == bestCost) {
+                    else if (*cost == bestCost)
+                    {
                          ambiguous = true;
-}
+                    }
                }
                if (memberRecord->second.destructor != nullptr &&
                    (memberRecord->second.destructorBodyKind == ast::FunctionBodyKind::Deleted ||
@@ -1190,8 +1204,10 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::AddQualifiers(const typeS
      {
           request.kind = TypeKind::Compound;
           request.qualifiers = typeSystem::Qualifiers::None;
-          request.data = BoundedArrayRequest{.elementType = this->AddQualifiers(arrayType->ElementType(), qualifiers),
-                                             .size = arrayType->ElementCount(),};
+          request.data = BoundedArrayRequest{
+               .elementType = this->AddQualifiers(arrayType->ElementType(), qualifiers),
+               .size = arrayType->ElementCount(),
+          };
      }
      else if (type->CastTo<typeSystem::VoidType>() != nullptr)
      {
@@ -1206,13 +1222,16 @@ ecpps::typeSystem::NonowningTypePointer ecpps::ir::IR::AddQualifiers(const typeS
      else if (const auto* integralType = type->CastTo<typeSystem::IntegralType>())
      {
           request.kind = TypeKind::Fundamental;
-          request.data = StandardSignedIntegerRequest{.size = integralType->Kind(),
-                                                      .signedness = integralType->Sign(),
-                                                      .isCharWithoutSign = type->RawName() == "char",};
+          request.data = StandardSignedIntegerRequest{
+               .size = integralType->Kind(),
+               .signedness = integralType->Sign(),
+               .isCharWithoutSign = type->RawName() == "char",
+          };
      }
-     else {
+     else
+     {
           return type;
-}
+     }
 
      return GetTypeContext().Get(request);
 }
@@ -1405,9 +1424,11 @@ const ecpps::ir::SingleAssignRegisterNode* ecpps::ir::IR::BindReferenceExpressio
      {
           const auto* targetClass = referenceType->BaseType()->CastTo<typeSystem::ClassType>();
           const auto* sourceClass = referent->Type()->CastTo<typeSystem::ClassType>();
-          if (targetClass != nullptr && sourceClass != nullptr && targetClass->Info().id == sourceClass->Info().id) {
+          if (targetClass != nullptr && sourceClass != nullptr && targetClass->Info().id == sourceClass->Info().id)
+          {
                InitialiseClassFromExpression(referenceType->BaseType(), temporaryAddress, std::move(referent), source);
-          } else if (targetClass != nullptr)
+          }
+          else if (targetClass != nullptr)
           {
                std::vector<Expression> constructorArguments{};
                constructorArguments.push_back(std::move(referent));
@@ -1503,9 +1524,11 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
      }
 
      Expression expression{};
-     if (mode == ObjectInitialisationMode::Value || mode == ObjectInitialisationMode::EmptyList) {
+     if (mode == ObjectInitialisationMode::Value || mode == ObjectInitialisationMode::EmptyList)
+     {
           expression = ParseValueInitialisation(type, source);
-     } else if (initialiser != nullptr && *initialiser != nullptr)
+     }
+     else if (initialiser != nullptr && *initialiser != nullptr)
      {
           if (initialisationType == ast::InitialisationType::Default)
                initialisationType = dynamic_cast<const ast::InitialiserListNode*>(initialiser->get()) != nullptr
@@ -1526,9 +1549,10 @@ void ecpps::ir::IR::InitialiseAtAddress(typeSystem::NonowningTypePointer type, c
                }
                expression = ConvertTo(std::move(value), type);
           }
-          else {
+          else
+          {
                expression = PickInitialiser(*initialiser, type, initialisationType);
-}
+          }
      }
 
      if (expression == nullptr)
@@ -1594,16 +1618,19 @@ void ecpps::ir::IR::InitialiseArrayAtAddress(typeSystem::NonowningTypePointer ty
                this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, &elementInitialiser, elementInitType,
                                          ObjectInitialisationMode::Explicit, elementInitialiser->Source(), true);
           }
-          else if (mode == ObjectInitialisationMode::Default) {
+          else if (mode == ObjectInitialisationMode::Default)
+          {
                this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, nullptr,
                                          ast::InitialisationType::Default, ObjectInitialisationMode::Default, source);
-          } else {
+          }
+          else
+          {
                this->InitialiseAtAddress(arrayType->ElementType(), elementAddress, nullptr,
                                          ast::InitialisationType::BracedInitialiser,
                                          mode == ObjectInitialisationMode::Value ? ObjectInitialisationMode::Value
                                                                                  : ObjectInitialisationMode::EmptyList,
                                          source);
-}
+          }
      }
 }
 
@@ -1812,9 +1839,11 @@ std::optional<std::size_t> ecpps::ir::IR::ConstructorArgumentCost(typeSystem::No
           std::optional<std::size_t> conversionCost{};
           if (!same)
           {
-               if (typeSystem::IsClass(reference->BaseType())) {
+               if (typeSystem::IsClass(reference->BaseType()))
+               {
                     conversionCost = ConstructorArgumentCost(reference->BaseType(), argument);
-               } else
+               }
+               else
                {
                     const auto conversion = reference->BaseType()->CompareTo(argument->Type());
                     if (conversion.IsValid())
@@ -2172,12 +2201,13 @@ void ecpps::ir::IR::InitialiseEmptyClassList(typeSystem::NonowningTypePointer ty
                ZeroInitialiseAtAddress(type, address, source);
                InitialiseClassMembers(type, address, source);
           }
-          else {
+          else
+          {
                DiagnosticSink::Report(
                     this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("No default constructor of '{}' is available", info.DisplayName()), source));
-}
+          }
           return;
      }
 
@@ -2390,18 +2420,23 @@ void ecpps::ir::IR::InitialiseDesignatedAggregate(typeSystem::NonowningTypePoint
                this->InitialiseAtAddress(field.type, fieldAddress, explicitInitialisers[index], memberInitType,
                                          ObjectInitialisationMode::Explicit, value->Source(), true);
           }
-          else if (field.hasDefaultInitialiser) {
+          else if (field.hasDefaultInitialiser)
+          {
                this->InitialiseDefaultMember(type, field, index, address, fieldAddress, field.source);
-          } else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr) {
+          }
+          else if (field.type->CastTo<typeSystem::ReferenceType>() != nullptr)
+          {
                DiagnosticSink::Report(
                     this->GetContext(),
                     diagnostics::DiagnosticsBuilder<diagnostics::TypeError>{}.Build(
                          std::format("Reference member '{}' is omitted from the aggregate initialiser", field.name),
                          source));
-          } else {
+          }
+          else
+          {
                this->InitialiseAtAddress(field.type, fieldAddress, nullptr, ast::InitialisationType::EqualInitialiser,
                                          ObjectInitialisationMode::EmptyList, source);
-}
+          }
      }
 }
 

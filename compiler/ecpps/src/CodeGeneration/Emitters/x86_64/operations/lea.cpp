@@ -41,6 +41,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitLea(const ir:
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid MOV source");
-               },},
+               },
+          },
           lea.address);
 }

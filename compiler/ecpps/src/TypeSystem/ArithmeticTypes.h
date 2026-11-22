@@ -45,13 +45,12 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               return TypeTraits{TypeTraitEnum::Arithmetic,
-                                 TypeTraitEnum::Integral,
-                                 TypeTraitEnum::Literal,
-                                 TypeTraitEnum::TriviallyCopyable,
-                                 TypeTraitEnum::ImplicitLifetime,
-                                 TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Object,};
+               return TypeTraits{
+                    TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
+                    TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
+                    TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                    TypeTraitEnum::Object,
+               };
           }
 
           [[nodiscard]] ConversionSequence CompareTo(ecpps::typeSystem::NonowningTypePointer other) const override;
@@ -88,10 +87,11 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               return TypeTraits{TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
-                                 TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
-                                 TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Character,        TypeTraitEnum::Object,};
+               return TypeTraits{
+                    TypeTraitEnum::Arithmetic,        TypeTraitEnum::Integral,         TypeTraitEnum::Literal,
+                    TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                    TypeTraitEnum::Character,         TypeTraitEnum::Object,
+               };
           }
 
      private:

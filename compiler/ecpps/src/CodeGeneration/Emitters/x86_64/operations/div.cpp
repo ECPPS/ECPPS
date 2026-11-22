@@ -49,7 +49,8 @@ static std::vector<std::byte> AsmDiv(Width width, const Operand& operand)
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid DIV operand");
-               },},
+               },
+          },
           operand);
 }
 

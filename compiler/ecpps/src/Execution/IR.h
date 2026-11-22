@@ -511,7 +511,9 @@ namespace ecpps::ir
                          dynamic_cast<const FunctionContext*>(ir.GetContext().contextSequence.back().get());
                     const auto depth = function == nullptr ? 0 : function->automaticObjects.size();
                     this->_depth = depth;
-                    this->_ir->_jumpStack.push_back({.breakLabel=std::move(breakLabel), .continueLabel=std::move(continueLabel), .destructionDepth=depth});
+                    this->_ir->_jumpStack.push_back({.breakLabel = std::move(breakLabel),
+                                                     .continueLabel = std::move(continueLabel),
+                                                     .destructionDepth = depth});
                }
                JumpScope(const JumpScope&) = delete;
                JumpScope& operator=(const JumpScope&) = delete;
@@ -557,8 +559,10 @@ namespace ecpps::ir
 
                return std::make_unique<PRValue>(
                     operands->type,
-                    std::unique_ptr<TNode, IRDeleter>{new (*this->GetContext().nodeAllocator) TNode(
-                         std::move(operands->left), std::move(operands->right), source),},
+                    std::unique_ptr<TNode, IRDeleter>{
+                         new (*this->GetContext().nodeAllocator)
+                              TNode(std::move(operands->left), std::move(operands->right), source),
+                    },
                     false);
           }
 

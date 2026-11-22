@@ -38,10 +38,15 @@ namespace ecpps::ir::detail
           const auto addIntegerType = [&](const typeSystem::TypeKind size, const typeSystem::Signedness signedness,
                                           const bool isCharWithoutSign = false)
           {
-               TypeRequest request{.kind = TypeKind::Fundamental,
-                                   .data = StandardSignedIntegerRequest{.size = size,
-                                                                        .signedness = signedness,
-                                                                        .isCharWithoutSign = isCharWithoutSign,},};
+               TypeRequest request{
+                    .kind = TypeKind::Fundamental,
+                    .data =
+                         StandardSignedIntegerRequest{
+                              .size = size,
+                              .signedness = signedness,
+                              .isCharWithoutSign = isCharWithoutSign,
+                         },
+               };
                types.insert(typeContext.Get(request));
           };
 
@@ -142,9 +147,11 @@ namespace ecpps::ir::detail
                for (const auto kind : conversion.Sequence()) cost += ConversionCost(kind);
                if (!sourceClass->IsConst() && candidate->memberFunctionInfo.isConst) ++cost;
                if (!sourceClass->IsVolatile() && candidate->memberFunctionInfo.isVolatile) ++cost;
-               if (!best.has_value() || cost < best->cost) {
+               if (!best.has_value() || cost < best->cost)
+               {
                     best = ConversionFunctionSelection{.function = candidate, .cost = cost, .ambiguous = false};
-               } else if (cost == best->cost)
+               }
+               else if (cost == best->cost)
                {
                     best->function.reset();
                     best->ambiguous = true;

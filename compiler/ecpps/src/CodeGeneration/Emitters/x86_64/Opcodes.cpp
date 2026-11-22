@@ -2621,8 +2621,11 @@ namespace
                break;
           case Width::W32:
                e.length = 1;
-               if (sign) { e.bytes[0] = 0x63uz;
-               } else
+               if (sign)
+               {
+                    e.bytes[0] = 0x63uz;
+               }
+               else
                {
                     e.bytes[0] = 0x8Bu;
                     e.size = Width::W32;
@@ -2787,9 +2790,10 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateTestImmReg(const Width si
           PutRex(out, size == Width::W64, false, false, false, false);
           Put(out, IsByte(size) ? 0xA8u : 0xA9u);
      }
-     else {
+     else
+     {
           EmitReg(out, size, {IsByte(size) ? 0xF6u : 0xF7u}, 0, reg, false, IsByte(size));
-}
+     }
      PutImm(out, imm, ImmSize(size));
      return out;
 }

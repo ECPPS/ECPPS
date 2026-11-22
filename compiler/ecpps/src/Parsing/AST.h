@@ -112,7 +112,7 @@ namespace ecpps::ast
           RightShiftAssign, // <<=
           Increment,        // ++
           Decrement,        // --
-          Comma,             // ,
+          Comma,            // ,
      };
      [[nodiscard]] constexpr std::string ToString(const Operator op) noexcept
      {
@@ -337,7 +337,7 @@ namespace ecpps::ast
           None,
           Block,     // { ... }
           Defaulted, // = default
-          Deleted,    // = delete
+          Deleted,   // = delete
      };
 
      struct FunctionSignature
@@ -1326,8 +1326,11 @@ namespace ecpps::ast
                               if (op.isConst || op.isVolatile || !op.attributes.empty()) current += ' ';
                          }
 
-                         if (level.nested != nullptr) { current += "(" + text + ")";
-                         } else
+                         if (level.nested != nullptr)
+                         {
+                              current += "(" + text + ")";
+                         }
+                         else
                          {
                               if (level.isParameterPack) current += "...";
                               current += level.declaredIdExpression ? level.declaredIdExpression->ToString(indent)

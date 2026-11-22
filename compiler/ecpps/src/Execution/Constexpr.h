@@ -60,7 +60,8 @@ namespace ecpps::ir
                     [](const auto&) -> std::unique_ptr<T>
                     {
                          throw[]{};
-                    },},
+                    },
+               },
                result.variant);
      }
 } // namespace ecpps::ir

@@ -384,10 +384,12 @@ namespace ecpps::abi::encoders::x8664
                     for (const auto reg : _pool)
                     {
                          const auto occupancyIterator = this->_occupancy.find(reg);
-                         cells.push_back(Cell{.reg = reg,
-                                              .owner = occupancyIterator == this->_occupancy.end()
-                                                            ? std::nullopt
-                                                            : std::optional{occupancyIterator->second},});
+                         cells.push_back(Cell{
+                              .reg = reg,
+                              .owner = occupancyIterator == this->_occupancy.end()
+                                            ? std::nullopt
+                                            : std::optional{occupancyIterator->second},
+                         });
                     }
 
                     return cells;
@@ -449,15 +451,19 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] Operand At(const std::int64_t offset) const
           {
                if (const auto* s = std::get_if<StackOperand>(&this->base))
-                    return StackOperand{.offset =
-                                             static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset),};
+                    return StackOperand{
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset),
+                    };
                if (const auto* m = std::get_if<MemoryOperand>(&this->base))
-                    return MemoryOperand{.relativeTo = m->relativeTo,
-                                         .offset = static_cast<std::int32_t>(m->offset + offset),};
+                    return MemoryOperand{
+                         .relativeTo = m->relativeTo,
+                         .offset = static_cast<std::int32_t>(m->offset + offset),
+                    };
                if (const auto* str = std::get_if<StringAddressOperand>(&this->base))
                     return StringAddressOperand{
                          .tableIndex = str->tableIndex,
-                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset),};
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset),
+                    };
                throw TracedException("Memory location must be a stack, memory or string address operand");
           }
      };

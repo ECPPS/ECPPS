@@ -87,9 +87,10 @@ namespace
                byteCount = 4;
                value = first & 0x07;
           }
-          else {
+          else
+          {
                return {.value = 0xfffd, .byteCount = 1};
-}
+          }
 
           if (offset + byteCount > text.size()) return {.value = 0xfffd, .byteCount = 1};
           for (std::size_t index = 1; index < byteCount; index++)

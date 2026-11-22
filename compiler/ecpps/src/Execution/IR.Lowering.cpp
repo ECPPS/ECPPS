@@ -58,7 +58,8 @@ namespace
                                                                    alignment, source)};
           auto* const resultPointer = result.get();
           built.push_back(std::unique_ptr<OperationNode, ecpps::ir::IRDeleter>{
-               new (allocator) OperationNode(std::move(result), left, right, source),});
+               new (allocator) OperationNode(std::move(result), left, right, source),
+          });
           return resultPointer;
      }
 } // namespace

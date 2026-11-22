@@ -531,7 +531,9 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
 
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
-          .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t)),};
+          .VirtualAddress = iatRVA,
+          .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t)),
+     };
 
      // Update sizeOfImage
      currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());

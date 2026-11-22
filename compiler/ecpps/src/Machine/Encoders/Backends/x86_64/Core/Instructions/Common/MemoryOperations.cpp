@@ -22,8 +22,9 @@ namespace ecpps::abi::encoders::x8664
      [[nodiscard]] ir::abstract::VirtualRegister NextScratchOwner(void) noexcept
      {
           static std::atomic<std::size_t> scrCounter{0};
-          return ir::abstract::VirtualRegister{.index =
-                                                    std::numeric_limits<std::size_t>::max() - scrCounter.fetch_add(1),};
+          return ir::abstract::VirtualRegister{
+               .index = std::numeric_limits<std::size_t>::max() - scrCounter.fetch_add(1),
+          };
      }
 } // namespace ecpps::abi::encoders::x8664
 

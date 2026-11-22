@@ -55,49 +55,53 @@ static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, Int
 
 static std::vector<std::byte> AsmBinaryOr(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryOr(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryOr(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryOr(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmBinaryOr(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryOr(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryOr(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryOr(
@@ -110,22 +114,24 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryOr(
      const auto instructionWidth = bin.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryOr(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryOr(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid ADD source");
-                            },},
+          OverloadedVisitor{
+               [instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryOr(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
           bin.modifiedDestination);
 }
 
@@ -173,49 +179,53 @@ static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, In
 
 static std::vector<std::byte> AsmBinaryAnd(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryAnd(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryAnd(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryAnd(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmBinaryAnd(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryAnd(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryAnd(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid OR source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid OR source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryAnd(
@@ -229,22 +239,24 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryAnd(
      const auto instructionWidth = bin.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryAnd(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryAnd(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid ADD source");
-                            },},
+          OverloadedVisitor{
+               [instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryAnd(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
           bin.modifiedDestination);
 }
 
@@ -292,49 +304,53 @@ static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, In
 
 static std::vector<std::byte> AsmBinaryXor(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryXor(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryXor(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryXor(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmBinaryXor(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryXor(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmBinaryXor(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                },},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryXor(
@@ -348,22 +364,24 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitBinaryXor(
      const auto instructionWidth = bin.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryXor(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmBinaryXor(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid ADD source");
-                            },},
+          OverloadedVisitor{
+               [instructionWidth, source = bin.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = bin.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmBinaryXor(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
           bin.modifiedDestination);
 }
 
@@ -405,7 +423,8 @@ static std::vector<std::byte> AsmBitwiseNot(Width width, const Operand& operand)
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid NOT operand");
-               },},
+               },
+          },
           operand);
 }
 

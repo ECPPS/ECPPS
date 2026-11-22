@@ -37,7 +37,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 
      const StringAddressOperand string{
           .tableIndex = static_cast<decltype(StringAddressOperand::tableIndex)>(registerArray[1].index),
-          .offset = static_cast<decltype(StringAddressOperand::offset)>(registerArray[2].index),};
+          .offset = static_cast<decltype(StringAddressOperand::offset)>(registerArray[2].index),
+     };
 
      ScratchRegister pointer{this->_registerAllocator};
      out.push_back(BuildLea(Width::W64, pointer.AsOperand(), string));

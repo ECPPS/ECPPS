@@ -126,9 +126,10 @@ namespace
                     request.kind = TypeKind::Fundamental;
                     request.data = VoidRequest{};
                }
-               else {
+               else
+               {
                     throw TracedException("Type aliases for this kind of type not yet implemented");
-}
+               }
 
                if (basicType->IsConst() && basicType->IsVolatile())
                     request.qualifiers = typeSystem::Qualifiers::ConstVolatile;
@@ -176,8 +177,9 @@ namespace
           using std::operator""sv;
 
           constexpr std::array integerKeywords{"char"sv, "short"sv, "int"sv, "long"sv, "signed"sv, "unsigned"sv};
-          constexpr std::array unsupportedKeywords{"float"sv,   "double"sv,   "wchar_t"sv,
-                                                   "char8_t"sv, "char16_t"sv, "char32_t"sv,};
+          constexpr std::array unsupportedKeywords{
+               "float"sv, "double"sv, "wchar_t"sv, "char8_t"sv, "char16_t"sv, "char32_t"sv,
+          };
           for (const auto token : tokens)
           {
                if (std::ranges::contains(unsupportedKeywords, token))
@@ -200,8 +202,11 @@ namespace
           const bool isSigned = has("signed");
           const bool isUnsigned = has("unsigned");
 
-          if (isChar && !isSigned && !isUnsigned) { signedRequest.isCharWithoutSign = true;
-          } else
+          if (isChar && !isSigned && !isUnsigned)
+          {
+               signedRequest.isCharWithoutSign = true;
+          }
+          else
           {
                signedRequest.signedness =
                     isUnsigned ? typeSystem::Signedness::Unsigned : typeSystem::Signedness::Signed;
@@ -232,10 +237,12 @@ namespace
           const auto baseTypeRequest = TypeASTToRequest(referenceType->BaseType());
           const auto* baseType = typeContext.Get(baseTypeRequest);
           request.kind = TypeKind::Compound;
-          request.data = ReferenceRequest{.elementType = baseType,
-                                          .kind = referenceType->GetKind() == ast::ReferenceType::Kind::LValue
-                                                       ? typeSystem::ReferenceType::Kind::LValue
-                                                       : typeSystem::ReferenceType::Kind::RValue,};
+          request.data = ReferenceRequest{
+               .elementType = baseType,
+               .kind = referenceType->GetKind() == ast::ReferenceType::Kind::LValue
+                            ? typeSystem::ReferenceType::Kind::LValue
+                            : typeSystem::ReferenceType::Kind::RValue,
+          };
           return request;
      }
      if (const auto* qualifiedType = dynamic_cast<const ast::QualifiedType*>(base); qualifiedType != nullptr)
@@ -313,10 +320,11 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                const auto& function = userDefined->function;
                if (!this->CanAccess(function->memberClassInfo->id, function->memberAccess) || function->isDeleted)
                {
-                    const auto candidate =
-                         overloadDiagnostics::Candidate{.signature = detail::FormatFunctionSignature(function),
-                                                        .source = function->source,
-                                                        .isDeleted = function->isDeleted,};
+                    const auto candidate = overloadDiagnostics::Candidate{
+                         .signature = detail::FormatFunctionSignature(function),
+                         .source = function->source,
+                         .isDeleted = function->isDeleted,
+                    };
                     DiagnosticSink::Report(this->GetContext(),
                                            overloadDiagnostics::SelectedOverloadFailure(
                                                 candidate.signature, expression->Value()->Source(),
@@ -352,9 +360,10 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                     else
                          expression = std::make_unique<XValue>(reference->BaseType(), std::move(dereference), false);
                }
-               else {
+               else
+               {
                     expression = std::make_unique<PRValue>(function->returnType, std::move(call), false);
-}
+               }
                comparison = toType->CompareTo(expression->Type());
           }
      }
@@ -410,9 +419,10 @@ Expression ecpps::ir::IR::ConvertTo(Expression expression, typeSystem::Nonowning
                               new (*this->GetContext().nodeAllocator)
                                    TemporaryIntegerArrayDecayNode(std::move(expression), source));
                     }
-                    else {
+                    else
+                    {
                          throw TracedException("array-to-pointer is not supported yet");
-}
+                    }
 
                     return std::make_unique<PRValue>(pointerType, std::move(decayNode), wasConstexpr);
                }
@@ -681,13 +691,19 @@ std::vector<ecpps::typeSystem::ScopeSegment> ecpps::ir::IR::EnclosingPathUpTo(co
      {
           const auto& scope = context->GetScope();
           if (const auto* ns = dynamic_cast<const NamespaceScope*>(&scope);
-              ns != nullptr && (ns->Name().has_value() || ns->parentScope != nullptr)) {
+              ns != nullptr && (ns->Name().has_value() || ns->parentScope != nullptr))
+          {
                path.push_back(
                     {.kind = typeSystem::ScopeKind::Namespace, .name = ns->Name().value_or("<anonymous namespace>")});
-          } else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope)) {
-               path.push_back({.kind = typeSystem::ScopeKind::Class,
-                               .name = cs->name.empty() ? std::format("<unnamed class {}>", cs->id) : cs->name,});
-          } else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
+          }
+          else if (const auto* cs = dynamic_cast<const ClassScope*>(&scope))
+          {
+               path.push_back({
+                    .kind = typeSystem::ScopeKind::Class,
+                    .name = cs->name.empty() ? std::format("<unnamed class {}>", cs->id) : cs->name,
+               });
+          }
+          else if (const auto* fn = dynamic_cast<const FunctionScope*>(&scope))
           {
                std::string functionKey = fn->Name().value_or("<anonymous function>") + "(";
                for (const auto& parameter : fn->parameters)
@@ -795,9 +811,10 @@ ecpps::ir::IR::DeclaratorTypeResult ecpps::ir::IR::ResolveDeclaratorType(
                request.data = ReferenceRequest{.elementType = current, .kind = referenceKind};
                current = GetTypeContext().Get(request);
           }
-          else {
+          else
+          {
                throw TracedException("TODO: pointers to members are not implemented yet");
-}
+          }
      }
 
      bool unbounded = false;

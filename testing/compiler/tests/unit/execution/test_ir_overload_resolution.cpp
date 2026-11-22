@@ -74,7 +74,7 @@ namespace
      {
           std::vector<std::pair<std::string, std::string>> parameters{};
           parameters.reserve(parameterTypes.size());
-for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
                parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
           auto signature = fixture.MakeFunctionSignature("int", "operator", parameters);
           for (std::size_t index = 0; index < parameterTypes.size(); ++index)
@@ -113,10 +113,11 @@ for (std::size_t index = 0; index < parameterTypes.size(); ++index)
 TEST_CASE("IR - bounded Damerau-Levenshtein distance preserves in-range results", "[unit][ir][distance]")
 {
      using ecpps::ir::detail::LevenshteinDistance;
-     const std::array identifiers{std::string_view{""},    std::string_view{"a"},   std::string_view{"A"},
-                                  std::string_view{"b"},   std::string_view{"ab"},  std::string_view{"ba"},
-                                  std::string_view{"aab"}, std::string_view{"aba"}, std::string_view{"abb"},
-                                  std::string_view{"bba"},};
+     const std::array identifiers{
+          std::string_view{""},    std::string_view{"a"},   std::string_view{"A"},   std::string_view{"b"},
+          std::string_view{"ab"},  std::string_view{"ba"},  std::string_view{"aab"}, std::string_view{"aba"},
+          std::string_view{"abb"}, std::string_view{"bba"},
+     };
 
      REQUIRE((LevenshteinDistance("ab", "ba", 1) == 1));
      REQUIRE((LevenshteinDistance("A", "a", 0) == 0));
@@ -267,17 +268,21 @@ TEST_CASE("IR - Constructor overload diagnostic templates are shared", "[unit][i
 TEST_CASE("IR - Member overload diagnostics retain candidate detail trees", "[unit][ir][overload-resolution]")
 {
      using namespace ecpps::ir::overloadDiagnostics;
-     Candidate candidate{.signature = "Widget::pick(int)",
-                         .source = Source,
-                         .details = {CandidateDetail{.message = "Expected 1 argument, got 2", .source = Source}},
-                         .access = "private",
-                         .isDeleted = true,};
-     SimilarName suggestion{.name = "picks",
-                            .source = Source,
-                            .distance = 1,
-                            .argumentFailureCount = 0,
-                            .acceptsArguments = true,
-                            .candidates = {candidate},};
+     Candidate candidate{
+          .signature = "Widget::pick(int)",
+          .source = Source,
+          .details = {CandidateDetail{.message = "Expected 1 argument, got 2", .source = Source}},
+          .access = "private",
+          .isDeleted = true,
+     };
+     SimilarName suggestion{
+          .name = "picks",
+          .source = Source,
+          .distance = 1,
+          .argumentFailureCount = 0,
+          .acceptsArguments = true,
+          .candidates = {candidate},
+     };
      auto diagnostic = NoMatchingOverload("Widget::pick", Source, {candidate}, {suggestion}, SimilarNamesKind::Members);
      auto selected = SelectedOverloadFailure(candidate.signature, Source, true, true, candidate);
 

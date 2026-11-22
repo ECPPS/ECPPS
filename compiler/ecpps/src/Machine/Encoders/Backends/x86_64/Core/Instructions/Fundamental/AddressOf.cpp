@@ -52,6 +52,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-     return {.instructions = {BuildLea(Width::W64, RegisterOperand{destinationRegister}, slot)},
-             .assignedRegister = destinationRegister,};
+     return {
+          .instructions = {BuildLea(Width::W64, RegisterOperand{destinationRegister}, slot)},
+          .assignedRegister = destinationRegister,
+     };
 }

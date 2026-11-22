@@ -354,6 +354,6 @@ namespace ecpps::typeSystem
           }
 
           [[nodiscard]] NonowningTypePointer CommonWith(NonowningTypePointer other) const override;
-          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final ;
+          [[nodiscard]] bool operator==(NonowningTypePointer other) const noexcept final;
      };
 } // namespace ecpps::typeSystem

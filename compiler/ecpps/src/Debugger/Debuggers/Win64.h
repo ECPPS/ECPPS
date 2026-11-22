@@ -6,6 +6,6 @@ namespace ecpps::debugging
 {
      struct Win64Debugger final : Debugger
      {
-          [[nodiscard]] int Debug(CompilerConfig& configuration, std::filesystem::path program) const final ;
+          [[nodiscard]] int Debug(CompilerConfig& configuration, std::filesystem::path program) const final;
      };
 } // namespace ecpps::debugging

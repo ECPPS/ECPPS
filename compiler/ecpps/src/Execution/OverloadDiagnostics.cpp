@@ -59,11 +59,12 @@ namespace
                          description += similar.candidates.empty() ? " is a data member and is not callable"
                                                                    : "; it is also a data member and is not callable";
                }
-               else {
+               else
+               {
                     description = std::format(
                          "{}{} [distance={}; {}]", marked ? "* " : "", similar.name, similar.distance,
                          similar.acceptsArguments ? "accepts these arguments" : "no overload accepts these arguments");
-}
+               }
 
                auto suggestion = std::make_unique<ecpps::diagnostics::Information>(members ? "suggestion" : "",
                                                                                    description, similar.source);

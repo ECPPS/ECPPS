@@ -226,8 +226,7 @@ namespace ecpps::ast
           explicit ClassDefNode(InternedString name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
                                 const bool isConst, const bool isVolatile,
                                 Location source) // TODO: base classes, final & attributes
-              : ClassType(name, key, isConst, isVolatile, source),
-                _memberSpecifiers(std::move(memberSpecifiers))
+              : ClassType(name, key, isConst, isVolatile, source), _memberSpecifiers(std::move(memberSpecifiers))
           {
           }
 
