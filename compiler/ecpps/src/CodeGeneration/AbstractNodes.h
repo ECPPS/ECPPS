@@ -45,11 +45,11 @@ namespace ecpps::ir::abstract
           }
           [[nodiscard]] constexpr OperandType Type(void) const noexcept
           {
-               return static_cast<OperandType>(this->_value & 0b11);
+               return static_cast<OperandType>(this->_value & 0b11uz);
           }
           [[nodiscard]] constexpr OperandCompatibility Compatibility(void) const noexcept
           {
-               return static_cast<OperandCompatibility>(this->_value & 0b1100);
+               return static_cast<OperandCompatibility>(this->_value & 0b1100uz);
           }
 
      private:

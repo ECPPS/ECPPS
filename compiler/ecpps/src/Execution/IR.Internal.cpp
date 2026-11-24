@@ -400,7 +400,7 @@ namespace ecpps::ir::detail
           {
                const std::uint64_t mask = (1ull << fromBits) - 1;
                value &= mask;
-               if (from->Sign() == ecpps::typeSystem::Signedness::Signed && ((value >> (fromBits - 1)) & 1))
+               if (from->Sign() == ecpps::typeSystem::Signedness::Signed && ((value >> (fromBits - 1)) & 1u))
                     value |= ~mask;
           }
           const auto toBits = static_cast<unsigned>(to->Size() * 8);

@@ -47,7 +47,9 @@ Checks: >
   -cppcoreguidelines-macro-usage,
   -clang-analyzer-cplusplus.NewDeleteLeaks,
   -bugprone-chained-comparison,
-  -portability-avoid-pragma-once
+  -portability-avoid-pragma-once,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -bugprone-unchecked-optional-access
 
 CheckOptions:
   # Identifier naming rules

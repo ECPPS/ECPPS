@@ -160,7 +160,7 @@ TEST_CASE("IR - Non-member operator declarations validate arity and member-only 
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Plus, {"int", "int", "int"}));
      ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
 
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "Non-member operator+ must have one or two parameters"));
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator[] must be a member function"));
@@ -201,7 +201,7 @@ TEST_CASE("IR - No matching overload is a type error with candidate failures", "
      auto callProgram = MakeCallProgram(fixture, "pick", 2);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -219,7 +219,7 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      auto callProgram = MakeCallProgram(fixture, "fop", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -228,8 +228,7 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      CHECK(ContainsMessage(diagnostic, "* fool [distance=2; accepts these arguments]"));
      CHECK(ContainsMessage(diagnostic, "fob [distance=1; no overload accepts these arguments]"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 2));
-     CHECK(
-          (diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().find("fool") != std::string::npos));
+     CHECK((diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().contains("fool")));
 }
 
 TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][ir][overload-resolution]")
@@ -241,7 +240,7 @@ TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][i
      auto callProgram = MakeCallProgram(fixture, "pick", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();

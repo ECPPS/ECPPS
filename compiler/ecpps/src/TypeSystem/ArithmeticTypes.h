@@ -1,4 +1,5 @@
 #pragma once
+#include <limits>
 #include <memory>
 #include "TypeBase.h"
 
@@ -190,7 +191,7 @@ namespace ecpps::typeSystem
      /// </summary>
      enum struct IntegerConversionRank : std::uint_fast8_t
      {
-          Unknown = static_cast<std::uint_fast8_t>(~0),
+          Unknown = std::numeric_limits<std::uint_fast8_t>::max(),
 
           Bool = 0, // lowest
           Char = 1,

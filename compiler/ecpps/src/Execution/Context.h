@@ -211,7 +211,7 @@ namespace ecpps::ir
                {
                     const std::size_t h = std::hash<std::decay_t<decltype(v)>>{}(v);
                     // 64-bit friendly mix
-                    seed ^= h + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
+                    seed ^= h + 0x9e3779b97f4a7c15ull + (seed << 6uz) + (seed >> 2uz);
                     return seed;
                };
 
@@ -900,8 +900,7 @@ namespace ecpps::ir
           ConstexprSpecifier = 512,
           IsDllImportExport = 1024,
           NamespacePath = 2048,
-          All = Name | ReturnType | Parameters | CallingConvention | Linkage | IsStatic | IsInline | IsFriend |
-               IsExtern | ConstexprSpecifier | IsDllImportExport | NamespacePath,
+          All = (1u << 12u) - 1u,
      };
      [[nodiscard]] constexpr FunctionScopeBuilderState operator|(const FunctionScopeBuilderState lhs,
                                                                  const FunctionScopeBuilderState rhs) noexcept

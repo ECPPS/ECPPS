@@ -1,11 +1,13 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
+#include <algorithm>
+#include <array>
 #include <format>
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 #include "ASTs/General.h"
@@ -19,7 +21,7 @@ ecpps::ast::Node::~Node(void) = default;
 using ecpps::InternedString;
 using ecpps::StringPool;
 using ecpps::ast::NodePointer;
-static std::unordered_set<std::string_view> SimpleTypes = {
+static constexpr std::array<std::string_view, 14> SimpleTypes{
      "char", "char8_t", "char16_t", "char32_t", "wchar_t", "bool",   "short",
      "int",  "long",    "signed",   "unsigned", "float",   "double", "void",
 };
@@ -119,7 +121,8 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool 
 {
      auto source = Peek().location;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+     if (Peek().type == TokenType::Keyword &&
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
      {
           source.endPosition = Peek().location.endPosition;
           Advance();
@@ -168,11 +171,12 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
 
      NodePointer type = nullptr;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+     if (Peek().type == TokenType::Keyword &&
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
      {
           std::vector<InternedString> typeWords;
           while (Peek().type == TokenType::Keyword &&
-                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                 std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
           {
                typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
@@ -403,11 +407,11 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                }
 
                if (Peek().type == TokenType::Keyword &&
-                   SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                   std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                {
                     std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                           std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                     {
                          typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
@@ -880,8 +884,8 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
             Peek(i).type == TokenType::Keyword)
      {
           const auto& kw = std::get<InternedString>(Peek(i).value);
-          if (SimpleTypes.contains(kw.View()) || kw == "struct" || kw == "class" || kw == "union" || kw == "typedef" ||
-              kw == "using" || kw == "namespace")
+          if (std::ranges::contains(SimpleTypes, kw.View()) || kw == "struct" || kw == "class" || kw == "union" ||
+              kw == "typedef" || kw == "using" || kw == "namespace")
                return true;
           if (kw != "const" && kw != "volatile" && kw != "extern" && kw != "static" && kw != "inline" &&
               kw != "constexpr" && kw != "consteval" && kw != "constinit" && kw != "thread_local" && kw != "mutable")
@@ -1191,11 +1195,11 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                else if (keyword == "enum") // elaborated-type-specifier
                {
                }
-               else if (SimpleTypes.contains(keyword.View())) // simple-type-specifier
+               else if (std::ranges::contains(SimpleTypes, keyword.View())) // simple-type-specifier
                {
                     std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                           std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                     {
                          typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
@@ -2225,11 +2229,11 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
 
      NodePointer expression = nullptr;
      if (currentToken.type == TokenType::Keyword &&
-         SimpleTypes.contains(std::get<InternedString>(currentToken.value).View()))
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(currentToken.value).View()))
      {
           std::vector<InternedString> typeWords;
           while (!AtEnd() && Peek().type == TokenType::Keyword &&
-                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                 std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
           {
                typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
@@ -2413,7 +2417,7 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                Advance();
                canHoldTypeId = true;
                if (Peek().type == TokenType::Keyword &&
-                   !SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                   !std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                {
                     typeOrExpressionInside = ParseUnaryExpression(context);
                     canHoldTypeId = false;

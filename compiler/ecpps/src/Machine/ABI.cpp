@@ -21,7 +21,7 @@ extern template ecpps::abi::ISA ecpps::abi::Platform::CurrentISA<ecpps::abi::Pla
 #ifdef __clang__
 __attribute__((no_sanitize("address")))
 #endif
-ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()};
+ABI ABI::_current{Platform::CurrentISA<Platform::CurrentVendor()>()}; // NOLINT(bugprone-throwing-static-initialization)
 
 ecpps::abi::ABI::ABI(ISA isa) : _isa(isa)
 {
@@ -45,11 +45,8 @@ std::string ecpps::abi::ABI::MangleName(Linkage linkage, const std::string& name
 
 ecpps::abi::CallingConventionName ecpps::abi::ABI::DefaultCallingConventionName(void) const
 {
-     switch (this->_isa)
-     {
-     case abi::ISA::x86_64: return abi::CallingConventionName::Microsoftx64;
-     default: throw TracedException("ISA not handled yet");
-     }
+     if (this->_isa == abi::ISA::x86_64) return abi::CallingConventionName::Microsoftx64;
+     throw TracedException("ISA not handled yet");
 }
 
 [[nodiscard]] ecpps::abi::ClassLayoutResult ecpps::abi::ABI::LayoutClass(

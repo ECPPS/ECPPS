@@ -91,7 +91,7 @@ namespace ecpps
           std::vector<diagnostics::DiagnosticsMessage> diagnostics{};
 
      private:
-          StringPool& _stringPool;
+          StringPool& _stringPool; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
           static bool IsDigit(const char ch)
           {

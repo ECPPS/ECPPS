@@ -15,7 +15,7 @@ namespace ecpps::abi::encoders::x8664
 {
      [[nodiscard]] std::size_t NextSyntheticLabel(void) noexcept
      {
-          static std::atomic<std::size_t> lblCounter{static_cast<std::size_t>(1ULL << 40)};
+          static std::atomic<std::size_t> lblCounter{static_cast<std::size_t>(1ULL << 40uz)};
           return lblCounter.fetch_add(1);
      }
 

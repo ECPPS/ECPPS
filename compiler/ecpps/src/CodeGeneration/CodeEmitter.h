@@ -34,7 +34,7 @@ namespace ecpps::codegen
      struct StringRelocation
      {
           std::size_t offset;
-          std::uint8_t _register;
+          std::uint8_t _register; // NOLINT(readability-identifier-naming)
           std::function<std::vector<std::byte>(std::uint8_t _register, std::size_t stringTableOffset)> apply;
      };
      using LinkerRelocationMap = std::unordered_map<ByteOffset, Relocation>;

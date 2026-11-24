@@ -425,3 +425,4 @@ build/
 *.profraw
 *.o
 *.out
+clang-tidy-errors.txt

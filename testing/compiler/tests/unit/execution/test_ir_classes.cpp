@@ -299,7 +299,9 @@ namespace
           declarators.push_back(std::move(declarator));
           return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+               ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this
+                                                    // empty braced value
+               std::move(declarators), Source);
      }
 
      ecpps::ast::NodePointer MakeConstructorClass(Fixture& fixture, const std::string& className,
@@ -369,7 +371,9 @@ namespace
                                    std::move(initialiser));
           return MakeASTNode<ecpps::ast::VariableDeclarationNode>(
                fixture.astAllocator, fixture.MakeClassType(type), std::move(declarators),
-               ecpps::ast::VariableDeclarationNode::Flags{}, std::nullopt, Source);
+               ecpps::ast::VariableDeclarationNode::Flags{}, // NOLINT(readability-trailing-comma): next argument
+                                                             // follows this empty braced value
+               std::nullopt, Source);
      }
 
      ecpps::ast::NodePointer MakeClassReferenceType(Fixture& fixture, const std::string& className,
@@ -448,7 +452,9 @@ namespace
           declarators.push_back(std::move(declarator));
           return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+               ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this
+                                                    // empty braced value
+               std::move(declarators), Source);
      }
 
      ecpps::ast::NodePointer MakeMoveConstructor(Fixture& fixture, const std::string& className)
@@ -476,7 +482,9 @@ namespace
           declarators.push_back(std::move(declarator));
           return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+               ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this
+                                                    // empty braced value
+               std::move(declarators), Source);
      }
 
      ecpps::ast::NodePointer MakeCopyAssignmentOperator(Fixture& fixture, const std::string& className,
@@ -650,7 +658,9 @@ namespace
           declarators.push_back(std::move(declarator));
           return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+               ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this
+                                                    // empty braced value
+               std::move(declarators), Source);
      }
 
      ecpps::ast::NodePointer MakeUnqualifiedMemberFunction(Fixture& fixture, const std::string& name)
@@ -662,10 +672,12 @@ namespace
           declarators.push_back(std::move(declarator));
           return MakeASTNode<ecpps::ast::MemberDeclarationNode>(
                fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-               ecpps::ast::DeclSpecifierSequence{}, std::move(declarators), Source);
+               ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this
+                                                    // empty braced value
+               std::move(declarators), Source);
      }
 
-     ecpps::ast::NodePointer MakeMemberFunctionWithDerivedReturn(Fixture& fixture, std::string name,
+     ecpps::ast::NodePointer MakeMemberFunctionWithDerivedReturn(Fixture& fixture, const std::string& name,
                                                                  const ecpps::ast::PtrOperator::Kind kind,
                                                                  const bool includeReturn = true)
      {
@@ -673,7 +685,7 @@ namespace
           specifiers.definingTypeSpecifier = fixture.MakeBasicType("int");
 
           ecpps::ast::MemberDeclarator declarator{};
-          declarator.declaredIdExpression = fixture.MakeIdentifier(std::move(name));
+          declarator.declaredIdExpression = fixture.MakeIdentifier(name);
           ecpps::ast::PtrOperator pointerOperator{};
           pointerOperator.kind = kind;
           declarator.ptrOperators.push_back(std::move(pointerOperator));
@@ -713,7 +725,7 @@ TEST_CASE("IR - Member functions can return pointers and references", "[unit][ir
           fixture.astAllocator, fixture.astAllocator.Intern("DerivedReturnMethods"), ecpps::ast::ClassKey::Struct,
           std::move(members), false, false, Source));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
 
      REQUIRE((FindProcedure(nodes, "pointerResult") != nullptr));
@@ -777,7 +789,7 @@ TEST_CASE("IR - Assigning to a const-char pointer member is modifiable", "[unit]
           fixture.astAllocator, fixture.astAllocator.Intern("ConstPointeePointerMember"), ecpps::ast::ClassKey::Struct,
           std::move(members), false, false, Source));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
 
@@ -792,7 +804,7 @@ TEST_CASE("IR - Missing non-void member return warns and adds an unreachable nod
           fixture.astAllocator, fixture.astAllocator.Intern("MissingMemberReturn"), ecpps::ast::ClassKey::Struct,
           std::move(members), false, false, Source));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "missingReturn");
      REQUIRE((procedure != nullptr));
      const auto unreachableCount =
@@ -805,8 +817,8 @@ TEST_CASE("IR - Missing non-void member return warns and adds an unreachable nod
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Level() == ecpps::diagnostics::DiagnosticsLevel::Warning));
-     CHECK((diagnostic.Message().find("missingReturn") != std::string::npos));
-     CHECK((diagnostic.Message().find("without returning a value") != std::string::npos));
+     CHECK((diagnostic.Message().contains("missingReturn")));
+     CHECK((diagnostic.Message().contains("without returning a value")));
 }
 
 TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
@@ -815,7 +827,7 @@ TEST_CASE("IR - Class definition records field layout", "[unit][ir][classes]")
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeStructDefinition("PairForLayout", {{"int", "number"}, {"char", "marker"}}));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      const std::string className{"PairForLayout"};
      const auto& info = FindClassInfo(fixture, className);
 
@@ -850,7 +862,7 @@ TEST_CASE("IR - Aggregate initialisation stores the provided field value", "[uni
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, std::move(memberAccess), Source));
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "make", {}), std::move(body)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "make");
      REQUIRE((procedure != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -910,7 +922,7 @@ TEST_CASE("IR - Class parameters copy and class returns use caller storage", "[u
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "caller", {}), std::move(callerBody)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* identity = FindProcedure(nodes, "identity");
      const auto* caller = FindProcedure(nodes, "caller");
      REQUIRE((identity != nullptr));
@@ -951,7 +963,7 @@ TEST_CASE("IR - Class assignment copies the source object", "[unit][ir][classes]
                                      {{"AssignableValue", "left"}, {"AssignableValue", "right"}}),
           std::move(body)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "assign");
      REQUIRE((procedure != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -983,7 +995,7 @@ TEST_CASE("IR - Class assignment to a local passes its address to aggregate copy
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "assignLocals", {}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "assignLocals");
      REQUIRE((procedure != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -1069,7 +1081,7 @@ TEST_CASE("IR - By-value class arguments invoke the selected copy constructor", 
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "copyFromReturn", {}),
                                                   std::move(copyFromReturnBody)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* relay = FindProcedure(nodes, "relay");
      const auto* copyLocal = FindProcedure(nodes, "copyLocal");
      const auto* copyFromReturn = FindProcedure(nodes, "copyFromReturn");
@@ -1151,7 +1163,7 @@ TEST_CASE("IR - Move-eligible class return expressions select move constructors"
      ast.push_back(MakeClassReferenceReturnFunction(fixture, className, "returnRvalueReference",
                                                     ecpps::ast::ReferenceType::Kind::RValue));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* parameterReturn = FindProcedure(nodes, "returnParameter");
      const auto* localReturn = FindProcedure(nodes, "returnLocal");
      const auto* lvalueReferenceReturn = FindProcedure(nodes, "returnLvalueReference");
@@ -1193,7 +1205,7 @@ TEST_CASE("IR - Implicit class copies invoke declared member copy constructors",
           MakeClassFunctionSignature(fixture, wrapperClassName, "copyWrapper", {{wrapperClassName, "value"}}),
           std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      const auto* copyWrapper = FindProcedure(nodes, "copyWrapper");
      REQUIRE((copyWrapper != nullptr));
@@ -1218,14 +1230,13 @@ TEST_CASE("IR - Copy initialization does not select an explicit copy constructor
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
-     CHECK(diagnostic.Message().find("No viable copy or move constructor") != std::string::npos);
+     CHECK(diagnostic.Message().contains("No viable copy or move constructor"));
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
-                "Candidate: explicit ExplicitCopyValue::ExplicitCopyValue(const ExplicitCopyValue& source)") !=
-           std::string::npos);
+     CHECK(diagnostic.SubDiagnostics().front()->Message().contains(
+          "Candidate: explicit ExplicitCopyValue::ExplicitCopyValue(const ExplicitCopyValue& source)"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 1));
      CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message() ==
            "This explicit constructor is not considered by copy-initialisation");
@@ -1248,7 +1259,7 @@ TEST_CASE("IR - Member operator declarations enforce parameter counts", "[unit][
 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeConstructorClass(fixture, "OperatorArityValue", std::move(members)));
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
 
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator/ must have exactly 1 parameter"));
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator= must have exactly 1 parameter"));
@@ -1322,7 +1333,7 @@ TEST_CASE("IR - Multi-argument subscript expressions call operator[]", "[unit][i
      ast.push_back(fixture.MakeFunctionDefinition(
           MakeClassFunctionSignature(fixture, "void", "read_empty", {{className, "value"}}), std::move(emptyBody)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* read = FindProcedure(nodes, "read");
      REQUIRE((read != nullptr));
      const auto* call = FindCall(*read);
@@ -1355,7 +1366,7 @@ TEST_CASE("IR - Single-argument subscripts keep built-in pointer lowering", "[un
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      CHECK((FindProcedure(nodes, "read_pointer") != nullptr));
      CHECK(fixture.diagnostics.diagnosticsList.empty());
 }
@@ -1382,7 +1393,7 @@ TEST_CASE("IR - Subscript reference results remain assignable lvalues", "[unit][
      ast.push_back(fixture.MakeFunctionDefinition(
           MakeClassFunctionSignature(fixture, "int", "assign_subscript", {{className, "value"}}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "assign_subscript");
      REQUIRE((procedure != nullptr));
      const auto* call = FindCall(*procedure);
@@ -1405,7 +1416,7 @@ TEST_CASE("IR - Calling a class object invokes member operator()", "[unit][ir][c
           MakeReturningFunction(fixture, "int", "invoke", {{className, "callable"}},
                                 AstCall(fixture, fixture.MakeIdentifier("callable"), fixture.MakeIntegerLiteral(7))));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* invoke = FindProcedure(nodes, "invoke");
      REQUIRE((invoke != nullptr));
      const auto* loweredCall = FindCall(*invoke);
@@ -1427,7 +1438,7 @@ TEST_CASE("IR - Calling a class object supports static operator()", "[unit][ir][
           MakeReturningFunction(fixture, "int", "invoke_static", {{className, "callable"}},
                                 AstCall(fixture, fixture.MakeIdentifier("callable"), fixture.MakeIntegerLiteral(7))));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* invoke = FindProcedure(nodes, "invoke_static");
      REQUIRE((invoke != nullptr));
      const auto* loweredCall = FindCall(*invoke);
@@ -1471,7 +1482,7 @@ TEST_CASE("IR - Arrow expressions invoke operator->", "[unit][ir][classes][opera
      ast.push_back(MakeReturningFunction(fixture, "int", "read_arrow_explicit", {{proxyName, "proxy"}},
                                          std::move(explicitArrowAccess)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "read_arrow");
      REQUIRE((procedure != nullptr));
      const auto* call = FindCall(*procedure);
@@ -1518,7 +1529,7 @@ TEST_CASE("IR - Operator call defaults and variadic arguments are diagnosed at u
                  AstSubscript(fixture, fixture.MakeIdentifier("value"), fixture.MakeIntegerLiteral(1),
                               fixture.MakeIntegerLiteral(2)));
 
-     static_cast<void>(fixture.Parse(std::move(ast)));
+     static_cast<void>(fixture.Parse(ast));
 
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "Default arguments for operator() are not supported yet"));
      CHECK(HasTypeErrorContaining(fixture.diagnostics, "Variadic arguments for operator() are not supported yet"));
@@ -1538,7 +1549,7 @@ TEST_CASE("IR - Binary expressions invoke member operator overloads", "[unit][ir
                                 AstBinary(fixture, fixture.MakeIdentifier("value"), ecpps::ast::Operator::Plus,
                                           fixture.MakeIntegerLiteral(5))));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* add = FindProcedure(nodes, "add");
      REQUIRE((add != nullptr));
      const auto* call = FindCall(*add);
@@ -1589,7 +1600,7 @@ TEST_CASE("IR - Operator overload diagnostics explain argument and implicit obje
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(0), Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     static_cast<void>(fixture.Parse(std::move(ast)));
+     static_cast<void>(fixture.Parse(ast));
 
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -1661,7 +1672,7 @@ TEST_CASE("IR - Const removal suggestions require a well-formed edited operator 
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "use_const_objects", {}),
                                                   std::move(body)));
 
-     static_cast<void>(fixture.Parse(std::move(ast)));
+     static_cast<void>(fixture.Parse(ast));
 
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      const auto& selfUseDiagnostic = *fixture.diagnostics.diagnosticsList.at(0);
@@ -1735,7 +1746,7 @@ TEST_CASE("IR - Const removal suggestions omit class by-value calls that cannot 
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "use_noncopyable", {}),
                                                   std::move(body)));
 
-     static_cast<void>(fixture.Parse(std::move(ast)));
+     static_cast<void>(fixture.Parse(ast));
 
      UNSCOPED_INFO("diagnostic count=" << fixture.diagnostics.diagnosticsList.size());
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
@@ -1795,7 +1806,7 @@ TEST_CASE("IR - Const removal suggestions omit const reference declarations", "[
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "use_const_reference", {}),
                                                   std::move(body)));
 
-     static_cast<void>(fixture.Parse(std::move(ast)));
+     static_cast<void>(fixture.Parse(ast));
 
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -1845,7 +1856,7 @@ TEST_CASE("IR - Conversion functions support implicit and explicit scalar conver
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "convert_value", {}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.empty()));
      const auto* procedure = FindProcedure(nodes, "convert_value");
      REQUIRE((procedure != nullptr));
@@ -1905,7 +1916,7 @@ TEST_CASE("IR - Built-in arithmetic ranks conversion functions against member op
      ast.push_back(makeAdditionFunction("builtin_add_class_second", std::string{conversionOnlyClass}, false));
      ast.push_back(makeAdditionFunction("member_add_preferred", std::string{memberClass}, true));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      for (const auto* const functionName : {"builtin_add_class_first", "builtin_add_class_second"})
      {
@@ -1947,7 +1958,7 @@ TEST_CASE("IR - Assignment expressions invoke member operator= overloads", "[uni
      ast.push_back(fixture.MakeFunctionDefinition(
           MakeClassFunctionSignature(fixture, "int", "assign_value", {{className, "value"}}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "assign_value");
      REQUIRE((procedure != nullptr));
      const auto* call = FindCall(*procedure);
@@ -1993,7 +2004,7 @@ TEST_CASE("IR - Unary expressions invoke member operator overloads", "[unit][ir]
      ast.push_back(makeBuiltinUnaryCaller("builtin_unary_plus", ecpps::ast::Operator::Plus));
      ast.push_back(makeBuiltinUnaryCaller("builtin_logical_not", ecpps::ast::Operator::Exclamation));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* prefix = FindProcedure(nodes, "prefix_increment");
      REQUIRE((prefix != nullptr));
      const auto* prefixCall = FindCall(*prefix);
@@ -2039,7 +2050,7 @@ TEST_CASE("IR - Copy assignment invokes the declared operator= overload", "[unit
           MakeClassFunctionSignature(fixture, "void", "assign", {{className, "left"}, {className, "right"}}),
           std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* assign = FindProcedure(nodes, "assign");
      REQUIRE((assign != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -2076,7 +2087,7 @@ TEST_CASE("IR - Implicit copy assignment rejects const data members", "[unit][ir
           MakeClassFunctionSignature(fixture, "void", "assignConst", {{className, "left"}, {className, "right"}}),
           std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics,
                                     "Implicit copy assignment for 'ConstAssignmentValue' is deleted"));
 }
@@ -2100,7 +2111,7 @@ TEST_CASE("IR - Class assignment rejects const target objects", "[unit][ir][clas
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Class assignment requires a modifiable lvalue"));
 }
 
@@ -2127,7 +2138,7 @@ TEST_CASE("IR - Class locals are destroyed in reverse lifetime order", "[unit][i
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "lifetime", {}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* lifetime = FindProcedure(nodes, "lifetime");
      REQUIRE((lifetime != nullptr));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
@@ -2165,7 +2176,7 @@ TEST_CASE("IR - By-value class calls can target external declarations", "[unit][
           MakeClassFunctionSignature(fixture, className, "callExternalIdentity", {{className, "value"}}),
           std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      const auto* caller = FindProcedure(nodes, "callExternalIdentity");
      REQUIRE((caller != nullptr));
@@ -2202,7 +2213,7 @@ TEST_CASE("IR - Class ABI calls bind to later compiler-defined declarations", "[
      ast.push_back(fixture.MakeFunctionDefinition(
           MakeClassFunctionSignature(fixture, className, "identity", {{className, "value"}}), std::move(identityBody)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      const auto* caller = FindProcedure(nodes, "callIdentity");
      REQUIRE((caller != nullptr));
@@ -2241,7 +2252,7 @@ TEST_CASE("IR - By-value function declarations ignore top-level class cv", "[uni
           MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, fixture.MakeIntegerLiteral(1), Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(definitionSignature), std::move(definitionBody)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      const auto* caller = FindProcedure(nodes, "callRead");
      REQUIRE((caller != nullptr));
@@ -2286,7 +2297,7 @@ TEST_CASE("IR - Implicit member assignment preserves source constness", "[unit][
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics,
                                     "No viable copy or move assignment operator for 'NonConstAssignableMember'"));
 }
@@ -2324,7 +2335,7 @@ TEST_CASE("IR - User destructors destroy class members", "[unit][ir][classes][by
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "destroyOwner", {}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
      const auto* ownerDestructor = FindProcedure(nodes, "~" + ownerClassName);
      REQUIRE((ownerDestructor != nullptr));
@@ -2355,7 +2366,7 @@ TEST_CASE("IR - Positional aggregate initialisation assigns each field in order"
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "makePair", {}), std::move(body)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "makePair");
      REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
@@ -2386,7 +2397,7 @@ TEST_CASE("IR - Omitted aggregate fields receive zero initialisation", "[unit][i
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "secondOrZero", {}), std::move(body)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "secondOrZero");
      REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
@@ -2419,7 +2430,7 @@ TEST_CASE("IR - Designated aggregate initialisation targets the named field", "[
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "readSecond", {}), std::move(body)));
 
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
      const auto* procedure = FindProcedure(nodes, "readSecond");
      REQUIRE((procedure != nullptr));
      const auto stores = GetAggregateFieldStores(procedure->Body());
@@ -2454,7 +2465,7 @@ TEST_CASE("IR - Designated aggregate initialisers must follow member order", "[u
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "invalidOrder", {}), std::move(body)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
 
      REQUIRE((FindProcedure(nodes, "invalidOrder") != nullptr));
      REQUIRE(
@@ -2478,7 +2489,7 @@ TEST_CASE("IR - Unknown designated aggregate members are diagnosed", "[unit][ir]
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "unknownField", {}), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
 
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "'missing' is not a direct data member"));
 }
@@ -2502,7 +2513,7 @@ TEST_CASE("IR - Duplicate designated aggregate members are diagnosed", "[unit][i
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "duplicateField", {}), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
 
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Member 'first' is initialised more than once"));
 }
@@ -2525,7 +2536,7 @@ TEST_CASE("IR - Positional and designated aggregate initialisers cannot be mixed
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "mixedInitialisers", {}),
                                                   std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
 
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics, "Positional and designated initialisers cannot be mixed"));
 }
@@ -2546,7 +2557,7 @@ TEST_CASE("IR - In-class constructors emit and call regular procedures", "[unit]
      arguments.push_back(fixture.MakeIntegerLiteral(10));
      ast.push_back(MakeDefaultConstructionCaller(fixture, "InlineCtorForIR", "callInlineCtor", std::move(arguments)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* constructor = FindProcedure(nodes, "InlineCtorForIR");
      const auto* caller = FindProcedure(nodes, "callInlineCtor");
      REQUIRE((constructor != nullptr));
@@ -2583,7 +2594,9 @@ TEST_CASE("IR - Class construction accepts a string literal", "[unit][ir][classe
      constructors.push_back(std::move(constructor));
      auto constructorDeclaration = MakeASTNode<ecpps::ast::MemberDeclarationNode>(
           fixture.astAllocator, std::vector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>>{},
-          ecpps::ast::DeclSpecifierSequence{}, std::move(constructors), Source);
+          ecpps::ast::DeclSpecifierSequence{}, // NOLINT(readability-trailing-comma): next argument follows this empty
+                                               // braced value
+          std::move(constructors), Source);
 
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeConstructorClass(fixture, className, std::move(constructorDeclaration)));
@@ -2593,7 +2606,7 @@ TEST_CASE("IR - Class construction accepts a string literal", "[unit][ir][classe
      ast.push_back(
           MakeDefaultConstructionCaller(fixture, className, "constructFromStringLiteral", std::move(arguments)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* caller = FindProcedure(nodes, "constructFromStringLiteral");
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
@@ -2626,7 +2639,7 @@ TEST_CASE("IR - Defaulted constructors emit regular procedures", "[unit][ir][cla
           MakeConstructorDeclaration(fixture, "DefaultedCtorForIR", ecpps::ast::FunctionBodyKind::Defaulted)));
      ast.push_back(MakeDefaultConstructionCaller(fixture, "DefaultedCtorForIR", "callDefaultedCtor"));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* constructor = FindProcedure(nodes, "DefaultedCtorForIR");
      const auto* caller = FindProcedure(nodes, "callDefaultedCtor");
      REQUIRE((constructor != nullptr));
@@ -2647,7 +2660,7 @@ TEST_CASE("IR - Declaration-only constructors emit external calls", "[unit][ir][
           MakeConstructorDeclaration(fixture, "ExternalCtorForIR", ecpps::ast::FunctionBodyKind::None)));
      ast.push_back(MakeDefaultConstructionCaller(fixture, "ExternalCtorForIR", "callExternalCtor"));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* caller = FindProcedure(nodes, "callExternalCtor");
      REQUIRE((caller != nullptr));
      const auto* call = FindCall(*caller);
@@ -2683,7 +2696,7 @@ TEST_CASE("IR - Out-of-class constructor definitions bind to declarations", "[un
      ast.push_back(
           MakeDefaultConstructionCaller(fixture, "OutOfClassCtorForIR", "callOutOfClassCtor", std::move(arguments)));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* constructor = FindProcedure(nodes, "OutOfClassCtorForIR");
      const auto* caller = FindProcedure(nodes, "callOutOfClassCtor");
      REQUIRE((constructor != nullptr));
@@ -2719,7 +2732,7 @@ TEST_CASE("IR - Out-of-class defaulted constructors emit regular procedures", "[
      ast.push_back(
           MakeDefaultConstructionCaller(fixture, "OutOfClassDefaultedCtorForIR", "callOutOfClassDefaultedCtor"));
 
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
      const auto* constructor = FindProcedure(nodes, "OutOfClassDefaultedCtorForIR");
      const auto* caller = FindProcedure(nodes, "callOutOfClassDefaultedCtor");
      REQUIRE((constructor != nullptr));
@@ -2741,13 +2754,13 @@ TEST_CASE("IR - No matching constructor diagnostics list declared candidates", "
                                                                    {{"int", "valueParam"}})));
      ast.push_back(MakeDefaultConstructionCaller(fixture, "NoMatchCtorForIR", "callNoMatchCtor"));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Message() == "No constructor of 'NoMatchCtorForIR' matches these arguments"));
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK((diagnostic.SubDiagnostics().front()->Message().find(
-                 "Candidate: NoMatchCtorForIR::NoMatchCtorForIR(int valueParam)") != std::string::npos));
+     CHECK((diagnostic.SubDiagnostics().front()->Message().contains(
+          "Candidate: NoMatchCtorForIR::NoMatchCtorForIR(int valueParam)")));
 }
 
 TEST_CASE("IR - String literal with copy constructor candidate reports no match", "[unit][ir][classes][constructors]")
@@ -2764,7 +2777,7 @@ TEST_CASE("IR - String literal with copy constructor candidate reports no match"
                                                                     fixture.astAllocator.Intern("hello"), Source));
      ast.push_back(MakeDefaultConstructionCaller(fixture, className, "callStringLiteralNoMatch", std::move(arguments)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE(HasTypeErrorContaining(fixture.diagnostics,
                                     "No constructor of 'StringLiteralNoMatchForIR' matches these arguments"));
 }
@@ -2778,7 +2791,7 @@ TEST_CASE("IR - Invalid constructor and destructor names are diagnosed", "[unit]
      members.push_back(MakeUnqualifiedMemberFunction(fixture, "~X"));
      ast.push_back(MakeConstructorClass(fixture, "CX", std::move(members)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK(fixture.diagnostics.diagnosticsList[0]->Message() ==
            "Invalid constructor name 'X' in class 'CX', expected 'CX'");
@@ -2803,14 +2816,13 @@ TEST_CASE("IR - Deleted copy constructor diagnostics include the candidate", "[u
      body.Push(MakeASTNode<ecpps::ast::ReturnNode>(fixture.astAllocator, nullptr, Source));
      ast.push_back(fixture.MakeFunctionDefinition(std::move(signature), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK(diagnostic.Message() == "The selected constructor is deleted");
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
-                "Candidate: DeletedCopyCandidate::DeletedCopyCandidate(const DeletedCopyCandidate& source)") !=
-           std::string::npos);
+     CHECK(diagnostic.SubDiagnostics().front()->Message().contains(
+          "Candidate: DeletedCopyCandidate::DeletedCopyCandidate(const DeletedCopyCandidate& source)"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 1));
      CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message() == "This candidate is deleted");
 }
@@ -2841,14 +2853,13 @@ TEST_CASE("IR - Implicit copy constructor is deleted when a member copy construc
                                                          Source));
      ast.push_back(MakeCopyFromLValueFunction(fixture, ownerName, "copyOwnerWithDeletedMember"));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK(diagnostic.Message() == "The selected constructor is deleted");
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
-                "Candidate: OwnerWithDeletedCopy::OwnerWithDeletedCopy(const OwnerWithDeletedCopy& source)") !=
-           std::string::npos);
+     CHECK(diagnostic.SubDiagnostics().front()->Message().contains(
+          "Candidate: OwnerWithDeletedCopy::OwnerWithDeletedCopy(const OwnerWithDeletedCopy& source)"));
 }
 
 TEST_CASE("IR - Deleted destructor diagnostics include the candidate", "[unit][ir][classes][destructors]")
@@ -2869,13 +2880,13 @@ TEST_CASE("IR - Deleted destructor diagnostics include the candidate", "[unit][i
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("void", "destroyDeleted", {}), std::move(body)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK(diagnostic.Message() == "Destructor for 'DeletedDestructorCandidate' is deleted");
      REQUIRE((diagnostic.SubDiagnostics().size() == 1));
-     CHECK(diagnostic.SubDiagnostics().front()->Message().find(
-                "Candidate: DeletedDestructorCandidate::~DeletedDestructorCandidate()") != std::string::npos);
+     CHECK(diagnostic.SubDiagnostics().front()->Message().contains(
+          "Candidate: DeletedDestructorCandidate::~DeletedDestructorCandidate()"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 1));
      CHECK(diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message() == "This candidate is deleted");
 }
@@ -2895,13 +2906,11 @@ TEST_CASE("IR - Ambiguous constructor diagnostics list tied candidates", "[unit]
      ast.push_back(
           MakeDefaultConstructionCaller(fixture, "AmbiguousCtorForIR", "callAmbiguousCtor", std::move(arguments)));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Message() == "Constructor call for 'AmbiguousCtorForIR' is ambiguous"));
      REQUIRE((diagnostic.SubDiagnostics().size() == 2));
-     CHECK((diagnostic.SubDiagnostics()[0]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(unsigned int") !=
-            std::string::npos));
-     CHECK((diagnostic.SubDiagnostics()[1]->Message().find("AmbiguousCtorForIR::AmbiguousCtorForIR(long") !=
-            std::string::npos));
+     CHECK((diagnostic.SubDiagnostics()[0]->Message().contains("AmbiguousCtorForIR::AmbiguousCtorForIR(unsigned int")));
+     CHECK((diagnostic.SubDiagnostics()[1]->Message().contains("AmbiguousCtorForIR::AmbiguousCtorForIR(long")));
 }

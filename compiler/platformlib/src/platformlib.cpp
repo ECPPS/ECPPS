@@ -111,15 +111,16 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace([[maybe_unused]] Debu
      // use ptrace for stack walking
      pid_t pid = getpid();
      std::vector<void*> stack;
-     ptrace(PTRACE_ATTACH, pid, nullptr, nullptr);
+     ptrace(PTRACE_ATTACH, pid, nullptr, nullptr); // NOLINT(cppcoreguidelines-pro-type-vararg)
      waitpid(pid, nullptr, 0);
      for (int i = 0; i < 64; i++)
      {
+          // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
           void* addr = reinterpret_cast<void*>(ptrace(PTRACE_PEEKUSER, pid, sizeof(void*) * 16, nullptr));
           if (addr == nullptr) break;
           stack.push_back(addr);
      }
-     ptrace(PTRACE_DETACH, pid, nullptr, nullptr);
+     ptrace(PTRACE_DETACH, pid, nullptr, nullptr); // NOLINT(cppcoreguidelines-pro-type-vararg)
      return stack;
 #endif
 }

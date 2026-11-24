@@ -55,16 +55,16 @@ namespace ecpps
 
      enum struct VerboseFeature : std::uint16_t
      {
-          Preprocessor = 1uz << 0,
-          Tokens = 1uz << 1,
-          AST = 1uz << 2,
-          IR = 1uz << 3,
-          VInst = 1uz << 4,
-          IInst = 1uz << 5,
-          PInst = 1uz << 6,
-          Emit = 1uz << 7,
-          FinalEmit = 1uz << 8,
-          Time = 1uz << 9,
+          Preprocessor = 1uz << 0uz,
+          Tokens = 1uz << 1uz,
+          AST = 1uz << 2uz,
+          IR = 1uz << 3uz,
+          VInst = 1uz << 4uz,
+          IInst = 1uz << 5uz,
+          PInst = 1uz << 6uz,
+          Emit = 1uz << 7uz,
+          FinalEmit = 1uz << 8uz,
+          Time = 1uz << 9uz,
      };
 
      using VerboseFeatures = std::uint16_t;
@@ -75,11 +75,16 @@ namespace ecpps
      }
 
      constexpr VerboseFeatures AllVerboseFeatures =
-          VerboseFeatureMask(VerboseFeature::Preprocessor) | VerboseFeatureMask(VerboseFeature::Tokens) |
-          VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR) |
-          VerboseFeatureMask(VerboseFeature::VInst) | VerboseFeatureMask(VerboseFeature::IInst) |
-          VerboseFeatureMask(VerboseFeature::PInst) | VerboseFeatureMask(VerboseFeature::Emit) |
-          VerboseFeatureMask(VerboseFeature::FinalEmit) | VerboseFeatureMask(VerboseFeature::Time);
+          static_cast<VerboseFeatures>(static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Preprocessor)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Tokens)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::AST)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::IR)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::VInst)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::IInst)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::PInst)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Emit)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::FinalEmit)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Time)));
 
      enum struct StringPooling : std::uint8_t
      {
@@ -162,7 +167,7 @@ namespace ecpps
           std::optional<VerboseFeature> firstVerboseFeature{};
 
           bool dumpToFile = false;
-          VerboseFeature dumpFeature{};
+          VerboseFeature dumpFeature = VerboseFeature::Preprocessor;
           std::FILE* dumpFile = nullptr;
 
           std::vector<std::string> importedLibraries{};

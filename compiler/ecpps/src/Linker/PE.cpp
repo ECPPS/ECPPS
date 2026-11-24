@@ -270,7 +270,9 @@
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
-     return (value + alignment - 1) & ~(alignment - 1);
+     const auto unsignedValue = static_cast<std::uintmax_t>(value);
+     const auto unsignedAlignment = static_cast<std::uintmax_t>(alignment);
+     return static_cast<T>((unsignedValue + unsignedAlignment - 1uz) & ~(unsignedAlignment - 1uz));
 }
 
 ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t entryPoint, bool isNxCompatible,
@@ -289,10 +291,11 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.signature = PeMagic;
      this->ntHeaders.fileHeader.machine = IMAGE_FILE_MACHINE_AMD64;
      this->ntHeaders.fileHeader.sizeOfOptionalHeader = sizeof(OptionalHeader);
-     this->ntHeaders.fileHeader.characteristics =
-          (linkType == LinkType::Executable ? IMAGE_FILE_EXECUTABLE_IMAGE
-                                            : (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DLL)) |
-          IMAGE_FILE_LARGE_ADDRESS_AWARE;
+     this->ntHeaders.fileHeader.characteristics = static_cast<std::uint16_t>(
+          (linkType == LinkType::Executable ? static_cast<std::uint32_t>(IMAGE_FILE_EXECUTABLE_IMAGE)
+                                            : (static_cast<std::uint32_t>(IMAGE_FILE_EXECUTABLE_IMAGE) |
+                                               static_cast<std::uint32_t>(IMAGE_FILE_DLL))) |
+          static_cast<std::uint32_t>(IMAGE_FILE_LARGE_ADDRESS_AWARE));
      const std::time_t currentTime = std::time(nullptr);
      this->ntHeaders.fileHeader.timeDateStamp = static_cast<std::uint32_t>(currentTime);
 
@@ -305,9 +308,10 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.optionalHeader.minorLinkerVersion = 0;
      this->ntHeaders.optionalHeader.majorOperatingSystemVersion = 6;
      this->ntHeaders.optionalHeader.minorOperatingSystemVersion = 0;
-     this->ntHeaders.optionalHeader.dllCharacteristics = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA |
-                                                         (isNxCompatible ? IMAGE_DLLCHARACTERISTICS_NX_COMPAT : 0) |
-                                                         (isRelocatable ? IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE : 0);
+     this->ntHeaders.optionalHeader.dllCharacteristics = static_cast<std::uint16_t>(
+          static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) |
+          (isNxCompatible ? static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_NX_COMPAT) : 0u) |
+          (isRelocatable ? static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) : 0u));
      this->ntHeaders.optionalHeader.loaderFlags = 0;
      this->ntHeaders.optionalHeader.imageBase = imageBase;
      this->ntHeaders.optionalHeader.sectionAlignment = 0x1000;

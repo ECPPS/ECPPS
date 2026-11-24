@@ -28,6 +28,7 @@ namespace ecpps::abi::encoders::x8664
                case 3: return std::to_underlying(RegisterIndex::Rcx);
                case 4: return std::to_underlying(RegisterIndex::R8);
                case 5: return std::to_underlying(RegisterIndex::R9);
+               default: break;
                }
                throw TracedException(std::format("Invalid parameter register: passed {}", reg));
           }

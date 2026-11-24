@@ -105,7 +105,7 @@ TEST_CASE("ArithmeticTypes - Signedness", "[typesystem][arithmetic_types]")
           const auto* signedInt = ecpps::ir::GetTypeContext().Get(request);
           auto name = signedInt->RawName();
           INFO("Signed int name: " << name);
-          REQUIRE((name.find("int") != std::string::npos));
+          REQUIRE((name.contains("int")));
      }
 
      SECTION("Unsigned int")
@@ -122,7 +122,7 @@ TEST_CASE("ArithmeticTypes - Signedness", "[typesystem][arithmetic_types]")
           const auto* unsignedInt = ecpps::ir::GetTypeContext().Get(request);
           auto name = unsignedInt->RawName();
           INFO("Unsigned int name: " << name);
-          REQUIRE((name.find("unsigned") != std::string::npos || name.find("uint") != std::string::npos));
+          REQUIRE((name.contains("unsigned") || name.contains("uint")));
      }
 
      SECTION("Signed vs unsigned are different types")
@@ -417,7 +417,7 @@ TEST_CASE("ArithmeticTypes - Type names", "[typesystem][arithmetic_types]")
           const auto* intPtr = ecpps::ir::GetTypeContext().Get(ptrRequest);
           auto name = intPtr->RawName();
           REQUIRE(!name.empty());
-          REQUIRE((name.find('*') != std::string::npos));
+          REQUIRE((name.contains('*')));
           INFO("Pointer type name: " << name);
      }
 }

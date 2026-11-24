@@ -282,8 +282,8 @@ namespace ecpps::typeSystem
      enum struct Qualifiers : std::uint_fast8_t
      {
           None = 0,
-          Const = 1 << 0,
-          Volatile = 1 << 1,
+          Const = 1u << 0u,
+          Volatile = 1u << 1u,
           ConstVolatile = Const | Volatile,
      };
 

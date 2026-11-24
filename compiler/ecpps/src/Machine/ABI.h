@@ -118,10 +118,7 @@ namespace
 {
      [[maybe_unused]] std::string ToString(const ecpps::abi::CallingConventionName callingConvention) // NOLINT
      {
-          switch (callingConvention)
-          {
-          case ecpps::abi::CallingConventionName::Microsoftx64: return "__mscall";
-          default: return "__undefined";
-          }
+          if (callingConvention == ecpps::abi::CallingConventionName::Microsoftx64) return "__mscall";
+          return "__undefined";
      }
 } // namespace

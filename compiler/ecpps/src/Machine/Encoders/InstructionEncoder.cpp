@@ -21,9 +21,7 @@ std::unordered_map<ecpps::abi::encoding::CompilationId, std::unique_ptr<ecpps::a
 static std::unique_ptr<ecpps::abi::api::Target> FromDescription(ecpps::abi::encoding::CompilationContext context)
 {
      auto target = std::make_unique<ecpps::abi::api::Target>();
-     switch (context.isa)
-     {
-     case ecpps::abi::ISA::x86_64:
+     if (context.isa == ecpps::abi::ISA::x86_64)
      {
           target->encoder = std::make_unique<ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder>(*target);
 
@@ -67,8 +65,9 @@ static std::unique_ptr<ecpps::abi::api::Target> FromDescription(ecpps::abi::enco
                     std::format("Invalid target.platform: {}", std::to_underlying(context.platform)));
           }
      }
-     break;
-     default: throw ecpps::TracedException(std::format("Invalid target.isa: {}", std::to_underlying(context.isa)));
+     else
+     {
+          throw ecpps::TracedException(std::format("Invalid target.isa: {}", std::to_underlying(context.isa)));
      }
      runtime_assert(target->encoder != nullptr, "Encoder was null");
      runtime_assert(target->platform != nullptr, "Platform was null");

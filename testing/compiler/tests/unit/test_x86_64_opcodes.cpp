@@ -128,7 +128,7 @@ TEST_CASE("x86-64 passes and returns a small integer aggregate in registers", "[
      INFO(assembly);
      CHECK(storesIncomingIntegerArgument);
      CHECK(loadsAggregateReturnValue);
-     CHECK((assembly.find("RET") != std::string::npos));
+     CHECK((assembly.contains("RET")));
 }
 
 TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[codegen][x86_64][regalloc]")

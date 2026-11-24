@@ -2497,8 +2497,9 @@ bool ecpps::ir::IR::IsNarrowingConversion([[maybe_unused]] const Expression& exp
           if (targetWidth < 64)
           {
                targetUnsignedMax = (std::uint64_t{1} << targetWidth) - 1;
-               targetSignedMin = -(std::int64_t{1} << (targetWidth - 1));
-               targetSignedMax = (std::int64_t{1} << (targetWidth - 1)) - 1;
+               const auto signMagnitude = std::uint64_t{1} << (targetWidth - 1u);
+               targetSignedMin = -static_cast<std::int64_t>(signMagnitude);
+               targetSignedMax = static_cast<std::int64_t>(signMagnitude - 1u);
           }
 
           if (targetSigned)

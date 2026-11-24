@@ -200,12 +200,15 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
 {
      std::vector<std::byte> symbolStringTable{std::byte{0}};
      std::vector<ELFSymbol64> symbols(4);
-     symbols[1].info = static_cast<std::uint8_t>((STB_LOCAL << 4) | STT_SECTION);
+     symbols[1].info = static_cast<std::uint8_t>((static_cast<std::uint32_t>(STB_LOCAL) << 4u) |
+                                                 static_cast<std::uint32_t>(STT_SECTION));
      symbols[1].sectionIndex = 1;
-     symbols[2].info = static_cast<std::uint8_t>((STB_LOCAL << 4) | STT_SECTION);
+     symbols[2].info = static_cast<std::uint8_t>((static_cast<std::uint32_t>(STB_LOCAL) << 4u) |
+                                                 static_cast<std::uint32_t>(STT_SECTION));
      symbols[2].sectionIndex = 2;
      symbols[3].name = AddString(symbolStringTable, RdataSymbolName);
-     symbols[3].info = static_cast<std::uint8_t>((STB_LOCAL << 4) | STT_OBJECT);
+     symbols[3].info = static_cast<std::uint8_t>((static_cast<std::uint32_t>(STB_LOCAL) << 4u) |
+                                                 static_cast<std::uint32_t>(STT_OBJECT));
      symbols[3].sectionIndex = 2;
      symbols[3].size = stringData.size();
 
@@ -225,7 +228,8 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
      {
           ELFSymbol64 raw{};
           raw.name = AddString(symbolStringTable, symbol.name);
-          raw.info = static_cast<std::uint8_t>((STB_GLOBAL << 4) | STT_FUNC);
+          raw.info = static_cast<std::uint8_t>((static_cast<std::uint32_t>(STB_GLOBAL) << 4u) |
+                                               static_cast<std::uint32_t>(STT_FUNC));
           raw.sectionIndex = symbol.sectionIndex;
           raw.value = symbol.value;
           if (symbol.sectionIndex == 1)
@@ -261,7 +265,8 @@ std::vector<std::byte> ecpps::linker::elf::ELFObjectLinker::ToBytes(
 
           rawRelocations.emplace_back(ELFRelocation64{
                .offset = relocation.offset,
-               .info = (static_cast<std::uint64_t>(symbolIndex->second) << 32) | relocation.type,
+               .info = (static_cast<std::uint64_t>(symbolIndex->second) << 32uz) |
+                       static_cast<std::uint64_t>(relocation.type),
                .addend = relocation.addend,
           });
      }

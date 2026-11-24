@@ -48,14 +48,14 @@ namespace ecpps
                return this->_view.data();
           }
 
-          [[nodiscard]] std::string_view::const_iterator begin(
-               void) const noexcept // NOLINT(readability-identifier-naming)
+          [[nodiscard]] std::string_view::const_iterator begin( // NOLINT(readability-identifier-naming)
+               void) const noexcept
           {
                return this->_view.begin();
           }
 
-          [[nodiscard]] std::string_view::const_iterator end(
-               void) const noexcept // NOLINT(readability-identifier-naming)
+          [[nodiscard]] std::string_view::const_iterator end( // NOLINT(readability-identifier-naming)
+               void) const noexcept
           {
                return this->_view.end();
           }

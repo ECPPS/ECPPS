@@ -230,7 +230,9 @@ namespace ecpps::ir
      // level). 0 (>> 4) is the lowest priority (most likely to be spilled), and higher values are higher priority (less
      // likely to be spilled). Additionally, 0xfff is registered to the fixed class
 
-#define COMPOSE_CLASS(priority, classCode) ((static_cast<std::uint_least16_t>(priority) << 4) | (classCode))
+#define COMPOSE_CLASS(priority, classCode)                                                                             \
+     static_cast<std::uint_least16_t>((static_cast<std::uint_least32_t>(priority) << 4u) |                             \
+                                      static_cast<std::uint_least32_t>(classCode))
 
      enum struct RegisterClass : std::uint_least16_t
      {

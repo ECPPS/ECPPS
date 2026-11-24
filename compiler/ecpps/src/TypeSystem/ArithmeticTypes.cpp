@@ -160,6 +160,8 @@ std::size_t ecpps::typeSystem::BooleanType::Width(void) const noexcept
 
 // predefined builtin types
 // void
+// These built-in type objects are intentionally constructed before parsing; allocation failure during startup is fatal.
+// NOLINTBEGIN(bugprone-throwing-static-initialization)
 std::unique_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
      std::make_unique<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
 
@@ -208,6 +210,7 @@ std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLo
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
      std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
                                                  ecpps::typeSystem::Qualifiers::Const);
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const IntegralType* integer)
 {

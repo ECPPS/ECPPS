@@ -92,8 +92,7 @@ namespace ecpps::linker::win
           std::uint64_t sizeOfHeapCommit{};            // Size of heap commit
           std::uint32_t loaderFlags{};                 // Loader flags
           std::uint32_t numberOfRvaAndSizes{};         // Number of RVA and sizes
-          // Optional: Data Directory (up to 16 entries)
-          DataDirectory dataDirectory[16]{}; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+          DataDirectory dataDirectory[16]{}; // NOLINT(cppcoreguidelines-avoid-c-arrays, modernize-avoid-c-arrays)
      };
 
      // NT Headers
@@ -172,7 +171,7 @@ namespace ecpps::linker::win
      {
           std::string name{};
           std::vector<std::byte> data{};
-          PESectionFlags flags{};
+          PESectionFlags flags{}; // NOLINT(bugprone-invalid-enum-default-initialization)
           std::uint32_t pointerToRawData{};
           std::uint32_t virtualAddress{};
      };
@@ -208,7 +207,7 @@ namespace ecpps::linker::win
                std::uint32_t originalFirstThunk; // RVA to original unbound IAT (PIMAGE_THUNK_DATA)
           };
           std::uint32_t timeDateStamp; // 0 if not bound,
-                                       // -1 if bound, and real date\time stamp
+                                       // -1 if bound, and real date/time stamp
                                        //     in IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT (new BIND)
                                        // O.W. date/time stamp of DLL bound to (Old BIND)
 

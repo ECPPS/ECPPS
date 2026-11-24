@@ -1,4 +1,5 @@
 #include "Tokeniser.h"
+#include <algorithm>
 #include <print>
 #include <string>
 #include <unordered_set>
@@ -77,7 +78,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          {
                               std::uint32_t h = hex(in[i + 1]);
                               if (h == ~0u) break;
-                              value = (value << 4) | h;
+                              value = (value << 4uz) | h;
                               i++;
                          }
                          out += static_cast<char>(value);
@@ -93,7 +94,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          {
                               std::uint32_t h = hex(in[++i]);
                               if (h == ~0u) throw std::runtime_error("invalid hex");
-                              value = (value << 4) | h;
+                              value = (value << 4uz) | h;
                          }
 
                          if (value <= 0x7F)
@@ -102,14 +103,14 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          }
                          else if (value <= 0x7FF)
                          {
-                              out += static_cast<char>(0xC0 | (value >> 6));
-                              out += static_cast<char>(0x80 | (value & 0x3F));
+                              out += static_cast<char>(0xC0uz | (value >> 6uz));
+                              out += static_cast<char>(0x80uz | (value & 0x3Fuz));
                          }
                          else
                          {
-                              out += static_cast<char>(0xE0 | (value >> 12));
-                              out += static_cast<char>(0x80 | ((value >> 6) & 0x3F));
-                              out += static_cast<char>(0x80 | (value & 0x3F));
+                              out += static_cast<char>(0xE0uz | (value >> 12uz));
+                              out += static_cast<char>(0x80uz | ((value >> 6uz) & 0x3Fuz));
+                              out += static_cast<char>(0x80uz | (value & 0x3Fuz));
                          }
 
                          break;
@@ -124,7 +125,7 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          {
                               std::uint32_t h = hex(in[++i]);
                               if (h == ~0u) throw std::runtime_error("invalid hex");
-                              value = (value << 4) | h;
+                              value = (value << 4uz) | h;
                          }
 
                          if (value <= 0x7F)
@@ -133,21 +134,21 @@ std::vector<ecpps::Token> ecpps::Tokeniser::Tokenise(const std::vector<Preproces
                          }
                          else if (value <= 0x7FF)
                          {
-                              out += static_cast<char>(0xC0 | (value >> 6));
-                              out += static_cast<char>(0x80 | (value & 0x3F));
+                              out += static_cast<char>(0xC0uz | (value >> 6uz));
+                              out += static_cast<char>(0x80uz | (value & 0x3Fuz));
                          }
                          else if (value <= 0xFFFF)
                          {
-                              out += static_cast<char>(0xE0 | (value >> 12));
-                              out += static_cast<char>(0x80 | ((value >> 6) & 0x3F));
-                              out += static_cast<char>(0x80 | (value & 0x3F));
+                              out += static_cast<char>(0xE0uz | (value >> 12uz));
+                              out += static_cast<char>(0x80uz | ((value >> 6uz) & 0x3Fuz));
+                              out += static_cast<char>(0x80uz | (value & 0x3Fuz));
                          }
                          else
                          {
-                              out += static_cast<char>(0xF0 | (value >> 18));
-                              out += static_cast<char>(0x80 | ((value >> 12) & 0x3F));
-                              out += static_cast<char>(0x80 | ((value >> 6) & 0x3F));
-                              out += static_cast<char>(0x80 | (value & 0x3F));
+                              out += static_cast<char>(0xF0uz | (value >> 18uz));
+                              out += static_cast<char>(0x80uz | ((value >> 12uz) & 0x3Fuz));
+                              out += static_cast<char>(0x80uz | ((value >> 6uz) & 0x3Fuz));
+                              out += static_cast<char>(0x80uz | (value & 0x3Fuz));
                          }
 
                          break;

@@ -310,7 +310,7 @@ namespace
 
           for (const auto featureName : SplitCommaSeparated(option.value))
           {
-               VerboseFeature feature{};
+               VerboseFeature feature = VerboseFeature::Preprocessor;
 
                if (!ParseVerboseFeature(featureName, feature))
                {
@@ -917,9 +917,12 @@ ecpps::CompilerConfig::CompilerConfig(
           {
                if (!option.hasValue)
                {
-                    verboseFeatures |= VerboseFeatureMask(VerboseFeature::Preprocessor) |
-                                       VerboseFeatureMask(VerboseFeature::Tokens) |
-                                       VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR);
+                    verboseFeatures = static_cast<VerboseFeatures>(
+                         static_cast<std::uint32_t>(verboseFeatures) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Preprocessor)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Tokens)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::AST)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::IR)));
 
                     NoteFirstVerboseFeature(*this, VerboseFeature::Preprocessor);
 

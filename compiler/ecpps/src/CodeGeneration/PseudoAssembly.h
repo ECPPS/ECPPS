@@ -42,7 +42,7 @@ template <> struct std::hash<ecpps::codegen::ByteView>
 {
      std::size_t operator()(const ecpps::codegen::ByteView& view) const noexcept
      {
-          return view.begin ^ (view.end << 1);
+          return view.begin ^ (view.end << 1uz);
      }
 };
 
@@ -57,13 +57,13 @@ namespace ecpps::codegen
      enum struct ValueProperty : std::uint8_t
      {
           None = 0,
-          Integer = 1 << 0,
-          Floating = 1 << 1,
-          Pointer = 1 << 2,
-          Aggregate = 1 << 3,
-          Array = 1 << 4,
+          Integer = 1u << 0u,
+          Floating = 1u << 1u,
+          Pointer = 1u << 2u,
+          Aggregate = 1u << 3u,
+          Array = 1u << 4u,
 
-          Signed = 1 << 5,
+          Signed = 1u << 5u,
      };
      constexpr bool operator&(const ValueProperty left, const ValueProperty right)
      {

@@ -1,0 +1,273 @@
+clang-format report
+Version: clang-format version 23.1.5
+Build directory: /home/tymi/Projects/ECPPS/out/build/Linux-Clang
+Translation units: 132
+Parallel jobs: 8
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/AbstractNodes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/CodeEmitter.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/Opcodes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/arithmeticNegation.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/arithmetics.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/bitwiseMath.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/call.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/cmp.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/controlFlow.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/copy.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/div.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/jmp.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/lea.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/movsx.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/movzx.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/mul.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/shifts.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/stack.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/operations/xchg.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Emitters/x86_64/x86_64.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/Nodes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/PseudoAssembly.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/CodeGeneration/virtualAllocator.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Debugger/Debugger.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Debugger/Debuggers/Win64.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/ClassInitialisation.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/Context.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/Diagnostics.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/Entities.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Classes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Expressions.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Initialisation.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Internal.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Lowering.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Statements.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.Types.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/IR.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/MemoryAccess.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/NodeBase.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Execution/OverloadDiagnostics.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/FileSystem/IncludeDirectory.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/FileSystem/SourceScanner.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/CoffLinker.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/ELFObjectLinker.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/Linker.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/PE.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/WindowsLinker.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Linker/dllHelp.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/ABI.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/Add.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/ArithmeticNegation.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/BinaryAnd.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/BinaryComplement.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/BinaryOr.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/BinaryXor.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/Divide.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/Multiply.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/Shifts.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Arithmetic/Sub.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Common/CommonOperations.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Common/MemoryOperations.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/Call.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/CallPlus.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/Jcc.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/Jump.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/Label.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/ControlFlow/Return.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/AddressOf.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/Copy.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/CopyInteger.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/CopyParameter.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/Indirect.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/LoadStringAddress.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/PassArgument.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/SignExtend.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/Zero.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/Instructions/Fundamental/ZeroExtend.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/Backends/x86_64/Core/encoder.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Encoders/InstructionEncoder.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Machine.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Mangling.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Vendor/aARM/ISA.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Machine/Vendor/ax86/ISA.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Parsing/AST.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Parsing/ASTContext.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Parsing/Preprocessor.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Parsing/SourceMap.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Parsing/Tokeniser.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Shared/BumpAllocator.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Shared/Config.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Shared/Diagnostics.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Shared/Error.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/Shared/mimalloc.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/TypeSystem/ArithmeticTypes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/TypeSystem/CompoundTypes.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/TypeSystem/TypeBase.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/ecpps/src/cli/main.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/platformlib/src/identify.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/platformlib/src/platformlib.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/utilitieslib/src/RuntimeAssert.cpp
+
+File: /home/tymi/Projects/ECPPS/compiler/utilitieslib/src/SBOVector.cpp
+
+File: /home/tymi/Projects/ECPPS/stdlib/crtStartup/crtmain.cpp
+
+File: /home/tymi/Projects/ECPPS/stdlib/runtime/dllmain.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/sources/playground.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/test_compiler.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/e2e/test_comprehensive.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/integration/test_ast.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/integration/test_tokeniser.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/integration/test_tokeniser_to_ast.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/regression/test_pointer_arithmetic.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/execution/test_ir_classes.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/execution/test_ir_codegen.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/execution/test_ir_control_flow.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/execution/test_ir_overload_resolution.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/parsing/test_ast.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/parsing/test_pp_tokens.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/parsing/test_tokenise.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/parsing/test_tokens.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_config.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_diagnostics.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_elf_object_linker.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_include_directory.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_platform_identify.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_range_compat.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_sbo_vector.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_tokenise.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/test_x86_64_opcodes.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/typesystem/test_arithmetic_types.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/typesystem/test_type_comparison.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/utilities/test_bump_allocator.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/compiler/tests/unit/utilities/test_sbo_vector.cpp
+
+File: /home/tymi/Projects/ECPPS/testing/stdlib/test_stdlib.cpp
+
+
+Summary: 132 translation units processed; 0 clang-format invocations returned nonzero.
+Full output: /home/tymi/Projects/ECPPS/clang-format-errors.txt

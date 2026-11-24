@@ -22,7 +22,7 @@ namespace testHelpers
      }
 
      /// Create a BumpAllocator with specified initial size
-     inline auto MakeAllocator(std::size_t initialSize = 1024 * 64)
+     inline auto MakeAllocator(std::size_t initialSize = 1024uz * 64uz)
      {
           return ecpps::BumpAllocator{initialSize};
      }

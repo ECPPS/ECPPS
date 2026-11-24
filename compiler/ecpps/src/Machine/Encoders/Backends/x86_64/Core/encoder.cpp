@@ -454,9 +454,8 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* j = std::launder(reinterpret_cast<const JccInstruction*>(instruction.description.data()));
           return std::format("J{} .L{}", ToString(j->condition), j->labelId);
      }
+     default: return "__unknown";
      }
-
-     return "__unknown";
 }
 
 std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::

@@ -43,16 +43,16 @@ namespace irTestHelpers
           }
 
           [[nodiscard]] ecpps::ast::FunctionSignature MakeFunctionSignature(
-               std::string returnType, std::string name,
+               const std::string& returnType, const std::string& name,
                const std::vector<std::pair<std::string, std::string>>& parameters)
           {
                ecpps::SBOVector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
-               ecpps::ast::FunctionSignature signature{this->MakeBasicType(std::move(returnType)),
+               ecpps::ast::FunctionSignature signature{this->MakeBasicType(returnType),
                                                        false,
                                                        false,
                                                        ecpps::ast::ConstantExpressionSpecifier::None,
                                                        std::move(attributes),
-                                                       this->MakeIdentifier(std::move(name)),
+                                                       this->MakeIdentifier(name),
                                                        ecpps::abi::ABI::Current().DefaultCallingConventionName()};
                for (const auto& [type, parameterName] : parameters)
                {
@@ -121,15 +121,18 @@ namespace irTestHelpers
                                                          ecpps::ast::ClassKey::Struct, false, false, Source);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeVariableDeclaration(std::string typeName, std::string variableName,
+          [[nodiscard]] ecpps::ast::NodePointer MakeVariableDeclaration(const std::string& typeName,
+                                                                        const std::string& variableName,
                                                                         ecpps::ast::NodePointer initialiser)
           {
                std::vector<ecpps::ast::VariableDeclarationNode::Declarator> declarators{};
-               declarators.emplace_back(this->MakeIdentifier(std::move(variableName)),
+               declarators.emplace_back(this->MakeIdentifier(variableName),
                                         ecpps::ast::InitialisationType::BracedInitialiser, std::move(initialiser));
                return MakeASTNode<ecpps::ast::VariableDeclarationNode>(
-                    this->astAllocator, this->MakeClassType(std::move(typeName)), std::move(declarators),
-                    ecpps::ast::VariableDeclarationNode::Flags{}, std::nullopt, Source);
+                    this->astAllocator, this->MakeClassType(typeName), std::move(declarators),
+                    ecpps::ast::VariableDeclarationNode::Flags{}, // NOLINT(readability-trailing-comma): next argument
+                                                                  // follows this empty braced value
+                    std::nullopt, Source);
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeIntegerLiteral(const unsigned long long value)

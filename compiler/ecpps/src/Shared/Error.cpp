@@ -72,20 +72,20 @@ namespace
 
           std::size_t byteCount{};
           std::uint32_t value{};
-          if ((first & 0xe0) == 0xc0)
+          if ((first & 0xe0uz) == 0xc0uz)
           {
                byteCount = 2;
-               value = first & 0x1f;
+               value = first & 0x1fuz;
           }
-          else if ((first & 0xf0) == 0xe0)
+          else if ((first & 0xf0uz) == 0xe0uz)
           {
                byteCount = 3;
-               value = first & 0x0f;
+               value = first & 0x0fuz;
           }
-          else if ((first & 0xf8) == 0xf0)
+          else if ((first & 0xf8uz) == 0xf0uz)
           {
                byteCount = 4;
-               value = first & 0x07;
+               value = first & 0x07uz;
           }
           else
           {
@@ -96,8 +96,8 @@ namespace
           for (std::size_t index = 1; index < byteCount; index++)
           {
                const auto continuation = static_cast<unsigned char>(text[offset + index]);
-               if ((continuation & 0xc0) != 0x80) return {.value = 0xfffd, .byteCount = 1};
-               value = (value << 6) | (continuation & 0x3f);
+               if ((continuation & 0xc0uz) != 0x80uz) return {.value = 0xfffduz, .byteCount = 1uz};
+               value = (value << 6uz) | (continuation & 0x3fuz);
           }
 
           if ((byteCount == 2 && value < 0x80) || (byteCount == 3 && value < 0x800) ||

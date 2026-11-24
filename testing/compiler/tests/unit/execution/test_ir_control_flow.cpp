@@ -38,7 +38,7 @@ namespace
           std::vector<ecpps::ast::NodePointer> ast{};
           ast.push_back(fixture.MakeFunctionDefinition(
                fixture.MakeFunctionSignature("int", "compound", {{"int", "value"}}), std::move(body)));
-          auto nodes = fixture.Parse(std::move(ast));
+          auto nodes = fixture.Parse(ast);
 
           const auto* procedure = FindProcedure(nodes, "compound");
           REQUIRE((procedure != nullptr));
@@ -93,7 +93,7 @@ TEST_CASE("IR - If/else lowers a signed comparison to branch targets", "[unit][i
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(
           fixture.MakeFunctionSignature("int", "choose", {{"int", "lhs"}, {"int", "rhs"}}), std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "choose");
      REQUIRE((procedure != nullptr));
@@ -120,7 +120,7 @@ TEST_CASE("IR - Missing non-void return warns and adds an unreachable node", "[u
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(
           fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "missing_return", {}), std::move(body)));
-     const auto nodes = fixture.Parse(std::move(ast));
+     const auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "missing_return");
      REQUIRE((procedure != nullptr));
@@ -128,8 +128,8 @@ TEST_CASE("IR - Missing non-void return warns and adds an unreachable node", "[u
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 1));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
      CHECK((diagnostic.Level() == ecpps::diagnostics::DiagnosticsLevel::Warning));
-     CHECK((diagnostic.Message().find("missing_return") != std::string::npos));
-     CHECK((diagnostic.Message().find("without returning a value") != std::string::npos));
+     CHECK((diagnostic.Message().contains("missing_return")));
+     CHECK((diagnostic.Message().contains("without returning a value")));
 }
 
 TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][assignment]")
@@ -144,7 +144,7 @@ TEST_CASE("IR - Assignment stores and returns the assigned value", "[unit][ir][a
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "update", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "update");
      REQUIRE((procedure != nullptr));
@@ -181,7 +181,7 @@ TEST_CASE("IR - Post-increment stores the increment but returns the previous val
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "advance");
      REQUIRE((procedure != nullptr));
@@ -231,7 +231,7 @@ TEST_CASE("IR - Post-increment rejects const operands", "[unit][ir][increment]")
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
                                                                    std::move(body), Source));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "invalid");
      REQUIRE((procedure != nullptr));
@@ -252,7 +252,7 @@ TEST_CASE("IR - Post-decrement stores the decrement but returns the previous val
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "retreat", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "retreat");
      REQUIRE((procedure != nullptr));
@@ -296,7 +296,7 @@ TEST_CASE("IR - Prefix decrement stores and returns the updated value", "[unit][
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "retreat", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "retreat");
      REQUIRE((procedure != nullptr));
@@ -346,7 +346,7 @@ TEST_CASE("IR - Prefix decrement rejects const operands", "[unit][ir][increment]
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
                                                                    std::move(body), Source));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "invalid");
      REQUIRE((procedure != nullptr));
@@ -367,7 +367,7 @@ TEST_CASE("IR - Prefix increment stores and returns the updated value", "[unit][
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "advance", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "advance");
      REQUIRE((procedure != nullptr));
@@ -417,7 +417,7 @@ TEST_CASE("IR - Prefix increment rejects const operands", "[unit][ir][increment]
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
                                                                    std::move(body), Source));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "invalid");
      REQUIRE((procedure != nullptr));
@@ -438,7 +438,7 @@ TEST_CASE("IR - Subtraction assignment stores and returns the updated value", "[
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "reduce", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "reduce");
      REQUIRE((procedure != nullptr));
@@ -482,7 +482,7 @@ TEST_CASE("IR - Addition assignment stores and returns the updated value", "[uni
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "increase", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "increase");
      REQUIRE((procedure != nullptr));
@@ -543,7 +543,7 @@ TEST_CASE("IR - Compound assignment rejects rvalue operands", "[unit][ir][assign
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(fixture.MakeFunctionSignature("int", "invalid", {{"int", "value"}}),
                                                   std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "invalid");
      REQUIRE((procedure != nullptr));
@@ -569,7 +569,7 @@ TEST_CASE("IR - Compound assignment rejects const operands", "[unit][ir][assignm
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
                                                                    std::move(body), Source));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "invalid");
      REQUIRE((procedure != nullptr));
@@ -599,7 +599,7 @@ TEST_CASE("IR - Compound assignment supports indirect targets", "[unit][ir][assi
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(MakeASTNode<ecpps::ast::FunctionDefinitionNode>(fixture.astAllocator, std::move(signature),
                                                                    std::move(body), Source));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "update");
      REQUIRE((procedure != nullptr));
@@ -645,7 +645,7 @@ TEST_CASE("IR - While loop emits entry and repeat condition branches", "[unit][i
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(
           fixture.MakeFunctionSignature("void", "spin", {{"bool", "condition"}}), std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "spin");
      REQUIRE((procedure != nullptr));
@@ -685,7 +685,7 @@ TEST_CASE("IR - Break jumps to the enclosing loop exit", "[unit][ir][control-flo
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(
           fixture.MakeFunctionSignature("void", "stop", {{"bool", "condition"}}), std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "stop");
      REQUIRE((procedure != nullptr));
@@ -711,7 +711,7 @@ TEST_CASE("IR - Continue jumps to the loop continuation", "[unit][ir][control-fl
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(
           fixture.MakeFunctionSignature("void", "repeat", {{"bool", "condition"}}), std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "repeat");
      REQUIRE((procedure != nullptr));

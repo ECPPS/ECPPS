@@ -67,8 +67,9 @@ static std::string MangleIdentifier(const std::string_view identifier)
      for (const char character : identifier)
      {
           const auto value = static_cast<unsigned char>(character);
-          result.push_back(HexDigits[value >> 4]);
-          result.push_back(HexDigits[value & 0x0F]);
+          const auto unsignedValue = static_cast<std::uint32_t>(value);
+          result.push_back(HexDigits[unsignedValue >> 4u]);
+          result.push_back(HexDigits[unsignedValue & 0x0Fu]);
      }
      return result;
 }
@@ -191,10 +192,7 @@ static std::string BuildName(const ecpps::abi::Linkage linkage, const std::strin
      case Linkage::External: built += ExternalLinkage; break;
      case Linkage::Module: built += ModuleLinkage; break;
      }
-     switch (callingConvention)
-     {
-     case ecpps::abi::CallingConventionName::Microsoftx64: built += CallingConventionMsCall; break;
-     }
+     if (callingConvention == ecpps::abi::CallingConventionName::Microsoftx64) built += CallingConventionMsCall;
 
      if (member != nullptr) built += MangleMemberBlock(*member);
 

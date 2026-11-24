@@ -159,6 +159,8 @@ namespace ecpps::abi::encoders::x8664
           using Operand =
                std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand, StringAddressOperand>;
 
+          // Width{} is the invalid/unset sentinel; instruction builders assign a valid width before encoding.
+          // NOLINTBEGIN(bugprone-invalid-enum-default-initialization)
           struct AddInstruction
           {
                Width width{};
@@ -268,6 +270,7 @@ namespace ecpps::abi::encoders::x8664
                Width width{};
                Operand modifiedOperand{};
           };
+          // NOLINTEND(bugprone-invalid-enum-default-initialization)
           struct CallInstruction
           {
                std::size_t indexToTable{};
@@ -430,7 +433,7 @@ namespace ecpps::abi::encoders::x8664
      struct MaterialisationOutcome
      {
           std::vector<ir::abstract::Instruction> instructions;
-          RegisterIndex assignedRegister;
+          RegisterIndex assignedRegister{};
      };
      struct BasicBlock
      {

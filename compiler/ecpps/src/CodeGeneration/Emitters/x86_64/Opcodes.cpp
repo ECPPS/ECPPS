@@ -162,7 +162,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg64(std::size_t
 {
      std::vector<std::byte> binary{};
      const bool isExtendedRegister = reg >= R8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtendedRegister);
      if (imm <= static_cast<std::uint64_t>(std::numeric_limits<std::int32_t>::max()))
      {
@@ -171,7 +171,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg64(std::size_t
           Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
           return binary;
      }
-     Emit(MakePusher(binary), 0xb8 | reg);
+     Emit(MakePusher(binary), 0xb8uz | reg);
      Imm64(MakePusher(binary), imm);
      return binary;
 }
@@ -180,9 +180,9 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg32(std::size_t
 {
      std::vector<std::byte> binary{};
      const bool isExtendedRegister = reg >= R8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
-     Emit(MakePusher(binary), 0xb8 | reg);
+     Emit(MakePusher(binary), 0xb8uz | reg);
      Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
      return binary;
 }
@@ -193,9 +193,9 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg16(std::size_t
      binary.reserve(5);
      Emit(MakePusher(binary), 0x66);
      const bool isExtendedRegister = reg >= R8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
-     Emit(MakePusher(binary), 0xB8 | reg);
+     Emit(MakePusher(binary), 0xB8uz | reg);
      Imm16(MakePusher(binary), imm);
      return binary;
 }
@@ -206,9 +206,9 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToReg8(std::size_t 
      binary.reserve(5);
      const bool isExtendedRegister = reg >= R8;
      const bool needsRex = RequiresByteRex(reg);
-     reg &= 7;
+     reg &= 7uz;
      RexByte(MakePusher(binary), false, false, isExtendedRegister, needsRex);
-     Emit(MakePusher(binary), 0xB0 | reg);
+     Emit(MakePusher(binary), 0xB0uz | reg);
      Emit(MakePusher(binary), imm);
      return binary;
 }
@@ -223,11 +223,11 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem64(std::size_t
                binary, GenerateMovImmToMem32(
                             reg, offset, static_cast<std::uint32_t>(imm & std::numeric_limits<std::uint32_t>::max())));
           ecpps::detail::AppendRange(binary,
-                                     GenerateMovImmToMem32(reg, offset + 4, static_cast<std::uint32_t>(imm >> 32)));
+                                     GenerateMovImmToMem32(reg, offset + 4uz, static_cast<std::uint32_t>(imm >> 32uz)));
           return binary;
      }
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0xc7);
      ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -240,7 +240,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem32(std::size_t
 {
      std::vector<std::byte> binary{};
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0xc7);
      ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -253,7 +253,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem16(std::size_t
 {
      std::vector<std::byte> binary{};
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0xc7);
@@ -267,7 +267,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovImmToMem8(std::size_t 
 {
      std::vector<std::byte> binary{};
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0xc6);
      ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -280,8 +280,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg64(std::size_t
      std::vector<std::byte> binary{};
      const bool isSourceExtendedRegister = source >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
-     source &= 7;
-     destination &= 7;
+     source &= 7uz;
+     destination &= 7uz;
      Rex(MakePusher(binary), true, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
      ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source), static_cast<std::uint8_t>(destination));
@@ -293,8 +293,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg32(std::size_t
      std::vector<std::byte> binary{};
      const bool isSourceExtendedRegister = source >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
-     source &= 7;
-     destination &= 7;
+     source &= 7uz;
+     destination &= 7uz;
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
      ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source), static_cast<std::uint8_t>(destination));
@@ -306,8 +306,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg16(std::size_t
      std::vector<std::byte> binary{};
      const bool isSourceExtendedRegister = source >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
-     source &= 7;
-     destination &= 7;
+     source &= 7uz;
+     destination &= 7uz;
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
@@ -321,8 +321,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToReg8(std::size_t 
      const bool isSourceExtendedRegister = source >= 8;
      const bool isDestinationExtendedRegister = destination >= 8;
      const bool needsRex = RequiresByteRex(source) || RequiresByteRex(destination);
-     source &= 7;
-     destination &= 7;
+     source &= 7uz;
+     destination &= 7uz;
      RexByte(MakePusher(binary), isSourceExtendedRegister, false, isDestinationExtendedRegister, needsRex);
      Emit(MakePusher(binary), 0x88);
      ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source), static_cast<std::uint8_t>(destination));
@@ -342,8 +342,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem64(std::size_t
      Rex(MakePusher(binary), true, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), displacement);
 
      return binary;
 }
@@ -362,8 +362,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem32(std::size_t
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), displacement);
 
      return binary;
 }
@@ -383,8 +383,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem16(std::size_t
      Rex(MakePusher(binary), false, isSourceExtendedRegister, false, isDestinationExtendedRegister);
      Emit(MakePusher(binary), 0x89);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), displacement);
 
      return binary;
 }
@@ -404,8 +404,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovRegToMem8(std::size_t 
              RequiresByteRex(sourceRegister));
      Emit(MakePusher(binary), 0x88);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), displacement);
 
      return binary;
 }
@@ -423,8 +423,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg64(std::size_t
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), displacement);
 
      return binary;
 }
@@ -443,8 +443,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg32(std::size_t
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), displacement);
 
      return binary;
 }
@@ -464,8 +464,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg16(std::size_t
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), displacement);
 
      return binary;
 }
@@ -485,8 +485,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovMemToReg8(std::size_t 
              RequiresByteRex(destinationRegister));
      Emit(MakePusher(binary), 0x8a);
 
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), displacement);
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), displacement);
 
      return binary;
 }
@@ -501,8 +501,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem8ToReg64(
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -516,8 +516,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem8ToReg32(
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -532,8 +532,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem8ToReg16(
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -547,8 +547,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem16ToReg64
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb7);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -562,8 +562,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem16ToReg32
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb7);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -576,8 +576,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendMem32ToReg64
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -590,8 +590,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg8ToReg64(
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -605,8 +605,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg8ToReg32(
              RequiresByteRex(sourceRegister));
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -621,8 +621,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg8ToReg16(
              RequiresByteRex(sourceRegister));
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb6);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -635,8 +635,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg16ToReg64
      Rex(MakePusher(binary), true, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb7);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -649,8 +649,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg16ToReg32
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x0f);
      Emit(MakePusher(binary), 0xb7);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -662,8 +662,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateMovZeroExtendReg32ToReg64
      const bool isSourceExtendedRegister = sourceRegister >= 8;
      Rex(MakePusher(binary), false, isDestinationExtendedRegister, false, isSourceExtendedRegister);
      Emit(MakePusher(binary), 0x8b);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destinationRegister & 7),
-           static_cast<std::uint8_t>(sourceRegister & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destinationRegister & 7uz),
+           static_cast<std::uint8_t>(sourceRegister & 7uz));
      return binary;
 }
 
@@ -673,7 +673,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg64(std::size_t
      if (imm == 0) return binary;
 
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtendedRegister);
 
      if (!isExtendedRegister && reg == 0 && imm >= 0x7f)
@@ -703,7 +703,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg32(std::size_t
      if (imm == 0) return binary;
 
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
 
      if (!isExtendedRegister && reg == 0 && imm >= 0x7f)
@@ -733,7 +733,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg16(std::size_t
      if (imm == 0) return binary;
 
      const bool isExtendedRegister = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
 
@@ -765,7 +765,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToReg8(std::size_t 
 
      const bool isExtendedRegister = reg >= 8;
      const bool needsRex = RequiresByteRex(reg);
-     reg &= 7;
+     reg &= 7uz;
      RexByte(MakePusher(binary), false, false, isExtendedRegister, needsRex);
 
      if (!isExtendedRegister && reg == 0)
@@ -791,13 +791,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem64(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm32(MakePusher(binary), imm);
      }
      return binary;
@@ -814,13 +814,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem32(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm32(MakePusher(binary), imm);
      }
      return binary;
@@ -836,13 +836,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem16(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm16(MakePusher(binary), imm);
      }
      return binary;
@@ -855,7 +855,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddImmToMem8(std::size_t 
      const bool isExtendedRegister = reg >= 8;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0x80);
-     ModRMMemory(MakePusher(binary), 0, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+     ModRMMemory(MakePusher(binary), 0uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      Emit(MakePusher(binary), imm);
      return binary;
 }
@@ -865,7 +865,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToReg64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -874,7 +875,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToReg32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -884,7 +886,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToReg16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -894,7 +897,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToReg8(std::size_t 
      RexByte(MakePusher(binary), source >= 8, false, destination >= 8,
              RequiresByteRex(source) || RequiresByteRex(destination));
      Emit(MakePusher(binary), 0x00);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -904,8 +908,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddMemToReg64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x03);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -915,8 +919,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddMemToReg32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x03);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -927,8 +931,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddMemToReg16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x03);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -938,8 +942,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddMemToReg8(std::size_t 
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), destination >= 8, false, sourceRegister >= 8, RequiresByteRex(destination));
      Emit(MakePusher(binary), 0x02);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -950,8 +954,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToMem64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -962,8 +966,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToMem32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -975,8 +979,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToMem16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x01);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -987,8 +991,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateAddRegToMem8(std::size_t 
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), sourceRegister >= 8, false, destination >= 8, RequiresByteRex(sourceRegister));
      Emit(MakePusher(binary), 0x00);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1001,13 +1005,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToReg64(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Emit(MakePusher(binary), imm);
      }
      else if (imm <= std::numeric_limits<std::uint32_t>::max())
      {
           Emit(MakePusher(binary), 0x81);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
      }
      else
@@ -1016,7 +1020,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToReg64(std::size_t
           Emit(MakePusher(binary), 0xB8); // MOV RAX, imm64
           Imm64(MakePusher(binary), imm);
           Emit(MakePusher(binary), 0x2B); // SUB reg, rax
-          ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(reg & 7), 0);
+          ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(reg & 7uz), 0uz);
      }
      return binary;
 }
@@ -1029,13 +1033,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToReg32(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Imm32(MakePusher(binary), imm);
      }
      return binary;
@@ -1050,13 +1054,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToReg16(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
           Imm16(MakePusher(binary), imm);
      }
      return binary;
@@ -1068,7 +1072,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToReg8(std::size_t 
      const bool isExtendedRegister = reg >= 8;
      RexByte(MakePusher(binary), false, false, isExtendedRegister, RequiresByteRex(reg));
      Emit(MakePusher(binary), 0x80);
-     ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
      Emit(MakePusher(binary), imm);
      return binary;
 }
@@ -1082,13 +1086,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem64(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm32(MakePusher(binary), imm);
      }
      return binary;
@@ -1103,13 +1107,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem32(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm32(MakePusher(binary), imm);
      }
      return binary;
@@ -1125,13 +1129,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem16(std::size_t
      if (imm <= 0x7f)
      {
           Emit(MakePusher(binary), 0x83);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
      else
      {
           Emit(MakePusher(binary), 0x81);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Imm16(MakePusher(binary), imm);
      }
      return binary;
@@ -1144,7 +1148,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubImmToMem8(std::size_t 
      const bool isExtendedRegister = reg >= 8;
      Rex(MakePusher(binary), false, false, false, isExtendedRegister);
      Emit(MakePusher(binary), 0x80);
-     ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+     ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      Emit(MakePusher(binary), imm);
      return binary;
 }
@@ -1154,7 +1158,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToReg64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -1163,7 +1168,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToReg32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -1173,7 +1179,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToReg16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, source >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -1183,7 +1190,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToReg8(std::size_t 
      RexByte(MakePusher(binary), source >= 8, false, destination >= 8,
              RequiresByteRex(source) || RequiresByteRex(destination));
      Emit(MakePusher(binary), 0x28);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(source & 7), static_cast<std::uint8_t>(destination & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(source & 7uz),
+           static_cast<std::uint8_t>(destination & 7uz));
      return binary;
 }
 
@@ -1194,8 +1202,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToMem64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1206,8 +1214,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToMem32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1219,8 +1227,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToMem16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x29);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1231,8 +1239,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubRegToMem8(std::size_t 
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), sourceRegister >= 8, false, destination >= 8, RequiresByteRex(sourceRegister));
      Emit(MakePusher(binary), 0x28);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1242,8 +1250,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubMemToReg64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x2B);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1253,8 +1261,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubMemToReg32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x2B);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1265,8 +1273,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubMemToReg16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x2B);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1276,8 +1284,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSubMemToReg8(std::size_t 
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), destination >= 8, false, sourceRegister >= 8, RequiresByteRex(destination));
      Emit(MakePusher(binary), 0x2A);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1287,7 +1295,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToReg64([[m
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, source >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 4, static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, 4uz, static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1297,7 +1305,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToReg32([[m
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, source >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 4, static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, 4uz, static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1308,7 +1316,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToReg16([[m
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, source >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 4, static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, 4uz, static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1318,7 +1326,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToReg8([[ma
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), false, false, source >= 8, RequiresByteRex(source));
      Emit(MakePusher(binary), 0xF6);
-     ModRM(MakePusher(binary), 0b11, 4, static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, 4uz, static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1328,7 +1336,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem64(
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, destination >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(destination & 7),
+     ModRMMemory(MakePusher(binary), 4uz, static_cast<std::uint8_t>(destination & 7uz),
                  static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
@@ -1339,7 +1347,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem32(
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, destination >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(destination & 7),
+     ModRMMemory(MakePusher(binary), 4uz, static_cast<std::uint8_t>(destination & 7uz),
                  static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
@@ -1351,7 +1359,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem16(
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, destination >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(destination & 7),
+     ModRMMemory(MakePusher(binary), 4uz, static_cast<std::uint8_t>(destination & 7uz),
                  static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
@@ -1363,7 +1371,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedMulRegToMem8(std:
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, destination >= 8);
      Emit(MakePusher(binary), 0xF6);
-     ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(destination & 7),
+     ModRMMemory(MakePusher(binary), 4uz, static_cast<std::uint8_t>(destination & 7uz),
                  static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
@@ -1373,7 +1381,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToReg64(std::
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, reg >= 8, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz));
      Imm32(MakePusher(binary), static_cast<std::uint32_t>(imm));
      return binary;
 }
@@ -1383,7 +1391,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToReg32(std::
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, reg >= 8, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz));
      Imm32(MakePusher(binary), imm);
      return binary;
 }
@@ -1394,7 +1402,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToReg16(std::
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, reg >= 8, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz));
      Imm16(MakePusher(binary), imm);
      return binary;
 }
@@ -1404,7 +1412,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToReg8(std::s
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, reg >= 8, false, reg >= 8);
      Emit(MakePusher(binary), 0x6B);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz));
      Emit(MakePusher(binary), imm);
      return binary;
 }
@@ -1415,7 +1423,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToMem64(std::
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7),
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz),
                  static_cast<std::int32_t>(offset));
      Imm32(MakePusher(binary), imm);
      return binary;
@@ -1427,7 +1435,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToMem32(std::
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7),
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz),
                  static_cast<std::int32_t>(offset));
      Imm32(MakePusher(binary), imm);
      return binary;
@@ -1440,7 +1448,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToMem16(std::
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0x69);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7),
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz),
                  static_cast<std::int32_t>(offset));
      Imm16(MakePusher(binary), imm);
      return binary;
@@ -1452,7 +1460,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulImmToMem8(std::s
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0x6B);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7), static_cast<std::uint8_t>(reg & 7),
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(reg & 7uz), static_cast<std::uint8_t>(reg & 7uz),
                  static_cast<std::int32_t>(offset));
      Emit(MakePusher(binary), imm);
      return binary;
@@ -1464,7 +1472,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg64(std::
      Rex(MakePusher(binary), true, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destination & 7uz),
+           static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1474,7 +1483,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg32(std::
      Rex(MakePusher(binary), false, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destination & 7uz),
+           static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1485,7 +1495,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg16(std::
      Rex(MakePusher(binary), false, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destination & 7uz),
+           static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1495,7 +1506,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToReg8(std::s
      Rex(MakePusher(binary), false, destination >= 8, false, source >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(destination & 7), static_cast<std::uint8_t>(source & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(destination & 7uz),
+           static_cast<std::uint8_t>(source & 7uz));
      return binary;
 }
 
@@ -1507,8 +1519,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem64(std::
      Rex(MakePusher(binary), true, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1520,8 +1532,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem32(std::
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1534,8 +1546,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulRegToMem16(std::
      Rex(MakePusher(binary), false, sourceRegister >= 8, false, destination >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7),
-                 static_cast<std::uint8_t>(destination & 7), static_cast<std::int32_t>(destinationOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(sourceRegister & 7uz),
+                 static_cast<std::uint8_t>(destination & 7uz), static_cast<std::int32_t>(destinationOffset));
      return binary;
 }
 
@@ -1554,8 +1566,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg64(std::
      Rex(MakePusher(binary), true, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1567,8 +1579,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg32(std::
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1581,8 +1593,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg16(std::
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1594,8 +1606,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedMulMemToReg8(std::s
      Rex(MakePusher(binary), false, destination >= 8, false, sourceRegister >= 8);
      Emit(MakePusher(binary), 0x0F);
      Emit(MakePusher(binary), 0xAF);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceOffset));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destination & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceOffset));
      return binary;
 }
 
@@ -1604,7 +1616,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv64(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 6, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 6uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1613,7 +1625,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv32(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 6, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 6uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1623,7 +1635,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv16(std::size_t
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 6, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 6uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1632,7 +1644,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDiv8(std::size_t 
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), false, false, reg >= 8, RequiresByteRex(reg));
      Emit(MakePusher(binary), 0xF6);
-     ModRM(MakePusher(binary), 0b11, 6, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 6uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1641,7 +1653,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem64(std::siz
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 6, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 6uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1650,7 +1662,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem32(std::siz
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 6, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 6uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1660,7 +1672,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem16(std::siz
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 6, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 6uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1669,7 +1681,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateUnsignedDivMem8(std::size
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF6);
-     ModRMMemory(MakePusher(binary), 6, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 6uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1678,7 +1690,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem64(std::size_
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 7uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1687,7 +1699,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem32(std::size_
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 7uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1697,7 +1709,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem16(std::size_
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 7uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1706,7 +1718,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDivMem8(std::size_t
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, baseReg >= 8);
      Emit(MakePusher(binary), 0xF6);
-     ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(baseReg & 7), displacement);
+     ModRMMemory(MakePusher(binary), 7uz, static_cast<std::uint8_t>(baseReg & 7uz), displacement);
      return binary;
 }
 
@@ -1715,7 +1727,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv64(std::size_t r
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1724,7 +1736,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv32(std::size_t r
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1734,7 +1746,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv16(std::size_t r
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, reg >= 8);
      Emit(MakePusher(binary), 0xF7);
-     ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1743,7 +1755,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedDiv8(std::size_t re
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), false, false, reg >= 8, RequiresByteRex(reg));
      Emit(MakePusher(binary), 0xF6);
-     ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1752,7 +1764,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg8(std::size_t destR
      std::vector<std::byte> binary{};
      RexByte(MakePusher(binary), srcReg >= 8, false, destReg >= 8, RequiresByteRex(srcReg) || RequiresByteRex(destReg));
      Emit(MakePusher(binary), 0x30);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(srcReg & 7), static_cast<std::uint8_t>(destReg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(srcReg & 7uz),
+           static_cast<std::uint8_t>(destReg & 7uz));
      return binary;
 }
 
@@ -1762,7 +1775,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg16(std::size_t dest
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, srcReg >= 8, false, destReg >= 8);
      Emit(MakePusher(binary), 0x31);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(srcReg & 7), static_cast<std::uint8_t>(destReg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(srcReg & 7uz),
+           static_cast<std::uint8_t>(destReg & 7uz));
      return binary;
 }
 
@@ -1771,7 +1785,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg32(std::size_t dest
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, srcReg >= 8, false, destReg >= 8);
      Emit(MakePusher(binary), 0x31);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(srcReg & 7), static_cast<std::uint8_t>(destReg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(srcReg & 7uz),
+           static_cast<std::uint8_t>(destReg & 7uz));
      return binary;
 }
 
@@ -1780,7 +1795,8 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateXorReg64(std::size_t dest
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), true, srcReg >= 8, false, destReg >= 8);
      Emit(MakePusher(binary), 0x31);
-     ModRM(MakePusher(binary), 0b11, static_cast<std::uint8_t>(srcReg & 7), static_cast<std::uint8_t>(destReg & 7));
+     ModRM(MakePusher(binary), 0b11uz, static_cast<std::uint8_t>(srcReg & 7uz),
+           static_cast<std::uint8_t>(destReg & 7uz));
      return binary;
 }
 
@@ -1788,7 +1804,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GeneratePushReg64(std::size_t reg
 {
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
-     Emit(MakePusher(binary), 0x50 | (reg & 7));
+     Emit(MakePusher(binary), 0x50uz | (reg & 7uz));
      return binary;
 }
 
@@ -1796,7 +1812,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GeneratePopReg64(std::size_t reg)
 {
      std::vector<std::byte> binary{};
      Rex(MakePusher(binary), false, false, false, reg >= 8);
-     Emit(MakePusher(binary), 0x58 | (reg & 7));
+     Emit(MakePusher(binary), 0x58uz | (reg & 7uz));
      return binary;
 }
 
@@ -1822,7 +1838,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateRegisterCall(std::size_t 
 {
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0xFF);
-     ModRM(MakePusher(binary), 0b11, 2, static_cast<std::uint8_t>(reg & 7));
+     ModRM(MakePusher(binary), 0b11uz, 2uz, static_cast<std::uint8_t>(reg & 7uz));
      return binary;
 }
 
@@ -1838,15 +1854,15 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateLeaToReg(std::size_t sour
      {
           Rex(MakePusher(binary), true, rexR, false, false);
           Emit(MakePusher(binary), 0x8D);
-          ModRM(MakePusher(binary), 0b00, static_cast<std::uint8_t>(destinationRegister & 7), 0b101);
+          ModRM(MakePusher(binary), 0b00uz, static_cast<std::uint8_t>(destinationRegister & 7uz), 0b101uz);
           Imm32(MakePusher(binary), static_cast<std::uint32_t>(static_cast<std::int32_t>(sourceDisplacement)));
           return binary;
      }
 
      Rex(MakePusher(binary), true, rexR, false, rexB);
      Emit(MakePusher(binary), 0x8D);
-     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7),
-                 static_cast<std::uint8_t>(sourceRegister & 7), static_cast<std::int32_t>(sourceDisplacement));
+     ModRMMemory(MakePusher(binary), static_cast<std::uint8_t>(destinationRegister & 7uz),
+                 static_cast<std::uint8_t>(sourceRegister & 7uz), static_cast<std::int32_t>(sourceDisplacement));
      return binary;
 }
 
@@ -1861,14 +1877,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg64(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -1885,14 +1901,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg32(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -1910,14 +1926,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg16(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -1934,14 +1950,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedSarImmToReg8(std::s
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd0);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc0);
-          ModRM(MakePusher(binary), 0b11, 7, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 7uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -1958,14 +1974,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg64(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -1982,14 +1998,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg32(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -2007,14 +2023,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg16(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -2031,14 +2047,14 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToReg8(std::s
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd0);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
      }
      else
      {
           Emit(MakePusher(binary), 0xc0);
-          ModRM(MakePusher(binary), 0b11, 5, static_cast<std::uint8_t>(reg & 7));
+          ModRM(MakePusher(binary), 0b11uz, 5uz, static_cast<std::uint8_t>(reg & 7uz));
 
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFF));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xFFuz));
      }
 
      return binary;
@@ -2056,13 +2072,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem64(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xff));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xffuz));
      }
 
      return binary;
@@ -2080,13 +2096,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem32(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xff));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xffuz));
      }
 
      return binary;
@@ -2105,13 +2121,13 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem16(std::
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      }
      else
      {
           Emit(MakePusher(binary), 0xc1);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
-          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xff));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
+          Emit(MakePusher(binary), static_cast<std::uint8_t>(imm & 0xffuz));
      }
 
      return binary;
@@ -2129,12 +2145,12 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem8(std::s
      if (imm == 1)
      {
           Emit(MakePusher(binary), 0xd0);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
      }
      else
      {
           Emit(MakePusher(binary), 0xc0);
-          ModRMMemory(MakePusher(binary), 5, static_cast<std::uint8_t>(reg & 7), static_cast<std::int32_t>(offset));
+          ModRMMemory(MakePusher(binary), 5uz, static_cast<std::uint8_t>(reg & 7uz), static_cast<std::int32_t>(offset));
           Emit(MakePusher(binary), imm);
      }
 
@@ -2146,7 +2162,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem8(std::s
      std::vector<std::byte> binary{};
      const bool isRegisterExtended = reg >= 8;
      const bool needsRex = RequiresByteRex(reg);
-     reg &= 7;
+     reg &= 7uz;
      RexByte(MakePusher(binary), false, false, isRegisterExtended, needsRex);
      Emit(MakePusher(binary), 0xf6);
      ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
@@ -2156,7 +2172,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem8(std::s
 {
      std::vector<std::byte> binary{};
      const bool isRegisterExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Emit(MakePusher(binary), 0x66);
      Rex(MakePusher(binary), false, false, false, isRegisterExtended);
      Emit(MakePusher(binary), 0xf7);
@@ -2167,7 +2183,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem8(std::s
 {
      std::vector<std::byte> binary{};
      const bool isRegisterExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isRegisterExtended);
      Emit(MakePusher(binary), 0xf7);
      ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
@@ -2177,7 +2193,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSignedShrImmToMem8(std::s
 {
      std::vector<std::byte> binary{};
      const bool isRegisterExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isRegisterExtended);
      Emit(MakePusher(binary), 0xf7);
      ModRM(MakePusher(binary), 0b11, 3, static_cast<std::uint8_t>(reg));
@@ -2188,7 +2204,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalReg64(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtended);
      if (imm == 1)
      {
@@ -2208,7 +2224,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalReg32(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      if (imm == 1)
      {
@@ -2229,7 +2245,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalReg16(std::size_t reg,
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      if (imm == 1)
      {
@@ -2250,7 +2266,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalReg8(std::size_t reg, 
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
      const bool needsRex = RequiresByteRex(reg);
-     reg &= 7;
+     reg &= 7uz;
      RexByte(MakePusher(binary), false, false, isExtended, needsRex);
      if (imm == 1)
      {
@@ -2270,7 +2286,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalMem64(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2282,7 +2298,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalMem32(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2295,7 +2311,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalMem16(std::size_t reg,
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2307,7 +2323,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSalMem8(std::size_t reg, 
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD0 : 0xC0);
      ModRMMemory(MakePusher(binary), 4, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2319,7 +2335,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarReg64(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtended);
      if (imm == 1)
      {
@@ -2339,7 +2355,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarReg32(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      if (imm == 1)
      {
@@ -2360,7 +2376,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarReg16(std::size_t reg,
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      if (imm == 1)
      {
@@ -2381,7 +2397,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarReg8(std::size_t reg, 
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
      const bool needsRex = RequiresByteRex(reg);
-     reg &= 7;
+     reg &= 7uz;
      RexByte(MakePusher(binary), false, false, isExtended, needsRex);
      if (imm == 1)
      {
@@ -2401,7 +2417,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarMem64(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), true, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2413,7 +2429,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarMem32(std::size_t reg,
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2426,7 +2442,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarMem16(std::size_t reg,
      std::vector<std::byte> binary{};
      Emit(MakePusher(binary), 0x66);
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD1 : 0xC1);
      ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));
@@ -2438,7 +2454,7 @@ std::vector<std::byte> ecpps::codegen::x86_64::GenerateSarMem8(std::size_t reg, 
 {
      std::vector<std::byte> binary{};
      const bool isExtended = reg >= 8;
-     reg &= 7;
+     reg &= 7uz;
      Rex(MakePusher(binary), false, false, false, isExtended);
      Emit(MakePusher(binary), imm == 1 ? 0xD0 : 0xC0);
      ModRMMemory(MakePusher(binary), 7, static_cast<std::uint8_t>(reg), static_cast<std::int32_t>(offset));

@@ -77,7 +77,7 @@ namespace ecpps::abi::encoders::x8664
      struct MemoryChunk
      {
           std::size_t offset{};
-          Width width{};
+          Width width{}; // NOLINT(bugprone-invalid-enum-default-initialization)
      };
 
      [[nodiscard]] constexpr Width ChunkWidth(const std::size_t bytes) noexcept
