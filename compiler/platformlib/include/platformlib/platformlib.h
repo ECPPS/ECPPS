@@ -29,7 +29,7 @@ namespace ecpps::platformlib
           template <typename T>
                requires(std::is_base_of_v<DebuggerContext, T> ||
                         PointerInterconvertibility<DebuggerContext, T>::IsValid)
-          T& As(void) & noexcept
+          [[nodiscard]] T& As(void) & noexcept
           {
                return reinterpret_cast<T&>(*this);
           }
@@ -37,7 +37,7 @@ namespace ecpps::platformlib
           template <typename T>
                requires(std::is_base_of_v<DebuggerContext, T> ||
                         PointerInterconvertibility<DebuggerContext, T>::IsValid)
-          const T& As(void) const& noexcept
+          [[nodiscard]] const T& As(void) const& noexcept
           {
                return reinterpret_cast<const T&>(*this);
           }
@@ -45,7 +45,7 @@ namespace ecpps::platformlib
           template <typename T>
                requires(std::is_base_of_v<DebuggerContext, T> ||
                         PointerInterconvertibility<DebuggerContext, T>::IsValid)
-          T&& As(void) && noexcept
+          [[nodiscard]] T&& As(void) && noexcept
           {
                return reinterpret_cast<T&&>(*this);
           }
@@ -53,7 +53,7 @@ namespace ecpps::platformlib
           template <typename T>
                requires(std::is_base_of_v<DebuggerContext, T> ||
                         PointerInterconvertibility<DebuggerContext, T>::IsValid)
-          static DebuggerContext& From(T& other)
+          [[nodiscard]] static DebuggerContext& From(T& other)
           {
                return reinterpret_cast<DebuggerContext&>(other);
           }
