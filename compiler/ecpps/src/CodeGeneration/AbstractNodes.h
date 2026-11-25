@@ -259,11 +259,11 @@ namespace ecpps::ir::abstract
           {
                DataFromRegister(reg).materialised = std::nullopt;
           }
-          bool IsMaterialised(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] bool IsMaterialised(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).materialised.has_value();
           }
-          const std::optional<State>& GetMaterialisation(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] const std::optional<State>& GetMaterialisation(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).materialised;
           }
@@ -276,7 +276,7 @@ namespace ecpps::ir::abstract
           {
                DataFromRegister(reg).currentValue = bytecode;
           }
-          const State& GetValue(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] const State& GetValue(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).currentValue;
           }
@@ -287,17 +287,17 @@ namespace ecpps::ir::abstract
                data.width = width;
                data.allocationClass = allocationClass;
           }
-          std::size_t GetWidth(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] std::size_t GetWidth(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).width;
           }
-          std::size_t GetSize(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] std::size_t GetSize(VirtualRegisterUsable auto reg) const
           {
                const auto width = GetWidth(reg);
                const auto charBit = typeSystem::CharWidth;
                return (width + charBit - 1) / charBit;
           }
-          std::size_t GetAlignment(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] std::size_t GetAlignment(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).alignmentRequirements;
           }
@@ -305,7 +305,7 @@ namespace ecpps::ir::abstract
           {
                DataFromRegister(reg).alignmentRequirements = newRequirement;
           }
-          AllocationClass GetAllocationClass(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] AllocationClass GetAllocationClass(VirtualRegisterUsable auto reg) const
           {
                return DataFromRegister(reg).allocationClass;
           }
@@ -313,13 +313,13 @@ namespace ecpps::ir::abstract
      private:
           std::unordered_map<std::size_t, RegisterData> _map;
 
-          static constexpr std::size_t IndexFromRegister(VirtualRegisterUsable auto reg)
+          [[nodiscard]] static constexpr std::size_t IndexFromRegister(VirtualRegisterUsable auto reg)
           {
                if constexpr (std::integral<decltype(reg)>) return reg;
                else
                     return reg.index;
           }
-          RegisterData& DataFromRegister(VirtualRegisterUsable auto reg)
+          [[nodiscard]] RegisterData& DataFromRegister(VirtualRegisterUsable auto reg)
           {
                return this->_map[IndexFromRegister(reg)];
           }
