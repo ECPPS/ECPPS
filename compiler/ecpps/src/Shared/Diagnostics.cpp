@@ -3,7 +3,7 @@
 #include <print>
 #include <stacktrace>
 
-std::unordered_map<std::string, ecpps::Diagnostics*> ecpps::g_diagnosticsReferences{};
+std::unordered_map<std::string, ecpps::Diagnostics*> ecpps::g_diagnosticsReferences{}; // NOLINT(bugprone-throwing-static-initialization)
 
 #ifdef _WIN32
 #include <windows.h>
@@ -121,7 +121,7 @@ static void InitialiseStackFrame(STACKFRAME64& frame, const CONTEXT& context) no
      frame.AddrFrame.Offset = context.Rbp;
      frame.AddrFrame.Mode = AddrModeFlat;
 
-#elif defined(_M_IX86)
+#elifdef _M_IX86
 
      frame.AddrPC.Offset = context.Eip;
      frame.AddrPC.Mode = AddrModeFlat;
@@ -130,7 +130,7 @@ static void InitialiseStackFrame(STACKFRAME64& frame, const CONTEXT& context) no
      frame.AddrFrame.Offset = context.Ebp;
      frame.AddrFrame.Mode = AddrModeFlat;
 
-#elif defined(_M_ARM64)
+#elifdef _M_ARM64
 
      frame.AddrPC.Offset = context.Pc;
      frame.AddrPC.Mode = AddrModeFlat;
@@ -296,8 +296,8 @@ ecpps::TracedException::TracedException(std::string message)
     : _message(std::move(message)), _trace(std::stacktrace::current(1))
 {
 }
-ecpps::TracedException::TracedException(std::string message, std::exception_ptr inner)
-    : _message(std::move(message)), _trace(std::stacktrace::current(1)), _inner(std::move(inner))
+ecpps::TracedException::TracedException(std::string message, const std::exception_ptr& inner)
+    : _message(std::move(message)), _trace(std::stacktrace::current(1)), _inner(inner)
 {
 }
 [[noreturn]] void ecpps::IssueICE(const TracedException& exception)
