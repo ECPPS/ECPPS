@@ -323,7 +323,7 @@ namespace ecpps::ir::abstract
           {
                return this->_map[IndexFromRegister(reg)];
           }
-          const RegisterData& DataFromRegister(VirtualRegisterUsable auto reg) const
+          [[nodiscard]] const RegisterData& DataFromRegister(VirtualRegisterUsable auto reg) const
           {
                if (!this->_map.contains(IndexFromRegister(reg))) throw TracedException("Invalid index");
                return this->_map.at(IndexFromRegister(reg));
