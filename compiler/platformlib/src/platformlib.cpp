@@ -85,8 +85,11 @@ std::vector<void*> ecpps::platformlib::debugger::WalkTrace([[maybe_unused]] Debu
 
      std::vector<void*> stack;
      CONTEXT* context{};
-     if (defaultContext != nullptr) context = &defaultContext->As<CONTEXT>();
-     else
+     if (defaultContext != nullptr)
+	{
+		context = &defaultContext->As<CONTEXT>();
+	}
+	else
      {
           context = new CONTEXT();
           RtlCaptureContext(context);
