@@ -297,8 +297,8 @@ ecpps::TracedException::TracedException(std::string message)
     : _message(std::move(message)), _trace(std::stacktrace::current(1))
 {
 }
-ecpps::TracedException::TracedException(std::string message, std::exception_ptr inner)
-    : _message(std::move(message)), _trace(std::stacktrace::current(1)), _inner(std::move(inner))
+ecpps::TracedException::TracedException(std::string message, std::exception_ptr inner)            // NOLINT
+    : _message(std::move(message)), _trace(std::stacktrace::current(1)), _inner(std::move(inner)) // NOLINT
 {
 }
 [[noreturn]] void ecpps::IssueICE(const TracedException& exception)
