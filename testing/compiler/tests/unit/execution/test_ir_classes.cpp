@@ -532,7 +532,7 @@ namespace
      {
           ecpps::ast::ParametersAndQualifiers parameters{};
           parameters.isVariadic = isVariadic;
-          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+          for (std::size_t index = 0; index < parameterTypes.size(); index++)
           {
                ecpps::ast::FunctionParameter parameter{};
                parameter.type = fixture.MakeBasicType(parameterTypes[index]);

@@ -47,6 +47,10 @@ namespace ecpps::ir
           {
                return this->_body;
           }
+          [[nodiscard]] std::vector<NodePointer>& MutableBody(void) noexcept
+          {
+               return this->_body;
+          }
 
           [[nodiscard]] std::string ToString(const std::size_t indent) const override
           {

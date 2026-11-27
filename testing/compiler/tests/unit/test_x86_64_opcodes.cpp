@@ -1,3 +1,4 @@
+#include "CodeGeneration/AbstractNodes.h"
 #define CATCH_CONFIG_MAIN
 #include <CodeGeneration/Emitters/x86_64/Opcodes.h>
 #include <Execution/Context.h>
@@ -6,6 +7,7 @@
 #include <Machine/Encoders/Backends/x86_64/Core/encoder.h>
 #include <Machine/Encoders/Backends/x86_64/Platforms/Linux/Linux.h>
 #include <Machine/Encoders/Backends/x86_64/Platforms/Windows/Windows.h>
+#include <Optimiser/passes/deadCode.h>
 #include <TestHelpers.h>
 #include <TypeSystem/ArithmeticTypes.h>
 #include <TypeSystem/ClassType.h>
@@ -107,6 +109,14 @@ TEST_CASE("x86-64 passes and returns a small integer aggregate in registers", "[
           },
      };
 
+     ecpps::optimisations::OptimiseVirtualInstructions(input, *target.registerMap, true, true);
+     CHECK(std::ranges::none_of(input,
+                                [](const VirtualInstruction& instruction)
+                                {
+                                     return instruction.type == VirtualInstructionType::CopyInteger &&
+                                            instruction.operands[0].index == 0;
+                                }));
+
      auto encoded = encoder.Encode(input);
      encoder.Finalise(encoded);
      std::string assembly{};
@@ -129,6 +139,191 @@ TEST_CASE("x86-64 passes and returns a small integer aggregate in registers", "[
      CHECK(storesIncomingIntegerArgument);
      CHECK(loadsAggregateReturnValue);
      CHECK((assembly.contains("RET")));
+}
+
+TEST_CASE("Generic virtual register cleanup preserves ABI return values", "[codegen][x86_64][abi][optimiser]")
+{
+     using ecpps::abi::api::Target;
+     using ecpps::abi::encoders::x8664::LinuxPlatform;
+     using ecpps::abi::encoders::x8664::WindowsPlatform;
+     using ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder;
+     using ecpps::ir::abstract::AllocationClass;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+
+     const VirtualRegister value{0};
+     const VirtualRegister firstCopy{1};
+     const VirtualRegister returnedCopy{2};
+     const VirtualRegister deadValue{3};
+     const VirtualRegister deadResult{4};
+     const VirtualRegister mutableValue{5};
+     const VirtualRegister callResult{6};
+
+     ecpps::ir::abstract::VirtualRegisterMap registers{};
+     for (const auto reg : {value, firstCopy, returnedCopy, deadValue, deadResult, mutableValue, callResult})
+          registers.Describe(reg, 32, AllocationClass::Temporary);
+     registers.Describe(mutableValue, 32, AllocationClass::Allocation);
+
+     std::vector<VirtualInstruction> deadChain{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {deadValue, VirtualRegister{17}}},
+          {.type = VirtualInstructionType::Add, .operands = {deadResult, deadValue, deadValue}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(deadChain, registers, false, true);
+     CHECK(deadChain.empty());
+
+     std::vector<VirtualInstruction> mutableCopy{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {deadValue, VirtualRegister{17}}},
+          {.type = VirtualInstructionType::Copy, .operands = {mutableValue, deadValue}},
+          {.type = VirtualInstructionType::Return, .operands = {mutableValue}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(mutableCopy, registers, true, true);
+     REQUIRE((mutableCopy.size() == 3));
+     CHECK((mutableCopy[1].type == VirtualInstructionType::Copy));
+     CHECK((mutableCopy[1].operands[0] == mutableValue));
+
+     std::vector<VirtualInstruction> unusedCallResult{
+          {.type = VirtualInstructionType::CallWithResult, .operands = {callResult, VirtualRegister{9}}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(unusedCallResult, registers, false, true);
+     REQUIRE((unusedCallResult.size() == 1));
+     CHECK((unusedCallResult[0].type == VirtualInstructionType::Call));
+     CHECK((unusedCallResult[0].operands == std::vector<VirtualRegister>{VirtualRegister{9}}));
+
+     std::vector<VirtualInstruction> unknownMemoryRead{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {deadValue, VirtualRegister{0x1000}}},
+          {.type = VirtualInstructionType::Indirection, .operands = {deadResult, deadValue}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(unknownMemoryRead, registers, false, true);
+     CHECK((unknownMemoryRead.size() == 2));
+
+     std::vector<VirtualInstruction> returnedChain{
+          {.type = VirtualInstructionType::CopyInteger, .operands = {value, VirtualRegister{42}}},
+          {.type = VirtualInstructionType::Copy, .operands = {firstCopy, value}},
+          {.type = VirtualInstructionType::Copy, .operands = {returnedCopy, firstCopy}},
+          {.type = VirtualInstructionType::Return, .operands = {returnedCopy}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(returnedChain, registers, true, true);
+     REQUIRE((returnedChain.size() == 2));
+     CHECK((returnedChain[0].type == VirtualInstructionType::CopyInteger));
+     CHECK((returnedChain[1].type == VirtualInstructionType::Return));
+     REQUIRE((returnedChain[1].operands.size() == 1));
+     CHECK((returnedChain[1].operands[0] == value));
+
+     const auto verifyReturnABI = [&returnedChain](auto platform)
+     {
+          Target target{};
+          target.platform = std::move(platform);
+          target.EnsureVRM();
+          target.registerMap->Describe(VirtualRegister{0}, 32, AllocationClass::Temporary);
+          X8664VirtualInstructionEncoder encoder{target};
+          auto encoded = encoder.Encode(returnedChain);
+          encoder.Finalise(encoded);
+
+          const auto returnRegister =
+               static_cast<ecpps::abi::encoders::x8664::RegisterIndex>(target.platform->IntegerReturnRegisterIndex());
+          const bool materialisesReturnValue = std::ranges::any_of(
+               encoded,
+               [returnRegister](const auto& instruction)
+               {
+                    if (instruction.opcode != ecpps::abi::encoders::x8664::X8664InstructionName::Mov) return false;
+                    const auto* move =
+                         std::launder(reinterpret_cast<const ecpps::abi::encoders::x8664::MovInstruction*>(
+                              instruction.description.data()));
+                    const auto* destination =
+                         std::get_if<ecpps::abi::encoders::x8664::RegisterOperand>(&move->destination);
+                    const auto* immediate = std::get_if<ecpps::abi::encoders::x8664::IntegerOperand>(&move->source);
+                    return destination != nullptr && immediate != nullptr && destination->index == returnRegister &&
+                           immediate->value == 42;
+               });
+          CHECK(materialisesReturnValue);
+          CHECK(std::ranges::any_of(encoded,
+                                    [](const auto& instruction)
+                                    {
+                                         return instruction.opcode ==
+                                                ecpps::abi::encoders::x8664::X8664InstructionName::Ret;
+                                    }));
+     };
+
+     SECTION("System V")
+     {
+          verifyReturnABI(std::make_unique<LinuxPlatform>(nullptr));
+     }
+     SECTION("Windows")
+     {
+          verifyReturnABI(std::make_unique<WindowsPlatform>(nullptr));
+     }
+}
+
+TEST_CASE("Virtual register DCE removes dead scalar stores and preserves volatile accesses",
+          "[codegen][optimiser][dce]")
+{
+     using ecpps::ir::MemoryAccess;
+     using ecpps::ir::abstract::AllocationClass;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
+
+     const VirtualRegister storage{0};
+     const VirtualRegister firstRead{1};
+     const VirtualRegister secondRead{2};
+     const VirtualRegister firstCopy{3};
+     const VirtualRegister secondCopy{4};
+     const VirtualRegister returnValue{5};
+
+     ecpps::ir::abstract::VirtualRegisterMap registers{};
+     registers.Describe(storage, 32, AllocationClass::Allocation);
+     for (const auto reg : {firstRead, secondRead, firstCopy, secondCopy, returnValue})
+          registers.Describe(reg, 32, AllocationClass::Temporary);
+
+     const MemoryAccess plainAccess{.alignment = 4};
+     std::vector<VirtualInstruction> deadLocalChain{
+          {
+               .type = VirtualInstructionType::CopyInteger,
+               .operands = {storage, VirtualRegister{0}},
+               .memoryEffect =
+                    ecpps::ir::abstract::MemoryEffect{
+                         .access = plainAccess,
+                         .isWrite = true,
+                    },
+          },
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {firstRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess},
+          },
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {secondRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess},
+          },
+          {.type = VirtualInstructionType::Copy, .operands = {firstCopy, firstRead}},
+          {.type = VirtualInstructionType::Copy, .operands = {secondCopy, secondRead}},
+          {.type = VirtualInstructionType::CopyInteger, .operands = {returnValue, VirtualRegister{0}}},
+          {.type = VirtualInstructionType::Return, .operands = {returnValue}},
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(deadLocalChain, registers, true, true);
+     REQUIRE((deadLocalChain.size() == 2));
+     CHECK((deadLocalChain[0].operands[0] == returnValue));
+     CHECK((deadLocalChain[1].type == VirtualInstructionType::Return));
+
+     const MemoryAccess volatileAccess{.isVolatile = true, .alignment = 4};
+     std::vector<VirtualInstruction> volatileAccesses{
+          {
+               .type = VirtualInstructionType::CopyInteger,
+               .operands = {storage, VirtualRegister{7}},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess, .isWrite = true},
+          },
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {firstRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess},
+          },
+     };
+     ecpps::optimisations::OptimiseVirtualInstructions(volatileAccesses, registers, true, true);
+     REQUIRE((volatileAccesses.size() == 2));
+     CHECK((volatileAccesses[0].memoryEffect->access.isVolatile));
+     CHECK((volatileAccesses[1].memoryEffect->access.isVolatile));
 }
 
 TEST_CASE("x86-64 register allocation - immediate shifts stay immediate", "[codegen][x86_64][regalloc]")

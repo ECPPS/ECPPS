@@ -65,6 +65,7 @@ namespace ecpps
           Emit = 1uz << 7uz,
           FinalEmit = 1uz << 8uz,
           Time = 1uz << 9uz,
+          OptimisedIR = 1uz << 10uz,
      };
 
      using VerboseFeatures = std::uint16_t;
@@ -84,7 +85,8 @@ namespace ecpps
                                        static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::PInst)) |
                                        static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Emit)) |
                                        static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::FinalEmit)) |
-                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Time)));
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Time)) |
+                                       static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::OptimisedIR)));
 
      enum struct StringPooling : std::uint8_t
      {
@@ -106,6 +108,7 @@ namespace ecpps
           EncoderOptimisations,
           AggressiveEncoderOptimisations,
           OptimiseDeadJumps,
+          DeadCodeElimination,
 
           Count,
      };

@@ -179,6 +179,8 @@ namespace
                optimisation = Optimisation::AggressiveEncoderOptimisations;
           else if (name == "dead-jumps")
                optimisation = Optimisation::OptimiseDeadJumps;
+          else if (name == "dead-code-elimination" || name == "dce")
+               optimisation = Optimisation::DeadCodeElimination;
           else
                return false;
 
@@ -206,6 +208,7 @@ namespace
                ApplyOptimisationPreset(optimisations, "1");
 
                optimisations.Enable(Optimisation::InlineRegularFunctions);
+               optimisations.Enable(Optimisation::DeadCodeElimination);
                optimisations.Enable(Optimisation::UseDecInc);
                optimisations.Enable(Optimisation::OmitCallingFrame);
                optimisations.Enable(Optimisation::TailJmp);
@@ -260,6 +263,8 @@ namespace
                feature = VerboseFeature::FinalEmit;
           else if (name == "time")
                feature = VerboseFeature::Time;
+          else if (name == "optir")
+               feature = VerboseFeature::OptimisedIR;
           else
                return false;
 
@@ -280,6 +285,7 @@ namespace
           case VerboseFeature::Emit: return "emit";
           case VerboseFeature::FinalEmit: return "femit";
           case VerboseFeature::Time: return "time";
+          case VerboseFeature::OptimisedIR: return "ir-optimised";
           }
 
           return "unknown";

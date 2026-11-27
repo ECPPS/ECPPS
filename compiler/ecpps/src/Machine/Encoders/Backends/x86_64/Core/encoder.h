@@ -502,8 +502,6 @@ namespace ecpps::abi::encoders::x8664
                this->_framePointer =
                     optimisations.IsEnabled(Optimisation::OmitCallingFrame) ? FramePointer::Omit : FramePointer::Keep;
           }
-          [[nodiscard]] static std::vector<ir::abstract::VirtualRegister> SourceRegistersOf(
-               const ir::abstract::VirtualInstruction& instruction);
 
      private:
           [[nodiscard]] std::size_t NextUse(ir::abstract::VirtualRegister reg) const;
@@ -570,8 +568,6 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] static ir::abstract::Instruction BuildLea(Width width, RegisterOperand destination,
                                                                   Operand address);
           [[nodiscard]] static bool IsTerminator(ir::abstract::VirtualInstructionType type) noexcept;
-          [[nodiscard]] static std::optional<std::size_t> DestinationOf(
-               const ir::abstract::VirtualInstruction& instruction);
           void BuildControlFlowGraph(const std::vector<ir::abstract::VirtualInstruction>& input);
           void ComputeLiveness(const std::vector<ir::abstract::VirtualInstruction>& input);
           void BeginBlock(const std::vector<ir::abstract::VirtualInstruction>& input, const BasicBlock& block);

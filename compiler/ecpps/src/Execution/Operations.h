@@ -971,12 +971,19 @@ namespace ecpps::ir
      class SSAStoreIntegerNode final : public NodeBase
      {
      public:
-          explicit SSAStoreIntegerNode(const SingleAssignRegisterNode* target, std::size_t src, Location source)
-              : NodeBase(NodeKind::Store, source), _target(target), _src(src)
+          explicit SSAStoreIntegerNode(const SingleAssignRegisterNode* target, std::size_t src, MemoryAccess access,
+                                       Location source)
+              : NodeBase(NodeKind::Store, source), _target(target), _src(src), _access(access)
           {
                runtime_assert(this->_target != nullptr, "Invalid SSA target");
 
                if (this->_target != nullptr) this->_target->Use();
+               this->_access.Verify();
+          }
+
+          [[nodiscard]] const MemoryAccess& Access(void) const noexcept
+          {
+               return this->_access;
           }
 
           [[nodiscard]] const SingleAssignRegisterNode& Target(void) const noexcept
@@ -997,6 +1004,7 @@ namespace ecpps::ir
      private:
           const SingleAssignRegisterNode* _target;
           std::size_t _src;
+          MemoryAccess _access;
      };
 
      class SSAArrayStoreNode final : public NodeBase
@@ -1124,6 +1132,14 @@ namespace ecpps::ir
           {
                return *this->_result.value();
           }
+          [[nodiscard]] std::optional<SSAPointer> TakeResult(void) noexcept
+          {
+               return std::move(this->_result);
+          }
+          void DiscardResult(void) noexcept
+          {
+               this->_result.reset();
+          }
           [[nodiscard]] const FunctionScope& Function() const noexcept
           {
                return *this->_function;
@@ -1226,6 +1242,10 @@ namespace ecpps::ir
           [[nodiscard]] const typeSystem::IntegralType* Type() const noexcept
           {
                return this->_referencedArray->Type();
+          }
+          [[nodiscard]] const Expression& GetOperand(void) const noexcept
+          {
+               return this->_operand;
           }
           [[nodiscard]] std::expected<ConstantEvaluatedResult, std::stack<diagnostics::DiagnosticsMessage>>
           TryConstantEvaluate(const EvaluationContext& evaluationContext) const override

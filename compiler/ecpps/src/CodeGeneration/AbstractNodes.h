@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include "Execution/MemoryAccess.h"
 #include "Shared/Diagnostics.h"
 #include "TypeSystem/TypeBase.h"
 
@@ -187,11 +188,87 @@ namespace ecpps::ir::abstract
                return other.index == this->index;
           }
      };
+     struct MemoryEffect
+     {
+          MemoryAccess access{};
+          bool isWrite{};
+     };
      struct VirtualInstruction
      {
           VirtualInstructionType type{};
           std::vector<VirtualRegister> operands{};
+          std::optional<MemoryEffect> memoryEffect{};
      };
+
+     constexpr void ForEachSourceOperand(auto& instruction, auto&& callback)
+     {
+          using Type = VirtualInstructionType;
+          const auto emit = [&](const std::size_t index)
+          {
+               if (index < instruction.operands.size()) callback(instruction.operands[index]);
+          };
+          const auto emitRange = [&](const std::size_t first)
+          {
+               for (std::size_t index = first; index < instruction.operands.size(); index++) emit(index);
+          };
+
+          switch (instruction.type)
+          {
+          case Type::CopyInteger:
+          case Type::LoadStringAddress:
+          case Type::Call:
+          case Type::CallWithResult:
+          case Type::CopyParameter:
+          case Type::Label:
+          case Type::UnconditionalJump:
+          case Type::Unreachable:
+          case Type::ZeroMemory:
+          case Type::CopyFromData: return;
+          case Type::IndirectStore:
+          case Type::Return: emitRange(0); return;
+          case Type::ReturnAggregate: emit(0); return;
+          case Type::CallWithAggregateResult:
+          case Type::PassArgument: emit(1); return;
+          case Type::CompareAndJump:
+               emit(0);
+               emit(1);
+               return;
+          default: emitRange(1); return;
+          }
+     }
+
+     [[nodiscard]] inline std::vector<VirtualRegister> SourceRegistersOf(const VirtualInstruction& instruction)
+     {
+          std::vector<VirtualRegister> sources{};
+          ForEachSourceOperand(instruction,
+                               [&sources](const VirtualRegister& source)
+                               {
+                                    sources.push_back(source);
+                               });
+          return sources;
+     }
+
+     [[nodiscard]] constexpr std::optional<std::size_t> DestinationOperandIndex(
+          const VirtualInstruction& instruction) noexcept
+     {
+          if (instruction.type == VirtualInstructionType::CopyParameter)
+               return instruction.operands.size() >= 2 ? std::optional<std::size_t>{1} : std::nullopt;
+
+          switch (instruction.type)
+          {
+          case VirtualInstructionType::CallWithAggregateResult:
+          case VirtualInstructionType::Return:
+          case VirtualInstructionType::ReturnAggregate:
+          case VirtualInstructionType::Call:
+          case VirtualInstructionType::PassArgument:
+          case VirtualInstructionType::Label:
+          case VirtualInstructionType::UnconditionalJump:
+          case VirtualInstructionType::Unreachable:
+          case VirtualInstructionType::CompareAndJump: return std::nullopt;
+          default: return instruction.operands.empty() ? std::nullopt : std::optional<std::size_t>{0};
+          }
+     }
+
      enum struct StateType : std::uint8_t
      {
           Unknown,

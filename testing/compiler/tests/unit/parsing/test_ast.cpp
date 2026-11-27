@@ -228,7 +228,7 @@ TEST_CASE("AST - Operator function ids map to their operators", "[unit][parsing]
      REQUIRE((nodes.size() == operators.size()));
      if (nodes.size() != operators.size()) return;
 
-     for (std::size_t index = 0; index < operators.size(); ++index)
+     for (std::size_t index = 0; index < operators.size(); index++)
      {
           const auto* declaration = dynamic_cast<const ecpps::ast::FunctionDeclarationNode*>(nodes[index].get());
           REQUIRE((declaration != nullptr));
