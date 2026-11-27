@@ -1,4 +1,5 @@
 #include <RuntimeAssert.h>
+#include <stdexcept>
 #include <string_view>
 #include <variant>
 #include "Expressions.h"
@@ -59,8 +60,9 @@ namespace ecpps::ir
                     },
                     [](const auto&) -> std::unique_ptr<T>
                     {
-                         throw[]{};
-                    }},
+                         throw std::logic_error{"Unsupported constant-evaluation result type"};
+                    },
+               },
                result.variant);
      }
 } // namespace ecpps::ir

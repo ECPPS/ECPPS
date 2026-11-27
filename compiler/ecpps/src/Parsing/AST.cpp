@@ -1,9 +1,13 @@
 #include "AST.h"
 #include <RuntimeAssert.h>
+#include <algorithm>
+#include <array>
 #include <format>
 #include <memory>
+#include <optional>
 #include <ranges>
-#include <unordered_set>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "ASTs/General.h"
@@ -17,15 +21,66 @@ ecpps::ast::Node::~Node(void) = default;
 using ecpps::InternedString;
 using ecpps::StringPool;
 using ecpps::ast::NodePointer;
-static std::unordered_set<std::string_view> SimpleTypes = {"char",     "char8_t", "char16_t", "char32_t", "wchar_t",
-                                                           "bool",     "short",   "int",      "long",     "signed",
-                                                           "unsigned", "float",   "double",   "void"};
+static constexpr std::array<std::string_view, 14> SimpleTypes{
+     "char", "char8_t", "char16_t", "char32_t", "wchar_t", "bool",   "short",
+     "int",  "long",    "signed",   "unsigned", "float",   "double", "void",
+};
 
 static InternedString CombineTypeWords(const std::vector<InternedString>& words, StringPool& stringPool);
 
 static bool IsOperatorToken(const ecpps::Token& token, std::string_view op)
 {
      return token.type == ecpps::TokenType::Operator && token.AsOperator() == op;
+}
+
+static std::optional<ecpps::ast::Operator> MatchOverloadedOperator(const ecpps::Token& token)
+{
+     if (token.type != ecpps::TokenType::Operator) return std::nullopt;
+
+     using ecpps::ast::Operator;
+     static const std::unordered_map<std::string_view, Operator> operators{
+          {"->", Operator::Arrow},
+          {"->*", Operator::PointerToMember},
+          {"~", Operator::Tilde},
+          {"!", Operator::Exclamation},
+          {"+", Operator::Plus},
+          {"-", Operator::Minus},
+          {"*", Operator::Asterisk},
+          {"/", Operator::Solidus},
+          {"%", Operator::Percent},
+          {"^", Operator::CircumflexAccent},
+          {"&", Operator::Ampersand},
+          {"|", Operator::VerticalLine},
+          {"=", Operator::Assignment},
+          {"+=", Operator::PlusAssign},
+          {"-=", Operator::MinusAssign},
+          {"*=", Operator::MultiplyAssign},
+          {"/=", Operator::DivideAssign},
+          {"%=", Operator::ModuloAssign},
+          {"^=", Operator::XorAssign},
+          {"&=", Operator::AndAssign},
+          {"|=", Operator::OrAssign},
+          {"==", Operator::EqualsSign},
+          {"!=", Operator::NotEqual},
+          {"<", Operator::Less},
+          {">", Operator::Greater},
+          {"<=", Operator::LessEqual},
+          {">=", Operator::GreaterEqual},
+          {"<=>", Operator::Spaceship},
+          {"&&", Operator::LogicalAnd},
+          {"||", Operator::LogicalOr},
+          {"<<", Operator::LeftShift},
+          {">>", Operator::RightShift},
+          {"<<=", Operator::LeftShiftAssign},
+          {">>=", Operator::RightShiftAssign},
+          {"++", Operator::Increment},
+          {"--", Operator::Decrement},
+          {",", Operator::Comma},
+     };
+
+     const auto found = operators.find(token.AsOperator().View());
+     if (found == operators.end()) return std::nullopt;
+     return found->second;
 }
 
 static bool IsWord(const ecpps::Token& token, std::string_view word)
@@ -66,7 +121,8 @@ NodePointer ecpps::ast::AST::ParseSimpleTypeSpecifier(ASTContext& context, bool 
 {
      auto source = Peek().location;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+     if (Peek().type == TokenType::Keyword &&
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
      {
           source.endPosition = Peek().location.endPosition;
           Advance();
@@ -103,7 +159,9 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                     Advance();
                }
                else
+               {
                     break;
+               }
           }
 
           return std::pair{isConst, isVolatile};
@@ -113,11 +171,12 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
 
      NodePointer type = nullptr;
 
-     if (Peek().type == TokenType::Keyword && SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+     if (Peek().type == TokenType::Keyword &&
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
      {
           std::vector<InternedString> typeWords;
           while (Peek().type == TokenType::Keyword &&
-                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                 std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
           {
                typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
@@ -138,7 +197,9 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                new (context) BasicType(typeName, source, leadConst, leadVolatile));
      }
      else
+     {
           type = ParseSimpleTypeSpecifier(context, leadConst, leadVolatile);
+     }
 
      if (type == nullptr) return ASTExpected{std::move(type)};
 
@@ -188,7 +249,9 @@ ecpps::ast::ASTExpected ecpps::ast::AST::ParseTypeId(ASTContext& context)
                     }
                }
                else
+               {
                     break;
+               }
           }
      }
 
@@ -338,15 +401,17 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                          Advance();
                     }
                     else
+                    {
                          break;
+                    }
                }
 
                if (Peek().type == TokenType::Keyword &&
-                   SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                   std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                {
                     std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                           std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                     {
                          typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
@@ -409,7 +474,9 @@ NodePointer ecpps::ast::AST::ParseBlockDeclaration(ASTContext& context)
                               Advance();
                          }
                          else
+                         {
                               break;
+                         }
                     }
 
                     targetType = std::unique_ptr<PointerType, ecpps::ast::ASTDeleter>(
@@ -507,7 +574,7 @@ NodePointer ecpps::ast::AST::ParseFunctionDefinition(ASTContext& context)
           }
      }
 
-     const auto fallBackToSimpleDeclaration = [&]() -> NodePointer
+     const auto fallBackToSimpleDeclaration = [&] -> NodePointer
      {
           auto& list = this->_diagnostics.get().diagnosticsList;
           list.erase(list.begin() + static_cast<std::ptrdiff_t>(diagnosticsStart), list.end());
@@ -817,8 +884,8 @@ bool ecpps::ast::AST::IsDeclarationStart([[maybe_unused]] ASTContext& context)
             Peek(i).type == TokenType::Keyword)
      {
           const auto& kw = std::get<InternedString>(Peek(i).value);
-          if (SimpleTypes.contains(kw.View()) || kw == "struct" || kw == "class" || kw == "union" || kw == "typedef" ||
-              kw == "using" || kw == "namespace")
+          if (std::ranges::contains(SimpleTypes, kw.View()) || kw == "struct" || kw == "class" || kw == "union" ||
+              kw == "typedef" || kw == "using" || kw == "namespace")
                return true;
           if (kw != "const" && kw != "volatile" && kw != "extern" && kw != "static" && kw != "inline" &&
               kw != "constexpr" && kw != "consteval" && kw != "constinit" && kw != "thread_local" && kw != "mutable")
@@ -844,7 +911,7 @@ InternedString CombineTypeWords(const std::vector<InternedString>& words, ecpps:
      std::string result;
      for (const auto& word : words)
      {
-          if (!result.empty()) result += " ";
+          if (!result.empty()) result += ' ';
           result += word.View();
      }
      return stringPool.Intern(result);
@@ -920,7 +987,9 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
                     new (context) DesignatedInitialiserNode(member, std::move(value), source));
           }
           else
+          {
                initialiser = ParseInitialiserClause(context);
+          }
 
           if (initialiser == nullptr) return nullptr;
           initialisers.push_back(std::move(initialiser));
@@ -929,7 +998,9 @@ NodePointer ecpps::ast::AST::ParseInitialiserList(ASTContext& context)
                Advance();
           }
           else
+          {
                break;
+          }
      }
      if (!Match(TokenType::RightBrace))
      {
@@ -1124,11 +1195,11 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                else if (keyword == "enum") // elaborated-type-specifier
                {
                }
-               else if (SimpleTypes.contains(keyword.View())) // simple-type-specifier
+               else if (std::ranges::contains(SimpleTypes, keyword.View())) // simple-type-specifier
                {
                     std::vector<InternedString> typeWords;
                     while (Peek().type == TokenType::Keyword &&
-                           SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                           std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                     {
                          typeWords.push_back(std::get<InternedString>(Peek().value));
                          Advance();
@@ -1159,7 +1230,9 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                     break;
                }
                else
+               {
                     break;
+               }
 
                Advance();
           }
@@ -1213,7 +1286,9 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
                break;
           }
           else
+          {
                break;
+          }
      }
      ecpps::ast::ConstantExpressionSpecifier constexprSpec{};
 
@@ -1237,7 +1312,8 @@ ecpps::ast::DeclSpecifierSequence ecpps::ast::AST::ParseDeclSpecifiers(ASTContex
           .storageSpecifier = storageSpecifier,
           .definingTypeSpecifier = std::move(typeSpecifier),
           .functionSpecifier =
-               FunctionSpecifier{.isVirtual = isVirtual, .explicitSpecifier = std::move(optExplicitSpecifier)}};
+               FunctionSpecifier{.isVirtual = isVirtual, .explicitSpecifier = std::move(optExplicitSpecifier)},
+     };
 }
 
 void ecpps::ast::AST::SynchroniseMember(void)
@@ -1246,7 +1322,10 @@ void ecpps::ast::AST::SynchroniseMember(void)
      while (!AtEnd())
      {
           const auto type = Peek().type;
-          if (type == TokenType::LeftBrace) braceDepth++;
+          if (type == TokenType::LeftBrace)
+          {
+               braceDepth++;
+          }
           else if (type == TokenType::RightBrace)
           {
                if (braceDepth == 0) return;
@@ -1350,7 +1429,9 @@ void ecpps::ast::AST::ParseCvQualifierSeq(bool& isConst, bool& isVolatile)
                isVolatile = true;
           }
           else
+          {
                break;
+          }
           Advance();
      }
 }
@@ -1426,7 +1507,9 @@ std::vector<ecpps::ast::PtrOperator> ecpps::ast::AST::ParsePtrOperators(ASTConte
                ParseCvQualifierSeq(op.isConst, op.isVolatile);
           }
           else
+          {
                break;
+          }
 
           op.location.endPosition = Peek(-1).location.endPosition;
           operators.push_back(std::move(op));
@@ -1443,16 +1526,35 @@ NodePointer ecpps::ast::AST::ParseDeclaratorId(ASTContext& context)
      {
           auto source = token.location;
           Advance();
-          if (IsOperatorToken(Peek(), "="))
+          if ((Peek().type == TokenType::LeftParenthesis && Peek(1).type == TokenType::RightParenthesis) ||
+              (Peek().type == TokenType::LeftBracket && Peek(1).type == TokenType::RightBracket))
+          {
+               const auto operatorId =
+                    Peek().type == TokenType::LeftParenthesis ? Operator::Function : Operator::Subscript;
+               source.endPosition = Peek(1).location.endPosition;
+               Advance();
+               Advance();
+               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{new (context)
+                                                                           OperatorFunctionId(operatorId, source)};
+          }
+
+          if (const auto operatorId = MatchOverloadedOperator(Peek()); operatorId.has_value())
           {
                source.endPosition = Peek().location.endPosition;
                Advance();
-               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{
-                    new (context) OperatorFunctionId(Operator::Assignment, source)};
+               return std::unique_ptr<OperatorFunctionId, ASTDeleter>{new (context)
+                                                                           OperatorFunctionId(*operatorId, source)};
           }
-          this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
-               "Only operator= function ids are supported yet", token.location));
-          return nullptr;
+          auto conversionType = ParseTypeId(context);
+          if (!conversionType.WasSuccessful() || conversionType.value == nullptr)
+          {
+               for (auto& diagnostic : conversionType.diagnostics)
+                    this->_diagnostics.get().diagnosticsList.push_back(std::move(diagnostic));
+               return nullptr;
+          }
+          source.endPosition = Peek(-1).location.endPosition;
+          return std::unique_ptr<ConversionFunctionId, ASTDeleter>{
+               new (context) ConversionFunctionId(std::move(conversionType.value), source)};
      }
 
      if (token.type == TokenType::Identifier) return ParseIdExpression(context);
@@ -1642,7 +1744,9 @@ std::optional<ecpps::ast::Declarator> ecpps::ast::AST::ParseDeclarator(ASTContex
                declarator.suffixes.emplace_back(std::move(bound));
           }
           else
+          {
                break;
+          }
      }
 
      declarator.location.endPosition = Peek(-1).location.endPosition;
@@ -1705,11 +1809,17 @@ std::optional<ecpps::ast::MemberDeclarator> ecpps::ast::AST::ParseMemberDeclarat
                const auto& next = Peek(1);
                if (next.type == TokenType::Literal && std::holds_alternative<IntegerLiteral>(next.value) &&
                    std::get<IntegerLiteral>(next.value).value == 0)
+               {
                     member.isPure = true;
+               }
                else if (IsWord(next, "default"))
+               {
                     member.functionBody = FunctionBodyKind::Defaulted;
+               }
                else if (IsWord(next, "delete"))
+               {
                     member.functionBody = FunctionBodyKind::Deleted;
+               }
                else
                {
                     this->_diagnostics.get().diagnosticsList.push_back(std::make_unique<diagnostics::SyntaxError>(
@@ -1843,15 +1953,17 @@ NodePointer ecpps::ast::AST::ParseSimpleDeclaration(ASTContext& context)
           this->_diagnostics.get().diagnosticsList.push_back(
                std::make_unique<diagnostics::SyntaxError>("Expected ';'", Peek(-1).location));
 
-     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTDeleter>(new (context) VariableDeclarationNode(
-          std::move(definingTypeSpecifier), std::move(declarators),
-          /*flags*/
-          VariableDeclarationNode::Flags{.isTypedef = isTypedef,
-                                         .isFriend = isFriend,
-                                         .constexprSpecifier = constexprSpecifier,
-                                         .isInline = isInline,
-                                         .storageClassSpecifier = storageSpecifier},
-          std::move(optExplicitSpecifier), source));
+     return std::unique_ptr<VariableDeclarationNode, ecpps::ast::ASTDeleter>(
+          new (context) VariableDeclarationNode(std::move(definingTypeSpecifier), std::move(declarators),
+                                                /*flags*/
+                                                VariableDeclarationNode::Flags{
+                                                     .isTypedef = isTypedef,
+                                                     .isFriend = isFriend,
+                                                     .constexprSpecifier = constexprSpecifier,
+                                                     .isInline = isInline,
+                                                     .storageClassSpecifier = storageSpecifier,
+                                                },
+                                                std::move(optExplicitSpecifier), source));
 }
 
 NodePointer ecpps::ast::AST::TryParseDeclSpecifier([[maybe_unused]] ASTContext& context)
@@ -1896,30 +2008,32 @@ NodePointer ecpps::ast::AST::ParsePrimaryExpression([[maybe_unused]] ASTContext&
      {
           this->Advance();
           return std::visit(
-               OverloadedVisitor{[&currentToken, &context](const bool boolean) -> NodePointer
-                                 {
-                                      return std::unique_ptr<BooleanLiteralNode, ecpps::ast::ASTDeleter>(
-                                           new (context) BooleanLiteralNode(boolean, currentToken.location));
-                                 },
-                                 [&currentToken, &context](const StringLiteral& literal) -> NodePointer
-                                 {
-                                      return std::unique_ptr<StringLiteralNode, ecpps::ast::ASTDeleter>(
-                                           new (context) StringLiteralNode(literal.value, currentToken.location));
-                                 },
-                                 [&currentToken, &context](const IntegerLiteral& literal) -> NodePointer
-                                 {
-                                      return std::unique_ptr<IntegerLiteralNode, ecpps::ast::ASTDeleter>(
-                                           new (context) IntegerLiteralNode(literal.value, currentToken.location));
-                                 },
-                                 [&currentToken, &context](const char literal) -> NodePointer
-                                 {
-                                      return std::unique_ptr<CharacterLiteralNode, ecpps::ast::ASTDeleter>(
-                                           new (context) CharacterLiteralNode(literal, currentToken.location));
-                                 },
-                                 [](auto&&) static -> NodePointer
-                                 {
-                                      return nullptr;
-                                 }},
+               OverloadedVisitor{
+                    [&currentToken, &context](const bool boolean) -> NodePointer
+                    {
+                         return std::unique_ptr<BooleanLiteralNode, ecpps::ast::ASTDeleter>(
+                              new (context) BooleanLiteralNode(boolean, currentToken.location));
+                    },
+                    [&currentToken, &context](const StringLiteral& literal) -> NodePointer
+                    {
+                         return std::unique_ptr<StringLiteralNode, ecpps::ast::ASTDeleter>(
+                              new (context) StringLiteralNode(literal.value, currentToken.location));
+                    },
+                    [&currentToken, &context](const IntegerLiteral& literal) -> NodePointer
+                    {
+                         return std::unique_ptr<IntegerLiteralNode, ecpps::ast::ASTDeleter>(
+                              new (context) IntegerLiteralNode(literal.value, currentToken.location));
+                    },
+                    [&currentToken, &context](const char literal) -> NodePointer
+                    {
+                         return std::unique_ptr<CharacterLiteralNode, ecpps::ast::ASTDeleter>(
+                              new (context) CharacterLiteralNode(literal, currentToken.location));
+                    },
+                    [](auto&&) static -> NodePointer
+                    {
+                         return nullptr;
+                    },
+               },
                currentToken.value);
      }
      case TokenType::Keyword:
@@ -2115,11 +2229,11 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
 
      NodePointer expression = nullptr;
      if (currentToken.type == TokenType::Keyword &&
-         SimpleTypes.contains(std::get<InternedString>(currentToken.value).View()))
+         std::ranges::contains(SimpleTypes, std::get<InternedString>(currentToken.value).View()))
      {
           std::vector<InternedString> typeWords;
           while (!AtEnd() && Peek().type == TokenType::Keyword &&
-                 SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                 std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
           {
                typeWords.push_back(std::get<InternedString>(Peek().value));
                Advance();
@@ -2129,7 +2243,9 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                new (context) BasicType(CombineTypeWords(typeWords, context), source, false, false));
      }
      else
+     {
           expression = ParsePrimaryExpression(context);
+     }
      if (expression == nullptr) return nullptr;
 
      while (!AtEnd())
@@ -2157,27 +2273,49 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
                     source.endPosition = currentToken.location.endPosition;
                     Operator operatorId =
                          std::get<InternedString>(currentToken.value) == "." ? Operator::FullStop : Operator::Arrow;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseIdExpression(context), source));
+                    auto memberId = Peek().type == TokenType::Keyword && Peek().AsKeyword() == "operator"
+                                         ? ParseDeclaratorId(context)
+                                         : ParseIdExpression(context);
+                    expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (
+                         context) BinaryOperatorNode(std::move(expression), operatorId, std::move(memberId), source));
                     continue;
                }
           }
           if (currentToken.type == TokenType::LeftBracket)
           {
                Advance();
-               auto subscriptExpression = ParseExpression(context);
+               SBOVector<NodePointer> arguments{};
                if (!Match(TokenType::RightBracket))
                {
-                    this->_diagnostics.get().diagnosticsList.push_back(
-                         diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
-                              "Expected a closing bracket in subscript expression", currentToken.location));
-                    return nullptr;
+                    while (!AtEnd())
+                    {
+                         auto argument = ParseAssignmentExpression(context);
+                         if (argument == nullptr) return nullptr;
+                         arguments.Push(std::move(argument));
+
+                         if (Match(TokenType::RightBracket)) break;
+                         if (IsOperatorToken(Peek(), ","))
+                         {
+                              Advance();
+                              continue;
+                         }
+
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                   "Expected a comma or closing bracket in subscript expression", Peek().location));
+                         return nullptr;
+                    }
+                    if (AtEnd() && Peek(-1).type != TokenType::RightBracket)
+                    {
+                         this->_diagnostics.get().diagnosticsList.push_back(
+                              diagnostics::DiagnosticsBuilder<diagnostics::SyntaxError>{}.Build(
+                                   "Expected a closing bracket in subscript expression", currentToken.location));
+                         return nullptr;
+                    }
                }
-               source.endPosition = currentToken.location.endPosition;
-               expression =
-                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                         std::move(expression), Operator::Subscript, std::move(subscriptExpression), source));
+               source.endPosition = Peek(-1).location.endPosition;
+               expression = std::unique_ptr<SubscriptOperatorNode, ecpps::ast::ASTDeleter>(
+                    new (context) SubscriptOperatorNode(std::move(expression), std::move(arguments), source));
                continue;
           }
           if (currentToken.type == TokenType::LeftParenthesis)
@@ -2213,21 +2351,20 @@ NodePointer ecpps::ast::AST::ParsePostfixExpresssion([[maybe_unused]] ASTContext
 NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
 {
      const auto& currentToken = this->Peek();
-     if (currentToken.type == TokenType::Operator)
+     if ((currentToken.type == TokenType::Operator) &&
+         (std::get<InternedString>(currentToken.value) == "++" || std::get<InternedString>(currentToken.value) == "--"))
+
      {
-          if (std::get<InternedString>(currentToken.value) == "++" ||
-              std::get<InternedString>(currentToken.value) == "--")
-          {
-               Advance();
-               auto source = currentToken.location;
-               auto expression = ParseCastExpression(context);
-               source.endPosition = Peek().location.endPosition;
-               const auto operatorId =
-                    std::get<InternedString>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
-               return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) UnaryOperatorNode(
-                    operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
-          }
+          Advance();
+          auto source = currentToken.location;
+          auto expression = ParseCastExpression(context);
+          source.endPosition = Peek().location.endPosition;
+          const auto operatorId =
+               std::get<InternedString>(currentToken.value) == "++" ? Operator::Increment : Operator::Decrement;
+          return std::unique_ptr<UnaryOperatorNode, ecpps::ast::ASTDeleter>(
+               new (context) UnaryOperatorNode(operatorId, std::move(expression), UnaryOperatorType::Prefix, source));
      }
+
      if (currentToken.type == TokenType::Operator)
      {
           if (std::get<InternedString>(currentToken.value) == "+" ||
@@ -2280,7 +2417,7 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                Advance();
                canHoldTypeId = true;
                if (Peek().type == TokenType::Keyword &&
-                   !SimpleTypes.contains(std::get<InternedString>(Peek().value).View()))
+                   !std::ranges::contains(SimpleTypes, std::get<InternedString>(Peek().value).View()))
                {
                     typeOrExpressionInside = ParseUnaryExpression(context);
                     canHoldTypeId = false;
@@ -2309,7 +2446,9 @@ NodePointer ecpps::ast::AST::ParseUnaryExpression(ASTContext& context)
                }
           }
           else
+          {
                typeOrExpressionInside = ParseUnaryExpression(context);
+          }
           auto source = currentToken.location;
           source.endPosition = Peek().location.endPosition;
 
@@ -2354,22 +2493,20 @@ NodePointer ecpps::ast::AST::ParsePmExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == ".*" ||
+                                                             std::get<InternedString>(currentToken.value) == "->*"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == ".*" ||
-                   std::get<InternedString>(currentToken.value) == "->*")
-               {
-                    Advance();
-                    // TODO: implement PM and not.. that placeholder
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = std::get<InternedString>(currentToken.value) == ".*"
-                                                 ? Operator::PointerToMemberObject
-                                                 : Operator::PointerToMember;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseCastExpression(context), source));
-                    continue;
-               }
+               Advance();
+               // TODO: implement PM and not.. that placeholder
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId = std::get<InternedString>(currentToken.value) == ".*"
+                                            ? Operator::PointerToMemberObject
+                                            : Operator::PointerToMember;
+               expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(
+                    new (context)
+                         BinaryOperatorNode(std::move(expression), operatorId, ParseCastExpression(context), source));
+               continue;
           }
 
           break;
@@ -2386,23 +2523,20 @@ NodePointer ecpps::ast::AST::ParseMultiplicativeExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
-          {
-               if (std::get<InternedString>(currentToken.value) == "*" ||
-                   std::get<InternedString>(currentToken.value) == "/" ||
-                   std::get<InternedString>(currentToken.value) == "%")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = std::get<InternedString>(currentToken.value) == "*"   ? Operator::Asterisk
-                                            : std::get<InternedString>(currentToken.value) == "/" ? Operator::Solidus
-                                                                                                  : Operator::Percent;
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "*" ||
+                                                             std::get<InternedString>(currentToken.value) == "/" ||
+                                                             std::get<InternedString>(currentToken.value) == "%"))
 
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParsePmExpression(context), source));
-                    continue;
-               }
+          {
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId = std::get<InternedString>(currentToken.value) == "*"   ? Operator::Asterisk
+                                       : std::get<InternedString>(currentToken.value) == "/" ? Operator::Solidus
+                                                                                             : Operator::Percent;
+
+               expression = std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (
+                    context) BinaryOperatorNode(std::move(expression), operatorId, ParsePmExpression(context), source));
+               continue;
           }
 
           break;
@@ -2419,20 +2553,18 @@ NodePointer ecpps::ast::AST::ParseAdditiveExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "+" ||
+                                                             std::get<InternedString>(currentToken.value) == "-"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == "+" ||
-                   std::get<InternedString>(currentToken.value) == "-")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId =
-                         std::get<InternedString>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseMultiplicativeExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId =
+                    std::get<InternedString>(currentToken.value) == "+" ? Operator::Plus : Operator::Minus;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), operatorId, ParseMultiplicativeExpression(context), source));
+               continue;
           }
 
           break;
@@ -2449,20 +2581,18 @@ NodePointer ecpps::ast::AST::ParseShiftExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == ">>" ||
+                                                             std::get<InternedString>(currentToken.value) == "<<"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == ">>" ||
-                   std::get<InternedString>(currentToken.value) == "<<")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = std::get<InternedString>(currentToken.value) == ">>" ? Operator::RightShift
-                                                                                                 : Operator::LeftShift;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseAdditiveExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId =
+                    std::get<InternedString>(currentToken.value) == ">>" ? Operator::RightShift : Operator::LeftShift;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), operatorId, ParseAdditiveExpression(context), source));
+               continue;
           }
 
           break;
@@ -2479,17 +2609,15 @@ NodePointer ecpps::ast::AST::ParseCompareExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "<=>"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == "<=>")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), Operator::Spaceship, ParseShiftExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), Operator::Spaceship, ParseShiftExpression(context), source));
+               continue;
           }
 
           break;
@@ -2572,18 +2700,16 @@ NodePointer ecpps::ast::AST::ParseBinaryAndExpression(ASTContext& context)
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "&"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == "&")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = Operator::Ampersand;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseEqualityExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId = Operator::Ampersand;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), operatorId, ParseEqualityExpression(context), source));
+               continue;
           }
 
           break;
@@ -2600,18 +2726,16 @@ NodePointer ecpps::ast::AST::ParseBinaryExclusiveOrExpression(ASTContext& contex
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "^"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == "^")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = Operator::CircumflexAccent;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseBinaryAndExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId = Operator::CircumflexAccent;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), operatorId, ParseBinaryAndExpression(context), source));
+               continue;
           }
 
           break;
@@ -2628,18 +2752,16 @@ NodePointer ecpps::ast::AST::ParseBinaryInclusiveOrExpression(ASTContext& contex
      while (true)
      {
           currentToken = this->Peek();
-          if (currentToken.type == TokenType::Operator)
+          if ((currentToken.type == TokenType::Operator) && (std::get<InternedString>(currentToken.value) == "|"))
+
           {
-               if (std::get<InternedString>(currentToken.value) == "|")
-               {
-                    Advance();
-                    source.endPosition = currentToken.location.endPosition;
-                    const auto operatorId = Operator::VerticalLine;
-                    expression =
-                         std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
-                              std::move(expression), operatorId, ParseBinaryExclusiveOrExpression(context), source));
-                    continue;
-               }
+               Advance();
+               source.endPosition = currentToken.location.endPosition;
+               const auto operatorId = Operator::VerticalLine;
+               expression =
+                    std::unique_ptr<BinaryOperatorNode, ecpps::ast::ASTDeleter>(new (context) BinaryOperatorNode(
+                         std::move(expression), operatorId, ParseBinaryExclusiveOrExpression(context), source));
+               continue;
           }
 
           break;
@@ -2693,10 +2815,11 @@ NodePointer ecpps::ast::AST::ParseAssignmentExpression(ASTContext& context)
      if (AtEnd() || Peek().type != TokenType::Operator) return expression;
 
      static const std::unordered_map<std::string_view, Operator> assignmentOperators{
-          {"=", Operator::Assignment},        {"+=", Operator::PlusAssign},       {"-=", Operator::MinusAssign},
-          {"*=", Operator::MultiplyAssign},   {"/=", Operator::DivideAssign},     {"%=", Operator::ModuloAssign},
-          {"^=", Operator::XorAssign},        {"&=", Operator::AndAssign},        {"|=", Operator::OrAssign},
-          {"<<=", Operator::LeftShiftAssign}, {">>=", Operator::RightShiftAssign}};
+          {"=", Operator::Assignment},        {"+=", Operator::PlusAssign},        {"-=", Operator::MinusAssign},
+          {"*=", Operator::MultiplyAssign},   {"/=", Operator::DivideAssign},      {"%=", Operator::ModuloAssign},
+          {"^=", Operator::XorAssign},        {"&=", Operator::AndAssign},         {"|=", Operator::OrAssign},
+          {"<<=", Operator::LeftShiftAssign}, {">>=", Operator::RightShiftAssign},
+     };
 
      const auto found = assignmentOperators.find(Peek().AsOperator().View());
      if (found == assignmentOperators.end()) return expression;
@@ -3055,7 +3178,9 @@ void ecpps::ast::AST::ParseVirtSpecifierSeq(bool& isOverride, bool& isFinal)
                isFinal = true;
           }
           else
+          {
                break;
+          }
           Advance();
      }
 }
@@ -3066,7 +3191,10 @@ void ecpps::ast::AST::SynchroniseStatement(void)
      while (!AtEnd())
      {
           const auto type = Peek().type;
-          if (type == TokenType::LeftBrace) ++braceDepth;
+          if (type == TokenType::LeftBrace)
+          {
+               ++braceDepth;
+          }
           else if (type == TokenType::RightBrace)
           {
                if (braceDepth == 0) return;

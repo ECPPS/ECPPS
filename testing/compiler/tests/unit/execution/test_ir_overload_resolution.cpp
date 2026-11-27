@@ -11,7 +11,7 @@
 #include <vector>
 #include <Execution/IR.Internal.h>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 namespace
 {
@@ -69,6 +69,21 @@ namespace
           return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
      }
 
+     ecpps::ast::NodePointer MakeNonMemberOperatorDeclaration(Fixture& fixture, const ecpps::ast::Operator operatorId,
+                                                              const std::vector<std::string>& parameterTypes)
+     {
+          std::vector<std::pair<std::string, std::string>> parameters{};
+          parameters.reserve(parameterTypes.size());
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+               parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
+          auto signature = fixture.MakeFunctionSignature("int", "operator", parameters);
+          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+               if (parameterTypes[index] == "Thing")
+                    signature.parameters.parameters[index].type = fixture.MakeClassType("Thing");
+          signature.name = MakeASTNode<ecpps::ast::OperatorFunctionId>(fixture.astAllocator, operatorId, Source);
+          return MakeASTNode<ecpps::ast::FunctionDeclarationNode>(fixture.astAllocator, std::move(signature), Source);
+     }
+
      std::vector<ecpps::ast::NodePointer> MakeCallProgram(Fixture& fixture, const std::string& functionName,
                                                           const std::size_t argumentCount)
      {
@@ -86,7 +101,7 @@ namespace
 
      bool ContainsMessage(const ecpps::diagnostics::IDiagnosticsBase& diagnostic, const std::string_view message)
      {
-          if (diagnostic.Message().find(message) != std::string::npos) return true;
+          if (diagnostic.Message().contains(message)) return true;
           return std::ranges::any_of(diagnostic.SubDiagnostics(),
                                      [message](const ecpps::diagnostics::DiagnosticsMessage& child)
                                      {
@@ -98,10 +113,11 @@ namespace
 TEST_CASE("IR - bounded Damerau-Levenshtein distance preserves in-range results", "[unit][ir][distance]")
 {
      using ecpps::ir::detail::LevenshteinDistance;
-     const std::array identifiers{std::string_view{""},    std::string_view{"a"},   std::string_view{"A"},
-                                  std::string_view{"b"},   std::string_view{"ab"},  std::string_view{"ba"},
-                                  std::string_view{"aab"}, std::string_view{"aba"}, std::string_view{"abb"},
-                                  std::string_view{"bba"}};
+     const std::array identifiers{
+          std::string_view{""},    std::string_view{"a"},   std::string_view{"A"},   std::string_view{"b"},
+          std::string_view{"ab"},  std::string_view{"ba"},  std::string_view{"aab"}, std::string_view{"aba"},
+          std::string_view{"abb"}, std::string_view{"bba"},
+     };
 
      REQUIRE((LevenshteinDistance("ab", "ba", 1) == 1));
      REQUIRE((LevenshteinDistance("A", "a", 0) == 0));
@@ -131,6 +147,24 @@ TEST_CASE("IR - Overload resolution prefers an exact match", "[unit][ir][overloa
      REQUIRE((call->Function().parameters.size() == 1));
      REQUIRE((call->Function().parameters.front().type->RawName() == "short"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("IR - Non-member operator declarations validate arity and member-only forms",
+          "[unit][ir][overload-resolution][operators]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::ast::NodePointer> ast{};
+     ast.push_back(fixture.MakeStructDefinition("Thing", {}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Exclamation, {"Thing"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Increment, {"Thing", "int"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Plus, {"int", "int", "int"}));
+     ast.push_back(MakeNonMemberOperatorDeclaration(fixture, ecpps::ast::Operator::Subscript, {"int", "int"}));
+
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
+
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "Non-member operator+ must have one or two parameters"));
+     CHECK(HasTypeErrorContaining(fixture.diagnostics, "operator[] must be a member function"));
+     CHECK_FALSE(HasTypeErrorContaining(fixture.diagnostics, "Non-member operator! must have exactly 1 parameter"));
 }
 
 TEST_CASE("IR - Overload resolution prefers promotion to conversion", "[unit][ir][overload-resolution]")
@@ -167,7 +201,7 @@ TEST_CASE("IR - No matching overload is a type error with candidate failures", "
      auto callProgram = MakeCallProgram(fixture, "pick", 2);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -185,7 +219,7 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      auto callProgram = MakeCallProgram(fixture, "fop", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -194,8 +228,7 @@ TEST_CASE("IR - Unknown function suggestions rank argument matches", "[unit][ir]
      CHECK(ContainsMessage(diagnostic, "* fool [distance=2; accepts these arguments]"));
      CHECK(ContainsMessage(diagnostic, "fob [distance=1; no overload accepts these arguments]"));
      REQUIRE((diagnostic.SubDiagnostics().front()->SubDiagnostics().size() == 2));
-     CHECK(
-          (diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().find("fool") != std::string::npos));
+     CHECK((diagnostic.SubDiagnostics().front()->SubDiagnostics().front()->Message().contains("fool")));
 }
 
 TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][ir][overload-resolution]")
@@ -207,7 +240,7 @@ TEST_CASE("IR - No-match calls also suggest similar viable functions", "[unit][i
      auto callProgram = MakeCallProgram(fixture, "pick", 1);
      ast.insert(ast.end(), std::make_move_iterator(callProgram.begin()), std::make_move_iterator(callProgram.end()));
 
-     [[maybe_unused]] const auto nodes = fixture.Parse(std::move(ast));
+     [[maybe_unused]] const auto nodes = fixture.Parse(ast);
      REQUIRE((fixture.diagnostics.diagnosticsList.size() == 2));
      CHECK((fixture.diagnostics.diagnosticsList.back()->Name() == "warning"));
      const auto& diagnostic = *fixture.diagnostics.diagnosticsList.front();
@@ -234,17 +267,21 @@ TEST_CASE("IR - Constructor overload diagnostic templates are shared", "[unit][i
 TEST_CASE("IR - Member overload diagnostics retain candidate detail trees", "[unit][ir][overload-resolution]")
 {
      using namespace ecpps::ir::overloadDiagnostics;
-     Candidate candidate{.signature = "Widget::pick(int)",
-                         .source = Source,
-                         .details = {CandidateDetail{.message = "Expected 1 argument, got 2", .source = Source}},
-                         .access = "private",
-                         .isDeleted = true};
-     SimilarName suggestion{.name = "picks",
-                            .source = Source,
-                            .distance = 1,
-                            .argumentFailureCount = 0,
-                            .acceptsArguments = true,
-                            .candidates = {candidate}};
+     Candidate candidate{
+          .signature = "Widget::pick(int)",
+          .source = Source,
+          .details = {CandidateDetail{.message = "Expected 1 argument, got 2", .source = Source}},
+          .access = "private",
+          .isDeleted = true,
+     };
+     SimilarName suggestion{
+          .name = "picks",
+          .source = Source,
+          .distance = 1,
+          .argumentFailureCount = 0,
+          .acceptsArguments = true,
+          .candidates = {candidate},
+     };
      auto diagnostic = NoMatchingOverload("Widget::pick", Source, {candidate}, {suggestion}, SimilarNamesKind::Members);
      auto selected = SelectedOverloadFailure(candidate.signature, Source, true, true, candidate);
 

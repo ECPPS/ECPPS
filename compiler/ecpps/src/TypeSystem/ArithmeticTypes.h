@@ -1,4 +1,5 @@
 #pragma once
+#include <limits>
 #include <memory>
 #include "TypeBase.h"
 
@@ -7,7 +8,7 @@ namespace ecpps::typeSystem
      enum struct Signedness : bool
      {
           Signed = true,
-          Unsigned = false
+          Unsigned = false,
      };
 
      constexpr Signedness DefaultCharacterSign = Signedness::Signed; // implementation-defined property
@@ -45,13 +46,12 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               return TypeTraits{TypeTraitEnum::Arithmetic,
-                                 TypeTraitEnum::Integral,
-                                 TypeTraitEnum::Literal,
-                                 TypeTraitEnum::TriviallyCopyable,
-                                 TypeTraitEnum::ImplicitLifetime,
-                                 TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Object};
+               return TypeTraits{
+                    TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
+                    TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
+                    TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                    TypeTraitEnum::Object,
+               };
           }
 
           [[nodiscard]] ConversionSequence CompareTo(ecpps::typeSystem::NonowningTypePointer other) const override;
@@ -70,7 +70,7 @@ namespace ecpps::typeSystem
      {
           Char,
           SignedChar,
-          UnsignedChar
+          UnsignedChar,
      };
      class CharacterType final : public IntegralType
      {
@@ -88,10 +88,11 @@ namespace ecpps::typeSystem
 
           [[nodiscard]] TypeTraits Traits(void) const noexcept override
           {
-               return TypeTraits{TypeTraitEnum::Arithmetic,       TypeTraitEnum::Integral,
-                                 TypeTraitEnum::Literal,          TypeTraitEnum::TriviallyCopyable,
-                                 TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
-                                 TypeTraitEnum::Character,        TypeTraitEnum::Object};
+               return TypeTraits{
+                    TypeTraitEnum::Arithmetic,        TypeTraitEnum::Integral,         TypeTraitEnum::Literal,
+                    TypeTraitEnum::TriviallyCopyable, TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Scalar,
+                    TypeTraitEnum::Character,         TypeTraitEnum::Object,
+               };
           }
 
      private:
@@ -145,7 +146,7 @@ namespace ecpps::typeSystem
           enum struct Kind : std::uint_fast8_t
           {
                LValue,
-               RValue
+               RValue,
           };
 
           explicit ReferenceType(NonowningTypePointer baseType, Kind kind, std::string name)
@@ -190,7 +191,7 @@ namespace ecpps::typeSystem
      /// </summary>
      enum struct IntegerConversionRank : std::uint_fast8_t
      {
-          Unknown = static_cast<std::uint_fast8_t>(~0),
+          Unknown = std::numeric_limits<std::uint_fast8_t>::max(),
 
           Bool = 0, // lowest
           Char = 1,

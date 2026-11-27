@@ -107,49 +107,53 @@ static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, IntegerO
 
 static std::vector<std::byte> AsmAdd(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmAdd(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmAdd(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmAdd(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmAdd(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmAdd(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmAdd(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmAdd(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmAdd(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmAdd(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid ADD source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmAdd(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmAdd(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const ir::abstract::DynamicBytecode& description)
@@ -160,22 +164,24 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitAdd(const ir:
      const auto instructionWidth = mov.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmAdd(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmAdd(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid ADD source");
-                            }},
+          OverloadedVisitor{
+               [instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmAdd(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmAdd(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid ADD source");
+               },
+          },
           mov.modifiedDestination);
 }
 
@@ -262,49 +268,53 @@ static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, IntegerO
 
 static std::vector<std::byte> AsmSub(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmSub(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmSub(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmSub(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid SUB source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmSub(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmSub(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmSub(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid SUB source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmSub(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmSub(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmSub(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid SUB source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmSub(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmSub(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid SUB source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const ir::abstract::DynamicBytecode& description)
@@ -315,21 +325,23 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitSub(const ir:
      const auto instructionWidth = mov.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmSub(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmSub(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid SUB source");
-                            }},
+          OverloadedVisitor{
+               [instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmSub(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmSub(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid SUB source");
+               },
+          },
           mov.modifiedDestination);
 }

@@ -57,6 +57,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-     return {.instructions = {BuildMov(width, RegisterOperand{destinationRegister}, IntegerOperand{immediate})},
-             .assignedRegister = destinationRegister};
+     return {
+          .instructions = {BuildMov(width, RegisterOperand{destinationRegister}, IntegerOperand{immediate})},
+          .assignedRegister = destinationRegister,
+     };
 }

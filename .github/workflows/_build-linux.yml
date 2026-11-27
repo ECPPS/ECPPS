@@ -6,7 +6,7 @@ on:
       llvm-version:
         required: false
         type: string
-        default: "20.1.8"
+        default: "23.1.4"
       upload-artifacts:
         description: "Whether to upload build artifacts"
         required: false
@@ -31,14 +31,14 @@ jobs:
       matrix:
         include:
           - compiler: Clang
-            name: clang20
+            name: clang23
             runner: ubuntu-26.04
             build_type: Debug
             preset_configure: Linux-Clang
             preset_build: Linux-Clang-Debug
             needs_llvm: true
           - compiler: Clang
-            name: clang20
+            name: clang23
             runner: ubuntu-26.04
             build_type: Release
             preset_configure: Linux-Clang
@@ -61,14 +61,14 @@ jobs:
             needs_llvm: false
 
           - compiler: Clang
-            name: clang20
+            name: clang23
             runner: ubuntu-24.04
             build_type: Debug
             preset_configure: Linux-Clang
             preset_build: Linux-Clang-Debug
             needs_llvm: true
           - compiler: Clang
-            name: clang20
+            name: clang23
             runner: ubuntu-24.04
             build_type: Release
             preset_configure: Linux-Clang
@@ -86,27 +86,30 @@ jobs:
           sudo apt-get install -y ccache
 
       - name: Install LLVM
-        if: matrix.needs_llvm && matrix.runner == 'ubuntu-24.04'
+        if: matrix.needs_llvm
         run: |
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
           sudo ./llvm.sh "$llvm_major"
+          sudo apt-get install -y clang-format-${llvm_major} clang-tidy-${llvm_major} llvm-${llvm_major}
 
       - name: Verify LLVM
         if: matrix.needs_llvm
         run: |
           llvm_major="${{ inputs.llvm-version }}"
           llvm_major="${llvm_major%%.*}"
+          llvm_series="${{ inputs.llvm-version }}"
+          llvm_series="${llvm_series%.*}"
           llvm_bin="/usr/lib/llvm-${llvm_major}/bin"
           if [[ ! -x "$llvm_bin/clang++" ]]; then
             echo "LLVM $llvm_major is missing from the pinned Ubuntu runner image." >&2
             exit 1
           fi
           version="$("$llvm_bin/clang++" --version | head -n 1)"
-          if [[ "$version" != *"clang version ${{ inputs.llvm-version }} "* ]]; then
-            echo "Expected Clang ${{ inputs.llvm-version }} but found: $version" >&2
+          if [[ "$version" != *"clang version ${llvm_series}."* ]]; then
+            echo "Expected Clang ${llvm_series}.x but found: $version" >&2
             exit 1
           fi
 
@@ -141,7 +144,9 @@ jobs:
       - name: Check toolchain
         run: |
           if [ "${{ matrix.compiler }}" = "Clang" ]; then
-            clang++ --version | grep -F "clang version ${{ inputs.llvm-version }} "
+            llvm_series="${{ inputs.llvm-version }}"
+            llvm_series="${llvm_series%.*}"
+            clang++ --version | grep -F "clang version ${llvm_series}."
           else
             [[ "$(g++-14 -dumpfullversion -dumpversion)" == "14.3.0" ]]
             ls /usr/lib/gcc/x86_64-linux-gnu/14

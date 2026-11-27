@@ -454,9 +454,8 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
           const auto* j = std::launder(reinterpret_cast<const JccInstruction*>(instruction.description.data()));
           return std::format("J{} .L{}", ToString(j->condition), j->labelId);
      }
+     default: return "__unknown";
      }
-
-     return "__unknown";
 }
 
 std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
@@ -874,10 +873,12 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.opcode = X8664InstructionName::SignExtend;
      instruction.description.resize(sizeof(MovExtendInstruction));
 
-     new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth,
-                                                               .sourceWidth = sourceWidth,
-                                                               .destination = destination,
-                                                               .source = source};
+     new (instruction.description.data()) MovExtendInstruction{
+          .destinationWidth = destinationWidth,
+          .sourceWidth = sourceWidth,
+          .destination = destination,
+          .source = source,
+     };
 
      return instruction;
 }
@@ -888,10 +889,12 @@ ecpps::ir::abstract::Instruction ecpps::abi::encoders::x8664::X8664VirtualInstru
      instruction.opcode = X8664InstructionName::ZeroExtend;
      instruction.description.resize(sizeof(MovExtendInstruction));
 
-     new (instruction.description.data()) MovExtendInstruction{.destinationWidth = destinationWidth,
-                                                               .sourceWidth = sourceWidth,
-                                                               .destination = destination,
-                                                               .source = source};
+     new (instruction.description.data()) MovExtendInstruction{
+          .destinationWidth = destinationWidth,
+          .sourceWidth = sourceWidth,
+          .destination = destination,
+          .source = source,
+     };
 
      return instruction;
 }
@@ -1463,29 +1466,30 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
 [[nodiscard]] std::string ecpps::abi::encoders::x8664::ToString(const Operand& operand)
 {
      return std::visit(
-          OverloadedVisitor{[](const RegisterOperand& reg)
-                            {
-                                 return FormatRegister(reg.index);
-                            },
-                            [](const MemoryOperand& mem)
-                            {
-                                 const auto base = FormatRegister(mem.relativeTo);
-                                 if (mem.offset < 0)
-                                      return std::format("[{} - {}]", base, -static_cast<std::int64_t>(mem.offset));
-                                 return std::format("[{} + {}]", base, mem.offset);
-                            },
-                            [](const IntegerOperand& integer)
-                            {
-                                 return std::format("{}", integer.value);
-                            },
-                            [](const StringAddressOperand& string)
-                            {
-                                 return std::format("[rip + string#{} + {}]", string.tableIndex, string.offset);
-                            },
-                            [](const StackOperand& stack)
-                            {
-                                 return std::format("[locals + {}]", stack.offset);
-                            }},
+          OverloadedVisitor{
+               [](const RegisterOperand& reg)
+               {
+                    return FormatRegister(reg.index);
+               },
+               [](const MemoryOperand& mem)
+               {
+                    const auto base = FormatRegister(mem.relativeTo);
+                    if (mem.offset < 0) return std::format("[{} - {}]", base, -static_cast<std::int64_t>(mem.offset));
+                    return std::format("[{} + {}]", base, mem.offset);
+               },
+               [](const IntegerOperand& integer)
+               {
+                    return std::format("{}", integer.value);
+               },
+               [](const StringAddressOperand& string)
+               {
+                    return std::format("[rip + string#{} + {}]", string.tableIndex, string.offset);
+               },
+               [](const StackOperand& stack)
+               {
+                    return std::format("[locals + {}]", stack.offset);
+               },
+          },
           operand);
 }
 // Keep this by-value sink to move temporary states into the register map.
@@ -1525,9 +1529,11 @@ ecpps::abi::encoders::x8664::Operand ecpps::abi::encoders::x8664::X8664VirtualIn
      if (this->OmitsFramePointer())
           return MemoryOperand{.relativeTo = RegisterIndex::Rsp, .offset = static_cast<std::int32_t>(aboveRsp)};
 
-     return MemoryOperand{.relativeTo = RegisterIndex::Rbp,
-                          .offset = static_cast<std::int32_t>(aboveRsp) -
-                                    static_cast<std::int32_t>(this->_stackFrameSize + this->SavedRegistersSize())};
+     return MemoryOperand{
+          .relativeTo = RegisterIndex::Rbp,
+          .offset = static_cast<std::int32_t>(aboveRsp) -
+                    static_cast<std::int32_t>(this->_stackFrameSize + this->SavedRegistersSize()),
+     };
 }
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ResolveStackOperands(

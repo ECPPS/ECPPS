@@ -10,7 +10,7 @@ namespace ecpps::abi
      {
           None,
           LValue,
-          RValue
+          RValue,
      };
      struct MemberFunctionInfo
      {
@@ -25,12 +25,12 @@ namespace ecpps::abi
           Internal,
           External,
           Module,
-          CLinkage
+          CLinkage,
      };
 
      enum struct CallingConventionName : std::uint_fast16_t // NOLINT(performance-enum-size)
      {
-          Microsoftx64
+          Microsoftx64,
      };
 
      struct Mangling
@@ -40,7 +40,6 @@ namespace ecpps::abi
           [[nodiscard]] static std::string MangleType(typeSystem::NonowningTypePointer type);
           [[nodiscard]] static std::string MangleClassPath(const typeSystem::ClassInfo& info);
 
-          // TODO: namespaces and classes
           [[nodiscard]] static std::string MangleName(Linkage linkage, const std::string& name,
                                                       CallingConventionName callingConvention,
                                                       typeSystem::NonowningTypePointer returnType,

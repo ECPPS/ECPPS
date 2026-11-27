@@ -310,7 +310,7 @@ namespace
 
           for (const auto featureName : SplitCommaSeparated(option.value))
           {
-               VerboseFeature feature{};
+               VerboseFeature feature = VerboseFeature::Preprocessor;
 
                if (!ParseVerboseFeature(featureName, feature))
                {
@@ -564,7 +564,7 @@ namespace
           result.isa = ISA::x86_64;
 #endif
 
-#if defined(_WIN32)
+#ifdef _WIN32
           result.platform = Platform::Windows;
 
           if (result.isa == ISA::x86_64)
@@ -582,7 +582,7 @@ namespace
                result.sdk = SDK::WindowsSDK10;
                result.linker = ecpps::LinkerUsed::Undefined;
           }
-#elif defined(__linux__)
+#elifdef __linux__
           result.platform = Platform::Linux;
           result.sdk = SDK::LinuxKernel7x;
           result.linker = ecpps::LinkerUsed::Linux64ELF;
@@ -917,9 +917,12 @@ ecpps::CompilerConfig::CompilerConfig(
           {
                if (!option.hasValue)
                {
-                    verboseFeatures |= VerboseFeatureMask(VerboseFeature::Preprocessor) |
-                                       VerboseFeatureMask(VerboseFeature::Tokens) |
-                                       VerboseFeatureMask(VerboseFeature::AST) | VerboseFeatureMask(VerboseFeature::IR);
+                    verboseFeatures = static_cast<VerboseFeatures>(
+                         static_cast<std::uint32_t>(verboseFeatures) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Preprocessor)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::Tokens)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::AST)) |
+                         static_cast<std::uint32_t>(VerboseFeatureMask(VerboseFeature::IR)));
 
                     NoteFirstVerboseFeature(*this, VerboseFeature::Preprocessor);
 
@@ -1125,27 +1128,27 @@ void ecpps::CompilerConfig::PrintVersionAndExit(bool extended)
      std::println();
      std::println("Build information:");
 
-#if defined(_WIN64)
+#ifdef _WIN64
      std::println("  Host architecture: x86-64");
-#elif defined(_WIN32)
+#elifdef _WIN32
      std::println("  Host architecture: x86");
-#elif defined(__aarch64__)
+#elifdef __aarch64__
      std::println("  Host architecture: AArch64");
-#elif defined(__arm__)
+#elifdef __arm__
      std::println("  Host architecture: ARM32");
 #else
      std::println("  Host architecture: unknown");
 #endif
 
-#if defined(_WIN32)
+#ifdef _WIN32
      std::println("  Host platform: Windows");
-#elif defined(__linux__)
+#elifdef __linux__
      std::println("  Host platform: Linux");
 #else
      std::println("  Host platform: unknown");
 #endif
 
-#if defined(NDEBUG)
+#ifdef NDEBUG
      std::println("  Build configuration: Release");
 #else
      std::println("  Build configuration: Debug");

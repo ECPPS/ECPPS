@@ -87,7 +87,8 @@ static std::vector<std::byte> AsmMovzx(Width targetWidth, Width sourceWidth, Reg
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid MOVZX source");
-               }},
+               },
+          },
           source);
 }
 static std::vector<std::byte> AsmMovzx(Width targetWidth, Width sourceWidth, MemoryOperand target,
@@ -110,7 +111,8 @@ static std::vector<std::byte> AsmMovzx(Width targetWidth, Width sourceWidth, Mem
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid MOVZX source");
-               }},
+               },
+          },
           source);
 }
 
@@ -142,6 +144,7 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMovzx(
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid MOVZX source");
-               }},
+               },
+          },
           mov.destination);
 }

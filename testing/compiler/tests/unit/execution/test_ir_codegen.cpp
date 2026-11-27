@@ -10,7 +10,7 @@
 #include <memory>
 #include <string_view>
 
-using namespace IRTestHelpers;
+using namespace irTestHelpers;
 
 TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][codegen]")
 {
@@ -25,7 +25,7 @@ TEST_CASE("IR - Addition lowers to SSA and returns the result", "[unit][ir][code
      std::vector<ecpps::ast::NodePointer> ast{};
      ast.push_back(fixture.MakeFunctionDefinition(
           fixture.MakeFunctionSignature("int", "sum", {{"int", "lhs"}, {"int", "rhs"}}), std::move(body)));
-     auto nodes = fixture.Parse(std::move(ast));
+     auto nodes = fixture.Parse(ast);
 
      const auto* procedure = FindProcedure(nodes, "sum");
      REQUIRE((procedure != nullptr));

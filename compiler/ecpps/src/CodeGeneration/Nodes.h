@@ -15,7 +15,7 @@ namespace ecpps::codegen
      {
           None,
           Aligned,
-          Unaligned
+          Unaligned,
      };
 
      struct Routine

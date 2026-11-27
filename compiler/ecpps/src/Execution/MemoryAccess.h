@@ -14,7 +14,7 @@ namespace ecpps::ir
           Acquire,
           Release,
           AcquireRelease,
-          Sequenced
+          Sequenced,
      };
      [[nodiscard]] std::string ToString(MemoryOrdering order);
      struct MemoryAccess

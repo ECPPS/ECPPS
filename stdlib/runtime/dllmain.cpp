@@ -21,5 +21,5 @@ _DLLIMPORT extern "C" void _exit(int);
 #endif
 _DLLEXPORT void _FastExit(void) // NOLINT(readability-identifier-naming, bugprone-reserved-identifier)
 {
-     _EXIT(static_cast<_EXIT_ARG>(-1));
+     _EXIT((-1));
 }

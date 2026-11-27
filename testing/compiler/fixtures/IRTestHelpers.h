@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-namespace IRTestHelpers
+namespace irTestHelpers
 {
      constexpr ecpps::Location Source{1, 1, 1};
 
@@ -30,29 +30,29 @@ namespace IRTestHelpers
           ecpps::BumpAllocator irAllocator{64uz * 1024};
           ecpps::ir::Context context{diagnostics, irAllocator};
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeBasicType(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeBasicType(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::BasicType>(this->astAllocator, this->astAllocator.Intern(name), Source,
                                                          false, false);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeIdentifier(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeIdentifier(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::IdentifierNode>(this->astAllocator, this->astAllocator.Intern(name),
                                                               Source);
           }
 
           [[nodiscard]] ecpps::ast::FunctionSignature MakeFunctionSignature(
-               std::string returnType, std::string name,
+               const std::string& returnType, const std::string& name,
                const std::vector<std::pair<std::string, std::string>>& parameters)
           {
                ecpps::SBOVector<std::unique_ptr<ecpps::ast::AttributeNode, ecpps::ast::ASTDeleter>> attributes{};
-               ecpps::ast::FunctionSignature signature{this->MakeBasicType(std::move(returnType)),
+               ecpps::ast::FunctionSignature signature{this->MakeBasicType(returnType),
                                                        false,
                                                        false,
                                                        ecpps::ast::ConstantExpressionSpecifier::None,
                                                        std::move(attributes),
-                                                       this->MakeIdentifier(std::move(name)),
+                                                       this->MakeIdentifier(name),
                                                        ecpps::abi::ABI::Current().DefaultCallingConventionName()};
                for (const auto& [type, parameterName] : parameters)
                {
@@ -104,7 +104,7 @@ namespace IRTestHelpers
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeStructDefinition(
-               std::string name, const std::vector<std::pair<std::string, std::string>>& fields)
+               const std::string& name, const std::vector<std::pair<std::string, std::string>>& fields)
           {
                std::vector<ecpps::ast::NodePointer> members{};
                members.reserve(fields.size());
@@ -115,21 +115,24 @@ namespace IRTestHelpers
                                                             false, Source);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeClassType(std::string name)
+          [[nodiscard]] ecpps::ast::NodePointer MakeClassType(const std::string& name)
           {
                return MakeASTNode<ecpps::ast::ClassType>(this->astAllocator, this->astAllocator.Intern(name),
                                                          ecpps::ast::ClassKey::Struct, false, false, Source);
           }
 
-          [[nodiscard]] ecpps::ast::NodePointer MakeVariableDeclaration(std::string typeName, std::string variableName,
+          [[nodiscard]] ecpps::ast::NodePointer MakeVariableDeclaration(const std::string& typeName,
+                                                                        const std::string& variableName,
                                                                         ecpps::ast::NodePointer initialiser)
           {
                std::vector<ecpps::ast::VariableDeclarationNode::Declarator> declarators{};
-               declarators.emplace_back(this->MakeIdentifier(std::move(variableName)),
+               declarators.emplace_back(this->MakeIdentifier(variableName),
                                         ecpps::ast::InitialisationType::BracedInitialiser, std::move(initialiser));
                return MakeASTNode<ecpps::ast::VariableDeclarationNode>(
-                    this->astAllocator, this->MakeClassType(std::move(typeName)), std::move(declarators),
-                    ecpps::ast::VariableDeclarationNode::Flags{}, std::nullopt, Source);
+                    this->astAllocator, this->MakeClassType(typeName), std::move(declarators),
+                    ecpps::ast::VariableDeclarationNode::Flags{}, // NOLINT(readability-trailing-comma): next argument
+                                                                  // follows this empty braced value
+                    std::nullopt, Source);
           }
 
           [[nodiscard]] ecpps::ast::NodePointer MakeIntegerLiteral(const unsigned long long value)
@@ -144,7 +147,7 @@ namespace IRTestHelpers
                                                                       std::move(body), Source);
           }
 
-          [[nodiscard]] std::vector<ecpps::ir::NodePointer> Parse(std::vector<ecpps::ast::NodePointer> ast)
+          [[nodiscard]] std::vector<ecpps::ir::NodePointer> Parse(const std::vector<ecpps::ast::NodePointer>& ast)
           {
                return ecpps::ir::IR::Parse(this->context, ast);
           }
@@ -200,7 +203,7 @@ namespace IRTestHelpers
                                           return diagnostic != nullptr &&
                                                  diagnostic->Level() == ecpps::diagnostics::DiagnosticsLevel::Error &&
                                                  diagnostic->Name() == "type-error" &&
-                                                 diagnostic->Message().find(message) != std::string::npos;
+                                                 diagnostic->Message().contains(message);
                                      });
      }
-} // namespace IRTestHelpers
+} // namespace irTestHelpers

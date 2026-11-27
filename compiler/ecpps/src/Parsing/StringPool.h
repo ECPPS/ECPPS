@@ -28,32 +28,34 @@ namespace ecpps
                return std::string{this->_view};
           }
 
-          [[nodiscard]] std::size_t size(void) const noexcept
+          [[nodiscard]] std::size_t size(void) const noexcept // NOLINT(readability-identifier-naming)
           {
                return this->_view.size();
           }
 
-          [[nodiscard]] std::size_t length(void) const noexcept
+          [[nodiscard]] std::size_t length(void) const noexcept // NOLINT(readability-identifier-naming)
           {
                return this->_view.length();
           }
 
-          [[nodiscard]] bool empty(void) const noexcept
+          [[nodiscard]] bool empty(void) const noexcept // NOLINT(readability-identifier-naming)
           {
                return this->_view.empty();
           }
 
-          [[nodiscard]] const char* data(void) const noexcept
+          [[nodiscard]] const char* data(void) const noexcept // NOLINT(readability-identifier-naming)
           {
                return this->_view.data();
           }
 
-          [[nodiscard]] std::string_view::const_iterator begin(void) const noexcept
+          [[nodiscard]] std::string_view::const_iterator begin( // NOLINT(readability-identifier-naming)
+               void) const noexcept
           {
                return this->_view.begin();
           }
 
-          [[nodiscard]] std::string_view::const_iterator end(void) const noexcept
+          [[nodiscard]] std::string_view::const_iterator end( // NOLINT(readability-identifier-naming)
+               void) const noexcept
           {
                return this->_view.end();
           }
@@ -63,7 +65,7 @@ namespace ecpps
                return this->_view[index];
           }
 
-          [[nodiscard]] operator std::string_view(void) const noexcept
+          [[nodiscard]] operator std::string_view(void) const noexcept // NOLINT(cppcoreguidelines-explicit-constructor)
           {
                return this->View();
           }

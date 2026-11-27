@@ -30,12 +30,12 @@ namespace ecpps::codegen::emitters
      public:
           explicit X8664Emitter(void) : CodeEmitter("x86_64")
           {
-               this->_stringRelocationSize = abi::dwordSize / typeSystem::CharWidth;
+               this->stringRelocationSize = abi::dwordSize / typeSystem::CharWidth;
           }
 
           [[nodiscard]] std::vector<std::byte> EmitInstruction(const ir::abstract::Instruction& instruction) final;
           void PatchCalls(std::vector<std::byte>& instructions, const Routine& routine) final;
-          void PatchStrings(std::vector<std::byte>& instructions, std::vector<StringPatch> patches,
+          void PatchStrings(std::vector<std::byte>& instructions, std::vector<StringPatch> stringPatches,
                             const AssemblyContext& asmContext, const Routine& routine) final;
 
      private:

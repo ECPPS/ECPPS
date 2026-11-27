@@ -50,7 +50,8 @@ static std::vector<std::byte> AsmBitwiseNeg(Width width, const Operand& operand)
                [](auto&&...) -> std::vector<std::byte>
                {
                     throw TracedException("invalid NOT operand");
-               }},
+               },
+          },
           operand);
 }
 

@@ -270,7 +270,9 @@
 
 template <std::integral T> constexpr static T AlignUp(const T value, const T alignment)
 {
-     return (value + alignment - 1) & ~(alignment - 1);
+     const auto unsignedValue = static_cast<std::uintmax_t>(value);
+     const auto unsignedAlignment = static_cast<std::uintmax_t>(alignment);
+     return static_cast<T>((unsignedValue + unsignedAlignment - 1uz) & ~(unsignedAlignment - 1uz));
 }
 
 ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t entryPoint, bool isNxCompatible,
@@ -289,10 +291,11 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.signature = PeMagic;
      this->ntHeaders.fileHeader.machine = IMAGE_FILE_MACHINE_AMD64;
      this->ntHeaders.fileHeader.sizeOfOptionalHeader = sizeof(OptionalHeader);
-     this->ntHeaders.fileHeader.characteristics =
-          (linkType == LinkType::Executable ? IMAGE_FILE_EXECUTABLE_IMAGE
-                                            : (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DLL)) |
-          IMAGE_FILE_LARGE_ADDRESS_AWARE;
+     this->ntHeaders.fileHeader.characteristics = static_cast<std::uint16_t>(
+          (linkType == LinkType::Executable ? static_cast<std::uint32_t>(IMAGE_FILE_EXECUTABLE_IMAGE)
+                                            : (static_cast<std::uint32_t>(IMAGE_FILE_EXECUTABLE_IMAGE) |
+                                               static_cast<std::uint32_t>(IMAGE_FILE_DLL))) |
+          static_cast<std::uint32_t>(IMAGE_FILE_LARGE_ADDRESS_AWARE));
      const std::time_t currentTime = std::time(nullptr);
      this->ntHeaders.fileHeader.timeDateStamp = static_cast<std::uint32_t>(currentTime);
 
@@ -305,9 +308,10 @@ ecpps::linker::win::PEImage::PEImage(std::uintptr_t imageBase, std::uint32_t ent
      this->ntHeaders.optionalHeader.minorLinkerVersion = 0;
      this->ntHeaders.optionalHeader.majorOperatingSystemVersion = 6;
      this->ntHeaders.optionalHeader.minorOperatingSystemVersion = 0;
-     this->ntHeaders.optionalHeader.dllCharacteristics = IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA |
-                                                         (isNxCompatible ? IMAGE_DLLCHARACTERISTICS_NX_COMPAT : 0) |
-                                                         (isRelocatable ? IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE : 0);
+     this->ntHeaders.optionalHeader.dllCharacteristics = static_cast<std::uint16_t>(
+          static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) |
+          (isNxCompatible ? static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_NX_COMPAT) : 0u) |
+          (isRelocatable ? static_cast<std::uint32_t>(IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) : 0u));
      this->ntHeaders.optionalHeader.loaderFlags = 0;
      this->ntHeaders.optionalHeader.imageBase = imageBase;
      this->ntHeaders.optionalHeader.sectionAlignment = 0x1000;
@@ -361,8 +365,8 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           // Descriptor
           size_t descPos = descIndex * descriptorSize;
           ecpps::linker::win::ImageImportDescriptor desc{};
-          desc.OriginalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
-          desc.FirstThunk = idataVA + static_cast<uint32_t>(iatPtr);
+          desc.originalFirstThunk = idataVA + static_cast<uint32_t>(iltPtr);
+          desc.firstThunk = idataVA + static_cast<uint32_t>(iatPtr);
 
           // Function thunks
           for (const auto& f : funcs)
@@ -394,7 +398,7 @@ static std::vector<std::byte> BuildIdataBuffer(std::uint32_t idataVA,
           writeString(currentNameOffset, dllName);
           currentNameOffset = AlignUp(currentNameOffset + dllName.size() + 1, 2uz);
 
-          desc.Name = dllRVA;
+          desc.name = dllRVA;
           ensureSize(descPos + descriptorSize);
           std::memcpy(buffer.data() + descPos, &desc, descriptorSize);
 
@@ -415,13 +419,13 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
 {
      // Add export directory
      ImageExportDirectory exportDirectory{};
-     exportDirectory.Characteristics = 0;
-     exportDirectory.TimeDateStamp = static_cast<std::uint32_t>(std::time(nullptr));
-     exportDirectory.MajorVersion = 1;
-     exportDirectory.MinorVersion = 0;
-     exportDirectory.Base = 1; // Start ordinals from 1
-     exportDirectory.NumberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
-     exportDirectory.NumberOfNames = static_cast<std::uint32_t>(this->exports.size());
+     exportDirectory.characteristics = 0;
+     exportDirectory.timeDateStamp = static_cast<std::uint32_t>(std::time(nullptr));
+     exportDirectory.majorVersion = 1;
+     exportDirectory.minorVersion = 0;
+     exportDirectory.base = 1; // Start ordinals from 1
+     exportDirectory.numberOfFunctions = static_cast<std::uint32_t>(this->exports.size());
+     exportDirectory.numberOfNames = static_cast<std::uint32_t>(this->exports.size());
 
      std::vector<std::byte> exportData{};
 
@@ -430,20 +434,20 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      const std::string& dllName = imageName;
      exportData.resize(dllName.size() + 1);
      std::memcpy(exportData.data(), dllName.c_str(), dllName.size() + 1);
-     exportDirectory.Name = currentOffset; // Typically 0 for no name in this case
+     exportDirectory.name = currentOffset; // Typically 0 for no name in this case
 
      currentOffset += AlignUp<std::uint32_t>(static_cast<std::uint32_t>(dllName.size() + 1), 1);
 
      // Calculate RVAs for the function addresses, names, and ordinals
-     exportDirectory.AddressOfFunctions = currentOffset;
+     exportDirectory.addressOfFunctions = currentOffset;
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
-     exportDirectory.AddressOfNames = currentOffset;
+     exportDirectory.addressOfNames = currentOffset;
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint32_t)), 1);
 
-     exportDirectory.AddressOfNameOrdinals = currentOffset; // Ensure AddressOfNameOrdinals is set
+     exportDirectory.addressOfNameOrdinals = currentOffset; // Ensure AddressOfNameOrdinals is set
      currentOffset +=
           AlignUp<std::uint32_t>(static_cast<std::uint32_t>(this->exports.size() * sizeof(std::uint16_t)), 1);
 
@@ -451,14 +455,14 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      // Serialise function addresses
      for (auto& [name, addr] : this->exports)
      {
-          std::size_t insertPos = (static_cast<std::size_t>(exportDirectory.AddressOfFunctions) - exportRVA) + offset;
+          std::size_t insertPos = (static_cast<std::size_t>(exportDirectory.addressOfFunctions) - exportRVA) + offset;
           if (insertPos + sizeof(std::uint32_t) > exportData.size())
           {
                exportData.resize(insertPos + sizeof(std::uint32_t));
           }
 
           std::uint32_t* pRVA = reinterpret_cast<std::uint32_t*>(exportData.data() + offset +
-                                                                 (exportDirectory.AddressOfFunctions - exportRVA));
+                                                                 (exportDirectory.addressOfFunctions - exportRVA));
           *pRVA = addr;
           addr = currentOffset;
           currentOffset += static_cast<std::uint32_t>(name.size() + 1);
@@ -470,14 +474,14 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      for (const auto& [name, address] : this->exports)
      {
           const std::size_t insertPos = std::max<std::size_t>(
-               address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.AddressOfNames - exportRVA));
+               address - exportRVA, static_cast<std::size_t>(offset + exportDirectory.addressOfNames - exportRVA));
           if (insertPos + static_cast<std::size_t>(name.size() + 1) > exportData.size())
           {
                exportData.resize(insertPos + static_cast<std::size_t>(name.size() + 1));
           }
 
           std::uint32_t* pRVA = reinterpret_cast<std::uint32_t*>(exportData.data() + offset +
-                                                                 (exportDirectory.AddressOfNames - exportRVA));
+                                                                 (exportDirectory.addressOfNames - exportRVA));
           *pRVA = address;
           std::memcpy(exportData.data() + address - exportRVA, name.c_str(), name.size() + 1);
           offset += sizeof(std::uint32_t);
@@ -486,7 +490,7 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
      offset = 0;
      for (size_t i = 0; i < this->exports.size(); i++)
      {
-          const size_t insertPos = (exportDirectory.AddressOfNameOrdinals - exportRVA) + offset;
+          const size_t insertPos = (exportDirectory.addressOfNameOrdinals - exportRVA) + offset;
 
           if (insertPos + sizeof(std::uint16_t) > exportData.size())
           {
@@ -531,7 +535,9 @@ std::vector<std::byte> ecpps::linker::win::PEImage::ToBytes(const std::string& i
           DataDirectory{.VirtualAddress = importRVA, .Size = static_cast<std::uint32_t>(idataBuffer.size())};
 
      this->ntHeaders.optionalHeader.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT] = DataDirectory{
-          .VirtualAddress = iatRVA, .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t))};
+          .VirtualAddress = iatRVA,
+          .Size = static_cast<std::uint32_t>(totalThunkEntries * sizeof(uint64_t)),
+     };
 
      // Update sizeOfImage
      currentRVA = importRVA + static_cast<std::uint32_t>(idataBuffer.size());

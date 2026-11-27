@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace TestHelpers
+namespace testHelpers
 {
 
      /// Create a diagnostics instance for testing
@@ -22,7 +22,7 @@ namespace TestHelpers
      }
 
      /// Create a BumpAllocator with specified initial size
-     inline auto MakeAllocator(std::size_t initialSize = 1024 * 64)
+     inline auto MakeAllocator(std::size_t initialSize = 1024uz * 64uz)
      {
           return ecpps::BumpAllocator{initialSize};
      }
@@ -74,27 +74,27 @@ namespace TestHelpers
      /// RAII wrapper to ensure temp file cleanup
      class TempFile
      {
-          std::filesystem::path path_;
+          std::filesystem::path _path;
 
      public:
           explicit TempFile(std::string_view content, std::string_view extension = ".cpp")
-              : path_(CreateTempSourceFile(content, extension))
+              : _path(CreateTempSourceFile(content, extension))
           {
           }
 
           ~TempFile()
           {
                std::error_code ec;
-               std::filesystem::remove(path_, ec);
+               std::filesystem::remove(_path, ec);
           }
 
-          const std::filesystem::path& path() const
+          [[nodiscard]] const std::filesystem::path& Path() const
           {
-               return path_;
+               return _path;
           }
-          operator std::filesystem::path() const
+          explicit operator std::filesystem::path() const
           {
-               return path_;
+               return _path;
           }
      };
 
@@ -119,7 +119,7 @@ namespace TestHelpers
      }
 
      /// User-defined literal for byte arrays: 0x48_b, 0x89_b, etc.
-     inline constexpr std::byte operator""_b(unsigned long long value)
+     constexpr std::byte operator""_b(unsigned long long value)
      {
           return static_cast<std::byte>(value);
      }
@@ -136,4 +136,4 @@ namespace TestHelpers
           return result;
      }
 
-} // namespace TestHelpers
+} // namespace testHelpers

@@ -24,6 +24,7 @@ const std::filesystem::path& ecpps::fs::SourceScanner::ResolveInclude(const std:
           const auto& localPath = currentPath.parent_path() / name;
           if (std::filesystem::exists(localPath)) return cache.try_emplace(name, canonical(localPath)).first->second;
      }
+     // NOLINTNEXTLINE(bugprone-std-exception-baseclass)
      throw FileNotFoundException{.name = name};
 }
 

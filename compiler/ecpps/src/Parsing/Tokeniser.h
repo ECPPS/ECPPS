@@ -73,7 +73,7 @@ namespace ecpps
           /// <summary>
           /// :
           /// </summary>
-          Colon
+          Colon,
      };
      struct StringLiteral
      {
@@ -105,7 +105,7 @@ namespace ecpps
           Location location;
 
           explicit Token(const TokenType type, TokenValue value, const Location location)
-              : type(type), value(std::move(value)), location(location)
+              : type(type), value(value), location(location)
           {
           }
 
@@ -158,58 +158,60 @@ namespace ecpps
                case TokenType::Operator: return std::string(std::get<InternedString>(this->value).View());
                case TokenType::Literal:
                     return std::visit(
-                         OverloadedVisitor{[](const std::monostate&) -> std::string
-                                           {
-                                                return std::string{};
-                                           },
-                                           [](const InternedString str)
-                                           {
-                                                return std::string(str.View());
-                                           },
-                                           [](const bool b) -> std::string
-                                           {
-                                                return b ? "true" : "false";
-                                           },
-                                           [](const StringLiteral& strLit) -> std::string
-                                           {
-                                                return std::string(strLit.value.View());
-                                           },
-                                           [](const char c)
-                                           {
-                                                return std::string(1, c);
-                                           },
-                                           [](const IntegerLiteral& intLit) -> std::string
-                                           {
-                                                return std::to_string(intLit.value);
-                                           },
-                                           [](const FloatingPointLiteral& floatLit) -> std::string
-                                           {
-                                                return std::to_string(floatLit.value);
-                                           },
-                                           [](const UserDefinedLiteral& udLit) -> std::string
-                                           {
-                                                return std::visit(
-                                                     OverloadedVisitor{
-                                                          [](const StringLiteral& strLit) -> std::string
-                                                          {
-                                                               return std::format("\"{}\"", strLit.value.View());
-                                                          },
-                                                          [](const IntegerLiteral& intLit) -> std::string
-                                                          {
-                                                               return std::to_string(intLit.value);
-                                                          },
-                                                          [](const FloatingPointLiteral& floatLit) -> std::string
-                                                          {
-                                                               return std::to_string(floatLit.value);
-                                                          },
-                                                          [](auto&&) -> std::string
-                                                          {
-                                                               runtime_assert(false,
-                                                                              "Invalid user-defined literal value");
-                                                               std::terminate();
-                                                          }},
-                                                     udLit.value);
-                                           }},
+                         OverloadedVisitor{
+                              [](const std::monostate&) -> std::string
+                              {
+                                   return std::string{};
+                              },
+                              [](const InternedString str)
+                              {
+                                   return std::string(str.View());
+                              },
+                              [](const bool b) -> std::string
+                              {
+                                   return b ? "true" : "false";
+                              },
+                              [](const StringLiteral& strLit) -> std::string
+                              {
+                                   return std::string(strLit.value.View());
+                              },
+                              [](const char c)
+                              {
+                                   return std::string(1, c);
+                              },
+                              [](const IntegerLiteral& intLit) -> std::string
+                              {
+                                   return std::to_string(intLit.value);
+                              },
+                              [](const FloatingPointLiteral& floatLit) -> std::string
+                              {
+                                   return std::to_string(floatLit.value);
+                              },
+                              [](const UserDefinedLiteral& udLit) -> std::string
+                              {
+                                   return std::visit(
+                                        OverloadedVisitor{
+                                             [](const StringLiteral& strLit) -> std::string
+                                             {
+                                                  return std::format("\"{}\"", strLit.value.View());
+                                             },
+                                             [](const IntegerLiteral& intLit) -> std::string
+                                             {
+                                                  return std::to_string(intLit.value);
+                                             },
+                                             [](const FloatingPointLiteral& floatLit) -> std::string
+                                             {
+                                                  return std::to_string(floatLit.value);
+                                             },
+                                             [](auto&&) -> std::string
+                                             {
+                                                  runtime_assert(false, "Invalid user-defined literal value");
+                                                  std::terminate();
+                                             },
+                                        },
+                                        udLit.value);
+                              },
+                         },
                          this->value);
                case TokenType::LeftParenthesis: return "(";
                case TokenType::RightParenthesis: return ")";

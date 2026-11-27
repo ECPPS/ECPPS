@@ -60,9 +60,11 @@ namespace
                                                                    : "; it is also a data member and is not callable";
                }
                else
+               {
                     description = std::format(
                          "{}{} [distance={}; {}]", marked ? "* " : "", similar.name, similar.distance,
                          similar.acceptsArguments ? "accepts these arguments" : "no overload accepts these arguments");
+               }
 
                auto suggestion = std::make_unique<ecpps::diagnostics::Information>(members ? "suggestion" : "",
                                                                                    description, similar.source);

@@ -31,7 +31,7 @@ namespace ecpps::linker::win
      {
           External = 2,
           Static = 3,
-          Label = 6
+          Label = 6,
      };
 
      struct COFFSymbol final

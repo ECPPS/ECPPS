@@ -755,7 +755,7 @@ namespace ecpps::ir
           SignExtension,            // widening (signed)
           SignExtendAndReinterpret, // widening (unsigned <- signed)
           ZeroExtendAndReinterpret, // widening (signed <- unsigned)
-          Truncate                  // narrowing (signed/unsigned)
+          Truncate,                 // narrowing (signed/unsigned)
      };
 
      class SSAConvertNode final : public NodeBase
@@ -1234,14 +1234,16 @@ namespace ecpps::ir
                    evaluationContext.currentDepth)
                     return NodeBase::TryConstantEvaluate(evaluationContext);
 
-               return ConstantEvaluatedResult{ConstantAggregateArray{this->_referencedArray->Values() |
-                                                                     std::views::transform(
-                                                                          [](const std::uint32_t value)
-                                                                          {
-                                                                               return ConstantEvaluatedVariant{
-                                                                                    static_cast<std::uint64_t>(value)};
-                                                                          }) |
-                                                                     ecpps::detail::ToVector},
+               return ConstantEvaluatedResult{ConstantAggregateArray{
+                                                   this->_referencedArray->Values() |
+                                                        std::views::transform(
+                                                             [](const std::uint32_t value)
+                                                             {
+                                                                  return ConstantEvaluatedVariant{
+                                                                       static_cast<std::uint64_t>(value)};
+                                                             }) |
+                                                        ecpps::detail::ToVector,
+                                              },
                                               this->Source()};
           }
 
@@ -1254,7 +1256,7 @@ namespace ecpps::ir
      {
      public:
           explicit LoadArrayDecayNode(Expression operand, Location source)
-              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand)), _allocReg(nullptr)
+              : NodeBase(NodeKind::LoadArrayDecay, source), _operand(std::move(operand))
           {
                if (const auto* ref = dynamic_cast<const SSARegisterReferenceNode*>(this->_operand->Value().get()))
                     _allocReg = &ref->Reg();
@@ -1278,7 +1280,7 @@ namespace ecpps::ir
 
      private:
           Expression _operand;
-          const SingleAssignRegisterNode* _allocReg;
+          const SingleAssignRegisterNode* _allocReg{nullptr};
      };
 
      class CompareExchangeNode final : public NodeBase

@@ -33,14 +33,15 @@ namespace ecpps::abi::api
      [[nodiscard]] inline AggregateValueInfo AggregateInfo(const typeSystem::ClassType& type) noexcept
      {
           const auto& info = type.Info();
-          return {.size = info.size,
-                  .triviallyCopyable = info.triviallyCopyable,
-                  .integerOnly = IsIntegerAggregate(&type),
-                  .hasUserDeclaredSpecialMembers =
-                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredConstructors) ||
-                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredCopyAssignment) ||
-                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredMoveAssignment) ||
-                       info.Has(typeSystem::ClassInfo::Property::UserDeclaredDestructor)};
+          return {
+               .size = info.size,
+               .triviallyCopyable = info.triviallyCopyable,
+               .integerOnly = IsIntegerAggregate(&type),
+               .hasUserDeclaredSpecialMembers = info.Has(typeSystem::ClassInfo::Property::UserDeclaredConstructors) ||
+                                                info.Has(typeSystem::ClassInfo::Property::UserDeclaredCopyAssignment) ||
+                                                info.Has(typeSystem::ClassInfo::Property::UserDeclaredMoveAssignment) ||
+                                                info.Has(typeSystem::ClassInfo::Property::UserDeclaredDestructor),
+          };
      }
 
      [[nodiscard]] inline AggregatePassingPlan ClassArgumentPassing(const PlatformBase& platform,

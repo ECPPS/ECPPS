@@ -54,7 +54,10 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           }
 
           Operand sourceOperand{};
-          if (this->IsSpilled(source)) sourceOperand = this->EnsureStackSlot(source);
+          if (this->IsSpilled(source))
+          {
+               sourceOperand = this->EnsureStackSlot(source);
+          }
           else
           {
                ecpps::detail::AppendRange(built, EnsureMaterialisation(source));
@@ -110,9 +113,13 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
           this->DereferenceAndMaybeFree(virtualSource);
 
-          return {.instructions = {BuildMov(destinationWidth, RegisterOperand{destinationRegister},
-                                            IntegerOperand{extended})},
-                  .assignedRegister = destinationRegister};
+          return {
+               .instructions =
+                    {
+                         BuildMov(destinationWidth, RegisterOperand{destinationRegister}, IntegerOperand{extended}),
+                    },
+               .assignedRegister = destinationRegister,
+          };
      }
 
      if (this->IsSpilled(virtualSource))
@@ -124,7 +131,8 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
 
           return {
                .instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister}, slot)},
-               .assignedRegister = destinationRegister};
+               .assignedRegister = destinationRegister,
+          };
      }
 
      const RegisterIndex sourceRegister = this->PhysicalRegisterOf(virtualSource);
@@ -143,7 +151,12 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
           if (remainingUses == 0) this->ReleaseRegister(virtualSource);
      }
 
-     return {.instructions = {BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister},
-                                         RegisterOperand{sourceRegister})},
-             .assignedRegister = destinationRegister};
+     return {
+          .instructions =
+               {
+                    BuildMovsx(destinationWidth, sourceWidth, RegisterOperand{destinationRegister},
+                               RegisterOperand{sourceRegister}),
+               },
+          .assignedRegister = destinationRegister,
+     };
 }

@@ -77,12 +77,13 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
                          : ecpps::abi::ABI::MangleName(function->linkage, function->Name().value_or("__undefined_call"),
                                                        function->callingConvention, function->returnType, parameters,
                                                        function->namespacePath);
-               this->linkerForwardedRelocations.emplace(
-                    ByteOffset(offset + routine.emittedOffset),
-                    Relocation{.symbolName = mangled,
-                               .apply = ApplyImportLambda,
-                               .applyOutputSize = 2uz,
-                               .isIndirect = function->isDllImportExport}); // Linker pass handles that, hopefully
+               this->linkerForwardedRelocations.emplace(ByteOffset(offset + routine.emittedOffset),
+                                                        Relocation{
+                                                             .symbolName = mangled,
+                                                             .apply = ApplyImportLambda,
+                                                             .applyOutputSize = 2uz,
+                                                             .isIndirect = function->isDllImportExport,
+                                                        }); // Linker pass handles that, hopefully
 
                const auto prefix = function->isDllImportExport ? ecpps::abi::ABI::Current().importPrefix : "";
                if (!ecpps::codegen::g_functionImports.contains(mangled))
@@ -114,14 +115,14 @@ void ecpps::codegen::emitters::X8664Emitter::PatchCalls(std::vector<std::byte>& 
 }
 
 void ecpps::codegen::emitters::X8664Emitter::PatchStrings(std::vector<std::byte>& instructions,
-                                                          std::vector<StringPatch> patches,
+                                                          std::vector<StringPatch> stringPatches,
                                                           const AssemblyContext& asmContext, const Routine& routine)
 {
-     this->_stringRelocation.reserve(patches.size());
-     for (const auto& patch : patches)
+     this->stringRelocation.reserve(stringPatches.size());
+     for (const auto& patch : stringPatches)
      {
           const auto index = asmContext.GetStringOffset(patch.string);
           std::memcpy(&instructions[patch.instructionOffset + 3], &index, sizeof(std::uint32_t));
-          this->_stringRelocation.push_back(patch.instructionOffset + routine.emittedOffset + 3);
+          this->stringRelocation.push_back(patch.instructionOffset + routine.emittedOffset + 3);
      }
 }

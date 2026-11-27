@@ -28,6 +28,7 @@ namespace ecpps::abi::encoders::x8664
                case 3: return std::to_underlying(RegisterIndex::Rcx);
                case 4: return std::to_underlying(RegisterIndex::R8);
                case 5: return std::to_underlying(RegisterIndex::R9);
+               default: break;
                }
                throw TracedException(std::format("Invalid parameter register: passed {}", reg));
           }
@@ -74,8 +75,10 @@ namespace ecpps::abi::encoders::x8664
 
           [[nodiscard]] api::AggregateResultAddressPlan IndirectClassResultAddress(void) const noexcept final
           {
-               return {.location = api::AggregateResultAddressLocation::FirstIntegerArgument,
-                       .addressEchoedInIntegerReturnRegister = true};
+               return {
+                    .location = api::AggregateResultAddressLocation::FirstIntegerArgument,
+                    .addressEchoedInIntegerReturnRegister = true,
+               };
           }
 
           [[nodiscard]] api::ClassArgumentCleanupOwner ClassArgumentCleanup(void) const noexcept final
@@ -113,8 +116,15 @@ namespace ecpps::abi::encoders::x8664
                case 8:
                     return {
                          .kind = api::AggregatePassingKind::Direct,
-                         .pieces = {
-                              {.offset = 0, .size = info.size, .registerClass = api::AggregateRegisterClass::Integer}}};
+                         .pieces =
+                              {
+                                   {
+                                        .offset = 0,
+                                        .size = info.size,
+                                        .registerClass = api::AggregateRegisterClass::Integer,
+                                   },
+                              },
+                    };
                default: return {.kind = api::AggregatePassingKind::Unsupported};
                }
           }

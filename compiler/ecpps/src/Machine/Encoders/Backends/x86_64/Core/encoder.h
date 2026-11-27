@@ -25,7 +25,7 @@ namespace ecpps::abi::encoders::x8664
      {
           Register,
           Memory,
-          Integer
+          Integer,
      };
 
      struct X8664InstructionName
@@ -63,13 +63,13 @@ namespace ecpps::abi::encoders::x8664
      {
           None,
           Moderate,
-          Aggressive
+          Aggressive,
      };
 
      enum struct FramePointer : std::uint8_t
      {
           Keep,
-          Omit
+          Omit,
      };
 
      [[nodiscard]] constexpr ir::abstract::AllocationClass SpillThreshold(const EncodingSpillage optimisation) noexcept
@@ -103,7 +103,7 @@ namespace ecpps::abi::encoders::x8664
                R13,
                R14,
                R15,
-               Rip
+               Rip,
           };
 
           enum struct Width : std::uint8_t
@@ -111,7 +111,7 @@ namespace ecpps::abi::encoders::x8664
                W8 = 8,
                W16 = 16,
                W32 = 32,
-               W64 = 64
+               W64 = 64,
           };
           [[nodiscard]] constexpr auto operator<(const Width left, const Width right)
           {
@@ -159,6 +159,8 @@ namespace ecpps::abi::encoders::x8664
           using Operand =
                std::variant<RegisterOperand, MemoryOperand, IntegerOperand, StackOperand, StringAddressOperand>;
 
+          // Width{} is the invalid/unset sentinel; instruction builders assign a valid width before encoding.
+          // NOLINTBEGIN(bugprone-invalid-enum-default-initialization)
           struct AddInstruction
           {
                Width width{};
@@ -268,6 +270,7 @@ namespace ecpps::abi::encoders::x8664
                Width width{};
                Operand modifiedOperand{};
           };
+          // NOLINTEND(bugprone-invalid-enum-default-initialization)
           struct CallInstruction
           {
                std::size_t indexToTable{};
@@ -384,10 +387,12 @@ namespace ecpps::abi::encoders::x8664
                     for (const auto reg : _pool)
                     {
                          const auto occupancyIterator = this->_occupancy.find(reg);
-                         cells.push_back(Cell{.reg = reg,
-                                              .owner = occupancyIterator == this->_occupancy.end()
-                                                            ? std::nullopt
-                                                            : std::optional{occupancyIterator->second}});
+                         cells.push_back(Cell{
+                              .reg = reg,
+                              .owner = occupancyIterator == this->_occupancy.end()
+                                            ? std::nullopt
+                                            : std::optional{occupancyIterator->second},
+                         });
                     }
 
                     return cells;
@@ -428,7 +433,7 @@ namespace ecpps::abi::encoders::x8664
      struct MaterialisationOutcome
      {
           std::vector<ir::abstract::Instruction> instructions;
-          RegisterIndex assignedRegister;
+          RegisterIndex assignedRegister{};
      };
      struct BasicBlock
      {
@@ -449,15 +454,19 @@ namespace ecpps::abi::encoders::x8664
           [[nodiscard]] Operand At(const std::int64_t offset) const
           {
                if (const auto* s = std::get_if<StackOperand>(&this->base))
-                    return StackOperand{.offset =
-                                             static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset)};
+                    return StackOperand{
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(s->offset) + offset),
+                    };
                if (const auto* m = std::get_if<MemoryOperand>(&this->base))
-                    return MemoryOperand{.relativeTo = m->relativeTo,
-                                         .offset = static_cast<std::int32_t>(m->offset + offset)};
+                    return MemoryOperand{
+                         .relativeTo = m->relativeTo,
+                         .offset = static_cast<std::int32_t>(m->offset + offset),
+                    };
                if (const auto* str = std::get_if<StringAddressOperand>(&this->base))
                     return StringAddressOperand{
                          .tableIndex = str->tableIndex,
-                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset)};
+                         .offset = static_cast<std::uint32_t>(static_cast<std::int64_t>(str->offset) + offset),
+                    };
                throw TracedException("Memory location must be a stack, memory or string address operand");
           }
      };
@@ -504,7 +513,7 @@ namespace ecpps::abi::encoders::x8664
           void CollectDependencies(ir::abstract::VirtualRegister reg, std::unordered_set<std::size_t>& required);
           [[nodiscard]] std::string DescribeRegisterState(void) const;
 
-          std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction&);
+          std::vector<ir::abstract::Instruction> EncodeSingle(const ir::abstract::VirtualInstruction& /*instruction*/);
           [[nodiscard]] ir::abstract::VirtualRegisterMap& GetVRM(void) noexcept;
 
           std::vector<ecpps::ir::abstract::Instruction> EnsureMaterialisation(

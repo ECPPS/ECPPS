@@ -263,7 +263,10 @@ std::vector<std::byte> CoffLinker::ToBytes([[maybe_unused]] const std::string& i
      for (const auto& sym : symbols)
      {
           COFFSymbolRaw raw{};
-          if (sym.name.size() <= 8) std::ranges::copy(sym.name, raw.name.shortName);
+          if (sym.name.size() <= 8)
+          {
+               std::ranges::copy(sym.name, raw.name.shortName);
+          }
           else
           {
                raw.name.longName.zero = 0;

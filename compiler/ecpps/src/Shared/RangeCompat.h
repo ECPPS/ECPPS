@@ -32,7 +32,7 @@ namespace ecpps::detail
 
      struct ToVectorAdaptor
      {
-          template <std::ranges::input_range Range> friend auto operator|(Range&& range, ToVectorAdaptor)
+          template <std::ranges::input_range Range> friend auto operator|(Range&& range, ToVectorAdaptor /*unused*/)
           {
                return MaterialiseVector(std::forward<Range>(range));
           }

@@ -54,8 +54,15 @@ ecpps::abi::encoders::x8664::MaterialisationOutcome ecpps::abi::encoders::x8664:
      const Width width = MapWidth(this->GetVRM().GetWidth(owner));
      const RegisterIndex destinationRegister = this->_registerAllocator.Allocate(owner);
 
-     return {.instructions = {BuildLea(width, RegisterOperand{destinationRegister},
-                                       StringAddressOperand{.tableIndex = static_cast<std::uint32_t>(tableIndex),
-                                                            .offset = static_cast<std::uint32_t>(tableOffset)})},
-             .assignedRegister = destinationRegister};
+     return {
+          .instructions =
+               {
+                    BuildLea(width, RegisterOperand{destinationRegister},
+                             StringAddressOperand{
+                                  .tableIndex = static_cast<std::uint32_t>(tableIndex),
+                                  .offset = static_cast<std::uint32_t>(tableOffset),
+                             }),
+               },
+          .assignedRegister = destinationRegister,
+     };
 }

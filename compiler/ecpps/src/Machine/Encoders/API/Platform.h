@@ -10,35 +10,35 @@ namespace ecpps::abi::api
      {
           CallerExtendsSigned,
           CallerExtendsZero,
-          CalleeExtends
+          CalleeExtends,
      };
      enum struct StackParameterOrdering : std::uint8_t
      {
           Forward,
-          Reverse
+          Reverse,
      };
      enum struct AggregatePassingKind : std::uint8_t
      {
           Indirect,
           Direct,
           Memory,
-          Unsupported
+          Unsupported,
      };
      enum struct AggregateRegisterClass : std::uint8_t
      {
           Integer,
           FloatingPoint,
-          Vector
+          Vector,
      };
      enum struct ClassArgumentCleanupOwner : std::uint8_t
      {
           Caller,
-          Callee
+          Callee,
      };
      enum struct AggregateResultAddressLocation : std::uint8_t
      {
           FirstIntegerArgument,
-          DedicatedRegister
+          DedicatedRegister,
      };
      struct AggregatePiece
      {

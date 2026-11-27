@@ -15,7 +15,7 @@ namespace ecpps::abi::encoding
      {
           None, // freestanding
           Windows,
-          Linux
+          Linux,
      };
 
      enum struct SDK : std::uint16_t // NOLINT(performance-enum-size)
@@ -34,7 +34,7 @@ namespace ecpps::abi::encoding
      {
           Unknown,
           Haswell,
-          Skylake
+          Skylake,
      };
 
      using Extensions = ArchitectureExtensionFeatures;
@@ -62,9 +62,9 @@ namespace ecpps::abi::encoding
           {
                CompilationId id{};
                id.base = static_cast<std::uint64_t>(isa);
-               id.base |= static_cast<std::uint64_t>(platform) << 16;
-               id.base |= static_cast<std::uint64_t>(sdk) << 32;
-               id.base |= static_cast<std::uint64_t>(cpu) << 48;
+               id.base |= static_cast<std::uint64_t>(platform) << 16uz;
+               id.base |= static_cast<std::uint64_t>(sdk) << 32uz;
+               id.base |= static_cast<std::uint64_t>(cpu) << 48uz;
                id.extensions = std::to_underlying(extensions);
                return id;
           }

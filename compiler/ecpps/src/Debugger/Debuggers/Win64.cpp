@@ -15,7 +15,7 @@ enum struct PromptResult : std::uint_fast8_t
 {
      Continue,
      Exit,
-     None
+     None,
 };
 
 static std::uint64_t ResolveRegister([[maybe_unused]] const CONTEXT& ctx, [[maybe_unused]] const std::string& name)

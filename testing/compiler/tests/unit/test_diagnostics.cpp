@@ -259,14 +259,14 @@ TEST_CASE("Diagnostics omit carets for shared source lines", "[unit][diagnostics
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find(source.Path().string() + ":1:12 error: bad call") != std::string::npos));
-     CHECK((readable.find(source.Path().string() + ":1:12 note: Candidate: add(int)") != std::string::npos));
-     CHECK((readable.find("type-error") == std::string::npos));
-     CHECK((readable.find("candidate :") == std::string::npos));
+     CHECK((readable.contains(source.Path().string() + ":1:12 error: bad call")));
+     CHECK((readable.contains(source.Path().string() + ":1:12 note: Candidate: add(int)")));
+     CHECK((!(readable.contains("type-error"))));
+     CHECK((!(readable.contains("candidate :"))));
      CHECK((CountOccurrences(output, "1| ") == 1));
      CHECK((CountOccurrences(output, "^") == 0));
-     CHECK((output.find("\x1b[31m" + source.Path().string() + ":1:12 error: \x1b[0m") != std::string::npos));
-     CHECK((output.find("\x1b[36m" + source.Path().string() + ":1:12 note: \x1b[0m") != std::string::npos));
+     CHECK((output.contains("\x1b[31m" + source.Path().string() + ":1:12 error: \x1b[0m")));
+     CHECK((output.contains("\x1b[36m" + source.Path().string() + ":1:12 note: \x1b[0m")));
 }
 
 TEST_CASE("Diagnostics omit root call-site carets and retain candidate carets", "[unit][diagnostics]")
@@ -280,7 +280,7 @@ TEST_CASE("Diagnostics omit root call-site carets and retain candidate carets", 
 
      const auto output = StripAnsi(Render(source.Path(), ecpps::diagnostics::DiagnosticsMessage{std::move(error)}));
 
-     CHECK((output.find("┃ 2| void g() { f(1); }\n") != std::string::npos));
+     CHECK((output.contains("┃ 2| void g() { f(1); }\n")));
      CHECK((CountOccurrences(output, "^") == 1));
 }
 
@@ -377,9 +377,9 @@ TEST_CASE("Diagnostics trim message lines and preserve continuation lines", "[un
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find("error: bad value\n") != std::string::npos));
-     CHECK((readable.find("trace frame\n") != std::string::npos));
-     CHECK((readable.find("  bad value  ") == std::string::npos));
+     CHECK((readable.contains("error: bad value\n")));
+     CHECK((readable.contains("trace frame\n")));
+     CHECK((!(readable.contains("  bad value  "))));
 }
 
 TEST_CASE("Diagnostics align visual columns for tabs and wide UTF-8 characters", "[unit][diagnostics]")
@@ -391,8 +391,8 @@ TEST_CASE("Diagnostics align visual columns for tabs and wide UTF-8 characters",
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find(source.Path().string() + ":1:11 error: wide character") != std::string::npos));
-     CHECK((readable.find("1|         界x") != std::string::npos));
+     CHECK((readable.contains(source.Path().string() + ":1:11 error: wide character")));
+     CHECK((readable.contains("1|         界x")));
 }
 
 TEST_CASE("Diagnostics clamp invalid source ranges to one caret", "[unit][diagnostics]")
@@ -404,7 +404,7 @@ TEST_CASE("Diagnostics clamp invalid source ranges to one caret", "[unit][diagno
      const auto output = Render(source.Path(), diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find(source.Path().string() + ":1:3 error: invalid range") != std::string::npos));
+     CHECK((readable.contains(source.Path().string() + ":1:3 error: invalid range")));
      CHECK((CountOccurrences(output, "^") == 1));
 }
 
@@ -418,8 +418,8 @@ TEST_CASE("Diagnostics use ASCII rails when the locale is not UTF-8", "[unit][di
 
      const auto output = Render({}, diagnostic);
 
-     CHECK((output.find("| \x1b[31merror: \x1b[0mroot") != std::string::npos));
-     CHECK((output.find("+--- \x1b[36mnote: \x1b[0mchild") != std::string::npos));
+     CHECK((output.contains("| \x1b[31merror: \x1b[0mroot")));
+     CHECK((output.contains("+--- \x1b[36mnote: \x1b[0mchild")));
 }
 
 TEST_CASE("Warnings use the warning label and colour", "[unit][diagnostics]")
@@ -430,8 +430,8 @@ TEST_CASE("Warnings use the warning label and colour", "[unit][diagnostics]")
      const auto output = Render({}, diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find("warning: unused value") != std::string::npos));
-     CHECK((output.find("\x1b[33mwarning: \x1b[0m") != std::string::npos));
+     CHECK((readable.contains("warning: unused value")));
+     CHECK((output.contains("\x1b[33mwarning: \x1b[0m")));
 }
 
 TEST_CASE("Diagnostics retain a location when source text is unavailable", "[unit][diagnostics]")
@@ -445,7 +445,7 @@ TEST_CASE("Diagnostics retain a location when source text is unavailable", "[uni
      const auto output = Render(missingPath, diagnostic);
      const auto readable = StripAnsi(output);
 
-     CHECK((readable.find(missingPath.string() + ":1:4 error: missing source") != std::string::npos));
-     CHECK((readable.find("1| ") == std::string::npos));
-     CHECK((output.find('^') == std::string::npos));
+     CHECK((readable.contains(missingPath.string() + ":1:4 error: missing source")));
+     CHECK((!(readable.contains("1| "))));
+     CHECK((!(output.contains('^'))));
 }

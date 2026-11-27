@@ -1,6 +1,8 @@
 #include "MemoryOperations.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <variant>
 #include "CodeGeneration/AbstractNodes.h"
@@ -8,6 +10,23 @@
 #include "Machine/Encoders/Backends/x86_64/Core/encoder.h"
 #include "RuntimeAssert.h"
 #include "Shared/Diagnostics.h"
+
+namespace ecpps::abi::encoders::x8664
+{
+     [[nodiscard]] std::size_t NextSyntheticLabel(void) noexcept
+     {
+          static std::atomic<std::size_t> lblCounter{static_cast<std::size_t>(1ULL << 40uz)};
+          return lblCounter.fetch_add(1);
+     }
+
+     [[nodiscard]] ir::abstract::VirtualRegister NextScratchOwner(void) noexcept
+     {
+          static std::atomic<std::size_t> scrCounter{0};
+          return ir::abstract::VirtualRegister{
+               .index = std::numeric_limits<std::size_t>::max() - scrCounter.fetch_add(1),
+          };
+     }
+} // namespace ecpps::abi::encoders::x8664
 
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::EmitMemoryCopy(
      std::vector<ir::abstract::Instruction>& out, const MemoryLocation& destination, const MemoryLocation& source,

@@ -7,7 +7,7 @@
 #include <catch_amalgamated.hpp>
 
 using namespace ecpps;
-using namespace TestHelpers;
+using namespace testHelpers;
 
 // Regression tests for pointer arithmetic (branch 116-pointer-arithmetics)
 // These tests ensure pointer arithmetic operations work correctly with proper

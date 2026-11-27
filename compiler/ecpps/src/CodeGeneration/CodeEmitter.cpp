@@ -21,9 +21,6 @@ std::vector<std::byte> ecpps::codegen::CodeEmitter::EmitRoutine(const Routine& r
 
 std::unique_ptr<ecpps::codegen::CodeEmitter> ecpps::codegen::CodeEmitter::New(abi::ISA isa)
 {
-     switch (isa)
-     {
-     case abi::ISA::x86_64: return std::make_unique<emitters::X8664Emitter>();
-     default: throw TracedException(std::runtime_error("Emitter for the selected ISA does not exist"));
-     }
+     if (isa == abi::ISA::x86_64) return std::make_unique<emitters::X8664Emitter>();
+     throw TracedException(std::runtime_error("Emitter for the selected ISA does not exist"));
 }

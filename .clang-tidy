@@ -46,7 +46,12 @@ Checks: >
   -bugprone-reserved-identifier,
   -cppcoreguidelines-macro-usage,
   -clang-analyzer-cplusplus.NewDeleteLeaks,
-  -bugprone-chained-comparison
+  -bugprone-chained-comparison,
+  -portability-avoid-pragma-once,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -bugprone-unchecked-optional-access,
+  -readability-inconsistent-ifelse-braces,
+  -bugprone-throwing-static-initialization
 
 CheckOptions:
   # Identifier naming rules

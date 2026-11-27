@@ -52,7 +52,7 @@ namespace ecpps::ir
                RValueRef,       // T&& <- xvalue
                ConstRValueRef,  // const T&& <- prvalue
                BindToTemporary, // T& <- prvalue needs temp
-               IllFormed
+               IllFormed,
           };
 
           ecpps::typeSystem::ConversionSequence typeSequence;
@@ -127,7 +127,7 @@ namespace ecpps::ir
                Default,
                Value,
                Explicit,
-               EmptyList
+               EmptyList,
           };
           struct ActiveObjectInitialisation
           {
@@ -255,9 +255,12 @@ namespace ecpps::ir
           Expression ParseUnaryExpression(const ast::UnaryOperatorNode& node);
           Expression ParseBinaryExpression(const ast::BinaryOperatorNode& node);
           Expression ParseCallExpression(const ast::CallOperatorNode& node);
+          Expression ParseSubscriptOperatorExpression(const ast::SubscriptOperatorNode& node);
+          Expression ParseMemberOperatorCall(std::string_view name, Expression object,
+                                             std::vector<Expression> arguments, const Location& source);
           Expression ParseMemberCallExpression(const ast::CallOperatorNode& node,
                                                const ast::BinaryOperatorNode& memberAccess);
-          Expression ParseStringLiteral(const ast::StringLiteralNode& expression) const;
+          [[nodiscard]] Expression ParseStringLiteral(const ast::StringLiteralNode& expression) const;
           Expression ParseThisExpression(const Location& source);
           Expression ParseIdExpression(const ast::IdentifierNode& expression);
           Expression ParseSizeofExpression(const ast::SizeOfNode& expression);
@@ -404,7 +407,7 @@ namespace ecpps::ir
                     NotFound,
                     NonType,
                     Alias,
-                    Class
+                    Class,
                };
 
                Kind kind{Kind::NotFound};
@@ -421,7 +424,7 @@ namespace ecpps::ir
 
           [[nodiscard]] TypeNameLookup LookupTypeName(const std::string& name) const; // ordinary lookup
           [[nodiscard]] std::optional<typeSystem::ClassId> LookupClassForElaboration(const std::string& name,
-                                                                                     const Location&);
+                                                                                     const Location& /*source*/);
           [[nodiscard]] Scope& NearestNamespaceOrBlockScope(void) const;
           [[nodiscard]] std::vector<typeSystem::ScopeSegment> EnclosingPathUpTo(const Scope& target) const;
           typeSystem::ClassId DeclareClassInScope(Scope& scope, const ast::ClassType& node);
@@ -508,7 +511,11 @@ namespace ecpps::ir
                          dynamic_cast<const FunctionContext*>(ir.GetContext().contextSequence.back().get());
                     const auto depth = function == nullptr ? 0 : function->automaticObjects.size();
                     this->_depth = depth;
-                    this->_ir->_jumpStack.push_back({std::move(breakLabel), std::move(continueLabel), depth});
+                    this->_ir->_jumpStack.push_back({
+                         .breakLabel = std::move(breakLabel),
+                         .continueLabel = std::move(continueLabel),
+                         .destructionDepth = depth,
+                    });
                }
                JumpScope(const JumpScope&) = delete;
                JumpScope& operator=(const JumpScope&) = delete;
@@ -554,8 +561,10 @@ namespace ecpps::ir
 
                return std::make_unique<PRValue>(
                     operands->type,
-                    std::unique_ptr<TNode, IRDeleter>{new (*this->GetContext().nodeAllocator) TNode(
-                         std::move(operands->left), std::move(operands->right), source)},
+                    std::unique_ptr<TNode, IRDeleter>{
+                         new (*this->GetContext().nodeAllocator)
+                              TNode(std::move(operands->left), std::move(operands->right), source),
+                    },
                     false);
           }
 

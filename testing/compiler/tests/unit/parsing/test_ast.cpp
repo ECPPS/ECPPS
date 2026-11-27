@@ -67,6 +67,24 @@ namespace
           return tokens;
      }
 
+     std::vector<ecpps::Token> SubscriptFunction(std::vector<ecpps::Token> arguments)
+     {
+          std::vector<ecpps::Token> tokens{Keyword("int"),
+                                           Identifier("subscript"),
+                                           Punctuation(ecpps::TokenType::LeftParenthesis),
+                                           Punctuation(ecpps::TokenType::RightParenthesis),
+                                           Punctuation(ecpps::TokenType::LeftBrace),
+                                           Keyword("return"),
+                                           Identifier("object"),
+                                           Punctuation(ecpps::TokenType::LeftBracket)};
+          tokens.insert(tokens.end(), std::make_move_iterator(arguments.begin()),
+                        std::make_move_iterator(arguments.end()));
+          tokens.insert(tokens.end(),
+                        {Punctuation(ecpps::TokenType::RightBracket), Punctuation(ecpps::TokenType::SemiColon),
+                         Punctuation(ecpps::TokenType::RightBrace)});
+          return tokens;
+     }
+
      const ecpps::ast::FunctionDefinitionNode* GetFunction(const std::vector<ecpps::ast::NodePointer>& nodes)
      {
           if (nodes.size() != 1) return nullptr;
@@ -136,6 +154,196 @@ TEST_CASE("AST - Function definition preserves its signature and return expressi
      REQUIRE((lhs->Value() == "lhs"));
      REQUIRE((rhs->Value() == "rhs"));
      REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Operator function ids map to their operators", "[unit][parsing][ast]")
+{
+     const std::vector<std::pair<std::string, ecpps::ast::Operator>> operators{
+          {"()", ecpps::ast::Operator::Function},
+          {"[]", ecpps::ast::Operator::Subscript},
+          {"->", ecpps::ast::Operator::Arrow},
+          {"->*", ecpps::ast::Operator::PointerToMember},
+          {"~", ecpps::ast::Operator::Tilde},
+          {"!", ecpps::ast::Operator::Exclamation},
+          {"+", ecpps::ast::Operator::Plus},
+          {"-", ecpps::ast::Operator::Minus},
+          {"*", ecpps::ast::Operator::Asterisk},
+          {"/", ecpps::ast::Operator::Solidus},
+          {"%", ecpps::ast::Operator::Percent},
+          {"^", ecpps::ast::Operator::CircumflexAccent},
+          {"&", ecpps::ast::Operator::Ampersand},
+          {"|", ecpps::ast::Operator::VerticalLine},
+          {"=", ecpps::ast::Operator::Assignment},
+          {"+=", ecpps::ast::Operator::PlusAssign},
+          {"-=", ecpps::ast::Operator::MinusAssign},
+          {"*=", ecpps::ast::Operator::MultiplyAssign},
+          {"/=", ecpps::ast::Operator::DivideAssign},
+          {"%=", ecpps::ast::Operator::ModuloAssign},
+          {"^=", ecpps::ast::Operator::XorAssign},
+          {"&=", ecpps::ast::Operator::AndAssign},
+          {"|=", ecpps::ast::Operator::OrAssign},
+          {"==", ecpps::ast::Operator::EqualsSign},
+          {"!=", ecpps::ast::Operator::NotEqual},
+          {"<", ecpps::ast::Operator::Less},
+          {">", ecpps::ast::Operator::Greater},
+          {"<=", ecpps::ast::Operator::LessEqual},
+          {">=", ecpps::ast::Operator::GreaterEqual},
+          {"<=>", ecpps::ast::Operator::Spaceship},
+          {"&&", ecpps::ast::Operator::LogicalAnd},
+          {"||", ecpps::ast::Operator::LogicalOr},
+          {"<<", ecpps::ast::Operator::LeftShift},
+          {">>", ecpps::ast::Operator::RightShift},
+          {"<<=", ecpps::ast::Operator::LeftShiftAssign},
+          {">>=", ecpps::ast::Operator::RightShiftAssign},
+          {"++", ecpps::ast::Operator::Increment},
+          {"--", ecpps::ast::Operator::Decrement},
+          {",", ecpps::ast::Operator::Comma},
+     };
+
+     std::vector<ecpps::Token> tokens{};
+     for (const auto& [spelling, unusedOperator] : operators)
+     {
+          static_cast<void>(unusedOperator);
+          tokens.push_back(Keyword("int"));
+          tokens.push_back(Keyword("operator"));
+          if (spelling == "()")
+          {
+               tokens.push_back(Punctuation(ecpps::TokenType::LeftParenthesis));
+               tokens.push_back(Punctuation(ecpps::TokenType::RightParenthesis));
+          }
+          else if (spelling == "[]")
+          {
+               tokens.push_back(Punctuation(ecpps::TokenType::LeftBracket));
+               tokens.push_back(Punctuation(ecpps::TokenType::RightBracket));
+          }
+          else
+               tokens.push_back(Operator(spelling));
+          tokens.push_back(Punctuation(ecpps::TokenType::LeftParenthesis));
+          tokens.push_back(Punctuation(ecpps::TokenType::RightParenthesis));
+          tokens.push_back(Punctuation(ecpps::TokenType::SemiColon));
+     }
+
+     Fixture fixture{};
+     auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == operators.size()));
+     if (nodes.size() != operators.size()) return;
+
+     for (std::size_t index = 0; index < operators.size(); ++index)
+     {
+          const auto* declaration = dynamic_cast<const ecpps::ast::FunctionDeclarationNode*>(nodes[index].get());
+          REQUIRE((declaration != nullptr));
+          if (declaration == nullptr) return;
+
+          const auto* operatorId =
+               dynamic_cast<const ecpps::ast::OperatorFunctionId*>(declaration->Signature().name.get());
+          REQUIRE((operatorId != nullptr));
+          if (operatorId == nullptr) return;
+          REQUIRE((operatorId->GetOperator() == operators[index].second));
+          REQUIRE((operatorId->ToString(0) == "operator" + operators[index].first));
+     }
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Explicit operator calls preserve operator function ids", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     auto nodes = fixture.Parse(
+          ZeroArgumentFunction("explicit_arrow_call", {Identifier("object"), Operator("."), Keyword("operator"),
+                                                       Operator("->"), Punctuation(ecpps::TokenType::LeftParenthesis),
+                                                       Punctuation(ecpps::TokenType::RightParenthesis)}));
+
+     const auto* function = GetFunction(nodes);
+     REQUIRE((function != nullptr));
+     const auto* returnNode = GetReturn(*function);
+     REQUIRE((returnNode != nullptr));
+     const auto* call = dynamic_cast<const ecpps::ast::CallOperatorNode*>(returnNode->Value().get());
+     REQUIRE((call != nullptr));
+     const auto* memberAccess = dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(call->Function().get());
+     REQUIRE((memberAccess != nullptr));
+     CHECK((memberAccess->Value() == ecpps::ast::Operator::FullStop));
+     const auto* operatorId = dynamic_cast<const ecpps::ast::OperatorFunctionId*>(memberAccess->Right().get());
+     REQUIRE((operatorId != nullptr));
+     CHECK((operatorId->GetOperator() == ecpps::ast::Operator::Arrow));
+     CHECK((call->Arguments().Empty()));
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Conversion function ids preserve their target type", "[unit][parsing][ast]")
+{
+     Fixture fixture{};
+     std::vector<ecpps::Token> tokens{Keyword("struct"),
+                                      Identifier("ScalarConversion"),
+                                      Punctuation(ecpps::TokenType::LeftBrace),
+                                      Keyword("operator"),
+                                      Keyword("int"),
+                                      Punctuation(ecpps::TokenType::LeftParenthesis),
+                                      Punctuation(ecpps::TokenType::RightParenthesis),
+                                      Keyword("const"),
+                                      Punctuation(ecpps::TokenType::SemiColon),
+                                      Punctuation(ecpps::TokenType::RightBrace),
+                                      Punctuation(ecpps::TokenType::SemiColon)};
+
+     const auto nodes = fixture.Parse(std::move(tokens));
+     REQUIRE((nodes.size() == 1));
+     const auto* classDefinition = dynamic_cast<const ecpps::ast::ClassDefNode*>(nodes.front().get());
+     REQUIRE((classDefinition != nullptr));
+     REQUIRE((classDefinition->MemberSpecifiers().size() == 1));
+     const auto* declaration =
+          dynamic_cast<const ecpps::ast::MemberDeclarationNode*>(classDefinition->MemberSpecifiers().front().get());
+     REQUIRE((declaration != nullptr));
+     REQUIRE((declaration->Declarators().size() == 1));
+     const auto* conversionId = dynamic_cast<const ecpps::ast::ConversionFunctionId*>(
+          declaration->Declarators().front().declaredIdExpression.get());
+     REQUIRE((conversionId != nullptr));
+     const auto* conversionType = dynamic_cast<const ecpps::ast::BasicType*>(conversionId->ConversionType().get());
+     REQUIRE((conversionType != nullptr));
+     CHECK((conversionType->ToString(0) == "int"));
+     CHECK((conversionId->ToString(0) == "operator int"));
+     REQUIRE(fixture.diagnostics.diagnosticsList.empty());
+}
+
+TEST_CASE("AST - Subscript expressions preserve separate arguments and comma expressions", "[unit][parsing][ast]")
+{
+     Fixture multiArgumentFixture{};
+     auto multiArgumentNodes =
+          multiArgumentFixture.Parse(SubscriptFunction({Identifier("row"), Operator(","), Identifier("column")}));
+     const auto* multiArgumentFunction = GetFunction(multiArgumentNodes);
+     REQUIRE((multiArgumentFunction != nullptr));
+     const auto* multiArgumentReturn = GetReturn(*multiArgumentFunction);
+     REQUIRE((multiArgumentReturn != nullptr));
+     const auto* multiArgumentSubscript =
+          dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(multiArgumentReturn->Value().get());
+     REQUIRE((multiArgumentSubscript != nullptr));
+     REQUIRE((multiArgumentSubscript->Arguments().Size() == 2));
+     CHECK(dynamic_cast<const ecpps::ast::IdentifierNode*>(multiArgumentSubscript->Arguments()[0].get()) != nullptr);
+     CHECK(dynamic_cast<const ecpps::ast::IdentifierNode*>(multiArgumentSubscript->Arguments()[1].get()) != nullptr);
+
+     Fixture commaExpressionFixture{};
+     auto commaExpressionNodes = commaExpressionFixture.Parse(
+          SubscriptFunction({Punctuation(ecpps::TokenType::LeftParenthesis), Identifier("row"), Operator(","),
+                             Identifier("column"), Punctuation(ecpps::TokenType::RightParenthesis)}));
+     const auto* commaExpressionFunction = GetFunction(commaExpressionNodes);
+     REQUIRE((commaExpressionFunction != nullptr));
+     const auto* commaExpressionReturn = GetReturn(*commaExpressionFunction);
+     REQUIRE((commaExpressionReturn != nullptr));
+     const auto* commaExpressionSubscript =
+          dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(commaExpressionReturn->Value().get());
+     REQUIRE((commaExpressionSubscript != nullptr));
+     REQUIRE((commaExpressionSubscript->Arguments().Size() == 1));
+     const auto* commaExpression =
+          dynamic_cast<const ecpps::ast::BinaryOperatorNode*>(commaExpressionSubscript->Arguments().Front().get());
+     REQUIRE((commaExpression != nullptr));
+     CHECK((commaExpression->Value() == ecpps::ast::Operator::Comma));
+
+     Fixture emptyFixture{};
+     auto emptyNodes = emptyFixture.Parse(SubscriptFunction({}));
+     const auto* emptyFunction = GetFunction(emptyNodes);
+     REQUIRE((emptyFunction != nullptr));
+     const auto* emptyReturn = GetReturn(*emptyFunction);
+     REQUIRE((emptyReturn != nullptr));
+     const auto* emptySubscript = dynamic_cast<const ecpps::ast::SubscriptOperatorNode*>(emptyReturn->Value().get());
+     REQUIRE((emptySubscript != nullptr));
+     CHECK((emptySubscript->Arguments().Size() == 0));
 }
 
 TEST_CASE("AST - Multiplicative expressions bind more tightly than addition", "[unit][parsing][ast]")

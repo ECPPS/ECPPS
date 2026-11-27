@@ -94,49 +94,53 @@ static std::vector<std::byte> AsmCopy(Width width, MemoryOperand target, Integer
 
 static std::vector<std::byte> AsmCopy(Width width, RegisterOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmCopy(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmCopy(width, target, integer);
-                                                },
-                                                [width, target](const MemoryOperand mem) -> std::vector<std::byte>
-                                                {
-                                                     return AsmCopy(width, target, mem);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid MOV source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmCopy(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmCopy(width, target, integer);
+               },
+               [width, target](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmCopy(width, target, mem);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid MOV source");
+               },
+          },
+          source);
 }
 static std::vector<std::byte> AsmCopy(Width width, MemoryOperand target, const Operand& source)
 {
-     return std::visit(ecpps::OverloadedVisitor{[width, target](const RegisterOperand reg) -> std::vector<std::byte>
-                                                {
-                                                     return AsmCopy(width, target, reg);
-                                                },
-                                                [width, target](const IntegerOperand integer) -> std::vector<std::byte>
-                                                {
-                                                     return AsmCopy(width, target, integer);
-                                                },
-                                                [](const StackOperand&) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException(
-                                                          "unresolved StackOperand: Finalise must run before emission");
-                                                },
-                                                [](auto&&...) -> std::vector<std::byte>
-                                                {
-                                                     throw TracedException("invalid MOV source");
-                                                }},
-                       source);
+     return std::visit(
+          ecpps::OverloadedVisitor{
+               [width, target](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmCopy(width, target, reg);
+               },
+               [width, target](const IntegerOperand integer) -> std::vector<std::byte>
+               {
+                    return AsmCopy(width, target, integer);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid MOV source");
+               },
+          },
+          source);
 }
 
 std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const ir::abstract::DynamicBytecode& description)
@@ -147,21 +151,23 @@ std::vector<std::byte> ecpps::codegen::emitters::X8664Emitter::EmitMov(const ir:
      const auto instructionWidth = mov.width;
 
      return std::visit(
-          OverloadedVisitor{[instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
-                            {
-                                 return AsmCopy(instructionWidth, reg, source);
-                            },
-                            [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
-                            {
-                                 return AsmCopy(instructionWidth, mem, source);
-                            },
-                            [](const StackOperand&) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("unresolved StackOperand: Finalise must run before emission");
-                            },
-                            [](auto&&...) -> std::vector<std::byte>
-                            {
-                                 throw TracedException("invalid MOV source");
-                            }},
+          OverloadedVisitor{
+               [instructionWidth, source = mov.source](const RegisterOperand reg) -> std::vector<std::byte>
+               {
+                    return AsmCopy(instructionWidth, reg, source);
+               },
+               [instructionWidth, source = mov.source](const MemoryOperand mem) -> std::vector<std::byte>
+               {
+                    return AsmCopy(instructionWidth, mem, source);
+               },
+               [](const StackOperand&) -> std::vector<std::byte>
+               {
+                    throw TracedException("unresolved StackOperand: Finalise must run before emission");
+               },
+               [](auto&&...) -> std::vector<std::byte>
+               {
+                    throw TracedException("invalid MOV source");
+               },
+          },
           mov.destination);
 }

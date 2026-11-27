@@ -160,6 +160,8 @@ std::size_t ecpps::typeSystem::BooleanType::Width(void) const noexcept
 
 // predefined builtin types
 // void
+// These built-in type objects are intentionally constructed before parsing; allocation failure during startup is fatal.
+// NOLINTBEGIN(bugprone-throwing-static-initialization)
 std::unique_ptr<ecpps::typeSystem::VoidType> ecpps::typeSystem::g_void =
      std::make_unique<typeSystem::VoidType>("void", ecpps::typeSystem::Qualifiers::None);
 
@@ -208,6 +210,7 @@ std::unique_ptr<ecpps::typeSystem::IntegralType> ecpps::typeSystem::g_unsignedLo
 std::unique_ptr<ecpps::typeSystem::CharacterType> ecpps::typeSystem::g_constChar =
      std::make_unique<typeSystem::CharacterType>(ecpps::typeSystem::CharacterSign::Char, "const char",
                                                  ecpps::typeSystem::Qualifiers::Const);
+// NOLINTEND(bugprone-throwing-static-initialization)
 
 ecpps::typeSystem::IntegerConversionRank ecpps::typeSystem::RankInteger(const IntegralType* integer)
 {
@@ -338,8 +341,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::PointerType::CompareTo(
 
 ecpps::typeSystem::TypeTraits ecpps::typeSystem::PointerType::Traits(void) const noexcept
 {
-     return TypeTraits{TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
-                       TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object};
+     return TypeTraits{
+          TypeTraitEnum::Scalar,           TypeTraitEnum::Literal, TypeTraitEnum::TriviallyCopyable,
+          TypeTraitEnum::ImplicitLifetime, TypeTraitEnum::Pointer, TypeTraitEnum::Object,
+     };
 }
 
 ecpps::typeSystem::NonowningTypePointer ecpps::typeSystem::PointerType::CommonWith(
@@ -366,11 +371,10 @@ ecpps::typeSystem::ConversionSequence ecpps::typeSystem::ReferenceType::CompareT
 
      const auto* targetClass = this->_baseType->CastTo<ClassType>();
      const auto* sourceClass = other->CastTo<ClassType>();
-     if (targetClass != nullptr || sourceClass != nullptr)
-     {
-          if (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id)
-               return ConversionSequence{std::nullopt};
-     }
+     if ((targetClass != nullptr || sourceClass != nullptr) &&
+         (targetClass == nullptr || sourceClass == nullptr || targetClass->Info().id != sourceClass->Info().id))
+
+          return ConversionSequence{std::nullopt};
 
      const auto* targetQualified = this->_baseType->CastTo<QualifiedType>();
      const auto* sourceQualified = other->CastTo<QualifiedType>();

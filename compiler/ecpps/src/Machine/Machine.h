@@ -7,7 +7,7 @@ namespace ecpps::abi
      enum struct Architecture : std::uint_fast8_t
      {
           x86,
-          ARM
+          ARM,
      };
 
      enum struct ISA : std::uint16_t // NOLINT(performance-enum-size)
@@ -23,33 +23,33 @@ namespace ecpps::abi
           None = 0,
 
           // x86
-          SSE = 1 << 0,
-          SSE2 = 1 << 1,
-          SSE3 = 1 << 2,
-          SSSE3 = 1 << 3,
-          SSE4_1 = 1 << 4,
-          SSE4_2 = 1 << 5,
-          AVX = 1 << 6,
-          AVX2 = 1 << 7,
-          FMA = 1 << 8,
-          AVX512F = 1 << 9,
-          AVX512BW = 1 << 10,
-          AVX512DQ = 1 << 11,
-          AVX512VL = 1 << 12,
-          BMI1 = 1 << 13,
-          BMI2 = 1 << 14,
-          LZCNT = 1 << 15,
-          POPCNT = 1 << 16,
+          SSE = 1u << 0u,
+          SSE2 = 1u << 1u,
+          SSE3 = 1u << 2u,
+          SSSE3 = 1u << 3u,
+          SSE4_1 = 1u << 4u,
+          SSE4_2 = 1u << 5u,
+          AVX = 1u << 6u,
+          AVX2 = 1u << 7u,
+          FMA = 1u << 8u,
+          AVX512F = 1u << 9u,
+          AVX512BW = 1u << 10u,
+          AVX512DQ = 1u << 11u,
+          AVX512VL = 1u << 12u,
+          BMI1 = 1u << 13u,
+          BMI2 = 1u << 14u,
+          LZCNT = 1u << 15u,
+          POPCNT = 1u << 16u,
           // ARM
-          NEON = 1 << 0,
-          ASIMD = 1 << 1,
-          AES = 1 << 2,
-          SHA1 = 1 << 3,
-          SHA2 = 1 << 4,
-          SVE = 1 << 5,
-          SVE2 = 1 << 6,
-          FP16 = 1 << 7,
-          DOTPROD = 1 << 8
+          NEON = 1u << 0u,
+          ASIMD = 1u << 1u,
+          AES = 1u << 2u,
+          SHA1 = 1u << 3u,
+          SHA2 = 1u << 4u,
+          SVE = 1u << 5u,
+          SVE2 = 1u << 6u,
+          FP16 = 1u << 7u,
+          DOTPROD = 1u << 8u,
      };
      constexpr bool operator&(const ArchitectureExtensionFeatures features, const ArchitectureExtensionFeatures other)
      {

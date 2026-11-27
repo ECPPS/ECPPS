@@ -110,11 +110,11 @@ std::size_t ecpps::codegen::ParsingContext::CallFunctionIndex(const ir::Function
 void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
 {
      if (node == nullptr) return;
-     if (this->pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
+     if (this->_pendingCompare.has_value() && node->Kind() != ecpps::ir::NodeKind::Branch)
      {
           this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                "Materialising a comparison result outside of a branch is not supported yet", node->Source()));
-          this->pendingCompare.reset();
+          this->_pendingCompare.reset();
      }
 
      try
@@ -275,9 +275,13 @@ void ecpps::codegen::ParsingContext::ParseNode(const ir::NodeBase* node)
           case ecpps::ir::NodeKind::PointerConversion:
           {
                if (const auto* decayNode = dynamic_cast<const ecpps::ir::SSAPointerConvertFromDecayNode*>(node))
+               {
                     this->ParsePointerConvertNode(*decayNode);
+               }
                else if (const auto* convertNode = dynamic_cast<const ecpps::ir::SSAPointerConvertNode*>(node))
+               {
                     this->ParsePointerConvertNode(*convertNode);
+               }
                else
                {
                     runtime_assert(false, "Pointer conversion was not a conversion!");
@@ -362,19 +366,24 @@ void ecpps::codegen::ParsingContext::ParseReturnNode([[maybe_unused]] const ir::
                     return;
                }
                const auto* resultType = this->currentScope->returnType;
-               this->instructions.push_back(
-                    {.type = ir::abstract::VirtualInstructionType::ReturnAggregate,
-                     .operands = {ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual},
-                                  ir::abstract::VirtualRegister{resultType->Width()}}});
+               this->instructions.push_back({
+                    .type = ir::abstract::VirtualInstructionType::ReturnAggregate,
+                    .operands =
+                         {
+                              ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual},
+                              ir::abstract::VirtualRegister{resultType->Width()},
+                         },
+               });
                return;
           }
           if (this->currentScope != nullptr && this->currentScope->returnsByPointer &&
               this->target->platform->IndirectClassResultAddress().addressEchoedInIntegerReturnRegister &&
               this->aggregateReturnBufferVirtual.has_value())
           {
-               this->instructions.push_back(
-                    {.type = ir::abstract::VirtualInstructionType::Return,
-                     .operands = {ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual}}});
+               this->instructions.push_back({
+                    .type = ir::abstract::VirtualInstructionType::Return,
+                    .operands = {ir::abstract::VirtualRegister{*this->aggregateReturnBufferVirtual}},
+               });
                return;
           }
           ir::abstract::VirtualInstruction instruction{
@@ -424,17 +433,24 @@ void ecpps::codegen::ParsingContext::ParseIndirectStoreNode(const ir::SSAIndirec
      this->DereferenceSSA(ssaTargetIndex);
      this->DereferenceSSA(ssaSourceIndex);
 
-     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::IndirectStore,
-                                   .operands = {ir::abstract::VirtualRegister{virtualTargetIndex},
-                                                ir::abstract::VirtualRegister{virtualSourceIndex}}});
+     this->instructions.push_back({
+          .type = ir::abstract::VirtualInstructionType::IndirectStore,
+          .operands =
+               {
+                    ir::abstract::VirtualRegister{virtualTargetIndex},
+                    ir::abstract::VirtualRegister{virtualSourceIndex},
+               },
+     });
 }
 void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreIntegerNode& node)
 {
      auto ssaIndex = node.Target().Index();
      ir::abstract::VirtualRegister virtualIndex{this->virtualRegisterAllocationMap.FindVirtualBySSA(ssaIndex)};
      ir::abstract::VirtualRegister sourceVirtualised{node.Src()};
-     ir::abstract::VirtualInstruction instruction{.type = ir::abstract::VirtualInstructionType::CopyInteger,
-                                                  .operands = {virtualIndex, sourceVirtualised}};
+     ir::abstract::VirtualInstruction instruction{
+          .type = ir::abstract::VirtualInstructionType::CopyInteger,
+          .operands = {virtualIndex, sourceVirtualised},
+     };
      this->instructions.push_back(instruction);
 }
 void ecpps::codegen::ParsingContext::ParseArrayStoreNode(const ir::SSAArrayStoreNode& node)
@@ -453,7 +469,8 @@ void ecpps::codegen::ParsingContext::ParseArrayStoreNode(const ir::SSAArrayStore
      if (totalSize == 0) return;
 
      const ir::abstract::VirtualRegister virtualTarget{
-          this->virtualRegisterAllocationMap.FindVirtualBySSA(node.Target().Index())};
+          this->virtualRegisterAllocationMap.FindVirtualBySSA(node.Target().Index()),
+     };
 
      if (std::ranges::all_of(values,
                              [](const std::uint32_t value)
@@ -461,8 +478,10 @@ void ecpps::codegen::ParsingContext::ParseArrayStoreNode(const ir::SSAArrayStore
                                   return value == 0;
                              }))
      {
-          this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::ZeroMemory,
-                                        .operands = {virtualTarget, ir::abstract::VirtualRegister{totalSize}}});
+          this->instructions.push_back({
+               .type = ir::abstract::VirtualInstructionType::ZeroMemory,
+               .operands = {virtualTarget, ir::abstract::VirtualRegister{totalSize}},
+          });
           return;
      }
 
@@ -477,12 +496,16 @@ void ecpps::codegen::ParsingContext::ParseArrayStoreNode(const ir::SSAArrayStore
 
      const auto stringIndex = this->assembly->AddString(bytes);
 
-     this->instructions.push_back(
-          {.type = ir::abstract::VirtualInstructionType::CopyFromData,
-           .operands = {virtualTarget,
-                        ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.indexInTable)},
-                        ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.offset)},
-                        ir::abstract::VirtualRegister{totalSize}}});
+     this->instructions.push_back({
+          .type = ir::abstract::VirtualInstructionType::CopyFromData,
+          .operands =
+               {
+                    virtualTarget,
+                    ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.indexInTable)},
+                    ir::abstract::VirtualRegister{static_cast<std::size_t>(stringIndex.offset)},
+                    ir::abstract::VirtualRegister{totalSize},
+               },
+     });
 }
 void ecpps::codegen::ParsingContext::ParseAddNode(const ir::SSAAddNode& node)
 {
@@ -926,7 +949,8 @@ void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
           if (directAggregateReturn && argumentIndex == 0)
           {
                aggregateResultBuffer = ir::abstract::VirtualRegister{
-                    this->virtualRegisterAllocationMap.FindVirtualBySSA(argument->Index())};
+                    this->virtualRegisterAllocationMap.FindVirtualBySSA(argument->Index()),
+               };
                continue;
           }
           auto ssaTargetIndex = argument->Index();
@@ -937,9 +961,14 @@ void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
 
           ir::abstract::VirtualInstruction instruction{
                .type = ir::abstract::VirtualInstructionType::PassArgument,
-               .operands = {ir::abstract::VirtualRegister{callIndex}, virtualTarget,
-                            ir::abstract::VirtualRegister{argumentIndex -
-                                                          static_cast<std::size_t>(directAggregateReturn)}},
+               .operands =
+                    {
+                         ir::abstract::VirtualRegister{callIndex},
+                         virtualTarget,
+                         ir::abstract::VirtualRegister{
+                              argumentIndex - static_cast<std::size_t>(directAggregateReturn),
+                         },
+                    },
           };
           this->instructions.push_back(instruction);
      }
@@ -952,9 +981,10 @@ void ecpps::codegen::ParsingContext::ParseCallNode(const ir::SSACallNode& node)
                     "Direct class return call has no result storage", node.Source()));
                return;
           }
-          this->instructions.push_back(
-               {.type = ir::abstract::VirtualInstructionType::CallWithAggregateResult,
-                .operands = {ir::abstract::VirtualRegister{callIndex}, *aggregateResultBuffer}});
+          this->instructions.push_back({
+               .type = ir::abstract::VirtualInstructionType::CallWithAggregateResult,
+               .operands = {ir::abstract::VirtualRegister{callIndex}, *aggregateResultBuffer},
+          });
           return;
      }
 
@@ -1040,12 +1070,20 @@ void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::Parameter
                     abi::ABI::Current().PointerSize() * typeSystem::CharWidth, abi::ABI::Current().PointerSize(),
                     AllocationDescriptor::Type::Temporary);
                const ir::abstract::VirtualRegister pointerVirtual{pointerVirtualIndex};
-               this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::CopyParameter,
-                                             .operands = {ir::abstract::VirtualRegister{functionIndex}, objectVirtual,
-                                                          ir::abstract::VirtualRegister{physicalParameterIndex},
-                                                          ir::abstract::VirtualRegister{1}}});
-               this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::AddressOf,
-                                             .operands = {pointerVirtual, objectVirtual}});
+               this->instructions.push_back({
+                    .type = ir::abstract::VirtualInstructionType::CopyParameter,
+                    .operands =
+                         {
+                              ir::abstract::VirtualRegister{functionIndex},
+                              objectVirtual,
+                              ir::abstract::VirtualRegister{physicalParameterIndex},
+                              ir::abstract::VirtualRegister{1},
+                         },
+               });
+               this->instructions.push_back({
+                    .type = ir::abstract::VirtualInstructionType::AddressOf,
+                    .operands = {pointerVirtual, objectVirtual},
+               });
                this->instructions.push_back(
                     {.type = ir::abstract::VirtualInstructionType::Copy, .operands = {virtualTarget, pointerVirtual}});
                return;
@@ -1054,8 +1092,12 @@ void ecpps::codegen::ParsingContext::ParseParameterStoreNode(const ir::Parameter
 
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::CopyParameter,
-          .operands = {ir::abstract::VirtualRegister{functionIndex}, virtualTarget,
-                       ir::abstract::VirtualRegister{physicalParameterIndex}},
+          .operands =
+               {
+                    ir::abstract::VirtualRegister{functionIndex},
+                    virtualTarget,
+                    ir::abstract::VirtualRegister{physicalParameterIndex},
+               },
      };
      this->instructions.push_back(instruction);
 }
@@ -1175,16 +1217,25 @@ void ecpps::codegen::ParsingContext::PlaceLabel(const std::size_t id)
 }
 void ecpps::codegen::ParsingContext::EmitJump(const std::size_t id)
 {
-     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::UnconditionalJump,
-                                   .operands = {ir::abstract::VirtualRegister{id}}});
+     this->instructions.push_back({
+          .type = ir::abstract::VirtualInstructionType::UnconditionalJump,
+          .operands = {ir::abstract::VirtualRegister{id}},
+     });
 }
 void ecpps::codegen::ParsingContext::EmitCompareAndJump(const ir::abstract::ConditionCode cc,
                                                         const ir::abstract::VirtualRegister lhs,
                                                         const ir::abstract::VirtualRegister rhs, const std::size_t id)
 {
-     this->instructions.push_back({.type = ir::abstract::VirtualInstructionType::CompareAndJump,
-                                   .operands = {lhs, rhs, ir::abstract::VirtualRegister{static_cast<std::size_t>(cc)},
-                                                ir::abstract::VirtualRegister{id}}});
+     this->instructions.push_back({
+          .type = ir::abstract::VirtualInstructionType::CompareAndJump,
+          .operands =
+               {
+                    lhs,
+                    rhs,
+                    ir::abstract::VirtualRegister{static_cast<std::size_t>(cc)},
+                    ir::abstract::VirtualRegister{id},
+               },
+     });
 }
 
 void ecpps::codegen::ParsingContext::ParseLabelNode(const ir::SSALabelNode& node)
@@ -1460,26 +1511,28 @@ void ecpps::codegen::ParsingContext::ParseCompareNode(const ir::SSACompareNode& 
                          this->virtualRegisterAllocationMap.GetDescriptorFromVirtual(rhsVirtual).width,
                     "Widths don't match in a comparison");
 
-     this->pendingCompare = PendingCompare{.resultSsa = node.Result().Index(),
-                                           .lhsSsa = lhsSsa,
-                                           .rhsSsa = rhsSsa,
-                                           .lhsVirtual = lhsVirtual,
-                                           .rhsVirtual = rhsVirtual,
-                                           .cc = ToConditionCode(node.Predicate())};
+     this->_pendingCompare = PendingCompare{
+          .resultSsa = node.Result().Index(),
+          .lhsSsa = lhsSsa,
+          .rhsSsa = rhsSsa,
+          .lhsVirtual = lhsVirtual,
+          .rhsVirtual = rhsVirtual,
+          .cc = ToConditionCode(node.Predicate()),
+     };
 }
 
 void ecpps::codegen::ParsingContext::ParseBranchNode(const ir::SSABranchNode& node)
 {
-     if (!this->pendingCompare.has_value() || this->pendingCompare->resultSsa != node.Condition().Index())
+     if (!this->_pendingCompare.has_value() || this->_pendingCompare->resultSsa != node.Condition().Index())
      {
           this->diagnostics.push_back(std::make_unique<diagnostics::TypeError>(
                "A branch condition must be produced by the comparison immediately preceding it", node.Source()));
-          this->pendingCompare.reset();
+          this->_pendingCompare.reset();
           return;
      }
 
-     const auto pending = this->pendingCompare.value();
-     this->pendingCompare.reset();
+     const auto pending = this->_pendingCompare.value();
+     this->_pendingCompare.reset();
 
      const auto trueId = this->LabelId(node.TrueLabel());
      const auto falseId = this->LabelId(node.FalseLabel());

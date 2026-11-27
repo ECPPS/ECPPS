@@ -87,7 +87,7 @@ namespace ecpps::ast
      {
      public:
           explicit BasicType(InternedString name, Location source, const bool isConst, const bool isVolatile)
-              : Node(source), _name(std::move(name)), _isConst(isConst), _isVolatile(isVolatile)
+              : Node(source), _name(name), _isConst(isConst), _isVolatile(isVolatile)
           {
           }
 
@@ -128,13 +128,13 @@ namespace ecpps::ast
      {
           Public,
           Private,
-          Protected
+          Protected,
      };
      enum struct ClassKey : std::uint8_t
      {
           Class,
           Struct,
-          Union
+          Union,
      };
      class ClassDefNode;
      class ClassType : public Node
@@ -142,7 +142,7 @@ namespace ecpps::ast
      public:
           explicit ClassType(InternedString name, ClassKey key, const bool isConst, const bool isVolatile,
                              Location source) // TODO: attributes
-              : Node(source), _name(std::move(name)), _key(key), _isConst(isConst), _isVolatile(isVolatile)
+              : Node(source), _name(name), _key(key), _isConst(isConst), _isVolatile(isVolatile)
           {
           }
 
@@ -226,8 +226,7 @@ namespace ecpps::ast
           explicit ClassDefNode(InternedString name, ClassKey key, std::vector<NodePointer> memberSpecifiers,
                                 const bool isConst, const bool isVolatile,
                                 Location source) // TODO: base classes, final & attributes
-              : ClassType(std::move(name), key, isConst, isVolatile, source),
-                _memberSpecifiers(std::move(memberSpecifiers))
+              : ClassType(name, key, isConst, isVolatile, source), _memberSpecifiers(std::move(memberSpecifiers))
           {
           }
 
@@ -235,10 +234,10 @@ namespace ecpps::ast
           {
                const auto indentString = std::string(indent * PrettyIndent, ' ');
                auto base = ClassType::ToString(indent);
-               base += "\n";
+               base += '\n';
                base += indentString;
-               base += "{";
-               base += "\n";
+               base += '{';
+               base += '\n';
                for (const auto& spec : this->_memberSpecifiers)
                     base += (spec ? spec->ToString(indent) : "__unknown") + "\n";
                return base + indentString + "}";
@@ -306,7 +305,7 @@ namespace ecpps::ast
           enum struct Kind : std::uint_fast8_t
           {
                LValue,
-               RValue
+               RValue,
           };
 
           explicit ReferenceType(NodePointer baseType, Kind kind, Location source)
