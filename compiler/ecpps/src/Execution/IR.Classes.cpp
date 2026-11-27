@@ -912,7 +912,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                }
                if (invalidParameters) continue;
                bool hasDefaultArgument = false;
-               for (std::size_t index = 0; index < parameters.size(); ++index)
+               for (std::size_t index = 0; index < parameters.size(); index++)
                {
                     if (parameters[index].hasDefaultArgument)
                     {
@@ -991,7 +991,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                         existing->isVariadic != functionType.isVariadic ||
                         existing->parameters.size() != parameters.size())
                          return false;
-                    for (std::size_t index = 0; index < parameters.size(); ++index)
+                    for (std::size_t index = 0; index < parameters.size(); index++)
                          if (existing->parameters[index].type != parameters[index].type) return false;
                     return true;
                };
@@ -1024,7 +1024,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                                                        }) |
                                                   ecpps::detail::ToVector;
                     bool duplicateDefaultArgument = false;
-                    for (std::size_t index = 0; index < parameters.size(); ++index)
+                    for (std::size_t index = 0; index < parameters.size(); index++)
                     {
                          if (!parameters[index].hasDefaultArgument) continue;
                          if (mergedDefaultArguments[index])
@@ -1038,7 +1038,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                     }
                     if (duplicateDefaultArgument) continue;
                     hasDefaultArgument = false;
-                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); ++index)
+                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); index++)
                     {
                          if (mergedDefaultArguments[index])
                          {
@@ -1054,7 +1054,7 @@ void ecpps::ir::IR::ParseMemberDeclaration(const ast::MemberDeclarationNode& nod
                          }
                     }
                     if (duplicateDefaultArgument) continue;
-                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); ++index)
+                    for (std::size_t index = 0; index < mergedDefaultArguments.size(); index++)
                          function->parameters[index].hasDefaultArgument = mergedDefaultArguments[index];
                     function->isInline = function->isInline || specifiers.isInline;
                }

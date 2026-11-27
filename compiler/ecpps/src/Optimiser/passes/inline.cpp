@@ -1,10 +1,10 @@
 #include "Optimiser/passes/inline.h"
 #include <algorithm>
-#include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 #include "Execution/Operations.h"
 #include "Execution/Procedural.h"
+#include "Shared/BumpAllocator.h"
 
 namespace
 {
@@ -86,7 +86,7 @@ namespace
 
      struct CloneState
      {
-          ecpps::BumpAllocator& allocator;
+          ecpps::BumpAllocator& allocator; // NOLINT
           std::size_t nextRegisterIndex;
           std::unordered_map<const SingleAssignRegisterNode*, const SingleAssignRegisterNode*> registers{};
           std::unordered_map<std::string, std::string> labels{};
@@ -227,9 +227,8 @@ namespace
           std::unordered_set<std::string> labels{};
           std::unordered_set<std::string> branchTargets{};
           const bool resultIsUsed = call.HasResult() && call.Result().UseCount() != 0;
-          for (std::size_t index = 0; index < callee.Body().size(); ++index)
+          for (const auto& node : callee.Body())
           {
-               const auto& node = callee.Body()[index];
                if (node == nullptr || !IsSupportedBodyNode(*node)) return false;
                if (const auto* allocation = dynamic_cast<const AllocationNode*>(node.get()))
                     allocatedRegisters.insert(&allocation->Node());
@@ -247,12 +246,10 @@ namespace
                else if (const auto* returnNode = dynamic_cast<const SSAReturnNode*>(node.get());
                         returnNode != nullptr && resultIsUsed && !returnNode->HasOperand())
                     return false;
-               else if (const auto* parameter = dynamic_cast<const ParameterNode*>(node.get()))
-               {
-                    if (!allocatedRegisters.contains(parameter->Result()) ||
-                        parameter->Index() >= call.Arguments().size())
-                         return false;
-               }
+               else if (const auto* parameter = dynamic_cast<const ParameterNode*>(node.get());
+                        parameter != nullptr && (!allocatedRegisters.contains(parameter->Result()) ||
+                                                 parameter->Index() >= call.Arguments().size()))
+                    return false;
           }
           return std::ranges::all_of(branchTargets,
                                      [&labels](const std::string& target)
@@ -617,7 +614,7 @@ namespace
                                           const auto* label = dynamic_cast<const SSALabelNode*>(node.get());
                                           return label != nullptr && label->Name().starts_with(labelPrefix);
                                      }))
-               labelPrefix += "_";
+               labelPrefix += '_';
           for (const auto& node : candidate.callee->Body())
                if (const auto* label = dynamic_cast<const SSALabelNode*>(node.get()))
                     state.labels.emplace(label->Name(), labelPrefix + std::to_string(state.labels.size()));

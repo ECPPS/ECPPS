@@ -479,7 +479,7 @@ namespace ecpps::ir::detail
           }
 
           const std::size_t matchedCount = std::min(arguments.size(), function->parameters.size());
-          for (std::size_t index = 0; index < matchedCount; ++index)
+          for (std::size_t index = 0; index < matchedCount; index++)
           {
                const auto& argument = arguments[index];
                const auto& parameter = function->parameters[index];
@@ -507,11 +507,11 @@ namespace ecpps::ir::detail
                }
           }
 
-          for (std::size_t index = matchedCount; index < arguments.size(); ++index)
+          for (std::size_t index = matchedCount; index < arguments.size(); index++)
                info.parameterFailures.emplace_back(
                     index + 1, std::format("Argument {} has no corresponding parameter", index + 1));
 
-          for (std::size_t index = matchedCount; index < function->parameters.size(); ++index)
+          for (std::size_t index = matchedCount; index < function->parameters.size(); index++)
           {
                const auto& parameter = function->parameters[index];
                info.parameterFailures.emplace_back(

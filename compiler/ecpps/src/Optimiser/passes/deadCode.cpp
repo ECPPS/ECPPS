@@ -22,9 +22,9 @@ namespace
                        ecpps::ir::SSAImmNode, ecpps::ir::SSAConvertNode, ecpps::ir::SSAPointerConvertNode,
                        ecpps::ir::SSAPointerConvertFromDecayNode, ecpps::ir::SSAAddressOfNode>;
 
-     using VirtualInstruction = ecpps::ir::abstract::VirtualInstruction;
-     using VirtualInstructionType = ecpps::ir::abstract::VirtualInstructionType;
-     using VirtualRegister = ecpps::ir::abstract::VirtualRegister;
+     using ecpps::ir::abstract::VirtualInstruction;
+     using ecpps::ir::abstract::VirtualInstructionType;
+     using ecpps::ir::abstract::VirtualRegister;
 
      [[nodiscard]] bool IsPureVirtualProducer(const VirtualInstructionType type) noexcept
      {

@@ -1948,7 +1948,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                .isDeleted = candidate->isDeleted,
           };
           const auto matchedCount = std::min(arguments.size(), candidate->parameters.size());
-          for (std::size_t index = 0; index < matchedCount; ++index)
+          for (std::size_t index = 0; index < matchedCount; index++)
           {
                const auto& argument = arguments[index];
                const auto& parameter = candidate->parameters[index];
@@ -1976,7 +1976,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
                     });
           }
           if (arguments.size() > candidate->parameters.size() && !candidate->isVariadic)
-               for (std::size_t index = candidate->parameters.size(); index < arguments.size(); ++index)
+               for (std::size_t index = candidate->parameters.size(); index < arguments.size(); index++)
                     diagnostic.details.push_back(OverloadCandidateDetail{
                          .message = std::format("Argument {} has no corresponding parameter", index + 1),
                          .source = arguments[index] != nullptr ? arguments[index]->Value()->Source() : source,
@@ -2126,7 +2126,7 @@ Expression ecpps::ir::IR::ParseMemberOperatorCall(const std::string_view name, E
           if (objectPointer == nullptr) return nullptr;
           evaluatedArguments.push_back(std::move(objectPointer));
      }
-     for (std::size_t index = 0; index < arguments.size(); ++index)
+     for (std::size_t index = 0; index < arguments.size(); index++)
           evaluatedArguments.push_back(
                PrepareByValueArgument(std::move(arguments[index]), candidate->parameters[index].type, source));
      if (std::ranges::any_of(evaluatedArguments,
@@ -2987,13 +2987,13 @@ ecpps::ir::MatchingScore ecpps::ir::IR::MatchFunction(const std::shared_ptr<Func
 {
      const auto fixedArgumentCount = std::min(arguments.size(), function->parameters.size());
      if (arguments.size() < function->parameters.size())
-          for (std::size_t index = arguments.size(); index < function->parameters.size(); ++index)
+          for (std::size_t index = arguments.size(); index < function->parameters.size(); index++)
                if (!function->parameters[index].hasDefaultArgument) return MatchingScore::NotMatching;
      if (arguments.size() > function->parameters.size() && !function->isVariadic) return MatchingScore::NotMatching;
 
      std::size_t totalCost{};
 
-     for (std::size_t index = 0; index < fixedArgumentCount; ++index)
+     for (std::size_t index = 0; index < fixedArgumentCount; index++)
      {
           const auto& argument = arguments[index];
           const auto& parameter = function->parameters[index];

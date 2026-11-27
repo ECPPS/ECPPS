@@ -992,7 +992,8 @@ TEST_CASE("Inlining routes multiple returns to the call continuation", "[unit][o
      callerBody.push_back(MakeIRNode<ecpps::ir::SSAReturnNode>(fixture.irAllocator, callResultRegister, Source));
 
      std::vector<ecpps::ir::NodePointer> fillerBody{};
-     for (std::size_t index = 0; index < 41; ++index)
+     fillerBody.reserve(41);
+     for (std::size_t index = 0; index < 41; index++)
           fillerBody.push_back(MakeIRNode<ecpps::ir::SSAImmNode>(
                fixture.irAllocator, MakeSSA(fixture.irAllocator, index), static_cast<std::uint64_t>(index), Source));
      fillerBody.push_back(MakeIRNode<ecpps::ir::SSAReturnNode>(fixture.irAllocator, nullptr, Source));
@@ -1200,14 +1201,14 @@ TEST_CASE("Inlining ranks saved call overhead against IR growth", "[unit][optimi
      ecpps::ir::FunctionScope expensiveCallScope{};
 
      std::vector<ecpps::ir::NodePointer> smallCalleeBody{};
-     for (std::size_t index = 0; index < 7; ++index)
+     for (std::size_t index = 0; index < 7; index++)
           smallCalleeBody.push_back(MakeIRNode<ecpps::ir::SSAImmNode>(
                fixture.irAllocator, MakeSSA(fixture.irAllocator, index), static_cast<std::uint64_t>(index), Source));
      smallCalleeBody.push_back(MakeIRNode<ecpps::ir::SSAReturnNode>(fixture.irAllocator, nullptr, Source));
 
      std::vector<ecpps::ir::NodePointer> expensiveCallBody{};
      const ecpps::ir::SingleAssignRegisterNode* returned{};
-     for (std::size_t index = 0; index < 6; ++index)
+     for (std::size_t index = 0; index < 6; index++)
      {
           auto value = MakeSSA(fixture.irAllocator, index);
           returned = value.get();

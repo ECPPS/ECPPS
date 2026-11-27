@@ -74,10 +74,10 @@ namespace
      {
           std::vector<std::pair<std::string, std::string>> parameters{};
           parameters.reserve(parameterTypes.size());
-          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+          for (std::size_t index = 0; index < parameterTypes.size(); index++)
                parameters.emplace_back(parameterTypes[index], std::format("parameter{}", index));
           auto signature = fixture.MakeFunctionSignature("int", "operator", parameters);
-          for (std::size_t index = 0; index < parameterTypes.size(); ++index)
+          for (std::size_t index = 0; index < parameterTypes.size(); index++)
                if (parameterTypes[index] == "Thing")
                     signature.parameters.parameters[index].type = fixture.MakeClassType("Thing");
           signature.name = MakeASTNode<ecpps::ast::OperatorFunctionId>(fixture.astAllocator, operatorId, Source);

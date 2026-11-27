@@ -205,7 +205,7 @@ namespace ecpps::ir
                std::string valuesText;
 #if !defined(__cpp_lib_format_ranges) || __cpp_lib_format_ranges < 202207L
                valuesText = "[";
-               for (std::size_t index = 0; index < this->_values.size(); ++index)
+               for (std::size_t index = 0; index < this->_values.size(); index++)
                {
                     if (index != 0) valuesText += ", ";
                     valuesText += std::to_string(this->_values[index]);

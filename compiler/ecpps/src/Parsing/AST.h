@@ -1294,7 +1294,7 @@ namespace ecpps::ast
 
                if (_declarators.empty() && !result.empty() && result.back() == ' ') result.pop_back();
 
-               for (std::size_t index = 0; index < _declarators.size(); ++index)
+               for (std::size_t index = 0; index < _declarators.size(); index++)
                {
                     const auto& member = _declarators[index];
                     if (index != 0) result += ", ";
