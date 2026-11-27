@@ -285,12 +285,16 @@ TEST_CASE("Virtual register DCE removes dead scalar stores and preserves volatil
                      .access = plainAccess,
                      .isWrite = true,
                 }},
-          {.type = VirtualInstructionType::Copy,
-           .operands = {firstRead, storage},
-           .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess}},
-          {.type = VirtualInstructionType::Copy,
-           .operands = {secondRead, storage},
-           .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess}},
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {firstRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess},
+          },
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {secondRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = plainAccess},
+          },
           {.type = VirtualInstructionType::Copy, .operands = {firstCopy, firstRead}},
           {.type = VirtualInstructionType::Copy, .operands = {secondCopy, secondRead}},
           {.type = VirtualInstructionType::CopyInteger, .operands = {returnValue, VirtualRegister{0}}},
@@ -303,12 +307,16 @@ TEST_CASE("Virtual register DCE removes dead scalar stores and preserves volatil
 
      const MemoryAccess volatileAccess{.isVolatile = true, .alignment = 4};
      std::vector<VirtualInstruction> volatileAccesses{
-          {.type = VirtualInstructionType::CopyInteger,
-           .operands = {storage, VirtualRegister{7}},
-           .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess, .isWrite = true}},
-          {.type = VirtualInstructionType::Copy,
-           .operands = {firstRead, storage},
-           .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess}},
+          {
+               .type = VirtualInstructionType::CopyInteger,
+               .operands = {storage, VirtualRegister{7}},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess, .isWrite = true},
+          },
+          {
+               .type = VirtualInstructionType::Copy,
+               .operands = {firstRead, storage},
+               .memoryEffect = ecpps::ir::abstract::MemoryEffect{.access = volatileAccess},
+          },
      };
      ecpps::optimisations::OptimiseVirtualInstructions(volatileAccesses, registers, true, true);
      REQUIRE((volatileAccesses.size() == 2));

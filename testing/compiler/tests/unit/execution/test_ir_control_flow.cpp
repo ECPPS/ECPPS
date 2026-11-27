@@ -1201,6 +1201,7 @@ TEST_CASE("Inlining ranks saved call overhead against IR growth", "[unit][optimi
      ecpps::ir::FunctionScope expensiveCallScope{};
 
      std::vector<ecpps::ir::NodePointer> smallCalleeBody{};
+     smallCalleeBody.reserve(8);
      for (std::size_t index = 0; index < 7; index++)
           smallCalleeBody.push_back(MakeIRNode<ecpps::ir::SSAImmNode>(
                fixture.irAllocator, MakeSSA(fixture.irAllocator, index), static_cast<std::uint64_t>(index), Source));
@@ -1208,6 +1209,7 @@ TEST_CASE("Inlining ranks saved call overhead against IR growth", "[unit][optimi
 
      std::vector<ecpps::ir::NodePointer> expensiveCallBody{};
      const ecpps::ir::SingleAssignRegisterNode* returned{};
+     expensiveCallBody.reserve(7);
      for (std::size_t index = 0; index < 6; index++)
      {
           auto value = MakeSSA(fixture.irAllocator, index);
