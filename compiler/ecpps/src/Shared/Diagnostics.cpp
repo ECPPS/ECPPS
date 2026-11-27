@@ -100,9 +100,9 @@ constexpr DWORD GetMachineType(void) noexcept
 {
 #if defined(_M_X64) || defined(__x86_64__)
      return IMAGE_FILE_MACHINE_AMD64;
-#elif defined(_M_IX86)
+#elifdef _M_IX86
      return IMAGE_FILE_MACHINE_I386;
-#elif defined(_M_ARM64)
+#elifdef _M_ARM64
      return IMAGE_FILE_MACHINE_ARM64;
 #else
 #error Unsupported Windows architecture
