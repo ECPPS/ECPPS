@@ -278,13 +278,15 @@ TEST_CASE("Virtual register DCE removes dead scalar stores and preserves volatil
 
      const MemoryAccess plainAccess{.alignment = 4};
      std::vector<VirtualInstruction> deadLocalChain{
-          {.type = VirtualInstructionType::CopyInteger,
-           .operands = {storage, VirtualRegister{0}},
-           .memoryEffect =
-                ecpps::ir::abstract::MemoryEffect{
-                     .access = plainAccess,
-                     .isWrite = true,
-                }},
+          {
+               .type = VirtualInstructionType::CopyInteger,
+               .operands = {storage, VirtualRegister{0}},
+               .memoryEffect =
+                    ecpps::ir::abstract::MemoryEffect{
+                         .access = plainAccess,
+                         .isWrite = true,
+                    },
+          },
           {
                .type = VirtualInstructionType::Copy,
                .operands = {firstRead, storage},

@@ -286,6 +286,7 @@ void ecpps::optimisations::OptimiseVirtualInstructions(std::vector<ir::abstract:
           if (canRemove(index))
           {
                const auto destination = DestinationOperandIndex(instructions[index]);
+               if (!destination.has_value()) continue;
                if (useCounts[instructions[index].operands[*destination].index] != 0) continue;
                worklist.push_back(index);
                queued[index] = true;
