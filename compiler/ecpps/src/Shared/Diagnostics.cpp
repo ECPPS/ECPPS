@@ -3,7 +3,8 @@
 #include <print>
 #include <stacktrace>
 
-std::unordered_map<std::string, ecpps::Diagnostics*> ecpps::g_diagnosticsReferences{}; // NOLINT(bugprone-throwing-static-initialization)
+std::unordered_map<std::string, ecpps::Diagnostics*>
+     ecpps::g_diagnosticsReferences{}; // NOLINT(bugprone-throwing-static-initialization)
 
 #ifdef _WIN32
 #include <windows.h>
