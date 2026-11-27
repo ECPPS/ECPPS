@@ -502,6 +502,7 @@ namespace ecpps::abi::encoders::x8664
                this->_framePointer =
                     optimisations.IsEnabled(Optimisation::OmitCallingFrame) ? FramePointer::Omit : FramePointer::Keep;
           }
+
      private:
           [[nodiscard]] std::size_t NextUse(ir::abstract::VirtualRegister reg) const;
           [[nodiscard]] std::vector<ir::abstract::Instruction> Evict(ir::abstract::VirtualRegister victim);
