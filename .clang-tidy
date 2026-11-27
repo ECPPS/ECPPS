@@ -49,7 +49,8 @@ Checks: >
   -bugprone-chained-comparison,
   -portability-avoid-pragma-once,
   -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
-  -bugprone-unchecked-optional-access
+  -bugprone-unchecked-optional-access,
+  -readability-inconsistent-ifelse-braces
 
 CheckOptions:
   # Identifier naming rules
