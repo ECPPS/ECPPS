@@ -15,6 +15,7 @@
 #include "AbstractNodes.h"
 #include "Execution/NodeBase.h"
 #include "Nodes.h"
+#include "Optimiser/passes/deadCode.h"
 #include "Shared/Error.h"
 
 using ecpps::codegen::Routine;
@@ -420,6 +421,7 @@ void ecpps::codegen::ParsingContext::ParseStoreNode(const ir::SSAStoreNode& node
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::Copy,
           .operands = {virtualTarget, virtualSource},
+          .memoryEffect = ir::abstract::MemoryEffect{.access = node.Access(), .isWrite = true},
      };
      this->instructions.push_back(instruction);
 }
@@ -440,6 +442,7 @@ void ecpps::codegen::ParsingContext::ParseIndirectStoreNode(const ir::SSAIndirec
                     ir::abstract::VirtualRegister{virtualTargetIndex},
                     ir::abstract::VirtualRegister{virtualSourceIndex},
                },
+          .memoryEffect = ir::abstract::MemoryEffect{.access = node.Access(), .isWrite = true},
      });
 }
 void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreIntegerNode& node)
@@ -450,6 +453,7 @@ void ecpps::codegen::ParsingContext::ParseStoreIntNode(const ir::SSAStoreInteger
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::CopyInteger,
           .operands = {virtualIndex, sourceVirtualised},
+          .memoryEffect = ir::abstract::MemoryEffect{.access = node.Access(), .isWrite = true},
      };
      this->instructions.push_back(instruction);
 }
@@ -891,6 +895,7 @@ void ecpps::codegen::ParsingContext::ParseLoadNode(const ir::SSALoadNode& node)
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::Copy,
           .operands = {allocatedIndex, virtualSource},
+          .memoryEffect = ir::abstract::MemoryEffect{.access = node.Access(), .isWrite = false},
      };
      this->instructions.push_back(instruction);
 }
@@ -1272,6 +1277,7 @@ void ecpps::codegen::ParsingContext::ParseDereferenceNode(const ir::SSADerefNode
      ir::abstract::VirtualInstruction instruction{
           .type = ir::abstract::VirtualInstructionType::Indirection,
           .operands = {virtualResult, virtualSource},
+          .memoryEffect = ir::abstract::MemoryEffect{.access = node.Access(), .isWrite = false},
      };
      this->instructions.push_back(instruction);
 }
@@ -1494,6 +1500,9 @@ void ecpps::codegen::Compile(AssemblyContext& context, CompilerConfig& config, S
 
           auto routine = CompileRoutine(context, *proc, target, source.diagnostics.diagnosticsList,
                                         config.optimisations.IsEnabled(Optimisation::OptimiseDeadJumps));
+          optimisations::OptimiseVirtualInstructions(routine.virtualInstructions, *target->registerMap,
+                                                     config.optimisations.IsEnabled(Optimisation::RemoveRedundantMovs),
+                                                     config.optimisations.IsEnabled(Optimisation::DeadCodeElimination));
           routine.registerState = *target->registerMap;
           source.compiledRoutines.push_back(std::move(routine));
      }

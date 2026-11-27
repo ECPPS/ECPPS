@@ -3,6 +3,7 @@
 #include "Machine/Encoders/API/Target.h"
 #include "Machine/Encoders/Context.h"
 #include "Machine/Encoders/InstructionEncoder.h"
+#include "Optimiser/selector.h"
 #include "TypeSystem/TypeBase.h"
 
 #ifdef _WIN32
@@ -444,11 +445,19 @@ namespace
                BumpAllocator irAllocator;
                ir::Context context{source.diagnostics, irAllocator};
 
-               const auto ir = ir::IR::Parse(context, ast);
+               auto ir = ir::IR::Parse(context, ast);
 
                if (config.IsVerbose(VerboseFeature::IR))
                {
                     const StageOutput output{config, "IR:"};
+
+                    for (const auto& node : ir) std::println("{}", node->ToString(0));
+               }
+               const auto selectedPasses = optimisations::SelectPasses(config.optimisations, irAllocator);
+               for (const auto& pass : selectedPasses) ir = pass.Run(std::move(ir));
+               if (config.IsVerbose(VerboseFeature::OptimisedIR))
+               {
+                    const StageOutput output{config, "optimised IR:"};
 
                     for (const auto& node : ir) std::println("{}", node->ToString(0));
                }

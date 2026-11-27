@@ -33,3 +33,13 @@ TEST_CASE("Compiler config accepts absolute input paths and recognized options",
      REQUIRE((config.sourceFiles.size() == 1));
      CHECK((config.sourceFiles.front() == "/tmp/input.cpp"));
 }
+
+TEST_CASE("Compiler config selects IR optimization passes", "[unit][config]")
+{
+     const auto preset = MakeConfig({"ecpps", "/O2", "source.cpp"});
+     CHECK((preset.optimisations.IsEnabled(ecpps::Optimisation::InlineRegularFunctions)));
+     CHECK((preset.optimisations.IsEnabled(ecpps::Optimisation::DeadCodeElimination)));
+
+     const auto individual = MakeConfig({"ecpps", "/O:dce", "source.cpp"});
+     CHECK((individual.optimisations.IsEnabled(ecpps::Optimisation::DeadCodeElimination)));
+}

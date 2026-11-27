@@ -261,7 +261,7 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
           this->Lock(static_cast<RegisterIndex>(platform.IntegerParameterRegisterIndex(parameterIndex)));
      }
      for (const std::size_t index : std::views::iota(0uz, input.size()))
-          for (const auto& source : SourceRegistersOf(input[index]))
+          for (const auto& source : ir::abstract::SourceRegistersOf(input[index]))
           {
                this->_remainingUses[source.index]++;
                this->_useSites[source.index].push_back(index);
@@ -458,40 +458,6 @@ std::string ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::Stringi
      }
 }
 
-std::vector<ecpps::ir::abstract::VirtualRegister> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
-     SourceRegistersOf(const ir::abstract::VirtualInstruction& instruction)
-{
-     using Type = ir::abstract::VirtualInstructionType;
-     const auto& operands = instruction.operands;
-
-     switch (instruction.type)
-     {
-     case Type::CopyInteger:
-     case Type::LoadStringAddress:
-     case Type::Call:
-     case Type::CallWithResult:
-     case Type::CopyParameter: return {};
-     case Type::IndirectStore: return operands;
-     case Type::Return: return operands;
-     case Type::ReturnAggregate:
-          return operands.empty() ? std::vector<ir::abstract::VirtualRegister>{}
-                                  : std::vector<ir::abstract::VirtualRegister>{operands[0]};
-     case Type::CallWithAggregateResult:
-     case Type::PassArgument:
-          if (operands.size() < 2) return {};
-          return std::vector<ir::abstract::VirtualRegister>{operands[1]};
-     case Type::Label:
-     case Type::UnconditionalJump:
-     case Type::Unreachable:
-     case Type::ZeroMemory:
-     case Type::CopyFromData: return {};
-     case Type::CompareAndJump: return {operands[0], operands[1]};
-     default:
-          if (operands.size() < 2) return {};
-          return {operands.begin() + 1, operands.end()};
-     }
-}
-
 [[nodiscard]] ecpps::ir::abstract::VirtualRegisterMap& ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::
      GetVRM(void) noexcept
 {
@@ -505,7 +471,8 @@ std::vector<ecpps::ir::abstract::Instruction> ecpps::abi::encoders::x8664::X8664
      this->_pendingSpills.clear();
      this->_evictable.clear();
      std::unordered_set<std::size_t> required{};
-     for (const auto& source : SourceRegistersOf(instruction)) this->CollectDependencies(source, required);
+     for (const auto& source : ir::abstract::SourceRegistersOf(instruction))
+          this->CollectDependencies(source, required);
 
      for (const auto& cell : this->_registerAllocator.Snapshot())
           if (cell.owner.has_value() && !required.contains(cell.owner->index))
@@ -1832,26 +1799,6 @@ bool ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::IsTerminator(
             type == Type::CompareAndJump || type == Type::Unreachable;
 }
 
-std::optional<std::size_t> ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::DestinationOf(
-     const ir::abstract::VirtualInstruction& i)
-{
-     using Type = ir::abstract::VirtualInstructionType;
-     switch (i.type)
-     {
-     case Type::CopyParameter: return i.operands.size() >= 2 ? std::optional{i.operands[1].index} : std::nullopt;
-     case Type::CallWithAggregateResult:
-     case Type::Return:
-     case Type::ReturnAggregate:
-     case Type::Call:
-     case Type::PassArgument:
-     case Type::Label:
-     case Type::UnconditionalJump:
-     case Type::Unreachable:
-     case Type::CompareAndJump: return std::nullopt;
-     default: return i.operands.empty() ? std::nullopt : std::optional{i.operands[0].index};
-     }
-}
-
 void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BuildControlFlowGraph(
      const std::vector<ir::abstract::VirtualInstruction>& input)
 {
@@ -1915,9 +1862,10 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::ComputeLivenes
      {
           for (std::size_t i = block.begin; i < block.end; i++)
           {
-               for (const auto& source : SourceRegistersOf(input[i]))
+               for (const auto& source : ir::abstract::SourceRegistersOf(input[i]))
                     if (!block.def.contains(source.index)) block.use.insert(source.index);
-               if (const auto destination = DestinationOf(input[i])) block.def.insert(*destination);
+               if (const auto destination = ir::abstract::DestinationOperandIndex(input[i]))
+                    block.def.insert(input[i].operands[*destination].index);
           }
      }
      for (bool changed = true; changed;)
@@ -1956,7 +1904,7 @@ void ecpps::abi::encoders::x8664::X8664VirtualInstructionEncoder::BeginBlock(
      this->_remainingUses.clear();
      this->_useSites.clear();
      for (std::size_t i = block.begin; i < block.end; i++)
-          for (const auto& source : SourceRegistersOf(input[i]))
+          for (const auto& source : ir::abstract::SourceRegistersOf(input[i]))
           {
                this->_remainingUses[source.index]++;
                this->_useSites[source.index].push_back(i);

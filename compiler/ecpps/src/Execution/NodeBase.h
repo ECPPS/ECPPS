@@ -318,6 +318,11 @@ namespace ecpps::ir
                return true;
           }
 
+          void Unuse(void) const noexcept
+          {
+               if (this->_useCount != 0) this->_useCount--;
+          }
+
           static void SwitchToLower(void) noexcept
           {
                _usageIsDecrement = true;

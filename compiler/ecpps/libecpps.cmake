@@ -64,6 +64,9 @@ set(BACKEND_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Entities.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/Context.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Execution/MemoryAccess.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Optimiser/selector.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Optimiser/passes/inline.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Optimiser/passes/deadCode.cpp"
 )
 include(src/Machine/Encoders/Backends/sources.cmake)
 

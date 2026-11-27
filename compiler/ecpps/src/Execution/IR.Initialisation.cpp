@@ -462,7 +462,8 @@ void ecpps::ir::IR::ParseVariableDeclaration(const ast::VariableDeclarationNode&
           {
                this->_built.push_back(std::unique_ptr<ir::SSAStoreIntegerNode, IRDeleter>{
                     new (allocator)
-                         ir::SSAStoreIntegerNode(ssaNode, integralInitExpr->Value(), decl.initialiser->Source())});
+                         ir::SSAStoreIntegerNode(ssaNode, integralInitExpr->Value(),
+                                                 detail::AccessForStorage(variableType), decl.initialiser->Source())});
           }
           else
           {
