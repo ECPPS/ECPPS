@@ -14,7 +14,7 @@ namespace ecpps::optimisations
      enum struct PassType : std::uint8_t
      {
           Mutating,
-          Reconstructive
+          Reconstructive,
      };
      using PassInput = std::vector<ir::NodePointer>;
      template <typename T>
