@@ -426,3 +426,4 @@ build/
 *.o
 *.out
 clang-tidy-errors.txt
+clang-format-errors.txt
