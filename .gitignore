@@ -427,3 +427,4 @@ build/
 *.out
 clang-tidy-errors.txt
 clang-format-errors.txt
+testing/compiler/sources/playground.cpp
